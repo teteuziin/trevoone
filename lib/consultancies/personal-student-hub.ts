@@ -73,6 +73,8 @@ export interface PhotoEvaluationItem {
   status: string;
   submittedAt: string | null;
   reviewedAt: string | null;
+  createdAt?: string | null;
+  evaluationDate?: string | null;
   reviewerNotes: string | null;
   images: Array<{
     pose: string;
@@ -89,18 +91,44 @@ export interface AnamnesisSection {
   }>;
 }
 
+export interface StudentFormFieldItem {
+  id: string;
+  label: string;
+  type: string;
+  options?: string[];
+  required?: boolean;
+  placeholder?: string;
+}
+
 export interface StudentFormAnswer {
   id: string;
   publicId: string;
+  templatePublicId?: string;
   title: string;
+  description?: string | null;
   formType: "INTAKE" | "CUSTOM";
   status: string;
+  rawStatus?: string;
+  authorOrigin?: "STUDENT" | "PROFESSIONAL";
   submittedAt: string | null;
   requestedAt?: string | null;
+  reviewedAt?: string | null;
   questions: Array<{
+    id?: string;
     question: string;
     answer: string;
+    fieldType?: string;
   }>;
+  fields?: StudentFormFieldItem[];
+}
+
+export interface FormTemplateSummary {
+  publicId: string;
+  title: string;
+  description: string | null;
+  isAnamnesis: boolean;
+  fieldsCount: number;
+  fields: StudentFormFieldItem[];
 }
 
 export interface StudentWorkoutItem {
@@ -162,6 +190,9 @@ export interface PersonalStudentDetail {
   photos: PhotoEvaluationItem[];
   anamnesis: AnamnesisSection[];
   forms: StudentFormAnswer[];
+  anamnesisList?: StudentFormAnswer[];
+  formsList?: StudentFormAnswer[];
+  availableTemplates?: FormTemplateSummary[];
   workouts: StudentWorkoutItem[];
   completedSessions: CompletedWorkoutSession[];
   measurements: PhysicalMeasurement[];
@@ -379,6 +410,8 @@ export async function getPersonalStudentDetail(params: {
 
     let mergedResponses: Record<string, unknown> = {};
     const forms: StudentFormAnswer[] = [];
+    const formsList: StudentFormAnswer[] = [];
+    const anamnesisList: StudentFormAnswer[] = [];
 
     const fieldLabelMap = new Map<string, string>();
     for (const f of COMPLETE_ANAMNESIS_FORM_V1.fields) {
@@ -402,11 +435,12 @@ export async function getPersonalStudentDetail(params: {
           // Safe fallback for JSON parse error
         }
 
-        const questions: Array<{ question: string; answer: string }> = [];
+        const questions: Array<{ id?: string; question: string; answer: string }> = [];
         for (const [k, v] of Object.entries(parsed)) {
           if (v !== null && v !== undefined && v !== "") {
             const label = fieldLabelMap.get(k) || k.replace(/_/g, " ");
             questions.push({
+              id: k,
               question: label,
               answer: String(v),
             });
@@ -417,22 +451,36 @@ export async function getPersonalStudentDetail(params: {
           String(row.form_key).toLowerCase().includes("anamnesis") ||
           String(row.form_key).toLowerCase().includes("anamnese");
 
-        // Anamnesis belongs exclusively to the ANAMNESE tab (detail.anamnesis).
-        // It must NOT appear as a duplicate card in FORMULÁRIOS.
-        if (!isAnamnesis) {
+        if (isAnamnesis) {
+          anamnesisList.push({
+            id: `intake-${row.id}`,
+            publicId: String(row.public_id),
+            title: "Anamnese & Histórico Clínico (Inicial)",
+            formType: "INTAKE",
+            status: "Respondido",
+            rawStatus: "SUBMITTED",
+            authorOrigin: "STUDENT",
+            submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : null,
+            questions,
+          });
+        } else {
           const title = String(row.form_key).toLowerCase().includes("physical")
             ? "Questionário de Avaliação Física"
             : `Questionário / ${String(row.form_key).replace(/_/g, " ")}`;
 
-          forms.push({
+          const intakeItem: StudentFormAnswer = {
             id: String(row.id),
             publicId: String(row.public_id),
             title,
             formType: "INTAKE",
-            status: "Preenchido",
+            status: "Respondido",
+            rawStatus: "SUBMITTED",
+            authorOrigin: "STUDENT",
             submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : null,
             questions,
-          });
+          };
+          forms.push(intakeItem);
+          formsList.push(intakeItem);
         }
       }
     }
@@ -445,7 +493,11 @@ export async function getPersonalStudentDetail(params: {
         r.status,
         r.responses_json,
         r.submitted_at,
+        r.created_at,
+        r.reviewed_at,
+        t.public_id AS template_public_id,
         t.title AS template_title,
+        t.description AS template_description,
         t.fields_json
        FROM consultancy_custom_form_requests r
        INNER JOIN consultancy_custom_form_templates t ON t.id = r.template_id
@@ -459,7 +511,7 @@ export async function getPersonalStudentDetail(params: {
     if (Array.isArray(customForms) && customForms.length > 0) {
       for (const row of customForms) {
         let parsedAnswers: Record<string, unknown> = {};
-        let parsedFields: Array<{ id: string; label: string }> = [];
+        let parsedFields: StudentFormFieldItem[] = [];
         try {
           parsedAnswers = typeof row.responses_json === "string"
             ? JSON.parse(row.responses_json)
@@ -476,25 +528,112 @@ export async function getPersonalStudentDetail(params: {
           if (f.id && f.label) customFieldLabelMap.set(f.id, f.label);
         }
 
-        const questions: Array<{ question: string; answer: string }> = [];
-        for (const [k, v] of Object.entries(parsedAnswers)) {
-          if (v !== null && v !== undefined && v !== "") {
-            const label = customFieldLabelMap.get(k) || k;
+        const questions: Array<{ id?: string; question: string; answer: string; fieldType?: string }> = [];
+        for (const f of parsedFields) {
+          const val = parsedAnswers[f.id] ?? parsedAnswers[f.label];
+          if (val !== null && val !== undefined && val !== "") {
             questions.push({
-              question: label,
-              answer: String(v),
+              id: f.id,
+              question: f.label,
+              answer: String(val),
+              fieldType: f.type,
             });
           }
         }
+        for (const [k, v] of Object.entries(parsedAnswers)) {
+          if (k.startsWith("_")) continue;
+          if (!questions.some((q) => q.id === k || q.question === k)) {
+            if (v !== null && v !== undefined && v !== "") {
+              const label = customFieldLabelMap.get(k) || k;
+              questions.push({
+                id: k,
+                question: label,
+                answer: String(v),
+              });
+            }
+          }
+        }
 
-        forms.push({
+        const authorOrigin: "STUDENT" | "PROFESSIONAL" =
+          parsedAnswers._filledBy === "PROFESSIONAL" || (row.reviewed_at && row.status === "REVIEWED")
+            ? "PROFESSIONAL"
+            : "STUDENT";
+
+        let statusLabel = "Aguardando resposta";
+        if (row.status === "SUBMITTED") {
+          statusLabel = "Respondido";
+        } else if (row.status === "REVIEWED") {
+          statusLabel = authorOrigin === "PROFESSIONAL" ? "Preenchido pelo profissional" : "Revisado";
+        } else if (row.status === "CHANGES_REQUESTED") {
+          statusLabel = "Correção solicitada";
+        }
+
+        const isCustomAnamnesis =
+          String(row.template_title).toLowerCase().includes("anamnes") ||
+          String(row.template_title).toLowerCase().includes("saúde") ||
+          String(row.template_title).toLowerCase().includes("saude") ||
+          String(row.template_title).toLowerCase().includes("histórico") ||
+          String(row.template_title).toLowerCase().includes("historico");
+
+        const formItem: StudentFormAnswer = {
           id: String(row.id),
           publicId: String(row.public_id),
-          title: String(row.template_title || "Formulário Personalizado"),
+          templatePublicId: String(row.template_public_id),
+          title: String(row.template_title || (isCustomAnamnesis ? "Anamnese" : "Formulário Personalizado")),
+          description: row.template_description ? String(row.template_description) : null,
           formType: "CUSTOM",
-          status: row.status === "REVIEWED" ? "Revisado" : "Respondido",
+          status: statusLabel,
+          rawStatus: String(row.status),
+          authorOrigin,
           submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : null,
+          requestedAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+          reviewedAt: row.reviewed_at ? new Date(row.reviewed_at).toISOString() : null,
           questions,
+          fields: parsedFields,
+        };
+
+        forms.push(formItem);
+        if (isCustomAnamnesis) {
+          anamnesisList.push(formItem);
+        } else {
+          formsList.push(formItem);
+        }
+      }
+    }
+
+    // 3.4. Fetch Available Templates for Quick Selection
+    const [templateRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT public_id, title, description, fields_json
+       FROM consultancy_custom_form_templates
+       WHERE consultancy_id = ? AND is_active = 1 AND deleted_at IS NULL
+       ORDER BY created_at DESC;`,
+      [consultancyId]
+    );
+
+    const availableTemplates: FormTemplateSummary[] = [];
+    if (Array.isArray(templateRows)) {
+      for (const t of templateRows) {
+        let fields: StudentFormFieldItem[] = [];
+        try {
+          fields = typeof t.fields_json === "string" ? JSON.parse(t.fields_json) : (t.fields_json || []);
+        } catch {
+          fields = [];
+        }
+        const titleLower = String(t.title).toLowerCase();
+        const isAnamnesis =
+          titleLower.includes("anamnes") ||
+          titleLower.includes("saúde") ||
+          titleLower.includes("saude") ||
+          titleLower.includes("histórico") ||
+          titleLower.includes("historico");
+
+        availableTemplates.push({
+          publicId: String(t.public_id),
+          title: String(t.title),
+          description: t.description ? String(t.description) : null,
+          isAnamnesis,
+          fieldsCount: fields.length,
+          fields,
         });
       }
     }
@@ -618,13 +757,14 @@ export async function getPersonalStudentDetail(params: {
         r.reviewer_notes,
         r.submitted_at,
         r.reviewed_at,
+        r.created_at,
         i.pose,
         i.public_id AS image_public_id
        FROM student_photo_evaluation_requests r
        LEFT JOIN student_photo_evaluation_images i ON i.request_id = r.id
        WHERE r.consultancy_id = ?
          AND r.student_membership_id = ?
-       ORDER BY r.submitted_at DESC, r.id DESC;`,
+       ORDER BY COALESCE(r.submitted_at, r.created_at) DESC, r.id DESC;`,
       [consultancyId, membershipId]
     );
 
@@ -633,11 +773,19 @@ export async function getPersonalStudentDetail(params: {
       for (const r of photoRows) {
         const reqPubId = String(r.request_public_id);
         if (!photosMap.has(reqPubId)) {
+          const evalDate = r.submitted_at
+            ? new Date(r.submitted_at).toISOString()
+            : r.created_at
+            ? new Date(r.created_at).toISOString()
+            : null;
+
           photosMap.set(reqPubId, {
             requestPublicId: reqPubId,
             status: String(r.status),
             submittedAt: r.submitted_at ? new Date(r.submitted_at).toISOString() : null,
             reviewedAt: r.reviewed_at ? new Date(r.reviewed_at).toISOString() : null,
+            createdAt: r.created_at ? new Date(r.created_at).toISOString() : null,
+            evaluationDate: evalDate,
             reviewerNotes: r.reviewer_notes ? String(r.reviewer_notes) : null,
             images: [],
           });
@@ -957,6 +1105,9 @@ export async function getPersonalStudentDetail(params: {
       photos,
       anamnesis,
       forms,
+      anamnesisList,
+      formsList,
+      availableTemplates,
       workouts,
       completedSessions,
       measurements,

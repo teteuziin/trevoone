@@ -15,10 +15,12 @@ import {
 } from "@/components/ui/icons/duotone-icons";
 import { PersonalRequestModal, type RequestModalType } from "./personal-request-modal";
 import { StudentNewWorkoutSheet } from "./student-new-workout-sheet";
+import { StudentPhotosMural } from "./student-photos-mural";
+import { StudentAnamnesisHub } from "./student-anamnesis-hub";
+import { StudentFormsHub } from "./student-forms-hub";
 import type { StudentEvaluationResult } from "@/lib/monitoring/evaluator";
 import type {
   PersonalStudentDetail,
-  StudentFormAnswer,
 } from "@/lib/consultancies/personal-student-hub";
 
 interface PersonalStudentDetailViewProps {
@@ -174,8 +176,6 @@ export function PersonalStudentDetailView({
   const [isMobileSectionMenuOpen, setIsMobileSectionMenuOpen] = useState(false);
   const [isSecondaryMenuOpen, setIsSecondaryMenuOpen] = useState(false);
 
-  const [selectedFormForModal, setSelectedFormForModal] = useState<StudentFormAnswer | null>(null);
-  const [lightboxImage, setLightboxImage] = useState<{ url: string; pose: string; date?: string } | null>(null);
   const [isNewWorkoutSheetOpen, setIsNewWorkoutSheetOpen] = useState(false);
   const [requestModal, setRequestModal] = useState<{ isOpen: boolean; type: RequestModalType }>({
     isOpen: false,
@@ -1019,292 +1019,65 @@ export function PersonalStudentDetailView({
       )}
 
       {/* =========================================================================
-          SEÇÃO 3: FOTOS (Miniaturas Proporcionais por Data + Lightbox)
+          SEÇÃO 3: FOTOS — MURAL DE EVOLUÇÃO (Com Adicionar, Comparar e Lightbox)
           ========================================================================= */}
       {activeTab === "fotos" && (
-        <div className="space-y-6" data-testid="tab-fotos">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                Fotos de Evolução Corporal
-              </h2>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Acompanhamento fotográfico nas 4 poses padronizadas.
-              </p>
-            </div>
-            {photos.length > 0 && (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
-                className="font-bold min-h-[40px] text-xs"
-              >
-                + Solicitar fotos
-              </Button>
-            )}
-          </div>
-
-          {photos.length === 0 ? (
-            <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-white dark:bg-[#151619] text-center space-y-3.5 shadow-xs">
-              <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
-                <PhotoIcon className="w-6 h-6 text-blue-500" />
-              </div>
-              <div className="space-y-1 max-w-sm mx-auto">
-                <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                  Nenhuma foto registrada
-                </p>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                  Solicite o envio das fotos padronizadas para acompanhar a evolução corporal do aluno.
-                </p>
-              </div>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
-                className="font-bold min-h-[44px]"
-              >
-                Solicitar fotos
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {photos.map((item, idx) => (
-                <div
-                  key={item.requestPublicId}
-                  className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3.5"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                        Avaliação #{photos.length - idx}
-                      </h3>
-                      <Badge
-                        variant={item.status === "APPROVED" ? "success" : "neutral"}
-                        size="sm"
-                      >
-                        {item.status === "APPROVED" ? "Aprovada" : item.status}
-                      </Badge>
-                      {item.submittedAt && (
-                        <span className="text-xs text-[var(--text-secondary)]">
-                          em {new Date(item.submittedAt).toLocaleDateString("pt-BR")}
-                        </span>
-                      )}
-                    </div>
-                    {item.reviewerNotes && (
-                      <p className="text-xs text-[var(--text-secondary)] italic">
-                        Obs: {item.reviewerNotes}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Grid de 4 Poses Proporcionais 3:4 */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {item.images.map((img) => {
-                      const poseLabels: Record<string, string> = {
-                        FRONT: "Frente",
-                        BACK: "Costas",
-                        SIDE_LEFT: "Lateral Esquerda",
-                        SIDE_RIGHT: "Lateral Direita",
-                      };
-                      const formattedPose = poseLabels[img.pose] || img.pose.replace(/_/g, " ");
-                      return (
-                        <div
-                          key={img.imagePublicId}
-                          onClick={() =>
-                            setLightboxImage({
-                              url: img.imageUrl,
-                              pose: formattedPose,
-                              date: item.submittedAt
-                                ? new Date(item.submittedAt).toLocaleDateString("pt-BR")
-                                : undefined,
-                            })
-                          }
-                          className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-2 space-y-1.5 overflow-hidden cursor-pointer hover:border-[var(--brand)] transition-colors group"
-                        >
-                          <div className="aspect-[3/4] rounded-lg overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={img.imageUrl}
-                              alt={`Pose ${formattedPose}`}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                              loading="lazy"
-                            />
-                          </div>
-                          <p className="text-[11px] font-semibold text-[var(--text-primary)] text-center capitalize">
-                            {formattedPose}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <StudentPhotosMural
+          consultancySlug={consultancySlug}
+          studentPublicId={student.membershipPublicId}
+          studentName={student.name}
+          photos={photos}
+          onRequestPhotosClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
+        />
       )}
 
       {/* =========================================================================
-          SEÇÃO 4: ANAMNESE (Lista Limpa, Agrupada por Tema)
+          SEÇÃO 4: ANAMNESE — CRIAR E CONSULTAR SEM SAIR DO PERFIL
           ========================================================================= */}
       {activeTab === "anamnese" && (
-        <div className="space-y-6" data-testid="tab-anamnese">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                Anamnese &amp; Histórico Clínico
-              </h2>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Informações clínicas, histórico de lesões, rotina e restrições.
-              </p>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
-              className="font-bold min-h-[40px] text-xs"
-            >
-              {anamnesis.length === 0 ? "+ Solicitar anamnese" : "Solicitar atualização"}
-            </Button>
-          </div>
-
-          {anamnesis.length === 0 ? (
-            <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-white dark:bg-[#151619] text-center space-y-3.5 shadow-xs">
-              <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
-                <ClipboardCheckIcon className="w-6 h-6 text-violet-500" />
-              </div>
-              <div className="space-y-1 max-w-sm mx-auto">
-                <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                  Anamnese ainda não preenchida
-                </p>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                  Solicite o preenchimento da anamnese para registrar histórico médico, limitações articulares e rotina.
-                </p>
-              </div>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
-                className="font-bold min-h-[44px]"
-              >
-                Solicitar anamnese
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {anamnesis.map((section) => (
-                <div
-                  key={section.title}
-                  className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3.5"
-                >
-                  <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--brand)] border-b border-[var(--border-subtle)] pb-2">
-                    {section.title}
-                  </h3>
-                  <div className="space-y-3">
-                    {section.items.map((item) => (
-                      <div key={item.label} className="space-y-0.5">
-                        <span className="text-[11px] font-semibold text-[var(--text-tertiary)] block">
-                          {item.label}
-                        </span>
-                        <p className="text-xs sm:text-sm font-medium text-[var(--text-primary)] leading-relaxed">
-                          {item.value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <StudentAnamnesisHub
+          consultancySlug={consultancySlug}
+          studentPublicId={student.membershipPublicId}
+          studentName={student.name}
+          anamnesisHistory={
+            detail.anamnesisList ||
+            forms.filter(
+              (f) =>
+                f.title.toLowerCase().includes("anamnes") ||
+                f.title.toLowerCase().includes("saúde") ||
+                f.title.toLowerCase().includes("saude") ||
+                f.title.toLowerCase().includes("histórico") ||
+                f.title.toLowerCase().includes("historico")
+            )
+          }
+          structuredAnamnesis={anamnesis}
+          availableTemplates={detail.availableTemplates || []}
+          onRequestAnamnesisClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
+        />
       )}
 
       {/* =========================================================================
-          SEÇÃO 5: FORMULÁRIOS (Lista de Formulários com Ver Respostas)
+          SEÇÃO 5: FORMULÁRIOS — FILTROS, CRIAÇÃO E CONSULTA LOCAL
           ========================================================================= */}
       {activeTab === "formularios" && (
-        <div className="space-y-6" data-testid="tab-formularios">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                Formulários &amp; Questionários
-              </h2>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Questionários de rotina, termos de consentimento e formulários personalizados.
-              </p>
-            </div>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
-              className="font-bold min-h-[40px] text-xs"
-            >
-              + Solicitar formulário
-            </Button>
-          </div>
-
-          {forms.length === 0 ? (
-            <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-white dark:bg-[#151619] text-center space-y-3.5 shadow-xs">
-              <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
-                <FileTextIcon className="w-6 h-6 text-teal-500" />
-              </div>
-              <div className="space-y-1 max-w-sm mx-auto">
-                <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                  Nenhum formulário respondido
-                </p>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                  Envie questionários de rotina, acompanhamento ou termos para o aluno preencher.
-                </p>
-              </div>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
-                className="font-bold min-h-[44px]"
-              >
-                Solicitar formulário
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {forms.map((form) => (
-                <div
-                  key={form.id}
-                  className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-heading text-sm font-bold text-[var(--text-primary)] truncate">
-                        {form.title}
-                      </h3>
-                      <Badge variant="success" size="sm">
-                        {form.status}
-                      </Badge>
-                    </div>
-                    {form.submittedAt && (
-                      <p className="text-xs text-[var(--text-secondary)]">
-                        Respondido em {new Date(form.submittedAt).toLocaleDateString("pt-BR")} às{" "}
-                        {new Date(form.submittedAt).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFormForModal(form)}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--brand)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[40px] cursor-pointer shrink-0"
-                  >
-                    <span>Ver respostas</span>
-                    <ChevronRightIcon className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <StudentFormsHub
+          consultancySlug={consultancySlug}
+          studentPublicId={student.membershipPublicId}
+          studentName={student.name}
+          forms={
+            detail.formsList ||
+            forms.filter(
+              (f) =>
+                !f.title.toLowerCase().includes("anamnes") &&
+                !f.title.toLowerCase().includes("saúde") &&
+                !f.title.toLowerCase().includes("saude") &&
+                !f.title.toLowerCase().includes("histórico") &&
+                !f.title.toLowerCase().includes("historico")
+            )
+          }
+          availableTemplates={detail.availableTemplates || []}
+          onRequestFormClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
+        />
       )}
 
       {/* =========================================================================
@@ -1391,116 +1164,8 @@ export function PersonalStudentDetailView({
         </div>
       )}
 
-      {/* =========================================================================
-          MODAL: LIGHTBOX DE FOTOS
-          ========================================================================= */}
-      {lightboxImage && (
-        <div
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-          onClick={() => setLightboxImage(null)}
-        >
-          <div
-            className="relative max-w-lg w-full bg-[#151619] border border-[#303238] rounded-2xl overflow-hidden p-4 space-y-3 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-heading text-sm font-bold text-white capitalize">
-                  {lightboxImage.pose}
-                </p>
-                {lightboxImage.date && (
-                  <p className="text-xs text-[#9CA3AF]">{lightboxImage.date}</p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setLightboxImage(null)}
-                className="p-2 rounded-xl text-[#9CA3AF] hover:text-white bg-[#222429] hover:bg-[#2A2D33] min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
-                aria-label="Fechar ampliação"
-              >
-                <XIcon className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="aspect-[3/4] max-h-[70vh] rounded-xl overflow-hidden bg-black flex items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={lightboxImage.url}
-                alt={lightboxImage.pose}
-                className="w-full h-full object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* =========================================================================
-          MODAL: VER RESPOSTAS DO FORMULÁRIO (Responsivo)
-          ========================================================================= */}
-      {selectedFormForModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div
-            className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] shadow-2xl p-5 sm:p-7 space-y-4"
-            role="dialog"
-            aria-modal="true"
-          >
-            <div className="flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
-              <div>
-                <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
-                  {selectedFormForModal.title}
-                </h3>
-                {selectedFormForModal.submittedAt && (
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    Enviado em {new Date(selectedFormForModal.submittedAt).toLocaleDateString("pt-BR")} às{" "}
-                    {new Date(selectedFormForModal.submittedAt).toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedFormForModal(null)}
-                className="p-1 rounded-xl text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
-                aria-label="Fechar modal"
-              >
-                <XIcon className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="space-y-3.5 max-h-[60vh] overflow-y-auto pr-1">
-              {selectedFormForModal.questions.length === 0 ? (
-                <p className="text-xs text-[var(--text-secondary)]">Nenhuma resposta registrada.</p>
-              ) : (
-                selectedFormForModal.questions.map((q, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1"
-                  >
-                    <span className="text-[11px] font-bold text-[var(--text-secondary)] block">
-                      {q.question}
-                    </span>
-                    <p className="text-xs sm:text-sm font-medium text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">
-                      {q.answer}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="pt-2 border-t border-[var(--border-subtle)] flex justify-end">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setSelectedFormForModal(null)}
-                className="font-bold min-h-[44px]"
-              >
-                Fechar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal para Solicitar Fotos, Anamnese ou Formulário */}
       <PersonalRequestModal

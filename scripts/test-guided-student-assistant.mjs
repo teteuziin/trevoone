@@ -25,16 +25,25 @@ const listFile = path.resolve("components/consultancies/personal-student-hub/per
 const pageFile = path.resolve("app/consultoria/[slug]/progresso/alunos/page.tsx");
 const detailPageFile = path.resolve("app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx");
 const detailViewFile = path.resolve("components/consultancies/personal-student-hub/personal-student-detail-view.tsx");
+const photosMuralFile = path.resolve("components/consultancies/personal-student-hub/student-photos-mural.tsx");
+const anamnesisHubFile = path.resolve("components/consultancies/personal-student-hub/student-anamnesis-hub.tsx");
+const formsHubFile = path.resolve("components/consultancies/personal-student-hub/student-forms-hub.tsx");
 
 assert.ok(fs.existsSync(listFile), "personal-student-list.tsx must exist");
 assert.ok(fs.existsSync(pageFile), "alunos/page.tsx must exist");
 assert.ok(fs.existsSync(detailPageFile), "alunos/[studentPublicId]/page.tsx must exist");
 assert.ok(fs.existsSync(detailViewFile), "personal-student-detail-view.tsx must exist");
+assert.ok(fs.existsSync(photosMuralFile), "student-photos-mural.tsx must exist");
+assert.ok(fs.existsSync(anamnesisHubFile), "student-anamnesis-hub.tsx must exist");
+assert.ok(fs.existsSync(formsHubFile), "student-forms-hub.tsx must exist");
 
 const listCode = fs.readFileSync(listFile, "utf-8");
 const pageCode = fs.readFileSync(pageFile, "utf-8");
 const detailPageCode = fs.readFileSync(detailPageFile, "utf-8");
 const detailViewCode = fs.readFileSync(detailViewFile, "utf-8");
+const photosMuralCode = fs.readFileSync(photosMuralFile, "utf-8");
+const anamnesisHubCode = fs.readFileSync(anamnesisHubFile, "utf-8");
+const formsHubCode = fs.readFileSync(formsHubFile, "utf-8");
 
 // -----------------------------------------------------------------------------
 // 1. CABEÇALHO COMPACTO & AUSÊNCIA DE CHATBOT / HERO GIGANTE
@@ -247,25 +256,44 @@ runTest("5.6 Treinos: Destaque moderado no ativo e histórico em lista discreta"
   );
 });
 
-runTest("5.7 Fotos com miniaturas proporcionais 3:4 e modal lightbox", () => {
+runTest("5.7 Fotos: Mural de evolução com 3:4, lightbox, comparação e upload", () => {
   assert.ok(
-    detailViewCode.includes("aspect-[3/4]"),
+    photosMuralCode.includes("aspect-[3/4]") || detailViewCode.includes("aspect-[3/4]"),
     "Miniaturas fotográficas nas proporções 3:4 padronizadas"
   );
   assert.ok(
-    detailViewCode.includes("lightboxImage") && detailViewCode.includes("setLightboxImage"),
-    "Visualização ampliada (lightbox) ao clicar em qualquer foto"
+    photosMuralCode.includes("lightbox") && photosMuralCode.includes("setLightbox"),
+    "Visualização ampliada (lightbox) ao clicar em qualquer foto com zoom e fechar via ESC"
+  );
+  assert.ok(
+    photosMuralCode.includes("isCompareModalOpen") && photosMuralCode.includes("Comparar"),
+    "Modal de comparação lado a lado de 2 avaliações preservando proporções"
+  );
+  assert.ok(
+    photosMuralCode.includes("isAddModalOpen") && photosMuralCode.includes("Adicionar fotos"),
+    "Fluxo de adição de fotos diretamente no perfil com upload/câmera"
   );
 });
 
-runTest("5.8 Anamnese e Formulários refletem dados reais com 'Ver respostas'", () => {
+runTest("5.8 Anamnese e Formulários: Criação, filtros e dados reais com 'Ver respostas'", () => {
   assert.ok(
-    detailViewCode.includes("selectedFormForModal") && detailViewCode.includes("Ver respostas"),
-    "Modal de ver respostas presente na aba Formulários"
+    anamnesisHubCode.includes("Nova anamnese") &&
+    anamnesisHubCode.includes("FILL_WITH_STUDENT") &&
+    anamnesisHubCode.includes("SEND_TO_STUDENT"),
+    "Anamnese com fluxo de criação local, envio ou preenchimento imediato"
   );
   assert.ok(
-    detailViewCode.includes("tab-anamnese") && detailViewCode.includes("Histórico Clínico"),
-    "Seção Anamnese estruturada com perguntas e respostas limpas"
+    anamnesisHubCode.includes("Preenchido pelo aluno") &&
+    anamnesisHubCode.includes("Registrado pelo profissional"),
+    "Diferenciação clara da autoria das respostas (aluno vs profissional)"
+  );
+  assert.ok(
+    formsHubCode.includes("selectedForView") && formsHubCode.includes("Ver respostas"),
+    "Modal de ver respostas presente na aba Formulários com dados reais"
+  );
+  assert.ok(
+    formsHubCode.includes("Aguardando resposta") && formsHubCode.includes("Respondidos"),
+    "Filtros de status e autoria na aba de Formulários"
   );
 });
 

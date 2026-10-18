@@ -1612,3 +1612,327 @@ export async function getPhotoEvaluationImageBuffer(params: {
     if (connection) connection.release();
   }
 }
+
+// ============================================================================
+// 12. CREATE PHOTO EVALUATION WITH IMAGES DIRECTLY BY PROFESSIONAL
+// ============================================================================
+
+export async function createPhotoEvaluationWithImagesByProfessional(params: {
+  professionalUserId: number;
+  consultancySlug: string;
+  studentMembershipPublicId: string;
+  evaluationDate?: string;
+  reviewerNotes?: string;
+  images: Array<{
+    pose: PhotoEvaluationPose;
+    buffer: Buffer;
+    clientMimeType?: string;
+  }>;
+}): Promise<{
+  success: boolean;
+  requestPublicId?: string;
+  error?: string;
+}> {
+  const {
+    professionalUserId,
+    consultancySlug,
+    studentMembershipPublicId,
+    evaluationDate,
+    reviewerNotes,
+    images,
+  } = params;
+
+  if (!images || images.length === 0) {
+    return { success: false, error: "Nenhuma foto foi fornecida." };
+  }
+
+  // Validate each pose and buffer
+  for (const img of images) {
+    if (!EVALUATION_POSES.includes(img.pose)) {
+      return { success: false, error: `Pose inválida: ${img.pose}` };
+    }
+    const check = detectPhotoMimeType(img.buffer);
+    if (!check.valid || !check.mimeType || !check.extension) {
+      return { success: false, error: check.error || `Arquivo inválido para a pose ${img.pose}` };
+    }
+  }
+
+  const context = await resolveConsultancyContext(professionalUserId, consultancySlug);
+  if (!context) {
+    return { success: false, error: "Acesso não autorizado à consultoria." };
+  }
+
+  const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const isPersonal = context.roles.includes("PERSONAL");
+  const isNutritionist = context.roles.includes("NUTRITIONIST");
+
+  if (!isAdmin && !isPersonal && !isNutritionist) {
+    return { success: false, error: "Você não possui permissão para registrar fotos de avaliação." };
+  }
+
+  let connection: PoolConnection | null = null;
+  const writtenKeys: string[] = [];
+
+  try {
+    connection = await getDbConnection();
+
+    // Verify student membership in this consultancy
+    const [targetMembers] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.id, cm.public_id, cm.user_id, cm.status, u.full_name, u.email
+       FROM consultancy_members cm
+       JOIN users u ON u.id = cm.user_id
+       WHERE cm.public_id = ? AND cm.consultancy_id = ?
+       LIMIT 1;`,
+      [studentMembershipPublicId, context.consultancyId]
+    );
+
+    if (!targetMembers || targetMembers.length === 0) {
+      return { success: false, error: "Aluno não encontrado nesta consultoria." };
+    }
+
+    const studentMembershipId = Number(targetMembers[0].id);
+    const studentUserId = Number(targetMembers[0].user_id);
+
+    // Strict invariant check
+    await assertStudentMembershipInvariant(connection, {
+      consultancyId: context.consultancyId,
+      studentMembershipId,
+    });
+
+    // If not admin, check relationship
+    if (!isAdmin && !isNutritionist) {
+      const hasRel = await assertProfessionalStudentRelationship(connection, {
+        consultancyId: context.consultancyId,
+        studentMembershipId,
+        professionalUserId,
+      });
+      if (!hasRel) {
+        return { success: false, error: "Você não possui vínculo ativo com este aluno." };
+      }
+    }
+
+    // Write all images to private storage first
+    const preparedImages: Array<{
+      pose: PhotoEvaluationPose;
+      storageKey: string;
+      mimeType: string;
+      sizeBytes: number;
+      fileSha256: string;
+    }> = [];
+
+    for (const img of images) {
+      const check = detectPhotoMimeType(img.buffer);
+      const writeResult = await writePrivateFile({
+        buffer: img.buffer,
+        extension: check.extension!,
+        originalFileName: `prof_${img.pose.toLowerCase()}`,
+        namespace: "photo-evaluations",
+      });
+      writtenKeys.push(writeResult.fileStorageKey);
+
+      preparedImages.push({
+        pose: img.pose,
+        storageKey: writeResult.fileStorageKey,
+        mimeType: check.mimeType!,
+        sizeBytes: writeResult.sizeBytes,
+        fileSha256: writeResult.fileSha256,
+      });
+    }
+
+    const requestPublicId = randomUUID();
+    const evalDate = evaluationDate && !isNaN(Date.parse(evaluationDate))
+      ? new Date(evaluationDate)
+      : new Date();
+    const notes = reviewerNotes?.trim() ? reviewerNotes.trim().slice(0, 2000) : null;
+
+    await connection.beginTransaction();
+
+    const [insertReq] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO student_photo_evaluation_requests (
+        public_id,
+        consultancy_id,
+        student_membership_id,
+        student_user_id,
+        requested_by_user_id,
+        reviewed_by_user_id,
+        status,
+        submitted_at,
+        reviewed_at,
+        reviewer_notes,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'APPROVED', ?, ?, ?, ?, NOW(3));`,
+      [
+        requestPublicId,
+        context.consultancyId,
+        studentMembershipId,
+        studentUserId,
+        professionalUserId,
+        professionalUserId,
+        evalDate,
+        evalDate,
+        notes,
+        evalDate,
+      ]
+    );
+
+    const requestId = insertReq.insertId;
+
+    for (const pImg of preparedImages) {
+      const imgPublicId = randomUUID();
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO student_photo_evaluation_images (
+          public_id,
+          request_id,
+          pose,
+          storage_key,
+          mime_type,
+          byte_size,
+          checksum,
+          uploaded_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3));`,
+        [
+          imgPublicId,
+          requestId,
+          pImg.pose,
+          pImg.storageKey,
+          pImg.mimeType,
+          pImg.sizeBytes,
+          pImg.fileSha256,
+        ]
+      );
+    }
+
+    await connection.commit();
+
+    return { success: true, requestPublicId };
+  } catch (err: unknown) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {
+        // ignore rollback errors
+      }
+    }
+    // Clean up written files on rollback
+    for (const key of writtenKeys) {
+      try {
+        await deletePrivateFile(key);
+      } catch {
+        // ignore cleanup error
+      }
+    }
+    const message = err instanceof Error ? err.message : "Erro ao registrar fotos de avaliação.";
+    return { success: false, error: message };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+// ============================================================================
+// 13. DELETE PHOTO EVALUATION BY PROFESSIONAL
+// ============================================================================
+
+export async function deletePhotoEvaluationByProfessional(params: {
+  professionalUserId: number;
+  consultancySlug: string;
+  requestPublicId: string;
+}): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const { professionalUserId, consultancySlug, requestPublicId } = params;
+
+  const context = await resolveConsultancyContext(professionalUserId, consultancySlug);
+  if (!context) {
+    return { success: false, error: "Acesso não autorizado." };
+  }
+
+  const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const isPersonal = context.roles.includes("PERSONAL");
+  const isNutritionist = context.roles.includes("NUTRITIONIST");
+
+  if (!isAdmin && !isPersonal && !isNutritionist) {
+    return { success: false, error: "Permissão insuficiente." };
+  }
+
+  let connection: PoolConnection | null = null;
+  const storageKeysToDelete: string[] = [];
+
+  try {
+    connection = await getDbConnection();
+
+    // Verify request belongs to consultancy
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT r.id, r.consultancy_id, r.student_membership_id
+       FROM student_photo_evaluation_requests r
+       JOIN consultancies c ON c.id = r.consultancy_id
+       WHERE r.public_id = ? AND c.slug = ?
+       LIMIT 1;`,
+      [requestPublicId, consultancySlug]
+    );
+
+    if (!rows || rows.length === 0) {
+      return { success: false, error: "Avaliação não encontrada." };
+    }
+
+    const requestId = Number(rows[0].id);
+    const studentMembershipId = Number(rows[0].student_membership_id);
+
+    // If not admin, check relationship
+    if (!isAdmin && !isNutritionist) {
+      const hasRel = await assertProfessionalStudentRelationship(connection, {
+        consultancyId: context.consultancyId,
+        studentMembershipId,
+        professionalUserId,
+      });
+      if (!hasRel) {
+        return { success: false, error: "Acesso não autorizado a este aluno." };
+      }
+    }
+
+    // Get all image storage keys
+    const [imgs] = await connection.execute<RowDataPacket[]>(
+      `SELECT storage_key FROM student_photo_evaluation_images WHERE request_id = ?;`,
+      [requestId]
+    );
+
+    for (const img of imgs) {
+      if (img.storage_key) {
+        storageKeysToDelete.push(String(img.storage_key));
+      }
+    }
+
+    await connection.beginTransaction();
+
+    await connection.execute(`DELETE FROM student_photo_evaluation_images WHERE request_id = ?;`, [requestId]);
+    await connection.execute(`DELETE FROM student_photo_evaluation_requests WHERE id = ?;`, [requestId]);
+
+    await connection.commit();
+
+    // Clean up storage files after commit
+    for (const key of storageKeysToDelete) {
+      try {
+        await deletePrivateFile(key);
+      } catch {
+        // ignore cleanup error
+      }
+    }
+
+    return { success: true };
+  } catch (err: unknown) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {
+        // ignore
+      }
+    }
+    const message = err instanceof Error ? err.message : "Erro ao excluir avaliação de fotos.";
+    return { success: false, error: message };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+

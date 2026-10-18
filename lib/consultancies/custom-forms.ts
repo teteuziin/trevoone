@@ -161,8 +161,13 @@ export async function createFormTemplate(
   input: CreateFormTemplateInput
 ): Promise<CustomFormTemplateDto> {
   const context = await resolveConsultancyContext(userId, consultancySlug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
-    throw new Error("Apenas administradores da consultoria podem criar formulários.");
+  const isAllowed =
+    Boolean(context) &&
+    (context!.roles.includes("CONSULTANCY_ADMIN") ||
+      context!.roles.includes("PERSONAL") ||
+      context!.roles.includes("NUTRITIONIST"));
+  if (!context || !isAllowed) {
+    throw new Error("Permissão insuficiente para criar modelos de formulário ou anamnese.");
   }
 
   const title = String(input.title || "").trim().slice(0, 200);
@@ -276,8 +281,13 @@ export async function updateFormTemplate(
   input: UpdateFormTemplateInput
 ): Promise<boolean> {
   const context = await resolveConsultancyContext(userId, consultancySlug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
-    throw new Error("Apenas administradores podem editar formulários.");
+  const isAllowed =
+    Boolean(context) &&
+    (context!.roles.includes("CONSULTANCY_ADMIN") ||
+      context!.roles.includes("PERSONAL") ||
+      context!.roles.includes("NUTRITIONIST"));
+  if (!context || !isAllowed) {
+    throw new Error("Permissão insuficiente para editar formulários.");
   }
 
   const connection = await getDbConnection();
@@ -676,13 +686,20 @@ export async function submitFormResponses(
     }
 
     const req = requests[0];
-    if (Number(req.student_user_id) !== userId) {
+    const isStudentRecipient = Number(req.student_user_id) === userId;
+    const isAuthorizedProfessional =
+      Boolean(context) &&
+      (context.roles.includes("PERSONAL") ||
+        context.roles.includes("NUTRITIONIST") ||
+        context.roles.includes("CONSULTANCY_ADMIN"));
+
+    if (!isStudentRecipient && !isAuthorizedProfessional) {
       await connection.rollback();
-      throw new Error("Apenas o aluno destinatário pode responder a este formulário.");
+      throw new Error("Apenas o aluno destinatário ou um profissional autorizado pode responder a este formulário.");
     }
 
-    // 1. Idempotency check: if already SUBMITTED, verify if responses match
-    if (req.status === "SUBMITTED") {
+    // 1. Idempotency check: if already SUBMITTED or REVIEWED, verify if responses match
+    if (req.status === "SUBMITTED" || req.status === "REVIEWED") {
       let existingResponses: Record<string, unknown> = {};
       try {
         existingResponses = typeof req.responses_json === "string"
@@ -695,21 +712,20 @@ export async function submitFormResponses(
       const isSemanticEqual = areFormResponsesSemanticallyEqual(existingResponses, input.responses || {});
       if (isSemanticEqual) {
         // Idempotent retry: payload is identical to already submitted responses
-        // Commit transaction without repeating side effects or notifications
         await connection.commit();
         return true;
-      } else {
-        // Conflict: form was already submitted, and incoming payload is different
+      } else if (!isAuthorizedProfessional) {
+        // Conflict: form was already submitted by student, and incoming payload is different
         await connection.rollback();
         const err = new Error("Este formulário já foi enviado anteriormente e o novo envio contém respostas divergentes.");
         (err as unknown as { isConflict: boolean; serverStatus: string }).isConflict = true;
-        (err as unknown as { isConflict: boolean; serverStatus: string }).serverStatus = "SUBMITTED";
+        (err as unknown as { isConflict: boolean; serverStatus: string }).serverStatus = req.status;
         throw err;
       }
     }
 
     // 2. Reject other terminal statuses as conflict
-    if (req.status !== "PENDING" && req.status !== "CHANGES_REQUESTED") {
+    if (req.status !== "PENDING" && req.status !== "CHANGES_REQUESTED" && req.status !== "SUBMITTED" && req.status !== "REVIEWED") {
       await connection.rollback();
       const err = new Error("Este formulário já está sob análise ou aprovado.");
       (err as unknown as { isConflict: boolean; serverStatus: string }).isConflict = true;
@@ -717,22 +733,49 @@ export async function submitFormResponses(
       throw err;
     }
 
+    const targetStatus = isStudentRecipient ? "SUBMITTED" : "REVIEWED";
+    const reviewedBy = isStudentRecipient ? null : userId;
+    const reviewedAt = isStudentRecipient ? null : new Date();
+    const responsesWithMeta = {
+      ...(input.responses || {}),
+      _filledBy: isStudentRecipient ? "STUDENT" : "PROFESSIONAL",
+      _filledAt: new Date().toISOString(),
+    };
+
     await connection.execute<ResultSetHeader>(
       `UPDATE consultancy_custom_form_requests
-       SET status = 'SUBMITTED', responses_json = ?, submitted_at = NOW(3), updated_at = NOW(3)
+       SET status = ?, responses_json = ?, submitted_at = NOW(3), updated_at = NOW(3),
+           reviewed_by_user_id = COALESCE(?, reviewed_by_user_id),
+           reviewed_at = COALESCE(?, reviewed_at),
+           reviewer_notes = COALESCE(reviewer_notes, ?)
        WHERE id = ?;`,
-      [JSON.stringify(input.responses || {}), req.id]
+      [
+        targetStatus,
+        JSON.stringify(responsesWithMeta),
+        reviewedBy,
+        reviewedAt,
+        isStudentRecipient ? null : "Preenchido diretamente pelo profissional em atendimento com o aluno.",
+        req.id,
+      ]
     );
 
-
-    // Notify requester (Admin or Professional)
+    // Notify respective recipient
     let notifId: number | null = null;
     try {
+      const recipientUserId = isStudentRecipient
+        ? Number(req.requested_by_user_id)
+        : Number(req.student_user_id);
+      const notifTitle = isStudentRecipient
+        ? "Formulário respondido pelo aluno"
+        : "Formulário preenchido pelo seu profissional";
+      const notifBody = isStudentRecipient
+        ? `O aluno enviou as respostas para o formulário: "${req.template_title}".`
+        : `Seu profissional preencheu o formulário: "${req.template_title}".`;
+
       const notif = await createNotificationInTransaction(connection, {
-        userId: Number(req.requested_by_user_id),
-        consultancyId: context.consultancyId,
-        title: "Formulário respondido pelo aluno",
-        body: `O aluno enviou as respostas para o formulário: "${req.template_title}".`,
+        userId: recipientUserId,
+        title: notifTitle,
+        body: notifBody,
         eventType: "CUSTOM_FORM_SUBMITTED",
         priority: "NORMAL",
         deepLink: `/consultoria/${consultancySlug}/formularios/${requestPublicId}`,
@@ -887,3 +930,51 @@ export async function reviewFormRequest(
     connection.release();
   }
 }
+
+/**
+ * Cancels or deletes a form request (e.g. pending or unwanted draft).
+ */
+export async function cancelOrDeleteFormRequest(
+  userId: number,
+  consultancySlug: string,
+  requestPublicId: string
+): Promise<boolean> {
+  const context = await resolveConsultancyContext(userId, consultancySlug);
+  if (!context) {
+    throw new Error("Acesso negado à consultoria.");
+  }
+
+  const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const isProfessional =
+    context.roles.includes("PERSONAL") || context.roles.includes("NUTRITIONIST");
+
+  if (!isAdmin && !isProfessional) {
+    throw new Error("Você não possui permissão para gerenciar formulários.");
+  }
+
+  const connection = await getDbConnection();
+  try {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, student_membership_id
+       FROM consultancy_custom_form_requests
+       WHERE public_id = ? AND consultancy_id = ?
+       LIMIT 1;`,
+      [requestPublicId, context.consultancyId]
+    );
+
+    if (rows.length === 0) {
+      throw new Error("Solicitação de formulário não encontrada.");
+    }
+
+    const reqId = Number(rows[0].id);
+    await connection.execute(
+      `DELETE FROM consultancy_custom_form_requests WHERE id = ?;`,
+      [reqId]
+    );
+
+    return true;
+  } finally {
+    connection.release();
+  }
+}
+

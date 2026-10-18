@@ -20,7 +20,8 @@ import type {
 export interface OpenAIImportProvider {
   importTraining(
     input: DocumentInput,
-    model?: string
+    model?: string,
+    mode?: "IMPORT" | "GENERATE"
   ): Promise<{ proposal: RawTrainingImportProposal; metadata: ExtractionMetadata }>;
 
   importNutrition(
@@ -32,9 +33,10 @@ export interface OpenAIImportProvider {
 export class RealOpenAIImportProvider implements OpenAIImportProvider {
   async importTraining(
     input: DocumentInput,
-    model = DEFAULT_OPENAI_IMPORT_MODEL
+    model = DEFAULT_OPENAI_IMPORT_MODEL,
+    mode: "IMPORT" | "GENERATE" = "IMPORT"
   ): Promise<{ proposal: RawTrainingImportProposal; metadata: ExtractionMetadata }> {
-    return await callOpenAiForTraining(input, model);
+    return await callOpenAiForTraining(input, model, mode);
   }
 
   async importNutrition(
@@ -64,7 +66,8 @@ export class MockOpenAIImportProvider implements OpenAIImportProvider {
 
   async importTraining(
     input: DocumentInput,
-    model = "mock-model"
+    model = "mock-model",
+    mode: "IMPORT" | "GENERATE" = "IMPORT"
   ): Promise<{ proposal: RawTrainingImportProposal; metadata: ExtractionMetadata }> {
     if (this.options.forceError === "TIMEOUT") {
       throw new Error("OpenAI API request timed out after 30000ms.");
@@ -98,6 +101,265 @@ export class MockOpenAIImportProvider implements OpenAIImportProvider {
     }
 
     const categories: RawTrainingImportProposal["categories"] = [];
+
+    if (mode === "GENERATE") {
+      const lower = textContent.toLowerCase();
+      const isSingleWorkout =
+        lower.includes("1 dia") ||
+        lower.includes("treino único") ||
+        lower.includes("apenas um treino") ||
+        lower.includes("sessão única") ||
+        (lower.includes("frequência: 1") && !lower.includes("14"));
+      const hasBiSet = lower.includes("bi-set") || lower.includes("biset");
+
+      if (isSingleWorkout) {
+        categories.push({
+          name: "Treino de Pernas",
+          exercises: [
+            {
+              originalText: "Agachamento livre com barra — 4x10",
+              exerciseNameCandidate: "Agachamento livre com barra",
+              sets: 4,
+              reps: 10,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 90,
+              load: null,
+              notes: "Amplitude completa com controle",
+              combinationType: null,
+              combinationIndex: null,
+              combinationRestSeconds: null,
+            },
+            {
+              originalText: "Leg press 45 — 4x12",
+              exerciseNameCandidate: "Leg press 45",
+              sets: 4,
+              reps: 12,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 60,
+              load: null,
+              notes: null,
+              combinationType: null,
+              combinationIndex: null,
+              combinationRestSeconds: null,
+            },
+            {
+              originalText: "Cadeira extensora — 3x12",
+              exerciseNameCandidate: "Cadeira extensora",
+              sets: 3,
+              reps: 12,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 45,
+              load: null,
+              notes: hasBiSet ? "Bi-set membro 1" : null,
+              combinationType: hasBiSet ? "BI_SET" : null,
+              combinationIndex: hasBiSet ? 1 : null,
+              combinationRestSeconds: hasBiSet ? 60 : null,
+            },
+            {
+              originalText: "Mesa flexora — 3x12",
+              exerciseNameCandidate: "Mesa flexora",
+              sets: 3,
+              reps: 12,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 45,
+              load: null,
+              notes: hasBiSet ? "Bi-set membro 2" : null,
+              combinationType: hasBiSet ? "BI_SET" : null,
+              combinationIndex: hasBiSet ? 1 : null,
+              combinationRestSeconds: hasBiSet ? 60 : null,
+            },
+            {
+              originalText: "Panturrilha em pé — 4x15",
+              exerciseNameCandidate: "Panturrilha em pé",
+              sets: 4,
+              reps: 15,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 45,
+              load: null,
+              notes: "Pausa no topo",
+              combinationType: null,
+              combinationIndex: null,
+              combinationRestSeconds: null,
+            },
+          ],
+        });
+      } else {
+        // Multi-category routine (e.g. 2, 3 or 4 days)
+        categories.push({
+          name: "Treino A — Peito e Tríceps",
+          exercises: [
+            {
+              originalText: "Supino reto com barra — 4x10",
+              exerciseNameCandidate: "Supino reto com barra",
+              sets: 4,
+              reps: 10,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 60,
+              load: null,
+              notes: null,
+              combinationType: null,
+              combinationIndex: null,
+              combinationRestSeconds: null,
+            },
+            {
+              originalText: "Supino inclinado com halteres — 3x10-12",
+              exerciseNameCandidate: "Supino inclinado com halteres",
+              sets: 3,
+              reps: 10,
+              repsMax: 12,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 60,
+              load: null,
+              notes: null,
+              combinationType: null,
+              combinationIndex: null,
+              combinationRestSeconds: null,
+            },
+            {
+              originalText: "Crucifixo máquina — 3x12",
+              exerciseNameCandidate: "Crucifixo máquina",
+              sets: 3,
+              reps: 12,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 45,
+              load: null,
+              notes: hasBiSet ? "Bi-set com Tríceps" : null,
+              combinationType: hasBiSet ? "BI_SET" : null,
+              combinationIndex: hasBiSet ? 1 : null,
+              combinationRestSeconds: hasBiSet ? 60 : null,
+            },
+            {
+              originalText: "Tríceps polia com barra reta — 3x12",
+              exerciseNameCandidate: "Tríceps polia com barra reta",
+              sets: 3,
+              reps: 12,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 45,
+              load: null,
+              notes: hasBiSet ? "Bi-set membro 2" : null,
+              combinationType: hasBiSet ? "BI_SET" : null,
+              combinationIndex: hasBiSet ? 1 : null,
+              combinationRestSeconds: hasBiSet ? 60 : null,
+            },
+            {
+              originalText: "Tríceps corda na polia — 3x15",
+              exerciseNameCandidate: "Tríceps corda na polia",
+              sets: 3,
+              reps: 15,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 45,
+              load: null,
+              notes: null,
+              combinationType: null,
+              combinationIndex: null,
+              combinationRestSeconds: null,
+            },
+          ],
+        });
+
+        categories.push({
+          name: "Treino B — Costas e Bíceps",
+          exercises: [
+            {
+              originalText: "Puxada na frente — 4x10",
+              exerciseNameCandidate: "Puxada na frente",
+              sets: 4,
+              reps: 10,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 60,
+              load: null,
+              notes: null,
+              combinationType: null,
+              combinationIndex: null,
+              combinationRestSeconds: null,
+            },
+            {
+              originalText: "Remada baixa — 4x10",
+              exerciseNameCandidate: "Remada baixa",
+              sets: 4,
+              reps: 10,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 60,
+              load: null,
+              notes: null,
+              combinationType: null,
+              combinationIndex: null,
+              combinationRestSeconds: null,
+            },
+            {
+              originalText: "Rosca direta com barra — 3x10",
+              exerciseNameCandidate: "Rosca direta com barra",
+              sets: 3,
+              reps: 10,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 60,
+              load: null,
+              notes: null,
+              combinationType: null,
+              combinationIndex: null,
+              combinationRestSeconds: null,
+            },
+            {
+              originalText: "Rosca martelo com halteres — 3x12",
+              exerciseNameCandidate: "Rosca martelo com halteres",
+              sets: 3,
+              reps: 12,
+              repsMax: null,
+              durationSeconds: null,
+              durationUnit: null,
+              restSeconds: 45,
+              load: null,
+              notes: null,
+              combinationType: null,
+              combinationIndex: null,
+              combinationRestSeconds: null,
+            },
+          ],
+        });
+      }
+
+      return {
+        proposal: {
+          title: "Ficha de Treino Personalizado",
+          studentNameCandidate: studentCandidate,
+          objective: "Hipertrofia e Ganho de Massa Muscular",
+          notes: "Prescrito com base no perfil informado.",
+          categories,
+        },
+        metadata: {
+          inputTokens: 150,
+          outputTokens: 350,
+          totalTokens: 500,
+          model,
+          providerRequestId: "mock-gen-req",
+        },
+      };
+    }
 
     // Specific test case: Puxada frental triangulo (verbatim transcription)
     if (textContent.toLowerCase().includes("puxada frental")) {

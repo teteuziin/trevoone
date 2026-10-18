@@ -205,6 +205,7 @@ export async function processTrainingAiImport(params: {
   input: DocumentInput;
   targetStudentMembershipId?: number | bigint | null;
   idempotencyKey?: string;
+  mode?: "IMPORT" | "GENERATE";
 }): Promise<ResolvedTrainingProposal> {
   const {
     consultancyId,
@@ -214,6 +215,7 @@ export async function processTrainingAiImport(params: {
     input,
     targetStudentMembershipId,
     idempotencyKey = crypto.randomUUID(),
+    mode = "IMPORT",
   } = params;
 
   // 1. Compute file hash
@@ -323,7 +325,7 @@ export async function processTrainingAiImport(params: {
 
   try {
     const provider = getAiImportProvider();
-    const result = await provider.importTraining(input);
+    const result = await provider.importTraining(input, undefined, mode);
     rawProposal = result.proposal;
     metadata = result.metadata;
 
@@ -364,6 +366,32 @@ export async function processTrainingAiImport(params: {
     throw new Error(`Falha no processamento com IA: ${errorMsg}`);
   }
 
+  // 4.1 Strict structural validation: must contain categories and exercises
+  const rawCategories = Array.isArray(rawProposal?.categories) ? rawProposal.categories : [];
+  const totalRawExercises = rawCategories.reduce(
+    (acc, c) => acc + (Array.isArray(c?.exercises) ? c.exercises.length : 0),
+    0
+  );
+
+  if (rawCategories.length === 0 || totalRawExercises === 0) {
+    const errorMsg =
+      mode === "GENERATE"
+        ? "A IA não conseguiu estruturar as divisões ou exercícios para esta proposta. Por favor, forneça mais detalhes ou tente novamente."
+        : "Nenhum exercício ou divisão de treino foi identificado no documento enviado.";
+
+    const dbFail = await getDbConnection();
+    try {
+      await dbFail.query(
+        `UPDATE ai_import_jobs SET status = 'FAILED', error_message = ?, updated_at = NOW(3) WHERE public_id = ?`,
+        [errorMsg.slice(0, 500), importJobPublicId]
+      );
+    } finally {
+      dbFail.release();
+    }
+
+    throw new Error(errorMsg);
+  }
+
   // 5. Match Exercises against Library
   let totalExercises = 0;
   let matchedCount = 0;
@@ -372,8 +400,16 @@ export async function processTrainingAiImport(params: {
 
   const resolvedCategories: ResolvedTrainingCategory[] = [];
 
-  for (const cat of rawProposal.categories || []) {
+  for (const cat of rawCategories) {
     const resolvedExercises: ResolvedTrainingExerciseItem[] = [];
+
+    // Pre-calculate combination counts in this category to eliminate incomplete/single combinations
+    const combCounts = new Map<number, number>();
+    for (const ex of cat.exercises || []) {
+      if (ex.combinationIndex != null) {
+        combCounts.set(ex.combinationIndex, (combCounts.get(ex.combinationIndex) || 0) + 1);
+      }
+    }
 
     for (const ex of cat.exercises || []) {
       totalExercises++;
@@ -399,37 +435,56 @@ export async function processTrainingAiImport(params: {
         notFoundCount++;
       }
 
-      resolvedExercises.push({
-        id: crypto.randomUUID(),
-        originalText: ex.originalText,
-        exerciseNameCandidate: ex.exerciseNameCandidate,
-        groupName: ex.groupName || null,
-        matchStatus: matchResult.status,
-        exercisePublicId,
-        exerciseNameSnapshot,
-        matchedExerciseName,
-        muscleGroupSnapshot,
-        equipmentSnapshot,
-        candidates: matchResult.candidates,
-        combinationType: (ex.combinationType as WorkoutCombinationType) || null,
-        combinationIndex: ex.combinationIndex ?? null,
-        combinationRestSeconds: ex.combinationRestSeconds ?? null,
-        sets: ex.sets,
-        reps: ex.reps,
-        repsMax: ex.repsMax || null,
-        durationSeconds: ex.durationSeconds,
-        durationUnit: ex.durationUnit || null,
-        restSeconds: ex.restSeconds,
-        load: ex.load,
-        notes: ex.notes,
+      // Filter out incomplete combinations (< 2 exercises)
+      const cIndex = ex.combinationIndex ?? null;
+      const cCount = cIndex != null ? (combCounts.get(cIndex) || 0) : 0;
+      let cType: WorkoutCombinationType | null = null;
+      let validCombIndex: number | null = null;
+      let validCombRest: number | null = null;
+
+        if (cIndex != null && cCount >= 2) {
+          validCombIndex = cIndex;
+          validCombRest = ex.combinationRestSeconds ?? 60;
+          cType =
+            (ex.combinationType as WorkoutCombinationType) ||
+            (cCount === 2 ? "BI_SET" : cCount === 3 ? "TRI_SET" : "CIRCUIT");
+        }
+
+        resolvedExercises.push({
+          id: crypto.randomUUID(),
+          originalText: ex.originalText,
+          exerciseNameCandidate: ex.exerciseNameCandidate,
+          groupName: ex.groupName || null,
+          matchStatus: matchResult.status,
+          exercisePublicId,
+          exerciseNameSnapshot,
+          matchedExerciseName,
+          muscleGroupSnapshot,
+          equipmentSnapshot,
+          candidates: matchResult.candidates,
+          combinationType: cType,
+          combinationIndex: validCombIndex,
+          combinationRestSeconds: validCombRest,
+          sets: ex.sets,
+          reps: ex.reps,
+          repsMax: ex.repsMax || null,
+          durationSeconds: ex.durationSeconds,
+          durationUnit: ex.durationUnit || null,
+          restSeconds: ex.restSeconds,
+          load: ex.load,
+          notes: ex.notes,
+        });
+      }
+
+      const rawCatName = (cat.name || "").trim();
+      const fallbackName =
+        rawCategories.length === 1 ? "Treino Principal" : `Treino ${resolvedCategories.length + 1}`;
+
+      resolvedCategories.push({
+        name: rawCatName || fallbackName,
+        exercises: resolvedExercises,
       });
     }
-
-    resolvedCategories.push({
-      name: cat.name || "Geral",
-      exercises: resolvedExercises,
-    });
-  }
 
   // Resolve target student if provided or candidate
   let targetStudentName: string | null = null;
@@ -546,6 +601,13 @@ export async function confirmTrainingAiImport(params: {
   if (!confirmedCategories || confirmedCategories.length === 0) {
     throw new Error("O treino precisa conter pelo menos uma divisão/categoria para ser salvo.");
   }
+  const totalExercisesToConfirm = confirmedCategories.reduce(
+    (acc, cat) => acc + (Array.isArray(cat?.exercises) ? cat.exercises.length : 0),
+    0
+  );
+  if (totalExercisesToConfirm === 0) {
+    throw new Error("O treino precisa conter pelo menos um exercício para ser salvo.");
+  }
 
   const db = await getDbConnection();
   try {
@@ -660,12 +722,13 @@ export async function confirmTrainingAiImport(params: {
             (groupExs.length === 2 ? "BI_SET" : groupExs.length === 3 ? "TRI_SET" : "CIRCUIT");
           const combPublicId = crypto.randomUUID();
           const restSeconds = firstEx.combinationRestSeconds ?? 60;
+          const rounds = firstEx.sets || 3;
           const [combRes] = await db.query<ResultSetHeader>(
             `INSERT INTO workout_item_combinations (
-              public_id, block_id, sub_block_id, combination_type, title, sort_order,
+              public_id, block_id, sub_block_id, combination_type, title, sort_order, rounds,
               rest_after_seconds, rest_after_unit, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, NULL, 0, ?, 'SECONDS', NOW(3), NOW(3))`,
-            [combPublicId, blockId, sbId, combType, restSeconds]
+            ) VALUES (?, ?, ?, ?, NULL, 0, ?, ?, 'SECONDS', NOW(3), NOW(3))`,
+            [combPublicId, blockId, sbId, combType, rounds, restSeconds]
           );
           combinationMap.set(key, combRes.insertId);
         }
@@ -765,6 +828,19 @@ export async function confirmTrainingAiImport(params: {
           );
         }
       }
+
+      // Resync combinations' sort_order with min(sort_order) of their items
+      await db.query(
+        `UPDATE workout_item_combinations wic
+         JOIN (
+           SELECT combination_id, MIN(sort_order) AS min_order
+           FROM workout_block_items
+           WHERE block_id = ? AND combination_id IS NOT NULL
+           GROUP BY combination_id
+         ) items_agg ON items_agg.combination_id = wic.id
+         SET wic.sort_order = items_agg.min_order, wic.updated_at = NOW(3);`,
+        [blockId]
+      );
     }
 
     // 4. Handle target student candidate / optional context (does NOT publish or assign during import)

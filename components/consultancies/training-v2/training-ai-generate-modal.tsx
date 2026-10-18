@@ -36,7 +36,7 @@ export const SPLIT_OPTIONS = [
   "A/B (Alternado Superior e Inferior)",
 ];
 
-export const DAYS_OPTIONS = [2, 3, 4, 5, 6];
+export const DAYS_OPTIONS = [1, 2, 3, 4, 5, 6, 7];
 
 export const EQUIPMENT_OPTIONS = [
   "Academia Completa (Aparelhos, Polias, Barras e Halteres)",
@@ -243,12 +243,22 @@ export function TrainingAiGenerateModal({
     setErrorMessage(null);
     setStep("GENERATING");
 
+    const frequencyText =
+      confirmedDays === 1
+        ? "1 dia (sessão única / treino completo)"
+        : `${confirmedDays} dias por semana`;
+
+    const orientationText =
+      confirmedDays === 1
+        ? `Monte uma rotina de treino estruturada de sessão única (1 bloco ou divisão principal completa). Crie uma categoria válida (ex: "Treino Principal" ou "Full Body") com seus exercícios adequados aos equipamentos (${confirmedEquipment}) e à duração de ${confirmedDuration} min.`
+        : `Monte uma rotina de treino estruturada e dividida exatamente em ${confirmedDays} sessões. Para cada divisão (ex: Treino A, Treino B, etc.), crie uma categoria com seus exercícios adequados aos equipamentos (${confirmedEquipment}) e à duração de ${confirmedDuration} min.`;
+
     const composedPrompt = `PROPOSTA DE TREINO PERSONALIZADO
 Título sugerido: ${title.trim() || "Ficha de Treino"}
 Descrição do profissional: ${description.trim()}
 ${clarificationAnswer.trim() ? `Esclarecimentos adicionais: ${clarificationAnswer.trim()}\n` : ""}
 Parâmetros acordados:
-- Frequência: ${confirmedDays} dias por semana
+- Frequência: ${frequencyText}
 - Duração estimada: até ${confirmedDuration} minutos por sessão
 - Objetivo: ${confirmedObjective}
 - Equipamentos: ${confirmedEquipment}
@@ -257,13 +267,13 @@ ${confirmedFocus ? `- Foco / Grupos prioritários: ${confirmedFocus}\n` : ""}
 ${confirmedRestrictions ? `- Restrições e cuidados de saúde: ${confirmedRestrictions}\n` : ""}
 
 Orientações de prescrição:
-Monte uma rotina de treino estruturada e dividida exatamente em ${confirmedDays} sessões.
-Para cada divisão (ex: Treino A, Treino B, etc.), crie uma categoria com seus exercícios adequados aos equipamentos (${confirmedEquipment}) e à duração de ${confirmedDuration} min.
+${orientationText}
 Defina séries, repetições e intervalos de descanso para cada exercício. Respeite com fidelidade as restrições informadas sem extrapolações clínicas.`;
 
     try {
       const formData = new FormData();
       formData.append("text", composedPrompt);
+      formData.append("mode", "GENERATE");
       if (!idempotencyKeyRef.current) {
         idempotencyKeyRef.current = `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       }
@@ -285,9 +295,26 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
       }
 
       const prop: ResolvedTrainingProposal = data.proposal;
+      if (!prop || !Array.isArray(prop.categories) || prop.categories.length === 0) {
+        throw new Error(
+          "A IA não retornou nenhuma divisão de treino. Por favor, detalhe mais seu pedido e tente novamente."
+        );
+      }
+
+      const totalExercises = prop.categories.reduce(
+        (acc, c) => acc + (Array.isArray(c?.exercises) ? c.exercises.length : 0),
+        0
+      );
+      if (totalExercises === 0) {
+        throw new Error(
+          "A IA não retornou exercícios estruturados para esta proposta. Por favor, detalhe os exercícios ou grupos musculares desejados e tente novamente."
+        );
+      }
+
       setProposal(prop);
       setWorkoutTitle(prop.title || title);
       setEditableCategories(prop.categories || []);
+      setErrorMessage(null);
       setStep("PREVIEW");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Falha na geração do treino.");
@@ -298,6 +325,19 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
   // STEP 4: Save proposal as official DRAFT and redirect to workout builder
   const handleSaveDraft = async () => {
     if (!proposal) return;
+    if (!editableCategories || editableCategories.length === 0) {
+      setErrorMessage("O treino precisa conter pelo menos uma divisão/categoria para ser salvo.");
+      return;
+    }
+    const totalExercises = editableCategories.reduce(
+      (acc, c) => acc + (Array.isArray(c?.exercises) ? c.exercises.length : 0),
+      0
+    );
+    if (totalExercises === 0) {
+      setErrorMessage("O treino precisa conter pelo menos um exercício para ser salvo.");
+      return;
+    }
+
     setErrorMessage(null);
     setStep("SAVING");
 
@@ -334,7 +374,7 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
 
   // Build the compact badge summary text (only when informed!)
   const summaryBadges: string[] = [];
-  summaryBadges.push(`${confirmedDays} dias por semana`);
+  summaryBadges.push(confirmedDays === 1 ? "1 dia (treino único)" : `${confirmedDays} dias por semana`);
   summaryBadges.push(`até ${confirmedDuration} min`);
   if (confirmedObjective) summaryBadges.push(confirmedObjective.split(" ")[0].toLowerCase());
   if (confirmedEquipment) {
@@ -355,7 +395,7 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
       aria-labelledby="ai-generate-modal-title"
     >
       <div
-        className="w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-[720px] bg-white dark:bg-[#151619] sm:border border-zinc-200 dark:border-zinc-800 rounded-none sm:rounded-2xl flex flex-col shadow-2xl overflow-hidden text-zinc-900 dark:text-zinc-100"
+        className="w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-[840px] bg-white dark:bg-[#151619] sm:border border-zinc-200 dark:border-zinc-800 rounded-none sm:rounded-2xl flex flex-col shadow-2xl overflow-hidden text-zinc-900 dark:text-zinc-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -404,8 +444,8 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
             </div>
           )}
 
-          {/* Error message */}
-          {errorMessage && (
+          {/* Error message (only when not in PREVIEW, since PREVIEW has its own contextual banner) */}
+          {errorMessage && step !== "PREVIEW" && (
             <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-600 dark:text-rose-400 font-medium">
               {errorMessage}
             </div>
@@ -593,7 +633,7 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
                       >
                         {DAYS_OPTIONS.map((d) => (
                           <option key={d} value={d}>
-                            {d} dias por semana
+                            {d === 1 ? "1 dia (treino único)" : `${d} dias por semana`}
                           </option>
                         ))}
                       </select>
@@ -682,10 +722,27 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
           {/* STEP 5: PREVIEW (Review proposal before saving draft) */}
           {step === "PREVIEW" && proposal && (
             <div className="space-y-4">
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
-                <span className="font-bold">✓ Proposta gerada com sucesso!</span>
-                <span>Esta ficha será salva estritamente como Rascunho para você revisar.</span>
-              </div>
+              {/* Contextual Banner: Never show conflicting success & error banners */}
+              {errorMessage ? (
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-rose-600 dark:text-rose-400">⚠️ Erro ao salvar:</span>
+                    <span>{errorMessage}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setErrorMessage(null)}
+                    className="text-rose-500 hover:text-rose-700 font-bold ml-2 cursor-pointer text-xs shrink-0"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                  <span className="font-bold">✓ Proposta pronta para revisão!</span>
+                  <span>Esta ficha será salva estritamente como Rascunho para você revisar no editor.</span>
+                </div>
+              )}
 
               <div>
                 <label htmlFor="ai-preview-title" className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
@@ -696,53 +753,234 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
                   type="text"
                   value={workoutTitle}
                   onChange={(e) => setWorkoutTitle(e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-base sm:text-xs font-semibold text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm sm:text-xs font-semibold text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
                 />
               </div>
 
-              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                {editableCategories.map((cat, cIdx) => (
-                  <div
-                    key={`cat-${cIdx}`}
-                    className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 bg-zinc-50 dark:bg-zinc-900/60 space-y-2"
-                  >
-                    <div className="flex items-center justify-between text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider">
-                      <span>{cat.name}</span>
-                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-normal font-mono">
-                        {cat.exercises.length} exercícios
-                      </span>
-                    </div>
+              <div className="space-y-4 max-h-[58vh] sm:max-h-[62vh] overflow-y-auto pr-1">
+                {editableCategories.map((cat, cIdx) => {
+                  // Group contiguous exercises by combinationIndex if present
+                  type Cluster =
+                    | {
+                        type: "COMBINATION";
+                        combinationIndex: number;
+                        combinationType: string;
+                        rounds: number;
+                        restSeconds: number;
+                        items: typeof cat.exercises;
+                      }
+                    | {
+                        type: "SINGLE";
+                        item: (typeof cat.exercises)[0];
+                        originalIndex: number;
+                      };
 
-                    <div className="space-y-1.5">
-                      {cat.exercises.map((ex, eIdx) => (
-                        <div
-                          key={`ex-${cIdx}-${eIdx}`}
-                          className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 text-xs space-y-1"
-                        >
-                          <div className="font-semibold text-zinc-900 dark:text-white flex items-center justify-between">
-                            <span>{ex.exerciseNameSnapshot}</span>
-                            {ex.groupName && (
-                              <span className="text-[10px] text-zinc-600 dark:text-zinc-400 px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">
-                                {ex.groupName}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">
-                            {ex.sets || 3} séries ×{" "}
-                            {ex.reps
-                              ? ex.repsMax && ex.repsMax > ex.reps
-                                ? `${ex.reps}–${ex.repsMax} reps`
-                                : `${ex.reps} reps`
-                              : ex.durationSeconds
-                              ? formatDurationNatural(ex.durationSeconds, ex.durationUnit)
-                              : "livre"}
-                            {ex.restSeconds ? ` · Descanso: ${ex.restSeconds}s` : ""}
-                          </div>
+                  const clusters: Cluster[] = [];
+                  let activeComb: {
+                    combinationIndex: number;
+                    combinationType: string;
+                    rounds: number;
+                    restSeconds: number;
+                    items: typeof cat.exercises;
+                  } | null = null;
+
+                  for (let eIdx = 0; eIdx < cat.exercises.length; eIdx++) {
+                    const ex = cat.exercises[eIdx];
+                    if (ex.combinationIndex != null) {
+                      if (activeComb && activeComb.combinationIndex === ex.combinationIndex) {
+                        activeComb.items.push(ex);
+                      } else {
+                        if (activeComb) {
+                          clusters.push({
+                            type: "COMBINATION",
+                            combinationIndex: activeComb.combinationIndex,
+                            combinationType: activeComb.combinationType,
+                            rounds: activeComb.rounds,
+                            restSeconds: activeComb.restSeconds,
+                            items: activeComb.items,
+                          });
+                        }
+                        activeComb = {
+                          combinationIndex: ex.combinationIndex,
+                          combinationType: ex.combinationType || "BI_SET",
+                          rounds: ex.sets || 3,
+                          restSeconds: ex.combinationRestSeconds ?? 60,
+                          items: [ex],
+                        };
+                      }
+                    } else {
+                      if (activeComb) {
+                        clusters.push({
+                          type: "COMBINATION",
+                          combinationIndex: activeComb.combinationIndex,
+                          combinationType: activeComb.combinationType,
+                          rounds: activeComb.rounds,
+                          restSeconds: activeComb.restSeconds,
+                          items: activeComb.items,
+                        });
+                        activeComb = null;
+                      }
+                      clusters.push({ type: "SINGLE", item: ex, originalIndex: eIdx });
+                    }
+                  }
+                  if (activeComb) {
+                    clusters.push({
+                      type: "COMBINATION",
+                      combinationIndex: activeComb.combinationIndex,
+                      combinationType: activeComb.combinationType,
+                      rounds: activeComb.rounds,
+                      restSeconds: activeComb.restSeconds,
+                      items: activeComb.items,
+                    });
+                  }
+
+                  return (
+                    <div
+                      key={`cat-${cIdx}`}
+                      className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 bg-zinc-50 dark:bg-zinc-900/60 space-y-3"
+                    >
+                      <div className="flex items-center justify-between text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider pb-1 border-b border-zinc-200/60 dark:border-zinc-800/60">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold">
+                            Divisão {String.fromCharCode(65 + cIdx)}
+                          </span>
+                          <span className="text-zinc-900 dark:text-white text-xs">{cat.name}</span>
                         </div>
-                      ))}
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-normal font-mono">
+                          {cat.exercises.length} {cat.exercises.length === 1 ? "exercício" : "exercícios"}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {clusters.map((cluster, clIdx) => {
+                          if (cluster.type === "COMBINATION") {
+                            const typeLabel =
+                              cluster.combinationType === "TRI_SET"
+                                ? "Tri-set"
+                                : cluster.combinationType === "CIRCUIT"
+                                ? "Circuito"
+                                : "Bi-set";
+
+                            return (
+                              <div
+                                key={`comb-${cIdx}-${clIdx}`}
+                                className="bg-emerald-500/[0.04] dark:bg-emerald-500/[0.06] border border-emerald-500/20 rounded-xl p-3 space-y-2.5"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2 text-xs pb-1.5 border-b border-emerald-500/15">
+                                  <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
+                                    <span className="text-sm">⚡</span>
+                                    <span>{typeLabel}</span>
+                                    <span className="font-normal text-zinc-500 dark:text-zinc-400 font-mono text-[11px]">
+                                      ({cluster.items.length} exercícios)
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">
+                                    {cluster.rounds} rodadas · {cluster.restSeconds}s descanso final
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2 pl-0.5 sm:pl-1">
+                                  {cluster.items.map((ex, mIdx) => (
+                                    <div
+                                      key={`comb-m-${cIdx}-${clIdx}-${mIdx}`}
+                                      className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 text-xs flex items-start gap-2.5 shadow-2xs"
+                                    >
+                                      <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5 border border-emerald-500/20">
+                                        {String.fromCharCode(65 + mIdx)}
+                                      </span>
+                                      <div className="flex-1 min-w-0 space-y-1">
+                                        <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                          <span className="font-semibold text-zinc-900 dark:text-white break-words">
+                                            {ex.exerciseNameSnapshot}
+                                          </span>
+                                          {ex.matchStatus === "MATCHED" ? (
+                                            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 shrink-0">
+                                              ✓ Na biblioteca
+                                            </span>
+                                          ) : ex.matchStatus === "AMBIGUOUS" ? (
+                                            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 shrink-0">
+                                              ⚠️ Similar
+                                            </span>
+                                          ) : (
+                                            <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20 shrink-0">
+                                              ✨ Personalizado
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono flex flex-wrap items-center gap-x-2">
+                                          <span>
+                                            {ex.sets || 3} séries ×{" "}
+                                            {ex.reps
+                                              ? ex.repsMax && ex.repsMax > ex.reps
+                                                ? `${ex.reps}–${ex.repsMax} reps`
+                                                : `${ex.reps} reps`
+                                              : ex.durationSeconds
+                                              ? formatDurationNatural(ex.durationSeconds, ex.durationUnit)
+                                              : "livre"}
+                                          </span>
+                                          {ex.load ? <span>· Carga: {ex.load}kg</span> : null}
+                                          {ex.notes ? <span className="italic text-zinc-400">· {ex.notes}</span> : null}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          // Single Exercise
+                          const ex = cluster.item;
+                          return (
+                            <div
+                              key={`single-${cIdx}-${cluster.originalIndex}`}
+                              className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 text-xs space-y-1 shadow-2xs"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                <div className="font-semibold text-zinc-900 dark:text-white break-words flex items-center gap-2">
+                                  <span>{ex.exerciseNameSnapshot}</span>
+                                  {ex.muscleGroupSnapshot ? (
+                                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">
+                                      {ex.muscleGroupSnapshot}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                {ex.matchStatus === "MATCHED" ? (
+                                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 shrink-0">
+                                    ✓ Na biblioteca
+                                  </span>
+                                ) : ex.matchStatus === "AMBIGUOUS" ? (
+                                  <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 shrink-0">
+                                    ⚠️ Similar
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20 shrink-0">
+                                    ✨ Personalizado
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono flex flex-wrap items-center gap-x-2">
+                                <span>
+                                  {ex.sets || 3} séries ×{" "}
+                                  {ex.reps
+                                    ? ex.repsMax && ex.repsMax > ex.reps
+                                      ? `${ex.reps}–${ex.repsMax} reps`
+                                      : `${ex.reps} reps`
+                                    : ex.durationSeconds
+                                    ? formatDurationNatural(ex.durationSeconds, ex.durationUnit)
+                                    : "livre"}
+                                </span>
+                                {ex.restSeconds ? <span>· Descanso: {ex.restSeconds}s</span> : null}
+                                {ex.load ? <span>· Carga: {ex.load}kg</span> : null}
+                                {ex.notes ? <span className="italic text-zinc-400">· {ex.notes}</span> : null}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="pt-3 flex items-center justify-between gap-3 border-t border-zinc-200 dark:border-zinc-800">

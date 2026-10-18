@@ -49,6 +49,52 @@ Quando uma única linha contiver múltiplas opções (ex: '1 fatia de pão de fo
     - Se houver descanso explícito após a combinação (ex: 'descanse 60s após a sequência'), preencha 'combinationRestSeconds'.
     - Para exercícios comuns (não combinados), defina 'combinationType': null, 'combinationIndex': null, 'combinationRestSeconds': null.`;
 
+export const TRAINING_GENERATION_SYSTEM_PROMPT = `Você é o treinador especialista em musculação e prescrição esportiva do TREVO ONE.
+Sua função é CRIAR E PRESCREVER uma rotina de treino personalizada completa, estruturada, segura e equilibrada com base nas solicitações e parâmetros informados pelo profissional de educação física.
+Você DEVE retornar a rotina estritamente no esquema JSON solicitado (TRAINING_IMPORT_JSON_SCHEMA).
+
+DIRETRIZES FUNDAMENTAIS DE GERAÇÃO:
+1. ESTRUTURA OBRIGATÓRIA DE BLOCOS / CATEGORIAS:
+   - A rotina DEVE conter pelo menos 1 divisão/categoria em 'categories'. NUNCA retorne 'categories' vazio.
+   - Se o profissional solicitar um único treino (ex: "Treino de pernas", "Peito e tríceps", treino de 1 dia, ou treino único), crie EXATAMENTE 1 categoria com título claro (ex: "Treino A — Pernas", "Treino de Peito e Tríceps").
+   - Se o profissional solicitar múltiplos dias/frequência (ex: 2, 3, 4, 5, 6 dias), crie uma categoria para CADA dia/sessão prescrita (ex: "Treino A — Peito e Tríceps", "Treino B — Costas e Bíceps", "Treino C — Pernas", "Treino D — Ombros e Braços").
+   - Toda categoria DEVE conter uma lista de exercícios adequados à duração informada (geralmente entre 4 a 8 exercícios por sessão).
+
+2. NOMENCLATURA PADRÃO EM PORTUGUÊS DO BRASIL:
+   - Use nomes comuns, tradicionais e consagrados na musculação brasileira para máxima compatibilidade com a biblioteca oficial do Trevo One.
+   - Exemplos de referência:
+     * Peito: "Supino reto com barra", "Supino inclinado com halteres", "Supino declinado com barra", "Crucifixo máquina", "Crucifixo com halteres", "Crossover na polia alta"
+     * Costas: "Puxada na frente", "Puxada alta aberta", "Remada baixa", "Remada curvada com barra", "Remada serrote com halteres", "Pulldown na polia"
+     * Pernas: "Agachamento livre com barra", "Leg press 45", "Cadeira extensora", "Mesa flexora", "Cadeira flexora", "Stiff com barra", "Cadeira abdutora", "Cadeira adutora", "Panturrilha em pé", "Panturrilha sentado"
+     * Ombros: "Desenvolvimento com halteres", "Desenvolvimento na máquina", "Elevação lateral com halteres", "Elevação frontal com halteres", "Crucifixo inverso máquina"
+     * Bíceps: "Rosca direta com barra", "Rosca alternada com halteres", "Rosca martelo com halteres", "Rosca scott na máquina"
+     * Tríceps: "Tríceps polia com barra reta", "Tríceps corda na polia", "Tríceps testa com barra W", "Tríceps francês com halteres"
+     * Abdômen: "Abdominal supra no solo", "Abdominal infra na barra fixa", "Prancha isométrica"
+   - Preencha 'exerciseNameCandidate' e 'originalText' com o nome limpo em português.
+   - NÃO invente nomes bizarros ou traduções literais em inglês (ex: use "Supino reto com barra", nunca "Barbell Bench Press").
+
+3. PRESCRIÇÃO COMPLETA:
+   - Defina 'sets' (geralmente 3 ou 4 séries).
+   - Defina 'reps' (repetições mínimas: ex: 8, 10, 12) e 'repsMax' se for faixa (ex: reps: 8, repsMax: 12).
+   - Defina 'restSeconds' (intervalo entre séries em segundos: ex: 45, 60, 90, 120 conforme o objetivo).
+   - Para exercícios por tempo (ex: Prancha 45s), defina 'durationSeconds': 45 e 'durationUnit': 'SECONDS'.
+   - 'load': null a menos que uma carga específica tenha sido informada.
+   - 'notes': orientações reais de execução, cadência ou postura quando relevante.
+
+4. COMBINAÇÕES SUPORTADAS (BI-SET, TRI-SET, SUPER-SÉRIE, CIRCUITO):
+   - Quando bi-set, tri-set ou combinação for solicitada:
+     * Todos os exercícios que formam o mesmo grupo combinado DEVEM ter o MESMO 'combinationIndex' (ex: 1 para o primeiro bi-set, 2 para o segundo).
+     * Defina 'combinationType': 'BI_SET' (exatamente 2 exercícios), 'TRI_SET' (3 exercícios), 'SUPERSET' ou 'CIRCUIT'.
+     * Defina 'combinationRestSeconds': intervalo após a conclusão da sequência combinada (ex: 60, 90).
+     * Os exercícios combinados DEVEM estar em sequência imediata dentro da categoria.
+     * NUNCA crie bi-set com apenas 1 exercício.
+     * NUNCA duplique os membros combinados como exercícios avulsos fora do grupo.
+   - Para exercícios individuais: 'combinationType': null, 'combinationIndex': null, 'combinationRestSeconds': null.
+
+5. RESTRIÇÕES E SEGURANÇA:
+   - Respeite rigorosamente restrições de saúde, dores ou lesões informadas, adaptando os exercícios com segurança.
+   - Respeite os equipamentos disponíveis e o nível de condicionamento do aluno.`;
+
 export interface DocumentInput {
   filename: string;
   mimeType: string;
@@ -107,7 +153,8 @@ export async function extractDocxText(buffer: Buffer): Promise<string> {
  */
 export async function callOpenAiForTraining(
   input: DocumentInput,
-  model = DEFAULT_OPENAI_IMPORT_MODEL
+  model = DEFAULT_OPENAI_IMPORT_MODEL,
+  mode: "IMPORT" | "GENERATE" = "IMPORT"
 ): Promise<{ proposal: RawTrainingImportProposal; metadata: ExtractionMetadata }> {
   const client = getOpenAiClient();
   let uploadedFileId: string | null = null;
@@ -129,22 +176,28 @@ export async function callOpenAiForTraining(
     let outputTokens = 0;
     let providerRequestId: string | undefined;
 
+    const activeSystemPrompt = mode === "GENERATE" ? TRAINING_GENERATION_SYSTEM_PROMPT : SYSTEM_PROMPT;
+    const userRoleContent = mode === "GENERATE"
+      ? `Solicitação do profissional de educação física para prescrição de nova rotina de treino:\n\n${userPromptText}`
+      : `Documento de treino recebido (${input.filename}):\n\n${userPromptText}`;
+    const temperature = mode === "GENERATE" ? 0.2 : 0.1;
+
     if (userPromptText.length > 0) {
       // Direct text / chat completion with structured outputs
       const response = await client.chat.completions.create({
         model,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: activeSystemPrompt },
           {
             role: "user",
-            content: `Documento de treino recebido (${input.filename}):\n\n${userPromptText}`,
+            content: userRoleContent,
           },
         ],
         response_format: {
           type: "json_schema",
           json_schema: TRAINING_IMPORT_JSON_SCHEMA,
         },
-        temperature: 0.1,
+        temperature,
       });
 
       parsedContent = response.choices[0]?.message?.content || null;

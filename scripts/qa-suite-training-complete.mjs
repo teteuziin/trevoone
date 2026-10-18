@@ -175,6 +175,12 @@ export async function runTrainingSuite() {
   passedCount += homeResult.passed;
   totalCount += homeResult.total;
 
+  // 9. AI TRAINING GENERATION & BUILDER PERSISTENCE (11 DETERMINISTIC TESTS)
+  const { runAiTrainingGenerationTests } = await import("./test-ai-training-generation.mjs");
+  const aiGenResult = await runAiTrainingGenerationTests();
+  passedCount += aiGenResult.passed;
+  totalCount += aiGenResult.total;
+
   console.log(`\nTRAINING SUITE PASS: ${passedCount}/${totalCount} testes executados com sucesso!\n`);
   return { passedCount, totalCount };
 }

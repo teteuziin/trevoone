@@ -43,6 +43,11 @@ export async function POST(request: Request, context: RouteContext) {
     const pastedText = (formData.get("text") as string | null) || "";
     const targetStudentMembershipIdRaw = formData.get("targetStudentMembershipId") as string | null;
     const idempotencyKey = (formData.get("idempotencyKey") as string | null) || undefined;
+    const modeRaw = formData.get("mode") as string | null;
+    const mode: "IMPORT" | "GENERATE" =
+      modeRaw === "GENERATE" || (pastedText && /PROPOSTA DE TREINO PERSONALIZADO|Monte uma rotina de treino|Orientações de prescrição/i.test(pastedText))
+        ? "GENERATE"
+        : "IMPORT";
 
     let targetStudentMembershipId: number | null = null;
     if (targetStudentMembershipIdRaw && !isNaN(Number(targetStudentMembershipIdRaw))) {
@@ -112,6 +117,7 @@ export async function POST(request: Request, context: RouteContext) {
       input: docInput,
       targetStudentMembershipId,
       idempotencyKey,
+      mode,
     });
 
     return NextResponse.json({

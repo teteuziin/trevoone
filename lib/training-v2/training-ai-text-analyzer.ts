@@ -39,9 +39,13 @@ export function analyzeWorkoutDescription(text: string): ParsedWorkoutInterpreta
   let daysPerWeek: number | null = null;
   let split: string | null = null;
 
-  const daysMatch = lower.match(/\b([2-6])\s*(?:dias|vezes|x|sess[õo]es)(?:\s*(?:por\s*semana|na\s*semana|semanais))?\b/i);
+  const daysMatch = lower.match(/\b([1-7])\s*(?:dias|vezes|x|sess[õo]es)(?:\s*(?:por\s*semana|na\s*semana|semanais))?\b/i);
   if (daysMatch) {
     daysPerWeek = parseInt(daysMatch[1], 10);
+    if (daysPerWeek === 1) split = "Treino Único";
+  } else if (/\b(?:1|um)\s*(?:treino|dia)\b|\btreino\s*[uú]nico\b|\bapenas\s*um\s*treino\b|\bsomente\s*um\s*treino\b|\bsess[aã]o\s*[uú]nica\b/i.test(lower)) {
+    daysPerWeek = 1;
+    split = "Treino Único";
   } else if (/segunda\s*a\s*sexta/i.test(lower)) {
     daysPerWeek = 5;
   } else if (/segunda\s*a\s*s[aá]bado/i.test(lower)) {

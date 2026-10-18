@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getWorkoutWithSpecificVersion } from "@/lib/training-v2/workout-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { WorkoutBuilder } from "@/components/consultancies/training-v2/workout-builder";
@@ -67,12 +68,15 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
 
   const { workout, version, isDraft, allVersions } = result;
 
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
+
   return (
     <ConsultancyAppShell
       consultancyName={context.consultancyName}
       consultancySlug={context.consultancySlug}
       consultancyLogoUrl={context.consultancyLogoUrl}
       roles={context.roles}
+      viewModeState={effectiveState}
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}

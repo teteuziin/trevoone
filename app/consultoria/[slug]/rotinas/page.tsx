@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { listWorkoutsForProfessional } from "@/lib/training-v2/workout-repository";
 import { listAssignmentsForProfessional } from "@/lib/training-v2/assignment-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
@@ -79,6 +80,8 @@ export default async function ConsultancyWorkoutsPage({
     redirect(`/consultoria/${slug}`);
   }
 
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
+
   const isTemplatesTab = tab === "templates";
   const isAssignmentsTab = tab === "assignments";
 
@@ -130,6 +133,7 @@ export default async function ConsultancyWorkoutsPage({
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      viewModeState={effectiveState}
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         {/* =========================================================================

@@ -33,6 +33,8 @@ export interface PersonalWorkoutSummaryItem {
   updatedAt?: string | Date | null;
   hasActiveDraft?: boolean;
   draftVersionNumber?: number | null;
+  publishedVersionNumber?: number | null;
+  publishedVersionPublicId?: string | null;
 }
 
 export interface StudentWithoutWorkoutItem {
@@ -118,6 +120,8 @@ export function DashboardPersonalView({
       updatedAt: w.updatedAt ? new Date(w.updatedAt).toISOString() : null,
       hasActiveDraft: w.hasActiveDraft,
       draftVersionNumber: w.draftVersionNumber,
+      publishedVersionNumber: w.publishedVersionNumber,
+      publishedVersionPublicId: w.publishedVersionPublicId,
     }));
   }, [activeWorkouts]);
 

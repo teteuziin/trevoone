@@ -6,6 +6,7 @@ import { ConsultancyRole, ROLE_LABELS } from "@/lib/consultancies/context";
 import { ConsultancyNavigation, NavItemConfig } from "./consultancy-navigation";
 import { ViewModeBanner } from "./view-mode-banner";
 import type { EffectiveViewModeState } from "@/lib/consultancies/view-mode";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { SessionScopeGuard } from "@/components/auth/session-scope-guard";
 import { StudentOfflinePrimer } from "@/components/offline/student-offline-primer";
 import { ActivityHeartbeat } from "./activity-heartbeat";
@@ -34,7 +35,7 @@ export interface ConsultancyAppShellProps {
   children: React.ReactNode;
 }
 
-export function ConsultancyAppShell({
+export async function ConsultancyAppShell({
   consultancyName,
   consultancySlug,
   consultancyLogoUrl = null,
@@ -60,17 +61,27 @@ export function ConsultancyAppShell({
   // Presentation roles represent the user's real capabilities in the consultancy.
   // Only when explicitly in preview mode (e.g. admin previewing student), restrict to that mode.
   const safeRoles = Array.isArray(roles) ? roles : [];
-  const isPreview = viewModeState?.isPreview ?? false;
+
+  let resolvedViewModeState = viewModeState;
+  if (!resolvedViewModeState && consultancySlug && safeRoles.length > 0) {
+    try {
+      resolvedViewModeState = await resolveEffectiveViewMode(consultancySlug, safeRoles);
+    } catch {
+      // Fallback to undefined if resolving fails
+    }
+  }
+
+  const isPreview = resolvedViewModeState?.isPreview ?? false;
   const isMultiRolePersonalAdmin = safeRoles.includes("PERSONAL") && safeRoles.includes("CONSULTANCY_ADMIN");
-  const presentationRoles: ConsultancyRole[] = isPreview && viewModeState?.effectiveMode
+  const presentationRoles: ConsultancyRole[] = isPreview && resolvedViewModeState?.effectiveMode
     ? [
-        viewModeState.effectiveMode === "ADMIN"
+        resolvedViewModeState.effectiveMode === "ADMIN"
           ? "CONSULTANCY_ADMIN"
-          : (viewModeState.effectiveMode as ConsultancyRole),
+          : (resolvedViewModeState.effectiveMode as ConsultancyRole),
       ]
-    : isMultiRolePersonalAdmin && viewModeState?.effectiveMode
+    : isMultiRolePersonalAdmin && resolvedViewModeState?.effectiveMode
     ? [
-        viewModeState.effectiveMode === "ADMIN"
+        resolvedViewModeState.effectiveMode === "ADMIN"
           ? "CONSULTANCY_ADMIN"
           : "PERSONAL",
       ]
@@ -599,7 +610,7 @@ export function ConsultancyAppShell({
         profilePhotoUpdatedAt={profilePhotoUpdatedAt}
         roleLabels={roleLabels}
         unreadNotificationsCount={unreadNotificationsCount}
-        viewModeState={viewModeState}
+        viewModeState={resolvedViewModeState}
         themeVariant={themeVariant}
       />
 
@@ -622,11 +633,11 @@ export function ConsultancyAppShell({
       )}
 
       {/* Preview Notification Banner */}
-      {viewModeState?.isPreview && (
+      {resolvedViewModeState?.isPreview && (
         <ViewModeBanner
           consultancySlug={consultancySlug}
-          effectiveMode={viewModeState.effectiveMode}
-          defaultMode={viewModeState.defaultMode}
+          effectiveMode={resolvedViewModeState.effectiveMode}
+          defaultMode={resolvedViewModeState.defaultMode}
         />
       )}
 

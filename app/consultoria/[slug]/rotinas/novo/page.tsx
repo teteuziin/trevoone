@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import { createWorkoutDraftAction } from "@/app/consultoria/[slug]/rotinas/actions";
 import { getPersonalStudentDetail } from "@/lib/consultancies/personal-student-hub";
@@ -113,12 +114,15 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
     }
   }
 
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
+
   return (
     <ConsultancyAppShell
       consultancyName={context.consultancyName}
       consultancySlug={context.consultancySlug}
       consultancyLogoUrl={context.consultancyLogoUrl}
       roles={context.roles}
+      viewModeState={effectiveState}
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}

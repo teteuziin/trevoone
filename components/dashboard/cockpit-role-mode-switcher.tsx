@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useTransition } from "react";
+import React, { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { setConsultancyViewModeAction } from "@/app/consultoria/[slug]/view-mode/actions";
 import type { ConsultancyPresentationMode } from "@/lib/consultancies/view-mode";
 import {
@@ -23,16 +24,45 @@ export function CockpitRoleModeSwitcher({
   className = "",
   compact = false,
 }: CockpitRoleModeSwitcherProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [optimisticTarget, setOptimisticTarget] = useState<ConsultancyPresentationMode | null>(null);
+  const [prevMode, setPrevMode] = useState(currentMode);
 
-  const isCoach = currentMode === "PERSONAL";
-  const isAdmin = currentMode === "ADMIN";
+  if (prevMode !== currentMode) {
+    setPrevMode(currentMode);
+    setOptimisticTarget(null);
+  }
+
+  const activeMode = optimisticTarget ?? currentMode;
+  const isCoach = activeMode === "PERSONAL";
+  const isAdmin = activeMode === "ADMIN";
 
   const handleSwitch = (targetMode: ConsultancyPresentationMode) => {
-    if (isPending || targetMode === currentMode) return;
+    if (isPending || targetMode === activeMode) return;
+    setOptimisticTarget(targetMode);
     if (onSwitch) onSwitch(targetMode);
+
     startTransition(async () => {
-      await setConsultancyViewModeAction(consultancySlug, targetMode);
+      try {
+        const res = await setConsultancyViewModeAction(consultancySlug, targetMode);
+        if (res.success) {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("trevo-view-mode-change", {
+                detail: { mode: targetMode, slug: consultancySlug },
+              })
+            );
+          }
+          router.refresh();
+        } else {
+          // Revert optimistic selection on error
+          setOptimisticTarget(null);
+        }
+      } catch {
+        // Revert optimistic selection on network / unexpected error
+        setOptimisticTarget(null);
+      }
     });
   };
 

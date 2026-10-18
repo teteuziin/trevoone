@@ -234,6 +234,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
               updatedAt: w.updatedAt ? w.updatedAt.toISOString() : null,
               hasActiveDraft: Boolean(w.hasActiveDraft),
               draftVersionNumber: w.draftVersionNumber ?? null,
+              publishedVersionNumber: w.publishedVersionNumber ?? null,
+              publishedVersionPublicId: w.publishedVersionPublicId ?? null,
             })),
           };
         } catch {
@@ -583,6 +585,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
         {/* 1. Visão Combinada Personal + Admin (quando possui ambos os papéis e não está em preview manual) */}
         {isCombinedPersonalAdmin && (
           <DashboardCombinedPersonalAdminView
+            key={effectiveMode}
             consultancySlug={context.consultancySlug}
             consultancyName={context.consultancyName}
             userName={session.fullName}

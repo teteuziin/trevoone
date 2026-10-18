@@ -48,8 +48,26 @@ export function DashboardCombinedPersonalAdminView({
   todayConsultations = null,
   activeRoleMode,
 }: DashboardCombinedPersonalAdminViewProps) {
-  const isInitialAdmin = activeRoleMode === "ADMIN";
-  const [activeTab, setActiveTab] = useState<"coach" | "admin">(isInitialAdmin ? "admin" : "coach");
+  const [optimisticTab, setOptimisticTab] = useState<"coach" | "admin" | null>(null);
+  const [prevActiveRoleMode, setPrevActiveRoleMode] = useState(activeRoleMode);
+
+  if (prevActiveRoleMode !== activeRoleMode) {
+    setPrevActiveRoleMode(activeRoleMode);
+    setOptimisticTab(null);
+  }
+
+  // Synchronize immediately on view-mode custom events across components
+  React.useEffect(() => {
+    const handleModeChange = (e: Event) => {
+      const detail = (e as CustomEvent<{ mode: ConsultancyPresentationMode }>).detail;
+      if (detail?.mode === "ADMIN") setOptimisticTab("admin");
+      else if (detail?.mode === "PERSONAL") setOptimisticTab("coach");
+    };
+    window.addEventListener("trevo-view-mode-change", handleModeChange);
+    return () => window.removeEventListener("trevo-view-mode-change", handleModeChange);
+  }, []);
+
+  const activeTab = optimisticTab ?? (activeRoleMode === "ADMIN" ? "admin" : "coach");
 
   return (
     <div className="space-y-5 sm:space-y-6 w-full animate-in fade-in duration-150">
@@ -58,7 +76,7 @@ export function DashboardCombinedPersonalAdminView({
         <CockpitRoleModeSwitcher
           consultancySlug={consultancySlug}
           currentMode={activeTab === "coach" ? "PERSONAL" : "ADMIN"}
-          onSwitch={(mode) => setActiveTab(mode === "PERSONAL" ? "coach" : "admin")}
+          onSwitch={(mode) => setOptimisticTab(mode === "PERSONAL" ? "coach" : "admin")}
         />
       </div>
 

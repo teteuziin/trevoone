@@ -1,18 +1,72 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   DuotoneStudentsIcon,
   DuotoneTrainingIcon,
   DuotoneExercisesIcon,
 } from "@/components/ui/icons/duotone-icons";
+import { TrainingAiImportModal } from "@/components/consultancies/training-v2/training-ai-import-modal";
+import { TrainingAiGenerateModal } from "@/components/consultancies/training-v2/training-ai-generate-modal";
 
 export interface PersonalOverviewHeaderProps {
   consultancySlug: string;
   totalStudents?: number | null;
   totalWorkouts?: number | null;
   prescribedBlocksCount?: number | null;
+}
+
+function PencilClipboardIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"
+      />
+    </svg>
+  );
+}
+
+function DocumentUploadIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+      />
+    </svg>
+  );
+}
+
+function SparklesWandIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
+      />
+    </svg>
+  );
+}
+
+function XIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+    </svg>
+  );
 }
 
 export function PersonalOverviewHeader({
@@ -27,6 +81,21 @@ export function PersonalOverviewHeader({
     totalStudents !== undefined && totalStudents !== null ? totalStudents : "—";
   const displayPlans =
     totalWorkouts !== undefined && totalWorkouts !== null ? totalWorkouts : "—";
+
+  // Modals & Menu State
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isImportAiOpen, setIsImportAiOpen] = useState(false);
+  const [isGenerateAiOpen, setIsGenerateAiOpen] = useState(false);
+
+  // Close menu on Escape
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsMenuOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isMenuOpen]);
 
   return (
     <div className="w-full">
@@ -46,29 +115,29 @@ export function PersonalOverviewHeader({
             </h1>
           </div>
 
-          {/* Ações */}
+          {/* Ações Desktop & Mobile */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <Link
-              href={`/consultoria/${consultancySlug}/rotinas?action=import`}
-              prefetch={false}
+            <button
+              type="button"
+              onClick={() => setIsImportAiOpen(true)}
               className="px-4 min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] text-[#E5E7EB] hover:text-white flex items-center justify-center gap-2 active:translate-y-[1px] transition-colors cursor-pointer select-none shadow-sm"
             >
-              <svg className="w-4 h-4 text-[#8E95A2]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-              </svg>
+              <DocumentUploadIcon className="w-4 h-4 text-[#8E95A2]" />
               <span>Importar treino</span>
-            </Link>
+            </button>
 
-            <Link
-              href={`/consultoria/${consultancySlug}/rotinas/novo`}
-              prefetch={false}
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(true)}
               className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-sm active:translate-y-[1px] transition-colors cursor-pointer select-none"
+              aria-expanded={isMenuOpen}
+              aria-label="Opções para criar nova ficha"
             >
               <svg className="w-4 h-4 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
               <span>Nova ficha</span>
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -135,18 +204,141 @@ export function PersonalOverviewHeader({
         </div>
       </div>
 
-      {/* Botão Fixo Mobile (Nova ficha) */}
-      <Link
-        href={`/consultoria/${consultancySlug}/rotinas/novo`}
-        prefetch={false}
-        aria-label="Criar nova ficha de treino"
+      {/* Botão Fixo Mobile (Nova ficha) que abre as 3 opções */}
+      <button
+        type="button"
+        onClick={() => setIsMenuOpen(true)}
+        aria-label="Abrir opções de nova ficha de treino"
+        aria-expanded={isMenuOpen}
         className="md:hidden fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-4 z-40 min-h-[48px] px-5 rounded-full bg-[#10B981] hover:bg-[#059669] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg select-none cursor-pointer focus:outline-none active:translate-y-[2px] transition-transform"
       >
         <svg className="w-4 h-4 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
         </svg>
         <span>Nova ficha</span>
-      </Link>
+      </button>
+
+      {/* Menu Vertical de 3 Opções (Modal / Bottom Sheet com superfícies sólidas) */}
+      {isMenuOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
+          onClick={() => setIsMenuOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-workout-menu-title"
+        >
+          <div
+            className="w-full sm:max-w-md bg-white dark:bg-[#151619] border-t sm:border border-[#E5E7EB] dark:border-[#303238] rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 space-y-3.5 shadow-2xl animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-150 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6 text-[#17191D] dark:text-[#E5E7EB]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Mobile Drag Indicator */}
+            <div className="w-10 h-1 bg-[#D1D5DB] dark:bg-[#303238] rounded-full mx-auto sm:hidden -mt-1 mb-2" />
+
+            {/* Menu Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#E5E7EB] dark:border-[#303238]">
+              <div>
+                <h3 id="new-workout-menu-title" className="text-base font-bold text-[#17191D] dark:text-white">
+                  Nova ficha de treino
+                </h3>
+                <p className="text-xs text-[#6B7280] dark:text-[#8E95A2]">
+                  Selecione como deseja prescrever
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen(false)}
+                className="p-2 rounded-lg text-[#6B7280] hover:text-[#17191D] dark:text-[#8E95A2] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="Fechar"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Opção 1: Criar manual */}
+            <Link
+              href={`/consultoria/${consultancySlug}/rotinas/novo`}
+              prefetch={false}
+              onClick={() => setIsMenuOpen(false)}
+              className="flex items-center gap-3.5 p-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] hover:bg-[#F3F4F6] dark:hover:bg-[#222429] border border-[#E5E7EB] dark:border-[#303238] transition-colors group min-h-[56px] select-none cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 group-hover:scale-105 transition-transform">
+                <PencilClipboardIcon className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
+                  Criar manual
+                </p>
+                <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-0.5">
+                  Monte do zero passo a passo
+                </p>
+              </div>
+              <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
+            </Link>
+
+            {/* Opção 2: Importar com IA */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsMenuOpen(false);
+                setIsImportAiOpen(true);
+              }}
+              className="w-full text-left flex items-center gap-3.5 p-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] hover:bg-[#F3F4F6] dark:hover:bg-[#222429] border border-[#E5E7EB] dark:border-[#303238] transition-colors group min-h-[56px] select-none cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20 group-hover:scale-105 transition-transform">
+                <DocumentUploadIcon className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
+                  Importar com IA
+                </p>
+                <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-0.5">
+                  Cole um texto ou PDF para converter
+                </p>
+              </div>
+              <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
+            </button>
+
+            {/* Opção 3: Criar com IA */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsMenuOpen(false);
+                setIsGenerateAiOpen(true);
+              }}
+              className="w-full text-left flex items-center gap-3.5 p-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] hover:bg-[#F3F4F6] dark:hover:bg-[#222429] border border-[#E5E7EB] dark:border-[#303238] transition-colors group min-h-[56px] select-none cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/20 group-hover:scale-105 transition-transform">
+                <SparklesWandIcon className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
+                  Criar com IA
+                </p>
+                <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-0.5">
+                  Gere uma ficha estruturada com parâmetros
+                </p>
+              </div>
+              <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 1: Importar com IA */}
+      <TrainingAiImportModal
+        consultancySlug={consultancySlug}
+        isOpenControlled={isImportAiOpen}
+        onCloseControlled={() => setIsImportAiOpen(false)}
+        hideTrigger={true}
+      />
+
+      {/* Modal 2: Criar com IA (parâmetros estruturados) */}
+      <TrainingAiGenerateModal
+        consultancySlug={consultancySlug}
+        isOpen={isGenerateAiOpen}
+        onClose={() => setIsGenerateAiOpen(false)}
+      />
     </div>
   );
 }

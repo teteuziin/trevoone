@@ -34,6 +34,11 @@ export async function setConsultancyViewModeAction(
   if (mode === "DEFAULT") {
     cookieStore.delete({
       name: VIEW_MODE_COOKIE_NAME,
+      path: "/",
+    });
+    // Also delete any legacy scoped path cookie if present
+    cookieStore.delete({
+      name: VIEW_MODE_COOKIE_NAME,
       path: "/consultoria",
     });
     await recordConsultancyActivity({
@@ -48,7 +53,7 @@ export async function setConsultancyViewModeAction(
       summary: "Modo de visualização redefinido para o padrão",
       metadata: { requestedMode: "DEFAULT" },
     }).catch(() => {});
-    revalidatePath(`/consultoria/${slug}`);
+    revalidatePath(`/consultoria/${slug}`, "layout");
     return { success: true };
   }
 
@@ -65,7 +70,7 @@ export async function setConsultancyViewModeAction(
   cookieStore.set(VIEW_MODE_COOKIE_NAME, `${slug.trim()}:${mode}`, {
     httpOnly: true,
     sameSite: "lax",
-    path: "/consultoria",
+    path: "/",
     secure: process.env.NODE_ENV === "production",
     maxAge: 7 * 24 * 60 * 60, // 7 days
   });
@@ -83,6 +88,6 @@ export async function setConsultancyViewModeAction(
     metadata: { effectiveMode: mode },
   }).catch(() => {});
 
-  revalidatePath(`/consultoria/${slug}`);
+  revalidatePath(`/consultoria/${slug}`, "layout");
   return { success: true };
 }

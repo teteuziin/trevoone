@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+
+const emptySubscribe = () => () => {};
+
+function useIsMounted() {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
 import type {
   WorkoutRootDto,
   WorkoutVersionDto,
@@ -108,6 +115,19 @@ type AssistantCard =
       type: "custom_fallback";
       exerciseName: string;
       targetCategoryId: string;
+    }
+  | {
+      type: "mutation_result";
+      title: string;
+      savedStatus: "✓ Salvo no servidor";
+      items: Array<{
+        name: string;
+        seriesCount: number;
+        reps: string;
+        loadKg?: number | null;
+        restSeconds: number;
+        notes?: string | null;
+      }>;
     };
 
 type ChatMessage = {
@@ -248,6 +268,68 @@ function AssistantMessageCard({
     );
   }
 
+  if (card.type === "mutation_result") {
+    return (
+      <div className="space-y-2.5 p-3.5 rounded-2xl bg-zinc-950/70 dark:bg-black/60 border border-emerald-500/30 shadow-xs">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <span className="text-[11px] font-black text-emerald-400 uppercase tracking-wider truncate">
+            {card.title}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full shrink-0">
+            {card.savedStatus}
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          {card.items.map((it, idx) => (
+            <div
+              key={idx}
+              className="p-2.5 rounded-xl bg-zinc-900/90 dark:bg-zinc-900 border border-zinc-800/80 space-y-1.5"
+            >
+              <h5 className="text-xs sm:text-sm font-extrabold text-white line-clamp-1">
+                {it.name}
+              </h5>
+              <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-semibold text-zinc-300">
+                <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700">
+                  {it.seriesCount} séries
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700">
+                  {it.reps} reps
+                </span>
+                {it.loadKg != null && (
+                  <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700">
+                    {it.loadKg}kg
+                  </span>
+                )}
+                <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700">
+                  {it.restSeconds}s descanso
+                </span>
+              </div>
+              {it.notes && (
+                <p className="text-[10px] text-amber-400 font-medium">
+                  ⚡ {it.notes}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="pt-1 flex items-center justify-between gap-2 text-xs flex-wrap">
+          <span className="text-[10px] text-zinc-400">
+            Continue conversando para ajustar ou
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-2.5 py-1 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 font-bold transition-colors cursor-pointer text-xs"
+          >
+            Ver ficha completa →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return null;
 }
 
@@ -294,11 +376,13 @@ export function TrainingStudioAssistant({
     return Boolean(win.SpeechRecognition || win.webkitSpeechRecognition);
   });
 
+  const isMounted = useIsMounted();
+
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: "initial",
       sender: "assistant",
-      text: "Olá! Sou seu Assistente de Prescrição. Posso montar divisões completas, adicionar ou substituir exercícios, agrupar em bi-set e ajustar séries e descansos. O que deseja prescrever?",
+      text: "O que você quer montar ou ajustar?",
       timestamp: new Date(),
     },
   ]);
@@ -605,13 +689,35 @@ export function TrainingStudioAssistant({
           const res = await searchExercisesForPickerAction(consultancySlug, { query: "Mobilidade" });
           if (res.ok && res.data && res.data.length > 0 && onAddExerciseToCategory) {
             const added = await onAddExerciseToCategory(target.id, res.data[0].publicId);
+            const seriesCount = added?.sets?.length || 3;
+            const reps = added?.sets?.[0]?.targetRepsMax
+              ? `${added.sets[0].targetReps}-${added.sets[0].targetRepsMax}`
+              : String(added?.sets?.[0]?.targetReps || 10);
+            const rest = added?.sets?.[0]?.targetRestSeconds ?? 60;
+            const load = added?.sets?.[0]?.targetLoadKg ?? null;
+
             setMessages((prev) => [
               ...prev,
               {
                 id: `asst-${Date.now()}`,
                 sender: "assistant",
-                text: `✅ Exercício de aquecimento "${added?.exerciseNameSnapshot || res.data![0].name}" adicionado ao bloco "${target.title}".`,
+                text: `Adicionei **${added?.exerciseNameSnapshot || res.data![0].name}** ao bloco **${target.title}**.`,
                 timestamp: new Date(),
+                card: {
+                  type: "mutation_result",
+                  title: `Aquecimento em ${target.title}`,
+                  savedStatus: "✓ Salvo no servidor",
+                  items: [
+                    {
+                      name: added?.exerciseNameSnapshot || res.data![0].name,
+                      seriesCount,
+                      reps,
+                      loadKg: load,
+                      restSeconds: rest,
+                      notes: added?.notes || undefined,
+                    },
+                  ],
+                },
               },
             ]);
           } else {
@@ -676,8 +782,21 @@ export function TrainingStudioAssistant({
               {
                 id: `asst-${Date.now()}`,
                 sender: "assistant",
-                text: `⚡ ${combType === "TRI_SET" ? "Tri-set" : combType === "CIRCUIT" ? "Circuito" : "Bi-set"} criado com sucesso com ${targetItems.map((i) => i.exerciseNameSnapshot).join(" + ")} no bloco "${target.title}"!`,
+                text: `Criei o **${combType === "TRI_SET" ? "Tri-set" : combType === "CIRCUIT" ? "Circuito" : "Bi-set"}** com sucesso no bloco **${target.title}**!`,
                 timestamp: new Date(),
+                card: {
+                  type: "mutation_result",
+                  title: `${combType === "TRI_SET" ? "Tri-set" : combType === "CIRCUIT" ? "Circuito" : "Bi-set"} agrupado em ${target.title}`,
+                  savedStatus: "✓ Salvo no servidor",
+                  items: targetItems.map((it) => ({
+                    name: it.exerciseNameSnapshot,
+                    seriesCount: it.sets?.length || 3,
+                    reps: it.sets?.[0]?.targetRepsMax ? `${it.sets[0].targetReps}-${it.sets[0].targetRepsMax}` : String(it.sets?.[0]?.targetReps || 10),
+                    loadKg: it.sets?.[0]?.targetLoadKg ?? null,
+                    restSeconds: 60,
+                    notes: it.notes || undefined,
+                  })),
+                },
               },
             ]);
           } else {
@@ -767,8 +886,23 @@ export function TrainingStudioAssistant({
               {
                 id: `asst-${Date.now()}`,
                 sender: "assistant",
-                text: `⚙️ Prescrição de "${targetItem.exerciseNameSnapshot}" atualizada para ${updatedConfig.seriesCount} séries de ${repsDisplay} reps, ${updatedConfig.restSeconds}s de descanso${updatedConfig.loadKg ? ` e carga de ${updatedConfig.loadKg}kg` : ""}.`,
+                text: `Atualizei a prescrição de **${targetItem.exerciseNameSnapshot}** no bloco **${target.title}**.`,
                 timestamp: new Date(),
+                card: {
+                  type: "mutation_result",
+                  title: `Prescrição em ${target.title}`,
+                  savedStatus: "✓ Salvo no servidor",
+                  items: [
+                    {
+                      name: targetItem.exerciseNameSnapshot,
+                      seriesCount: updatedConfig.seriesCount,
+                      reps: repsDisplay,
+                      loadKg: updatedConfig.loadKg,
+                      restSeconds: updatedConfig.restSeconds,
+                      notes: updatedConfig.notes,
+                    },
+                  ],
+                },
               },
             ]);
           }
@@ -1000,13 +1134,35 @@ export function TrainingStudioAssistant({
             const matches = res.data;
             if (matches.length === 1 && onAddExerciseToCategory) {
               const added = await onAddExerciseToCategory(target.id, matches[0].publicId);
+              const seriesCount = added?.sets?.length || 4;
+              const reps = added?.sets?.[0]?.targetRepsMax
+                ? `${added.sets[0].targetReps}-${added.sets[0].targetRepsMax}`
+                : String(added?.sets?.[0]?.targetReps || 10);
+              const rest = added?.sets?.[0]?.targetRestSeconds ?? 60;
+              const load = added?.sets?.[0]?.targetLoadKg ?? null;
+
               setMessages((prev) => [
                 ...prev,
                 {
                   id: `asst-${Date.now()}`,
                   sender: "assistant",
-                  text: `✅ **${added?.exerciseNameSnapshot || matches[0].name}** adicionado ao bloco **${target.title}**!`,
+                  text: `Adicionei **${added?.exerciseNameSnapshot || matches[0].name}** ao bloco **${target.title}**.`,
                   timestamp: new Date(),
+                  card: {
+                    type: "mutation_result",
+                    title: `Exercício adicionado a ${target.title}`,
+                    savedStatus: "✓ Salvo no servidor",
+                    items: [
+                      {
+                        name: added?.exerciseNameSnapshot || matches[0].name,
+                        seriesCount,
+                        reps,
+                        loadKg: load,
+                        restSeconds: rest,
+                        notes: added?.notes || undefined,
+                      },
+                    ],
+                  },
                 },
               ]);
             } else {
@@ -1188,53 +1344,51 @@ export function TrainingStudioAssistant({
     setFlowState(hasFailures ? "assignment_error" : "assignment_success");
   }
 
-  if (!isOpen) return null;
+  if (!isOpen || !isMounted) return null;
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="assistant-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-end bg-black/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-150"
     >
       {/* Background click to dismiss on desktop */}
       <div className="absolute inset-0 hidden sm:block" onClick={handleClose} />
 
       {/* Main Container: Fullscreen on mobile, Wide Docked Panel on Desktop */}
-      <div className="relative w-full sm:max-w-xl sm:h-full h-full bg-zinc-950 text-white border-l border-zinc-800 shadow-2xl flex flex-col z-10 overflow-hidden">
+      <div className="relative w-full sm:max-w-xl sm:h-full h-full max-h-[100dvh] bg-[var(--surface)] text-[var(--text-primary)] border-t sm:border-t-0 sm:border-l border-[var(--border-default)] shadow-2xl flex flex-col z-10 overflow-hidden">
         {/* Header with Title and Target Block Selector */}
-        <div className="p-4 sm:p-5 border-b border-zinc-800 bg-zinc-900/80 flex flex-col gap-3 shrink-0">
+        <div className="p-4 sm:p-5 border-b border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex flex-col gap-3 shrink-0">
           <div className="flex items-center justify-between gap-3 w-full">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-zinc-950 flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
                 ✨
               </div>
               <div className="min-w-0">
-                <h3 id="assistant-modal-title" className="text-sm sm:text-base font-black tracking-tight text-white truncate">
+                <h3 id="assistant-modal-title" className="text-sm sm:text-base font-black tracking-tight text-[var(--text-primary)] truncate">
                   Assistente de Montagem
                 </h3>
-                <p className="text-[11px] text-zinc-400 font-medium truncate">
+                <p className="text-[11px] text-[var(--text-secondary)] font-medium truncate">
                   Prescreva em linguagem natural ou por voz
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              {onOpenPreview && (
-                <button
-                  type="button"
-                  onClick={onOpenPreview}
-                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 transition-colors cursor-pointer min-h-[36px]"
-                  title="Ver prévia da ficha montada"
-                >
-                  👁️ Prévia
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer min-h-[36px]"
+                title="Ver ficha completa"
+              >
+                👁️ Ver ficha
+              </button>
               <button
                 type="button"
                 onClick={handleClose}
                 aria-label="Fechar assistente"
-                className="w-9 h-9 min-h-[44px] min-w-[44px] rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
+                className="w-9 h-9 min-h-[44px] min-w-[44px] rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] flex items-center justify-center transition-colors cursor-pointer"
               >
                 ✕
               </button>
@@ -1243,14 +1397,14 @@ export function TrainingStudioAssistant({
 
           {/* Target Block Switcher Pill */}
           <div className="flex items-center gap-2 pt-1 flex-wrap">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider shrink-0">
+            <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider shrink-0">
               Destino:
             </span>
             <div className="relative flex-1 min-w-[200px]">
               <select
                 value={targetCategoryId}
                 onChange={(e) => setSelectedTargetIdOverride(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-bold rounded-xl bg-zinc-900 border border-zinc-700 text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none cursor-pointer min-h-[38px]"
+                className="w-full px-3 py-2 text-xs font-bold rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none cursor-pointer min-h-[38px]"
               >
                 {categories.map((c, i) => (
                   <option key={c.publicId} value={c.publicId}>
@@ -1259,7 +1413,7 @@ export function TrainingStudioAssistant({
                 ))}
                 <option value="__NEW_BLOCK__">+ Criar novo bloco de treino</option>
               </select>
-              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs">
+              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] text-xs">
                 ▼
               </div>
             </div>
@@ -1277,9 +1431,9 @@ export function TrainingStudioAssistant({
                 className={`flex flex-col ${isAsst ? "items-start" : "items-end"} space-y-1`}
               >
                 <div
-                  className={`max-w-[92%] sm:max-w-[85%] rounded-2xl p-3 sm:p-3.5 text-xs sm:text-sm leading-relaxed shadow-xs ${
+                  className={`max-w-[94%] sm:max-w-[88%] rounded-2xl p-3 sm:p-3.5 text-xs sm:text-sm leading-relaxed shadow-xs ${
                     isAsst
-                      ? "bg-zinc-900 border border-zinc-800 text-zinc-100"
+                      ? "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)]"
                       : "bg-emerald-600 text-white font-medium"
                   }`}
                 >
@@ -1287,7 +1441,7 @@ export function TrainingStudioAssistant({
 
                   {/* Interactive Cards Attached to Assistant Messages */}
                   {msg.card && (
-                    <div className="mt-3 pt-3 border-t border-zinc-800 space-y-2">
+                    <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] space-y-2">
                       <AssistantMessageCard
                         card={msg.card}
                         onAddExercise={async (catId, exId) => {
@@ -1326,11 +1480,39 @@ export function TrainingStudioAssistant({
             );
           })}
 
+          {/* Initial Quick Suggestions Grid (Organized in compact grid, hidden when conversation advances) */}
+          {messages.length <= 1 && (
+            <div className="pt-2 pb-1 space-y-2">
+              <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block px-1">
+                Sugestões rápidas
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "⚡ Montar divisão ABC", cmd: "Montar divisão ABC" },
+                  { label: "➕ Adicionar aquecimento", cmd: "Adicionar aquecimento" },
+                  { label: "🔗 Combinar em bi-set", cmd: "Combinar em bi-set" },
+                  { label: "⏱️ Ajustar descanso para 60s", cmd: "Ajustar descanso para 60s" },
+                  { label: "🎯 4 séries de 10-12 reps", cmd: "4 séries de 10-12 reps" },
+                  { label: "🔄 Substituir exercício", cmd: "Substituir exercício" },
+                ].map((sug, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => handleExecuteCommand(sug.cmd)}
+                    className="p-2.5 rounded-xl text-left text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-all cursor-pointer min-h-[44px] flex items-center gap-2 active:scale-[0.99]"
+                  >
+                    <span>{sug.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* DRAFT WARNING (Student assignment guard) */}
           {flowState === "draft_warning" && (
             <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 space-y-3">
-              <h4 className="text-sm font-black text-amber-200">⚠️ Treino ainda em Rascunho</h4>
-              <p className="text-xs text-amber-300 leading-relaxed">
+              <h4 className="text-sm font-black text-amber-700 dark:text-amber-200">⚠️ Treino ainda em Rascunho</h4>
+              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
                 Alunos só podem receber versões oficiais devidamente publicadas. Deseja revisar e publicar agora?
               </p>
               <div className="flex items-center gap-2 pt-1">
@@ -1347,7 +1529,7 @@ export function TrainingStudioAssistant({
                 <button
                   type="button"
                   onClick={() => setFlowState("idle")}
-                  className="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white cursor-pointer min-h-[40px]"
+                  className="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer min-h-[40px]"
                 >
                   Voltar
                 </button>
@@ -1358,8 +1540,8 @@ export function TrainingStudioAssistant({
           {/* PUBLISHED WARNING (Prompt to create draft) */}
           {flowState === "published_warning" && (
             <div className="p-4 rounded-2xl bg-blue-500/15 border border-blue-500/30 space-y-3">
-              <h4 className="text-sm font-black text-blue-200">🔒 Versão Publicada (V{version.versionNumber})</h4>
-              <p className="text-xs text-blue-300 leading-relaxed">
+              <h4 className="text-sm font-black text-blue-700 dark:text-blue-200">🔒 Versão Publicada (V{version.versionNumber})</h4>
+              <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
                 Esta versão é oficial e somente leitura. Para adicionar novos exercícios ou alterar blocos, crie um novo rascunho de edição.
               </p>
               <div className="flex items-center gap-2 pt-1">
@@ -1378,7 +1560,7 @@ export function TrainingStudioAssistant({
                 <button
                   type="button"
                   onClick={() => setFlowState("idle")}
-                  className="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white cursor-pointer min-h-[40px]"
+                  className="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer min-h-[40px]"
                 >
                   Voltar
                 </button>
@@ -1388,8 +1570,8 @@ export function TrainingStudioAssistant({
 
           {/* STUDENT AMBIGUITY RESOLUTION */}
           {flowState === "ambiguity" && (
-            <div className="space-y-3 p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800">
-              <h4 className="text-xs sm:text-sm font-extrabold text-white">
+            <div className="space-y-3 p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+              <h4 className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)]">
                 Mais de um aluno encontrado. Selecione o destinatário:
               </h4>
               <div className="space-y-1.5 max-h-56 overflow-y-auto">
@@ -1402,13 +1584,13 @@ export function TrainingStudioAssistant({
                       checkExistingAssignmentNotice(st);
                       setFlowState("confirm_assignment");
                     }}
-                    className="w-full p-2.5 rounded-xl border border-zinc-800 hover:border-emerald-500 bg-zinc-950 flex items-center justify-between gap-2 text-left transition-all cursor-pointer min-h-[44px]"
+                    className="w-full p-2.5 rounded-xl border border-[var(--border-subtle)] hover:border-emerald-500 bg-[var(--surface)] flex items-center justify-between gap-2 text-left transition-all cursor-pointer min-h-[44px]"
                   >
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-white truncate">{st.name}</p>
-                      <p className="text-[10px] text-zinc-400 truncate">{st.email}</p>
+                      <p className="text-xs font-bold text-[var(--text-primary)] truncate">{st.name}</p>
+                      <p className="text-[10px] text-[var(--text-secondary)] truncate">{st.email}</p>
                     </div>
-                    <span className="text-xs font-bold text-emerald-400">Selecionar →</span>
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Selecionar →</span>
                   </button>
                 ))}
               </div>
@@ -1417,15 +1599,15 @@ export function TrainingStudioAssistant({
 
           {/* CONFIRM ASSIGNMENT */}
           {flowState === "confirm_assignment" && (
-            <div className="space-y-3 p-4 rounded-2xl bg-zinc-900 border border-zinc-800">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
+            <div className="space-y-3 p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
                 Atribuição de Treino
               </span>
-              <h4 className="text-sm font-black text-white">
+              <h4 className="text-sm font-black text-[var(--text-primary)]">
                 Enviar ficha {workout.title} (V{version.versionNumber}) para {selectedStudents.map((s) => s.name).join(", ")}?
               </h4>
               {assignmentNotice && (
-                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs leading-relaxed">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs leading-relaxed">
                   ⚠️ {assignmentNotice}
                 </div>
               )}
@@ -1433,7 +1615,7 @@ export function TrainingStudioAssistant({
                 <button
                   type="button"
                   onClick={() => setFlowState("idle")}
-                  className="px-3 py-2 rounded-xl text-xs font-bold text-zinc-400 hover:text-white cursor-pointer min-h-[40px]"
+                  className="px-3 py-2 rounded-xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer min-h-[40px]"
                 >
                   Cancelar
                 </button>
@@ -1452,7 +1634,7 @@ export function TrainingStudioAssistant({
           {flowState === "assigning" && (
             <div className="py-8 text-center space-y-2">
               <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs font-bold text-zinc-300">Atribuindo treino...</p>
+              <p className="text-xs font-bold text-[var(--text-secondary)]">Atribuindo treino...</p>
             </div>
           )}
 
@@ -1460,8 +1642,8 @@ export function TrainingStudioAssistant({
           {flowState === "assignment_success" && (
             <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-center space-y-2">
               <span className="text-2xl block">🎉</span>
-              <h4 className="text-sm font-black text-emerald-200">Treino atribuído com sucesso!</h4>
-              <p className="text-xs text-emerald-300">
+              <h4 className="text-sm font-black text-emerald-700 dark:text-emerald-200">Treino atribuído com sucesso!</h4>
+              <p className="text-xs text-emerald-800 dark:text-emerald-300">
                 Ficha enviada para {selectedStudents.map((s) => s.name).join(", ")}.
               </p>
               <button
@@ -1477,7 +1659,7 @@ export function TrainingStudioAssistant({
           {/* ASSIGNMENT ERROR / PARTIAL FAILURE */}
           {flowState === "assignment_error" && (
             <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 space-y-3">
-              <h4 className="text-xs sm:text-sm font-black text-rose-200">
+              <h4 className="text-xs sm:text-sm font-black text-rose-700 dark:text-rose-200">
                 Resultado do envio:
               </h4>
               <div className="space-y-1.5 text-xs">
@@ -1496,7 +1678,7 @@ export function TrainingStudioAssistant({
               <button
                 type="button"
                 onClick={() => setFlowState("idle")}
-                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-200 font-bold text-xs cursor-pointer min-h-[36px]"
+                className="px-4 py-2 rounded-xl bg-[var(--surface-subtle)] text-[var(--text-secondary)] font-bold text-xs cursor-pointer min-h-[36px]"
               >
                 Voltar
               </button>
@@ -1505,44 +1687,23 @@ export function TrainingStudioAssistant({
 
           {/* Error Message */}
           {errorMessage && (
-            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold">
+            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-300 text-xs font-semibold">
               {errorMessage}
             </div>
           )}
         </div>
 
-        {/* 1-Touch Suggestions Pill Bar */}
-        <div className="px-4 py-2 border-t border-zinc-800 bg-zinc-900/50 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
-          {[
-            { label: "⚡ Montar divisão ABC", cmd: "Montar divisão ABC" },
-            { label: "➕ Adicionar aquecimento", cmd: "Adicionar aquecimento" },
-            { label: "🔗 Combinar em bi-set", cmd: "Combinar em bi-set" },
-            { label: "🔄 Substituir exercício", cmd: "Substituir exercício" },
-            { label: "⏱️ Ajustar descanso para 60s", cmd: "Ajustar descanso para 60s" },
-            { label: "🎯 4 séries de 10-12 reps", cmd: "4 séries de 10-12 reps" },
-          ].map((sug, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => handleExecuteCommand(sug.cmd)}
-              className="px-3 py-1.5 rounded-full text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 transition-colors whitespace-nowrap shrink-0 cursor-pointer min-h-[32px]"
-            >
-              {sug.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Input Bar: Multiline Expanding Textarea with Mic & Send */}
-        <div className="p-3 sm:p-4 border-t border-zinc-800 bg-zinc-950 shrink-0 space-y-2">
+        {/* Input Bar: Multiline 3-line Textarea (>= 16px font to prevent iOS zoom) with Mic & Send */}
+        <div className="p-3 sm:p-4 border-t border-[var(--border-subtle)] bg-[var(--surface)] shrink-0 space-y-2 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
           {isListening && (
-            <div className="flex items-center gap-2 text-xs font-bold text-rose-400 animate-pulse px-1">
+            <div className="flex items-center gap-2 text-xs font-bold text-rose-500 animate-pulse px-1">
               <span className="w-2 h-2 rounded-full bg-rose-500" />
               <span>Ouvindo em Português... Diga seu comando agora</span>
             </div>
           )}
 
           {speechError && (
-            <div className="text-xs text-amber-400 font-medium px-1">
+            <div className="text-xs text-amber-500 font-medium px-1">
               ⚠️ {speechError}
             </div>
           )}
@@ -1557,7 +1718,7 @@ export function TrainingStudioAssistant({
             <div className="flex-1 relative">
               <textarea
                 ref={textareaRef}
-                rows={2}
+                rows={3}
                 value={commandInput}
                 onChange={(e) => setCommandInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -1567,7 +1728,7 @@ export function TrainingStudioAssistant({
                   }
                 }}
                 placeholder="Escreva ou dite o que deseja fazer (ex: 'Adicionar supino reto', 'Montar divisão ABC', 'Combinar em bi-set', 'Ajustar descanso para 60s')..."
-                className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-semibold rounded-2xl border border-zinc-700 bg-zinc-900 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none min-h-[52px] max-h-32"
+                className="w-full px-3.5 py-2.5 text-base font-semibold rounded-2xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none min-h-[72px] max-h-36 leading-snug"
               />
             </div>
 
@@ -1581,7 +1742,7 @@ export function TrainingStudioAssistant({
                 className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all cursor-pointer shrink-0 min-h-[44px] min-w-[44px] ${
                   isListening
                     ? "bg-rose-600 text-white animate-pulse ring-4 ring-rose-500/30"
-                    : "bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-emerald-400 border border-zinc-700"
+                    : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-emerald-500 border border-[var(--border-default)]"
                 }`}
               >
                 {isListening ? (
@@ -1608,6 +1769,7 @@ export function TrainingStudioAssistant({
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

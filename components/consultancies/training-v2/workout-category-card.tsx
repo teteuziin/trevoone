@@ -846,134 +846,82 @@ export function WorkoutCategoryCard({
   return (
     <div className="space-y-4 pb-6 border-b border-[var(--border-subtle)] last:border-b-0 w-full max-w-full min-w-0">
       {/* Category Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 pb-3 border-b border-[var(--border-subtle)] w-full max-w-full min-w-0">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          {isEditingTitle && isDraft ? (
-            <div className="flex items-center gap-1.5 flex-1 max-w-sm">
-              <input
-                type="text"
-                value={titleDraft}
-                onChange={(e) => setTitleDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSaveTitle();
-                  if (e.key === "Escape") setIsEditingTitle(false);
-                }}
-                autoFocus
-                placeholder="Nome do treino (ex: Segunda — Peito)"
-                className="w-full px-3 py-1 text-xs sm:text-sm font-bold uppercase rounded-lg border border-emerald-500 bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none min-h-[32px]"
-              />
-              <button
-                type="button"
-                onClick={handleSaveTitle}
-                className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 min-h-[32px] min-w-[32px] flex items-center justify-center shrink-0 cursor-pointer"
-                title="Salvar nome"
-              >
-                <Check className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            <div className="min-w-0 flex-1 space-y-0.5">
-              <h2
-                onClick={() => {
-                  if (isDraft) {
-                    setTitleDraft(category.title || "");
-                    setIsEditingTitle(true);
-                  }
-                }}
-                className={`text-base sm:text-lg font-black uppercase tracking-tight text-[var(--text-primary)] break-words line-clamp-2 ${
-                  isDraft ? "cursor-pointer hover:text-emerald-600 transition-colors" : ""
-                }`}
-                title={isDraft ? "Clique para renomear" : undefined}
-              >
-                {categoryTitle}
-              </h2>
-              <div className="text-xs text-[var(--text-secondary)] font-medium flex items-center gap-1.5 flex-wrap">
-                <span>{items.length} {items.length === 1 ? "exercício" : "exercícios"}</span>
-                {combinations.length > 0 && <span>· {combinations.length} {combinations.length === 1 ? "combinação" : "combinações"}</span>}
-                {hasSubBlocks && <span>· {subBlocks.length} {subBlocks.length === 1 ? "grupo" : "grupos"}</span>}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Category Actions — Nível 1: "+ Exercício" e "Combinar" lado a lado */}
-        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center relative">
-          {/* Assistente de Montagem / Assistente de Treino — Acessível (sr-only no card para evitar duplicação com cabeçalho) */}
-          <button
-            type="button"
-            data-testid="category-assistant-btn"
-            onClick={() => setIsAssistantOpen(true)}
-            aria-label={isDraft ? "Assistente de Montagem" : "Assistente de Treino"}
-            className="sr-only"
-            title={isDraft ? "Abrir Assistente Inteligente de Montagem" : "Abrir Assistente Inteligente de Prescrição"}
-          >
-            <SparklesIcon className="w-3.5 h-3.5 text-emerald-500" />
-            <span>{isDraft ? "Assistente" : "Assistente"}</span>
-          </button>
-
-          {isDraft && (
-            <>
-              {/* Botões mantidos para acessibilidade e testids sem poluir visualmente */}
-              <button
-                type="button"
-                data-testid="category-add-exercise-btn"
-                onClick={() => onOpenExercisePicker(category.publicId)}
-                aria-label="Adicionar exercício"
-                className="sr-only min-h-[38px] sm:min-h-[34px] hover:scale-[1.01] active:scale-[0.98] bg-emerald-600 hover:bg-emerald-700 text-white"
-                title="Adicionar exercício a este treino"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>Exercício</span>
-              </button>
-
-              {onCreateCombination && (
+      <div className="space-y-3 pb-3 border-b border-[var(--border-subtle)] w-full max-w-full min-w-0">
+        <div className="flex items-center justify-between gap-2.5 sm:gap-3 w-full">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {isEditingTitle && isDraft ? (
+              <div className="flex items-center gap-1.5 flex-1 max-w-sm">
+                <input
+                  type="text"
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveTitle();
+                    if (e.key === "Escape") setIsEditingTitle(false);
+                  }}
+                  autoFocus
+                  placeholder="Nome do treino (ex: Segunda — Peito)"
+                  className="w-full px-3 py-1 text-xs sm:text-sm font-bold uppercase rounded-lg border border-emerald-500 bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none min-h-[32px]"
+                />
                 <button
                   type="button"
-                  data-testid="category-combine-btn"
+                  onClick={handleSaveTitle}
+                  className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 min-h-[32px] min-w-[32px] flex items-center justify-center shrink-0 cursor-pointer"
+                  title="Salvar nome"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <h2
                   onClick={() => {
-                    if (combiningSubBlockId === "root") {
-                      setCombiningSubBlockId(null);
-                      setSelectedExerciseIds([]);
-                    } else {
-                      setCombiningSubBlockId("root");
-                      setSelectedExerciseIds([]);
+                    if (isDraft) {
+                      setTitleDraft(category.title || "");
+                      setIsEditingTitle(true);
                     }
                   }}
-                  aria-label={combiningSubBlockId === "root" ? "Cancelar modo combinar" : "Combinar exercícios em Bi-set, Tri-set ou Circuito"}
-                  className={
-                    combiningSubBlockId === "root"
-                      ? "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 cursor-pointer min-h-[34px]"
-                      : "sr-only min-h-[38px] sm:min-h-[34px] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)]"
-                  }
-                  title="Combinar exercícios em Bi-set, Tri-set ou Circuito"
+                  className={`text-base sm:text-lg font-black uppercase tracking-tight text-[var(--text-primary)] break-words line-clamp-2 ${
+                    isDraft ? "cursor-pointer hover:text-emerald-600 transition-colors" : ""
+                  }`}
+                  title={isDraft ? "Clique para renomear" : undefined}
                 >
-                  {combiningSubBlockId === "root" ? (
-                    <>
-                      <span className="text-xs font-extrabold leading-none">✕</span>
-                      <span>Cancelar</span>
-                    </>
-                  ) : (
-                    <>
-                      <ZapIcon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>Combinar</span>
-                    </>
-                  )}
-                </button>
-              )}
-            </>
-          )}
+                  {categoryTitle}
+                </h2>
+                <div className="text-xs text-[var(--text-secondary)] font-medium flex items-center gap-1.5 flex-wrap">
+                  <span>{items.length} {items.length === 1 ? "exercício" : "exercícios"}</span>
+                  {combinations.length > 0 && <span>· {combinations.length} {combinations.length === 1 ? "combinação" : "combinações"}</span>}
+                  {hasSubBlocks && <span>· {subBlocks.length} {subBlocks.length === 1 ? "grupo" : "grupos"}</span>}
+                </div>
+              </div>
+            )}
+          </div>
 
-          {/* Discreet Menu [...] on Mobile & Desktop */}
-          <div className="relative">
+          {/* Block Menu [...] on Mobile & Desktop */}
+          <div className="flex items-center gap-1.5 shrink-0 relative">
+            {/* Kept sr-only for accessibility/testids */}
             <button
               type="button"
-              onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
-              aria-label="Ações do treino"
-              className="p-2 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-all min-h-[38px] sm:min-h-[34px] min-w-[38px] sm:min-w-[34px] flex items-center justify-center cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
-              title="Mais opções do treino"
+              data-testid="category-assistant-btn"
+              onClick={() => setIsAssistantOpen(true)}
+              aria-label={isDraft ? "Assistente de Montagem" : "Assistente de Treino"}
+              className="sr-only"
+              title={isDraft ? "Abrir Assistente Inteligente de Montagem" : "Abrir Assistente Inteligente de Prescrição"}
             >
-              <MoreVertical className="w-4 h-4" />
+              <SparklesIcon className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Assistente</span>
             </button>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
+                aria-label="Ações do treino"
+                className="p-2 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-all min-h-[44px] min-w-[44px] sm:min-h-[38px] sm:min-w-[38px] flex items-center justify-center cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
+                title="Mais opções do treino"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
 
             {isCategoryMenuOpen && (
               <>
@@ -1089,6 +1037,44 @@ export function WorkoutCategoryCard({
             </div>
           </div>
         </div>
+
+        {/* Visible Assembly Bar: + Adicionar exercício & ⚡ Criar combinação */}
+        {isDraft && (
+          <div className="flex flex-col min-[360px]:flex-row items-stretch sm:items-center gap-2.5 w-full pt-1">
+            <button
+              type="button"
+              data-testid="category-add-exercise-btn"
+              onClick={() => onOpenExercisePicker(category.publicId)}
+              aria-label="Adicionar exercício"
+              className="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all cursor-pointer"
+              title="Adicionar exercício a este treino"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>+ Adicionar exercício</span>
+            </button>
+
+            {onCreateCombination && (
+              <button
+                type="button"
+                data-testid="category-combine-btn"
+                onClick={() => {
+                  setGuidedModalState({
+                    isOpen: true,
+                    type: "BI_SET",
+                    initialItem: null,
+                  });
+                }}
+                aria-label="Criar combinação"
+                className="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-white/[0.12] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all cursor-pointer"
+                title="Criar combinação (Bi-set, Tri-set, Circuito ou Super-série)"
+              >
+                <ZapIcon className="w-4 h-4 text-amber-500 shrink-0" />
+                <span>⚡ Criar combinação</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Content Area: Sub-Blocks or Flat Exercise List */}
       <div className="space-y-4 pt-1">
@@ -2793,7 +2779,7 @@ function ExerciseRow({
           ? "border-[var(--border-subtle)] dark:border-white/[0.08] bg-[var(--surface)] dark:bg-zinc-900/60 hover:border-white/20"
           : isExpanded
           ? "border-emerald-500 bg-[var(--surface)] dark:bg-zinc-900/90 shadow-md ring-2 ring-emerald-500/20"
-          : "border-[var(--border-subtle)] dark:border-white/[0.08] bg-[var(--surface)] dark:bg-zinc-900/60 hover:bg-[var(--surface-subtle)]/30 dark:hover:bg-zinc-900/80 hover:border-white/20"
+          : "border border-zinc-200/90 dark:border-zinc-800 border-t-white/80 dark:border-t-white/10 border-b-zinc-300/80 dark:border-b-black/70 bg-zinc-50/90 dark:bg-zinc-900/90 shadow-[0_2px_4px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_8px_rgba(0,0,0,0.3)] hover:border-emerald-500/30"
       }`}
     >
       {/* Compact Header Row */}
@@ -3609,6 +3595,7 @@ export function UnifiedCombinationBlock({
   onOpenActions,
   onMoveItemInCombination,
   onUngroupCombination,
+  onDeleteCombination,
 }: UnifiedCombinationBlockProps) {
   const items = useMemo(() => combination.items || [], [combination.items]);
   const theme = getCombinationTheme(combination.combinationType);
@@ -3618,6 +3605,7 @@ export function UnifiedCombinationBlock({
   const [, startTransition] = useTransition();
   const [isCombMenuOpen, setIsCombMenuOpen] = useState(false);
   const [isSeqModalOpen, setIsSeqModalOpen] = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
   const combSeqExp = useMemo(() => buildSequenceMediaFromCombination(combination, items), [combination, items]);
@@ -3723,6 +3711,18 @@ export function UnifiedCombinationBlock({
                           <ZapIcon className="w-4 h-4 text-emerald-600" />
                           <span>Editar combinação</span>
                         </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCombMenuOpen(false);
+                            setIsReordering((prev) => !prev);
+                          }}
+                          className="w-full px-3 py-2.5 rounded-lg hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[44px]"
+                        >
+                          <MoveIcon className="w-4 h-4 text-amber-500" />
+                          <span>{isReordering ? "Concluir reordenação" : "Reordenar exercícios"}</span>
+                        </button>
                       </div>
 
                       {onUngroupCombination && (
@@ -3739,6 +3739,24 @@ export function UnifiedCombinationBlock({
                           >
                             <Trash2 className="w-4 h-4" />
                             <span>Desfazer combinação</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {onDeleteCombination && (
+                        <div className="p-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCombMenuOpen(false);
+                              if (confirm(`Excluir esta combinação ${typeLabel}?`)) {
+                                startTransition(() => onDeleteCombination(combination.publicId, true));
+                              }
+                            }}
+                            className="w-full px-3 py-2.5 rounded-lg hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[44px]"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>Excluir combinação</span>
                           </button>
                         </div>
                       )}
@@ -3856,6 +3874,17 @@ export function UnifiedCombinationBlock({
                       <ZapIcon className="w-3.5 h-3.5 text-emerald-600" />
                       <span>Editar combinação</span>
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCombMenuOpen(false);
+                        setIsReordering((prev) => !prev);
+                      }}
+                      className="w-full px-3 py-2 hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[32px]"
+                    >
+                      <MoveIcon className="w-3.5 h-3.5 text-amber-500" />
+                      <span>{isReordering ? "Concluir reordenação" : "Reordenar exercícios"}</span>
+                    </button>
                     {onUngroupCombination && (
                       <button
                         type="button"
@@ -3871,6 +3900,21 @@ export function UnifiedCombinationBlock({
                         <span>Desfazer combinação</span>
                       </button>
                     )}
+                    {onDeleteCombination && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCombMenuOpen(false);
+                          if (confirm(`Excluir esta combinação ${typeLabel}?`)) {
+                            startTransition(() => onDeleteCombination(combination.publicId, true));
+                          }
+                        }}
+                        className="w-full px-3 py-2 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[32px]"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Excluir combinação</span>
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -3878,6 +3922,23 @@ export function UnifiedCombinationBlock({
           )}
         </div>
       </div>
+
+      {/* Reorder Mode Banner */}
+      {isReordering && (
+        <div className="px-4 py-2 bg-amber-500/20 dark:bg-amber-950/60 border-b border-amber-500/30 flex items-center justify-between gap-2 text-xs font-bold text-amber-950 dark:text-amber-200">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <MoveIcon className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="truncate">Modo reordenar: use as setas para ajustar a sequência</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsReordering(false)}
+            className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shrink-0 cursor-pointer min-h-[36px]"
+          >
+            Concluir
+          </button>
+        </div>
+      )}
 
       {/* Internal Exercise Rows (Clean rows, fully styled with semantic theme) */}
       <div className={`divide-y ${theme.dividerClass}`}>
@@ -3977,52 +4038,52 @@ export function UnifiedCombinationBlock({
                   </div>
                 </div>
 
-                {/* Right: Internal Order (↑ / ↓) + Actions (NO giant green button) */}
-                {isDraft && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    {/* Internal reorder touch buttons: >= 44px on mobile */}
-                    {onMoveItemInCombination && (
-                      <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                        <button
-                          type="button"
-                          disabled={idx === 0}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onMoveItemInCombination(combination.publicId, item.publicId, "up");
-                          }}
-                          aria-label="Mover para cima na combinação"
-                          title="Mover para cima na combinação"
-                          className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-white/20 hover:bg-white/30 dark:bg-black/20 dark:hover:bg-black/30 border border-current/20 flex items-center justify-center text-current disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px]"
-                        >
-                          <ArrowUp className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={idx === items.length - 1}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onMoveItemInCombination(combination.publicId, item.publicId, "down");
-                          }}
-                          aria-label="Mover para baixo na combinação"
-                          title="Mover para baixo na combinação"
-                          className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-white/20 hover:bg-white/30 dark:bg-black/20 dark:hover:bg-black/30 border border-current/20 flex items-center justify-center text-current disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px]"
-                        >
-                          <ArrowDown className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                        </button>
-                      </div>
-                    )}
+                {/* Right: Reorder arrows only in reorder mode, clean edit hint in normal mode */}
+                {isDraft && isReordering && onMoveItemInCombination && (
+                  <div className="flex items-center gap-1 shrink-0 animate-in fade-in duration-100">
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMoveItemInCombination(combination.publicId, item.publicId, "up");
+                      }}
+                      aria-label="Mover para cima na combinação"
+                      title="Mover para cima na combinação"
+                      className="w-11 h-11 sm:w-8 sm:h-8 rounded-xl bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-current/20 flex items-center justify-center text-current disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px]"
+                    >
+                      <ArrowUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === items.length - 1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMoveItemInCombination(combination.publicId, item.publicId, "down");
+                      }}
+                      aria-label="Mover para baixo na combinação"
+                      title="Mover para baixo na combinação"
+                      className="w-11 h-11 sm:w-8 sm:h-8 rounded-xl bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 border border-current/20 flex items-center justify-center text-current disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px]"
+                    >
+                      <ArrowDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
 
-                    {/* Item Actions (•••): min-h-[44px] min-w-[44px] */}
+                {/* Normal mode: clean edit hint */}
+                {isDraft && !isReordering && (
+                  <div className="flex items-center gap-1 shrink-0 text-current/50 group-hover:text-current transition-colors">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onOpenActions(item, idx, items.length, combination.publicId);
                       }}
-                      aria-label="Ações do exercício"
-                      className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-white/20 hover:bg-white/30 dark:bg-black/20 dark:hover:bg-black/30 border border-current/20 text-current flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] cursor-pointer"
+                      aria-label="Mais opções"
+                      title="Mais opções do exercício"
+                      className="w-8 h-8 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center text-current opacity-60 hover:opacity-100 transition-all cursor-pointer"
                     >
-                      <MoreVertical className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                      <MoreVertical className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -4195,7 +4256,7 @@ export function MobileExerciseCard({
         }
       }}
       aria-label={isDraft ? `Opções de ${item.exerciseNameSnapshot}` : undefined}
-      className={`p-4 sm:p-4.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:border-emerald-500/30 hover:shadow-md transition-all space-y-3 select-none ${
+      className={`p-4 sm:p-4.5 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 border-t-white/80 dark:border-t-white/10 border-b-zinc-300/80 dark:border-b-black/70 bg-zinc-50/90 dark:bg-zinc-900/90 shadow-[0_2px_4px_rgba(0,0,0,0.05),0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_8px_rgba(0,0,0,0.4)] hover:border-emerald-500/30 transition-all space-y-3 select-none ${
         isDraft ? "cursor-pointer active:scale-[0.99]" : ""
       }`}
     >

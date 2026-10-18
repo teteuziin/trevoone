@@ -2,9 +2,18 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { UserAvatar } from "@/components/account/user-avatar";
 import { DuotoneStudentsIcon, DuotoneTrainingIcon } from "@/components/ui/icons/duotone-icons";
 import type { PersonalStudentSummary } from "@/lib/consultancies/personal-student-hub";
+
+function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M19 12H5m7 7l-7-7 7-7" />
+    </svg>
+  );
+}
 
 export interface PersonalStudentListProps {
   consultancySlug: string;
@@ -70,6 +79,7 @@ export function PersonalStudentList({
   initialFilter = "all",
   initialSearch = "",
 }: PersonalStudentListProps) {
+  const router = useRouter();
   const isAdmin =
     userRoles.includes("CONSULTANCY_ADMIN") ||
     effectiveMode === "ADMIN" ||
@@ -228,35 +238,60 @@ export function PersonalStudentList({
           Ícone azul da área, Título "Alunos", contagem real em texto secundário
           Sem saudações, sem perguntas, sem frases motivacionais, sem hero gigante
           ========================================================================= */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-[#151619] border border-[#303238] shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3.5 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
-            <DuotoneStudentsIcon className="w-5 h-5 text-blue-400" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-baseline gap-2.5">
-              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                Alunos
-              </h1>
-              <span className="text-xs sm:text-sm text-[#8E929C] font-normal">
-                {totalCount} {totalCount === 1 ? "aluno cadastrado" : "alunos cadastrados"}
-              </span>
-            </div>
-            <p className="text-xs text-[#8E929C] truncate">
-              Gestão e acompanhamento direto dos alunos da consultoria
-            </p>
-          </div>
+      <div className="p-4 sm:p-5 rounded-2xl bg-[#151619] border border-[#303238] shadow-sm flex flex-col gap-3.5">
+        {/* Retorno explícito: Seta + Texto "Voltar", alvo >= 44x44px, alto contraste, destino interno seguro */}
+        <div>
+          <Link
+            href={`/consultoria/${consultancySlug}`}
+            onClick={(e) => {
+              if (
+                typeof window !== "undefined" &&
+                window.history.length > 1 &&
+                document.referrer &&
+                document.referrer.includes(window.location.host)
+              ) {
+                e.preventDefault();
+                window.history.back();
+              }
+            }}
+            aria-label="Voltar"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-zinc-300 hover:text-white min-h-[44px] min-w-[44px] -ml-2 px-2.5 rounded-xl hover:bg-zinc-800/60 transition-colors cursor-pointer select-none"
+          >
+            <ArrowLeftIcon className="w-4 h-4 text-emerald-400 stroke-[2.5]" />
+            <span>Voltar</span>
+          </Link>
         </div>
 
-        {isAdmin && (
-          <Link
-            href={`/consultoria/${consultancySlug}/administracao/membros`}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-[#10B981] hover:bg-[#059669] active:bg-[#047857] transition-colors min-h-[44px] shadow-sm shrink-0 self-start sm:self-auto"
-          >
-            <UserPlusIcon className="w-4 h-4" />
-            <span>Convidar membro</span>
-          </Link>
-        )}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+              <DuotoneStudentsIcon className="w-5 h-5 text-blue-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-2.5">
+                <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                  Alunos
+                </h1>
+                <span className="text-xs sm:text-sm text-[#8E929C] font-normal">
+                  {totalCount} {totalCount === 1 ? "aluno cadastrado" : "alunos cadastrados"}
+                </span>
+              </div>
+              <p className="text-xs text-[#8E929C] truncate">
+                Gestão e acompanhamento direto dos alunos da consultoria
+              </p>
+            </div>
+          </div>
+
+          {isAdmin && (
+            <Link
+              href={`/consultoria/${consultancySlug}/administracao/membros`}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-[#10B981] hover:bg-[#059669] active:bg-[#047857] transition-colors min-h-[44px] shadow-sm shrink-0 self-start sm:self-auto"
+            >
+              <UserPlusIcon className="w-4 h-4" />
+              <span>Convidar membro</span>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* =========================================================================
@@ -469,66 +504,78 @@ export function PersonalStudentList({
                     </div>
                   </div>
 
-                  {/* Mobile Layout (Compact Block) */}
-                  <div className="md:hidden p-4 space-y-3">
-                    {/* Linha 1: Avatar + Nome + Status do Treino */}
-                    <div className="flex items-start justify-between gap-3">
+                  {/* Mobile Layout (Compact Block: toque no card abre perfil, sem botão gigante de linha inteira) */}
+                  <div
+                    data-testid="mobile-student-card-item"
+                    onClick={(e) => {
+                      const target = e.target as HTMLElement;
+                      if (target.closest("button, a")) return;
+                      router.push(studentDetailHref);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        const target = e.target as HTMLElement;
+                        if (target.closest("button, a")) return;
+                        e.preventDefault();
+                        router.push(studentDetailHref);
+                      }
+                    }}
+                    aria-label={`Ver perfil de ${student.name}`}
+                    className="md:hidden p-4 space-y-2.5 relative cursor-pointer active:bg-[#F9FAFB]/90 dark:active:bg-[#1B1D21] transition-colors focus-within:ring-2 focus-within:ring-emerald-500 rounded-xl select-none"
+                  >
+                    {/* Linha 1: Avatar + Nome + Email + Indicador Discreto de Abertura */}
+                    <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <Link href={studentDetailHref} className="shrink-0" aria-label={`Perfil de ${student.name}`}>
-                          <UserAvatar
-                            fullName={student.name}
-                            userPublicId={student.userPublicId}
-                            size="md"
-                            className="shrink-0 border border-black/5 dark:border-white/10"
-                          />
-                        </Link>
+                        <UserAvatar
+                          fullName={student.name}
+                          userPublicId={student.userPublicId}
+                          size="md"
+                          className="shrink-0 border border-black/5 dark:border-white/10"
+                        />
                         <div className="min-w-0 flex-1">
-                          <Link
-                            href={studentDetailHref}
-                            className="font-bold text-sm text-[#17191D] dark:text-[#F3F4F6] hover:text-[#10B981] transition-colors truncate block"
-                          >
+                          <h3 className="font-bold text-sm text-[#17191D] dark:text-[#F3F4F6] truncate block">
                             {student.name}
-                          </Link>
+                          </h3>
                           <p className="text-xs text-[#6B7280] dark:text-[#8E929C] truncate">
                             {student.email}
                           </p>
                         </div>
                       </div>
+
+                      {/* Indicação discreta de abertura de perfil */}
+                      <div className="shrink-0 text-zinc-400 dark:text-zinc-500 flex items-center pr-1">
+                        <ChevronRightIcon className="w-4 h-4" />
+                      </div>
                     </div>
 
-                    {/* Linha 2: Status do Treino */}
-                    <div className="pt-0.5">
-                      {hasActiveWorkout ? (
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 max-w-full">
-                          <DuotoneTrainingIcon className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                          <span className="truncate">
-                            Treino ativo: {student.latestWorkoutTitle}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
-                          <span>Sem treino prescrito</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Linha 3: Ações Ergonômicas */}
-                    <div className="flex items-center gap-2 pt-1">
-                      <Link
-                        href={studentDetailHref}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs bg-[#F9FAFB] dark:bg-[#1B1D21] hover:bg-[#F3F4F6] dark:hover:bg-[#25282F] text-[#17191D] dark:text-[#F3F4F6] border border-[#E5E7EB] dark:border-[#303238] min-h-[44px] transition-colors"
-                      >
-                        <span>Abrir perfil</span>
-                        <ChevronRightIcon className="w-3.5 h-3.5" />
-                      </Link>
+                    {/* Linha 2: Status do Treino + Ação Independente "+ Treino" */}
+                    <div className="flex items-center justify-between gap-2 pt-0.5">
+                      <div className="min-w-0 flex-1">
+                        {hasActiveWorkout ? (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 max-w-full">
+                            <DuotoneTrainingIcon className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            <span className="truncate">
+                              Treino ativo: {student.latestWorkoutTitle}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
+                            <span>Sem treino prescrito</span>
+                          </div>
+                        )}
+                      </div>
 
                       {!hasActiveWorkout && !isEffectiveNutritionist && (
                         <Link
                           href={createWorkoutHref}
-                          className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-white bg-[#10B981] hover:bg-[#059669] min-h-[44px] transition-colors shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-[#10B981] hover:bg-[#059669] min-h-[38px] transition-colors shrink-0 shadow-xs cursor-pointer"
+                          aria-label={`Criar treino para ${student.name}`}
                         >
                           <PlusIcon className="w-3.5 h-3.5" />
-                          <span>Treino</span>
+                          <span>+ Treino</span>
                         </Link>
                       )}
                     </div>

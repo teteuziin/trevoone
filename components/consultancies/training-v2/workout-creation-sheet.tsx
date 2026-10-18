@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { MobileBottomSheet } from "@/components/ui/mobile";
 import { WorkoutTemplatePicker } from "./workout-template-picker";
 import { TrainingAiImportModal } from "./training-ai-import-modal";
 import { TrainingAiGenerateModal } from "./training-ai-generate-modal";
+
+const emptySubscribe = () => () => {};
+
+function useIsMounted() {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
 
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -50,6 +56,14 @@ function UploadIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function CloseIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
 type WorkoutCreationSheetProps = {
   consultancySlug: string;
   isTemplatesTab?: boolean;
@@ -65,6 +79,34 @@ export function WorkoutCreationSheet({
   const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
   const [isAiImportModalOpen, setIsAiImportModalOpen] = useState(false);
   const [isAiGenerateModalOpen, setIsAiGenerateModalOpen] = useState(false);
+  const isMounted = useIsMounted();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  // Lock body scroll and handle Escape key
+  useEffect(() => {
+    if (!isSheetOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setIsSheetOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isSheetOpen]);
+
+  const handleClose = () => {
+    setIsSheetOpen(false);
+    triggerRef.current?.focus();
+  };
 
   const renderOptions = () => (
     <div className="space-y-3 py-1">
@@ -85,7 +127,7 @@ export function WorkoutCreationSheet({
             Monte uma ficha em branco escolhendo blocos e exercícios
           </p>
         </div>
-        <span className="text-zinc-400 text-xs">→</span>
+        <span className="text-zinc-400 text-xs font-bold">→</span>
       </Link>
 
       {/* 2. Criar do zero com IA */}
@@ -108,7 +150,7 @@ export function WorkoutCreationSheet({
             Descreva o treino e deixe a IA estruturar a ficha completa
           </p>
         </div>
-        <span className="text-zinc-400 text-xs">→</span>
+        <span className="text-zinc-400 text-xs font-bold">→</span>
       </button>
 
       {/* 3. Importar com IA */}
@@ -131,7 +173,7 @@ export function WorkoutCreationSheet({
             Envie um PDF, foto ou texto e converta em ficha de treino automaticamente
           </p>
         </div>
-        <span className="text-zinc-400 text-xs">→</span>
+        <span className="text-zinc-400 text-xs font-bold">→</span>
       </button>
 
       {/* 4. Usar modelo */}
@@ -154,14 +196,14 @@ export function WorkoutCreationSheet({
             Aproveite um modelo já estruturado para personalizar rapidamente
           </p>
         </div>
-        <span className="text-zinc-400 text-xs">→</span>
+        <span className="text-zinc-400 text-xs font-bold">→</span>
       </button>
     </div>
   );
 
   return (
     <>
-      {/* Trigger */}
+      {/* Trigger Button */}
       {isFloating ? (
         isTemplatesTab ? (
           <Link
@@ -173,6 +215,7 @@ export function WorkoutCreationSheet({
           </Link>
         ) : (
           <button
+            ref={triggerRef}
             type="button"
             onClick={() => setIsSheetOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-lg active:scale-95 transition-all cursor-pointer"
@@ -199,6 +242,7 @@ export function WorkoutCreationSheet({
             </Link>
           ) : (
             <Button
+              ref={triggerRef}
               type="button"
               variant="primary"
               size="md"
@@ -212,17 +256,45 @@ export function WorkoutCreationSheet({
         </div>
       )}
 
-      {/* MOBILE / DESKTOP BOTTOM SHEET WITH THE 4 STANDARDIZED OPTIONS */}
-      <MobileBottomSheet
-        isOpen={isSheetOpen}
-        onClose={() => setIsSheetOpen(false)}
-        title="Criar Novo Treino"
-        subtitle="Escolha como deseja iniciar a prescrição deste treino"
-      >
-        {renderOptions()}
-      </MobileBottomSheet>
+      {/* PORTAL BOTTOM SHEET: Stricty z-[70] above all bottom bars and top headers */}
+      {isMounted && isSheetOpen && createPortal(
+        <div
+          data-testid="workout-creation-sheet-overlay"
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={handleClose}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Nova ficha"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full sm:max-w-lg bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-8 duration-200 overflow-hidden"
+          >
+            {/* Compact Header: title "Nova ficha" + close button >= 44x44px. No drag handle. */}
+            <div className="px-5 py-3.5 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 shrink-0">
+              <h3 className="text-base sm:text-lg font-black text-[var(--text-primary)] tracking-tight">
+                Nova ficha
+              </h3>
+              <button
+                type="button"
+                onClick={handleClose}
+                aria-label="Fechar painel"
+                className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
 
-      {/* Modals for creation options */}
+            {/* Content: 16px padding, 12px gap, safe area bottom */}
+            <div className="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
+              {renderOptions()}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Sub-Modals for creation options */}
       <WorkoutTemplatePicker
         consultancySlug={consultancySlug}
         isOpen={isTemplatePickerOpen}

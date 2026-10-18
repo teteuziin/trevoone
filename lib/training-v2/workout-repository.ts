@@ -2533,6 +2533,7 @@ export async function listWorkoutsForProfessional(
     query?: string;
     status?: "DRAFT" | "PUBLISHED" | "ARCHIVED" | "ALL";
     isTemplate?: boolean;
+    sort?: "recent" | "oldest" | "title_asc";
     page?: number;
     limit?: number;
   }
@@ -2561,9 +2562,17 @@ export async function listWorkoutsForProfessional(
     }
 
     if (options?.query?.trim()) {
-      whereClauses.push("(w.title LIKE ? OR wv.title LIKE ?)");
+      whereClauses.push(
+        `(w.title LIKE ? OR wv.title LIKE ? OR EXISTS (
+           SELECT 1 FROM workout_assignments wa_s
+           JOIN workout_versions wv_s ON wv_s.id = wa_s.workout_version_id
+           JOIN consultancy_members cm_s ON cm_s.id = wa_s.student_membership_id
+           JOIN users u_s ON u_s.id = cm_s.user_id
+           WHERE wv_s.workout_id = w.id AND wa_s.status = 'ACTIVE' AND wa_s.deleted_at IS NULL AND u_s.full_name LIKE ?
+         ))`
+      );
       const q = `%${options.query.trim()}%`;
-      params.push(q, q);
+      params.push(q, q, q);
     }
 
     if (options?.status && options.status !== "ALL") {
@@ -2577,6 +2586,14 @@ export async function listWorkoutsForProfessional(
     }
 
     const whereSql = whereClauses.join(" AND ");
+
+    // Sorting order
+    let orderBySql = "ORDER BY COALESCE(wv.updated_at, w.updated_at) DESC";
+    if (options?.sort === "oldest") {
+      orderBySql = "ORDER BY COALESCE(wv.updated_at, w.updated_at) ASC";
+    } else if (options?.sort === "title_asc") {
+      orderBySql = "ORDER BY COALESCE(wv.title, w.title) ASC";
+    }
 
     // Count
     const [countRows] = await connection.execute<RowDataPacket[]>(
@@ -2621,7 +2638,7 @@ export async function listWorkoutsForProfessional(
                LIMIT 1
             )
        WHERE ${whereSql}
-       ORDER BY COALESCE(wv.updated_at, w.updated_at) DESC
+       ${orderBySql}
        LIMIT ? OFFSET ?;`,
       [...params, limit, offset]
     );

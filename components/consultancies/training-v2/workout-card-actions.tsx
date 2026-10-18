@@ -168,11 +168,17 @@ export function WorkoutCardActions({
   ];
 
   return (
-    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end relative">
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end relative"
+    >
       {isTemplate ? (
         <button
           type="button"
-          onClick={() => setIsAssignModalOpen(true)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsAssignModalOpen(true);
+          }}
           className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-3.5 sm:py-1.5 rounded-xl text-xs sm:text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-xs transition-all min-h-[48px] sm:min-h-[34px] cursor-pointer"
         >
           <SparklesIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
@@ -181,7 +187,8 @@ export function WorkoutCardActions({
       ) : (
         <Link
           href={`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`}
-          className="flex-1 sm:flex-initial inline-flex items-center justify-center px-4 py-2.5 sm:px-3.5 sm:py-1.5 rounded-xl text-xs sm:text-xs font-bold sm:font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] hover:border-[var(--border-strong)] transition-all min-h-[48px] sm:min-h-[34px] cursor-pointer"
+          onClick={(e) => e.stopPropagation()}
+          className="flex-1 sm:flex-initial inline-flex items-center justify-center px-4 py-2.5 sm:px-3.5 sm:py-1.5 rounded-xl text-xs sm:text-xs font-bold sm:font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-white/[0.08] transition-all min-h-[48px] sm:min-h-[34px] cursor-pointer"
         >
           Abrir treino →
         </Link>
@@ -190,9 +197,12 @@ export function WorkoutCardActions({
       <div className="relative shrink-0">
         <button
           type="button"
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsMenuOpen(!isMenuOpen);
+          }}
           aria-label={isTemplate ? "Opções do modelo" : "Opções do treino"}
-          className="p-2.5 sm:p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-default)] sm:border-transparent hover:border-[var(--border-default)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center cursor-pointer"
+          className="p-2.5 sm:p-1.5 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/[0.06] border border-zinc-200 dark:border-white/[0.08] sm:border-transparent hover:border-zinc-300 dark:hover:border-white/[0.12] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center cursor-pointer"
         >
           <MoreVertical className="w-4 h-4" />
         </button>

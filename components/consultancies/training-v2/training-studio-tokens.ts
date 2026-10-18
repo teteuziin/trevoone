@@ -127,7 +127,7 @@ export const STUDIO_COMBINATION_TYPE_LABELS: Record<WorkoutCombinationType, stri
  */
 export const STUDIO_ACTION_STYLES = {
   primaryAdd: "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs font-bold",
-  primaryPublish: "bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-[0_0_20px_rgba(16,185,129,0.35)]",
+  primaryPublish: "bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-sm",
   secondaryCombine: "bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200 dark:bg-white/[0.05] dark:hover:bg-white/[0.08] dark:text-zinc-200 dark:border-white/[0.1] font-bold",
   utilityNeutral: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/[0.06] font-medium",
   destructiveRose: "text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-bold",

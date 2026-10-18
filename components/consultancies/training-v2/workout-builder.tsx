@@ -150,16 +150,6 @@ function ClockIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function UserCheckIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <polyline points="16 11 18 13 22 9" />
-    </svg>
-  );
-}
-
 function EyeIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -285,17 +275,17 @@ export function WorkoutBuilder({
   const [saveStatus, setSaveStatus] = useState<AutosaveStatus>("saved");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
-  const [isLibrarySidebarOpen, setIsLibrarySidebarOpen] = useState(true);
+  const [isLibrarySidebarOpen, setIsLibrarySidebarOpen] = useState(false);
 
   // Metadata state
   const [isMetadataExpanded, setIsMetadataExpanded] = useState(false);
   const [title, setTitle] = useState(version.title || workout.title);
   const [objective, setObjective] = useState(version.objective || workout.objective || "");
   const [difficultyLevel, setDifficultyLevel] = useState<DifficultyLevel | string>(
-    version.difficultyLevel || workout.difficultyLevel || "INTERMEDIATE"
+    version.difficultyLevel || workout.difficultyLevel || ""
   );
-  const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState<number>(
-    version.estimatedDurationMinutes || workout.estimatedDurationMinutes || 50
+  const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState<number | null>(
+    version.estimatedDurationMinutes || workout.estimatedDurationMinutes || null
   );
   const [notes, setNotes] = useState(version.notes || "");
 
@@ -304,7 +294,7 @@ export function WorkoutBuilder({
     title: string;
     objective: string;
     difficultyLevel: DifficultyLevel | string;
-    estimatedDurationMinutes: number;
+    estimatedDurationMinutes: number | null;
     notes: string;
   } | null>(null);
   const metadataTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -333,8 +323,8 @@ export function WorkoutBuilder({
         {
           title: payload.title.trim() || workout.title,
           objective: payload.objective.trim() || null,
-          difficultyLevel: payload.difficultyLevel as DifficultyLevel,
-          estimatedDurationMinutes: Number(payload.estimatedDurationMinutes) || null,
+          difficultyLevel: (payload.difficultyLevel as DifficultyLevel) || null,
+          estimatedDurationMinutes: payload.estimatedDurationMinutes ? Number(payload.estimatedDurationMinutes) : null,
           notes: payload.notes.trim() || null,
         }
       );
@@ -379,7 +369,7 @@ export function WorkoutBuilder({
       title: string;
       objective: string;
       difficultyLevel: DifficultyLevel | string;
-      estimatedDurationMinutes: number;
+      estimatedDurationMinutes: number | null;
       notes: string;
     }>) => {
       if (!isDraft) return;
@@ -1522,7 +1512,7 @@ export function WorkoutBuilder({
               <span>Voltar</span>
             </Link>
 
-            {/* Live Autosave Indicator */}
+            {/* Live Autosave Indicator (Draft only) */}
             {isDraft ? (
               <div
                 data-testid="builder-autosave-indicator"
@@ -1558,8 +1548,11 @@ export function WorkoutBuilder({
                 )}
               </div>
             ) : (
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800">
-                Versão Oficial
+              <span
+                data-testid="builder-status-badge"
+                className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+              >
+                Publicado V{version.versionNumber}
               </span>
             )}
 
@@ -1601,16 +1594,18 @@ export function WorkoutBuilder({
                         <EyeIcon className="w-3.5 h-3.5 text-teal-400" />
                         <span>Pré-visualizar como aluno</span>
                       </button>
-                      <a
-                        href={`/api/consultancies/${consultancySlug}/treinos/${workout.publicId}/pdf`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => setIsHeaderMenuOpen(false)}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
-                      >
-                        <DownloadIcon className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Baixar PDF</span>
-                      </a>
+                      {!isDraft && (
+                        <a
+                          href={`/api/consultancies/${consultancySlug}/treinos/${workout.publicId}/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setIsHeaderMenuOpen(false)}
+                          className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
+                        >
+                          <DownloadIcon className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Baixar PDF</span>
+                        </a>
+                      )}
                     </div>
                     <div className="p-1 space-y-0.5">
                       <button
@@ -1657,18 +1652,14 @@ export function WorkoutBuilder({
 
           {/* Mobile Line 2: Status do treino · Nome do treino */}
           <div className="flex items-center gap-2 w-full min-w-0">
-            <span
-              data-testid="builder-status-badge"
-              className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full shrink-0 tracking-wider ${
-                isDraft
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                  : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-              }`}
-            >
-              {isDraft
-                ? `Rascunho V${version.versionNumber}`
-                : `Publicado V${version.versionNumber}`}
-            </span>
+            {isDraft && (
+              <span
+                data-testid="builder-status-badge"
+                className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full shrink-0 tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40"
+              >
+                Rascunho V{version.versionNumber}
+              </span>
+            )}
             {workout.isTemplate && (
               <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-zinc-900 text-zinc-300 border border-zinc-800 shrink-0">
                 Modelo
@@ -1697,83 +1688,85 @@ export function WorkoutBuilder({
 
           {/* Mobile Line 3: Objetivo, nível e duração, quando disponíveis */}
           <div data-testid="mobile-header-meta" className="flex items-center gap-1.5 text-xs text-zinc-300 font-medium flex-wrap">
-            {objective && (
+            {objective && objective.trim() && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-200 truncate max-w-[150px]">
                 {objective}
               </span>
             )}
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-200">
-              {difficultyLevel === "BEGINNER"
-                ? "Iniciante"
-                : difficultyLevel === "ADVANCED"
-                ? "Avançado"
-                : "Intermediário"}
-            </span>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-200">
-              <ClockIcon className="w-3.5 h-3.5 text-emerald-400" />
-              <span>~{estimatedDurationMinutes} min</span>
-            </span>
+            {difficultyLevel && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-200">
+                {difficultyLevel === "BEGINNER"
+                  ? "Iniciante"
+                  : difficultyLevel === "ADVANCED"
+                  ? "Avançado"
+                  : difficultyLevel === "INTERMEDIATE"
+                  ? "Intermediário"
+                  : difficultyLevel}
+              </span>
+            )}
+            {estimatedDurationMinutes != null && estimatedDurationMinutes > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-200">
+                <ClockIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <span>~{estimatedDurationMinutes} min</span>
+              </span>
+            )}
           </div>
 
-          {/* Mobile Action: Assistente inteligente + Publicar / Atribuir */}
+          {/* Mobile Action bar */}
           <div data-testid="mobile-builder-header" className="w-full pt-1 space-y-2">
-            {/* Assistente de Montagem / Treino Prominente */}
-            <button
-              type="button"
-              data-testid="mobile-top-assistant-button"
-              onClick={() => setIsTopAssistantOpen(true)}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-sm min-h-[44px] flex items-center justify-center gap-2 cursor-pointer text-center"
-              title={isDraft ? "Abrir Assistente Inteligente de Montagem" : "Abrir Assistente de Prescrição"}
-            >
-              <SparklesIcon className="w-4 h-4 text-zinc-950" />
-              <span>{isDraft ? "Assistente de Montagem" : "Assistente de Treino"}</span>
-            </button>
-
-            {isDraft && (
-              <button
-                type="button"
-                data-testid="publish-workout-button"
-                onClick={handleOpenPublishDialog}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white min-h-[44px] flex items-center justify-center gap-2 cursor-pointer text-center hover:scale-[1.01] active:scale-[0.98]"
-              >
-                <SendIcon className="w-4 h-4" />
-                <span>Publicar treino</span>
-              </button>
-            )}
-
-            {!isDraft && (
+            {isDraft ? (
+              <div className="flex items-center gap-2 w-full">
+                <button
+                  type="button"
+                  data-testid="mobile-top-assistant-button"
+                  onClick={() => {
+                    setIsLibrarySidebarOpen(false);
+                    setIsTopAssistantOpen(true);
+                  }}
+                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                >
+                  <SparklesIcon className="w-4 h-4 text-emerald-400" />
+                  <span>Assistente</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="publish-workout-button"
+                  onClick={handleOpenPublishDialog}
+                  className="flex-1 py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white min-h-[44px] flex items-center justify-center gap-2 cursor-pointer text-center active:scale-[0.98]"
+                >
+                  <SendIcon className="w-4 h-4" />
+                  <span>Publicar</span>
+                </button>
+              </div>
+            ) : (
               <div className="flex items-center gap-2 w-full">
                 <button
                   type="button"
                   onClick={() => setIsAssignModalOpen(true)}
-                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
                 >
-                  <UserCheckIcon className="w-4 h-4" />
-                  <span>Atribuir ao aluno</span>
+                  <UserPlusIcon className="w-4 h-4 text-emerald-400" />
+                  <span>Enviar ficha</span>
                 </button>
                 <button
                   type="button"
                   onClick={handleCreateNewVersion}
-                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 transition-all min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-[0.98]"
                 >
-                  <PlusIcon className="w-4 h-4" />
-                  <span>Editar (novo rascunho)</span>
+                  <Edit3Icon className="w-4 h-4" />
+                  <span>Editar treino</span>
                 </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Desktop Header (>=sm): Uncrowded, Cinema Edition Hierarchy */}
+        {/* Desktop Header (>=sm): Uncrowded, Hierarchy */}
         <div className="hidden sm:flex flex-col gap-4 w-full max-w-full min-w-0 relative z-10">
           {/* Tier 1: Status Badges, Live Autosave and Top Quick Actions Toolbar */}
           <div className="flex items-center justify-between gap-3 w-full pb-3 border-b border-zinc-800 flex-wrap">
             {/* Left: Badges & Autosave */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-zinc-900 text-zinc-300 border border-zinc-800">
-                <SparklesIcon className="w-3 h-3 text-zinc-400" />
-                TRAINING STUDIO
-              </span>
               <span
                 data-testid="builder-status-badge"
                 className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider ${
@@ -1792,7 +1785,7 @@ export function WorkoutBuilder({
                 </span>
               )}
 
-              {/* Live Autosave Indicator */}
+              {/* Live Autosave Indicator (Draft only) */}
               {isDraft && (
                 <div
                   data-testid="builder-autosave-indicator"
@@ -1832,78 +1825,111 @@ export function WorkoutBuilder({
 
             {/* Right: Quick Action Controls */}
             <div className="flex items-center gap-2">
-              {/* Assistente de Montagem / Assistente de Treino Top CTA */}
-              <button
-                type="button"
-                data-testid="top-assistant-button"
-                onClick={() => setIsTopAssistantOpen(true)}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-zinc-950 transition-all shadow-sm min-h-[38px] flex items-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
-                title={isDraft ? "Abrir Assistente Inteligente de Montagem" : "Abrir Assistente de Prescrição"}
-              >
-                <SparklesIcon className="w-3.5 h-3.5 text-zinc-950" />
-                <span>{isDraft ? "Assistente de Montagem" : "Assistente de Treino"}</span>
-              </button>
+              {isDraft ? (
+                <>
+                  {/* Assistente de Montagem */}
+                  <button
+                    type="button"
+                    data-testid="top-assistant-button"
+                    onClick={() => {
+                      setIsLibrarySidebarOpen(false);
+                      setIsTopAssistantOpen(true);
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
+                    title="Abrir Assistente Inteligente de Montagem"
+                  >
+                    <SparklesIcon className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Assistente de Montagem</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setIsLibrarySidebarOpen(!isLibrarySidebarOpen)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all min-h-[38px] flex items-center gap-2 cursor-pointer ${
-                  isLibrarySidebarOpen
-                    ? "bg-zinc-800 text-white border-zinc-700"
-                    : "bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-800"
-                }`}
-                title="Abrir/fechar biblioteca Studio lateral"
-              >
-                <BookOpenIcon className="w-3.5 h-3.5 text-zinc-400" />
-                <span>Biblioteca Studio</span>
-                {isLibrarySidebarOpen && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                )}
-              </button>
+                  {/* Biblioteca Studio (under demand) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsTopAssistantOpen(false);
+                      setIsLibrarySidebarOpen(!isLibrarySidebarOpen);
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all min-h-[38px] flex items-center gap-2 cursor-pointer ${
+                      isLibrarySidebarOpen
+                        ? "bg-zinc-800 text-white border-zinc-700"
+                        : "bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-800"
+                    }`}
+                    title="Abrir/fechar biblioteca Studio lateral"
+                  >
+                    <BookOpenIcon className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Biblioteca Studio</span>
+                    {isLibrarySidebarOpen && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    )}
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setIsPreviewOpen(true)}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
-                title="Pré-visualizar como aluno"
-              >
-                <EyeIcon className="w-3.5 h-3.5 text-zinc-400" />
-                <span>Pré-visualizar</span>
-              </button>
+                  {/* Prévia */}
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
+                    title="Pré-visualizar como aluno"
+                  >
+                    <EyeIcon className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Prévia</span>
+                  </button>
 
-              {/* Primary CTA (Publish / Assign / Edit) */}
-              {isDraft && (
-                <button
-                  type="button"
-                  data-testid="publish-workout-button"
-                  onClick={handleOpenPublishDialog}
-                  className="px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all min-h-[38px] flex items-center justify-center gap-2 cursor-pointer text-center hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <SendIcon className="w-3.5 h-3.5" />
-                  <span>Publicar</span>
-                </button>
-              )}
+                  {/* Primary CTA: Publicar */}
+                  <button
+                    type="button"
+                    data-testid="publish-workout-button"
+                    onClick={handleOpenPublishDialog}
+                    className="px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all min-h-[38px] flex items-center justify-center gap-2 cursor-pointer text-center hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <SendIcon className="w-3.5 h-3.5" />
+                    <span>Publicar</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Assistente de Prescrição */}
+                  <button
+                    type="button"
+                    data-testid="top-assistant-button"
+                    onClick={() => setIsTopAssistantOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
+                    title="Abrir Assistente de Prescrição"
+                  >
+                    <SparklesIcon className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Assistente de Treino</span>
+                  </button>
 
-              {!isDraft && (
-                <button
-                  type="button"
-                  onClick={() => setIsAssignModalOpen(true)}
-                  className="px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all min-h-[38px] flex items-center justify-center gap-2 cursor-pointer text-center"
-                >
-                  <UserPlusIcon className="w-4 h-4" />
-                  <span>Atribuir ao aluno</span>
-                </button>
-              )}
+                  {/* Prévia */}
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
+                    title="Pré-visualizar como aluno"
+                  >
+                    <EyeIcon className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Prévia</span>
+                  </button>
 
-              {!isDraft && (
-                <button
-                  type="button"
-                  onClick={handleCreateNewVersion}
-                  className="px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 transition-all min-h-[38px] flex items-center justify-center gap-2 cursor-pointer text-center"
-                >
-                  <Edit3Icon className="w-3.5 h-3.5 text-zinc-300" />
-                  <span>Editar (novo rascunho)</span>
-                </button>
+                  {/* Secondary CTA: Enviar ficha */}
+                  <button
+                    type="button"
+                    onClick={() => setIsAssignModalOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 transition-all min-h-[38px] flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <UserPlusIcon className="w-4 h-4 text-emerald-400" />
+                    <span>Enviar ficha</span>
+                  </button>
+
+                  {/* Primary CTA: Editar treino (creates draft) */}
+                  <button
+                    type="button"
+                    onClick={handleCreateNewVersion}
+                    className="px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all min-h-[38px] flex items-center justify-center gap-2 cursor-pointer text-center hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Edit3Icon className="w-3.5 h-3.5" />
+                    <span>Editar treino</span>
+                  </button>
+                </>
               )}
 
               {/* More actions menu button */}
@@ -1921,7 +1947,6 @@ export function WorkoutBuilder({
                   <>
                     <div className="fixed inset-0 z-30" onClick={() => setIsHeaderMenuOpen(false)} />
                     <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl z-50 py-1.5 text-xs font-semibold text-zinc-200 divide-y divide-zinc-800 animate-in fade-in zoom-in-95 duration-100">
-                      {/* Nível 3 Menu Actions (Dados da ficha, pré-visualizar, baixar PDF, tutorial) */}
                       <div className="p-1 space-y-0.5">
                         <button
                           type="button"
@@ -1945,16 +1970,18 @@ export function WorkoutBuilder({
                           <EyeIcon className="w-3.5 h-3.5 text-teal-400" />
                           <span>Pré-visualizar como aluno</span>
                         </button>
-                        <a
-                          href={`/api/consultancies/${consultancySlug}/treinos/${workout.publicId}/pdf`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setIsHeaderMenuOpen(false)}
-                          className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
-                        >
-                          <DownloadIcon className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>Baixar PDF</span>
-                        </a>
+                        {!isDraft && (
+                          <a
+                            href={`/api/consultancies/${consultancySlug}/treinos/${workout.publicId}/pdf`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setIsHeaderMenuOpen(false)}
+                            className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
+                          >
+                            <DownloadIcon className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Baixar PDF</span>
+                          </a>
+                        )}
                         <button
                           type="button"
                           onClick={() => {
@@ -2013,7 +2040,7 @@ export function WorkoutBuilder({
             </div>
           </div>
 
-          {/* Tier 2: Ficha Title (100% Full Width) and Secondary Metadata Pills */}
+          {/* Tier 2: Ficha Title and Secondary Metadata Pills */}
           <div className="space-y-2.5 w-full min-w-0">
             {isDraft ? (
               <input
@@ -2036,22 +2063,28 @@ export function WorkoutBuilder({
             )}
 
             <div className="flex items-center gap-2 text-xs text-zinc-300 font-medium flex-wrap">
-              {objective && (
+              {objective && objective.trim() && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300">
                   {objective}
                 </span>
               )}
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300">
-                {difficultyLevel === "BEGINNER"
-                  ? "Iniciante"
-                  : difficultyLevel === "ADVANCED"
-                  ? "Avançado"
-                  : "Intermediário"}
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300">
-                <ClockIcon className="w-3.5 h-3.5 text-zinc-400" />
-                <span>~{estimatedDurationMinutes} min</span>
-              </span>
+              {difficultyLevel && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300">
+                  {difficultyLevel === "BEGINNER"
+                    ? "Iniciante"
+                    : difficultyLevel === "ADVANCED"
+                    ? "Avançado"
+                    : difficultyLevel === "INTERMEDIATE"
+                    ? "Intermediário"
+                    : difficultyLevel}
+                </span>
+              )}
+              {estimatedDurationMinutes != null && estimatedDurationMinutes > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300">
+                  <ClockIcon className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>~{estimatedDurationMinutes} min</span>
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => setIsMetadataExpanded(!isMetadataExpanded)}
@@ -2121,6 +2154,7 @@ export function WorkoutBuilder({
                   onBlur={flushPendingMetadata}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
                 >
+                  <option value="">Não informado</option>
                   <option value="BEGINNER">Iniciante</option>
                   <option value="INTERMEDIATE">Intermediário</option>
                   <option value="ADVANCED">Avançado</option>
@@ -2135,12 +2169,15 @@ export function WorkoutBuilder({
                   type="number"
                   min={5}
                   max={240}
-                  value={estimatedDurationMinutes}
+                  value={estimatedDurationMinutes ?? ""}
+                  placeholder="Ex: 50"
                   disabled={!isDraft}
                   onChange={(e) => {
-                    const n = parseInt(e.target.value, 10) || 50;
-                    setEstimatedDurationMinutes(n);
-                    scheduleMetadataSave({ estimatedDurationMinutes: n });
+                    const val = e.target.value;
+                    const n = val === "" ? null : parseInt(val, 10);
+                    const validN = n === null || isNaN(n) ? null : n;
+                    setEstimatedDurationMinutes(validN);
+                    scheduleMetadataSave({ estimatedDurationMinutes: validN });
                   }}
                   onBlur={flushPendingMetadata}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
@@ -2219,57 +2256,83 @@ export function WorkoutBuilder({
             </div>
           ) : (
             <>
-              {/* Category / Day Tabs (Desktop & Mobile) — Floating Pills Edition */}
+              {/* Category / Day Tabs (Desktop & Mobile) */}
               {categories.length > 1 && (
-                <div className="relative w-full max-w-full min-w-0">
-                  <div
-                    ref={tabsContainerRef}
-                    data-testid="mobile-category-tabs"
-                    className="flex items-center gap-2 overflow-x-auto pb-2.5 pt-0.5 no-scrollbar scroll-smooth w-full touch-pan-x overscroll-x-contain"
-                  >
-                    {categories.map((cat, idx) => {
-                      const isActive = activeMobileCategoryIndex === idx;
-                      return (
-                        <button
-                          key={cat.publicId}
-                          data-category-tab={idx}
-                          type="button"
-                          onClick={() => setActiveMobileCategoryIndex(idx)}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap min-h-[44px] transition-all flex items-center gap-2 shrink-0 cursor-pointer backdrop-blur-md hover:scale-[1.01] active:scale-[0.98] ${
-                            isActive
-                              ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
-                              : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]"
-                          }`}
-                          title={cat.title || `Treino ${idx + 1}`}
-                        >
-                          <span className="truncate max-w-[180px] sm:max-w-none">{cat.title || `Treino ${idx + 1}`}</span>
-                          <span
-                            className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                              isActive
-                                ? "bg-emerald-500/25 text-emerald-200 border border-emerald-500/30"
-                                : "bg-[var(--surface-sunken)] text-[var(--text-tertiary)]"
-                            }`}
-                          >
-                            {cat.items?.length || 0}
-                          </span>
-                        </button>
-                      );
-                    })}
-                    <button
-                      type="button"
-                      data-category-tab={-1}
-                      onClick={() => setActiveMobileCategoryIndex(-1)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap min-h-[44px] transition-all shrink-0 cursor-pointer backdrop-blur-md hover:scale-[1.01] active:scale-[0.98] ${
-                        activeMobileCategoryIndex === -1
-                          ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
-                          : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]"
-                      }`}
-                    >
-                      Ver todos ({categories.length})
-                    </button>
+                <div className="space-y-2.5 w-full max-w-full min-w-0">
+                  {/* Mobile Full-Width Block Selector (<sm) */}
+                  <div className="sm:hidden w-full">
+                    <label htmlFor="mobile-block-select" className="sr-only">
+                      Selecionar bloco de treino
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="mobile-block-select"
+                        value={activeMobileCategoryIndex}
+                        onChange={(e) => setActiveMobileCategoryIndex(Number(e.target.value))}
+                        className="w-full px-4 py-3 text-xs font-bold rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs appearance-none cursor-pointer min-h-[46px]"
+                      >
+                        {categories.map((cat, idx) => (
+                          <option key={cat.publicId} value={idx}>
+                            {cat.title || `Treino ${idx + 1}`} ({cat.items?.length || 0} exercícios)
+                          </option>
+                        ))}
+                        <option value={-1}>Ver todos os blocos ({categories.length})</option>
+                      </select>
+                      <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs">
+                        ▼
+                      </div>
+                    </div>
                   </div>
-                  {/* Subtle visual continuity hint for mobile horizontal scroll */}
-                  <div className="pointer-events-none absolute right-0 top-0 bottom-2.5 w-8 bg-gradient-to-l from-[var(--surface)] to-transparent sm:hidden" />
+
+                  {/* Horizontal Tabs / Pills (Desktop & Tablet >=sm) */}
+                  <div className="relative w-full max-w-full min-w-0">
+                    <div
+                      ref={tabsContainerRef}
+                      data-testid="mobile-category-tabs"
+                      className="flex items-center gap-2 overflow-x-auto pb-2.5 pt-0.5 no-scrollbar scroll-smooth w-full touch-pan-x overscroll-x-contain"
+                    >
+                      {categories.map((cat, idx) => {
+                        const isActive = activeMobileCategoryIndex === idx;
+                        return (
+                          <button
+                            key={cat.publicId}
+                            data-category-tab={idx}
+                            type="button"
+                            onClick={() => setActiveMobileCategoryIndex(idx)}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap min-h-[44px] transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+                              isActive
+                                ? "bg-emerald-500 text-zinc-950 font-bold shadow-xs"
+                                : "bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white border border-zinc-200 dark:border-zinc-800"
+                            }`}
+                            title={cat.title || `Treino ${idx + 1}`}
+                          >
+                            <span className="truncate max-w-[180px] sm:max-w-none">{cat.title || `Treino ${idx + 1}`}</span>
+                            <span
+                              className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                                isActive
+                                  ? "bg-zinc-950/20 text-zinc-950"
+                                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
+                              }`}
+                            >
+                              {cat.items?.length || 0}
+                            </span>
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        data-category-tab={-1}
+                        onClick={() => setActiveMobileCategoryIndex(-1)}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap min-h-[44px] transition-all shrink-0 cursor-pointer ${
+                          activeMobileCategoryIndex === -1
+                            ? "bg-emerald-500 text-zinc-950 font-bold shadow-xs"
+                            : "bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white border border-zinc-200 dark:border-zinc-800"
+                        }`}
+                      >
+                        Ver todos ({categories.length})
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 

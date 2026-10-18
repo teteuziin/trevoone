@@ -82,6 +82,8 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      themeVariant="dark-overview"
+      showDashboardWallpaper={true}
       maxWidth="full"
     >
       <div className="w-full max-w-full min-w-0 max-w-[1440px] 2xl:max-w-[1600px] mx-auto space-y-6 pb-20">

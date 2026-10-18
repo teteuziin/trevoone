@@ -44,29 +44,142 @@ function SparklesIcon({ className = "w-4 h-4" }: { className?: string }) {
 type WorkoutCreationSheetProps = {
   consultancySlug: string;
   isTemplatesTab?: boolean;
+  isFloating?: boolean;
 };
 
 export function WorkoutCreationSheet({
   consultancySlug,
   isTemplatesTab = false,
+  isFloating = false,
 }: WorkoutCreationSheetProps) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
   const [isAiModalTriggered, setIsAiModalTriggered] = useState(false);
 
-  return (
-    <>
-      {/* MOBILE TRIGGER: Single prominent + Novo treino / + Novo modelo */}
-      <div className="sm:hidden w-full">
+  if (isFloating) {
+    return (
+      <>
         {isTemplatesTab ? (
           <Link
             href={`/consultoria/${consultancySlug}/rotinas/novo?isTemplate=true`}
-            className="w-full block"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-lg active:scale-95 transition-all"
+          >
+            <PlusIcon className="w-4 h-4" />
+            <span>Novo modelo</span>
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsSheetOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-lg active:scale-95 transition-all cursor-pointer"
+          >
+            <PlusIcon className="w-4 h-4" />
+            <span>Nova ficha</span>
+          </button>
+        )}
+
+        {/* MOBILE BOTTOM SHEET FOR WORKOUT CREATION */}
+        <MobileBottomSheet
+          isOpen={isSheetOpen}
+          onClose={() => setIsSheetOpen(false)}
+          title="Nova Ficha de Treino"
+          subtitle="Escolha como deseja iniciar a prescrição deste treino"
+        >
+          <div className="space-y-3 py-1">
+            <Link
+              href={`/consultoria/${consultancySlug}/rotinas/novo`}
+              onClick={() => setIsSheetOpen(false)}
+              className="p-4 rounded-2xl bg-zinc-100 dark:bg-white/[0.04] hover:bg-zinc-200 dark:hover:bg-white/[0.08] border border-zinc-200 dark:border-white/[0.08] flex items-center gap-3.5 transition-all active:scale-[0.99] select-none block min-h-[44px]"
+            >
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <EditIcon className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
+                  Criar do zero
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">
+                  Monte uma ficha em branco adicionando categorias, exercícios e séries
+                </p>
+              </div>
+              <span className="text-zinc-400 text-xs">→</span>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsSheetOpen(false);
+                setIsTemplatePickerOpen(true);
+              }}
+              className="w-full text-left p-4 rounded-2xl bg-zinc-100 dark:bg-white/[0.04] hover:bg-zinc-200 dark:hover:bg-white/[0.08] border border-zinc-200 dark:border-white/[0.08] flex items-center gap-3.5 transition-all active:scale-[0.99] select-none cursor-pointer min-h-[44px]"
+            >
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                <LayersIcon className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
+                  Usar plano padrão
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">
+                  Aproveite um modelo já estruturado para personalizar rapidamente
+                </p>
+              </div>
+              <span className="text-zinc-400 text-xs">→</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsSheetOpen(false);
+                setIsAiModalTriggered(true);
+              }}
+              className="w-full text-left p-4 rounded-2xl bg-zinc-100 dark:bg-white/[0.04] hover:bg-zinc-200 dark:hover:bg-white/[0.08] border border-zinc-200 dark:border-white/[0.08] flex items-center gap-3.5 transition-all active:scale-[0.99] select-none cursor-pointer min-h-[44px]"
+            >
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <SparklesIcon className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
+                  Importar com IA
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">
+                  Envie um PDF, foto ou texto e converta em ficha de treino automaticamente
+                </p>
+              </div>
+              <span className="text-zinc-400 text-xs">→</span>
+            </button>
+          </div>
+        </MobileBottomSheet>
+
+        <WorkoutTemplatePicker
+          consultancySlug={consultancySlug}
+          isOpen={isTemplatePickerOpen}
+          onClose={() => setIsTemplatePickerOpen(false)}
+        />
+
+        <TrainingAiImportModal
+          consultancySlug={consultancySlug}
+          isOpenControlled={isAiModalTriggered}
+          onCloseControlled={() => setIsAiModalTriggered(false)}
+          hideTrigger
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      {/* TRIGGER (Desktop & Mobile): Single clean prominent button without duplicate header clutter */}
+      <div className="w-full sm:w-auto">
+        {isTemplatesTab ? (
+          <Link
+            href={`/consultoria/${consultancySlug}/rotinas/novo?isTemplate=true`}
+            className="w-full sm:w-auto inline-block"
           >
             <Button
               variant="primary"
               size="md"
-              className="w-full font-bold min-h-[46px] shadow-sm flex items-center justify-center gap-2"
+              className="w-full sm:w-auto font-bold min-h-[42px] px-5 shadow-sm flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950"
             >
               <PlusIcon className="w-4 h-4" />
               <span>Novo modelo</span>
@@ -78,45 +191,12 @@ export function WorkoutCreationSheet({
             variant="primary"
             size="md"
             onClick={() => setIsSheetOpen(true)}
-            className="w-full font-bold min-h-[46px] shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto font-bold min-h-[42px] px-5 shadow-sm flex items-center justify-center gap-2 cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-zinc-950"
           >
             <PlusIcon className="w-4 h-4" />
-            <span>Novo treino</span>
+            <span>Nova ficha</span>
           </Button>
         )}
-      </div>
-
-      {/* DESKTOP BUTTONS: Unchanged side-by-side buttons */}
-      <div className="hidden sm:flex items-center gap-2.5 shrink-0 flex-wrap">
-        {!isTemplatesTab && (
-          <>
-            <TrainingAiImportModal consultancySlug={consultancySlug} />
-            <button
-              type="button"
-              onClick={() => setIsTemplatePickerOpen(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] hover:border-[var(--border-strong)] text-[var(--text-primary)] transition-all min-h-[38px] cursor-pointer"
-            >
-              <LayersIcon className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-              <span>Modelos de Treino</span>
-            </button>
-          </>
-        )}
-        <Link
-          href={
-            isTemplatesTab
-              ? `/consultoria/${consultancySlug}/rotinas/novo?isTemplate=true`
-              : `/consultoria/${consultancySlug}/rotinas/novo`
-          }
-        >
-          <Button
-            variant="primary"
-            size="md"
-            className="font-bold min-h-[40px] shadow-sm flex items-center justify-center gap-2"
-          >
-            <PlusIcon className="w-4 h-4" />
-            <span>{isTemplatesTab ? "Novo modelo" : "Nova ficha"}</span>
-          </Button>
-        </Link>
       </div>
 
       {/* MOBILE BOTTOM SHEET FOR WORKOUT CREATION */}

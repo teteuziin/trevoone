@@ -16,6 +16,8 @@ import {
   listChatConsultationsForStudent,
   listChatConsultationsForProfessional,
   listActiveStudentsForChat,
+  type ChatConsultationDto,
+  type ActiveStudentForChatDto,
 } from "@/lib/consultancies/trevo-chat";
 import { StudentConsultationsView } from "@/components/consultancies/student-consultations-view";
 import { ProfessionalConsultationsView } from "@/components/consultancies/professional-consultations-view";
@@ -81,10 +83,17 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
 
     const otherUpcoming = upcoming.slice(1);
 
-    const chatConsultations = await listChatConsultationsForStudent(
-      context.consultancyId,
-      context.membershipId
-    );
+    let chatConsultations: ChatConsultationDto[] = [];
+    let chatError: string | null = null;
+    try {
+      chatConsultations = await listChatConsultationsForStudent(
+        context.consultancyId,
+        context.membershipId
+      );
+    } catch (err: unknown) {
+      console.error("[Trevo Chat] Falha não bloqueante ao carregar conversas do aluno:", err);
+      chatError = "Não foi possível carregar as conversas do Trevo Chat no momento.";
+    }
 
     const totalUnread = chatConsultations.reduce((acc, c) => acc + (c.unreadCountStudent || 0), 0);
 
@@ -104,6 +113,7 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
           initialTab={currentTab}
           chatUnreadCount={totalUnread}
           consultancySlug={slug}
+          chatError={chatError}
           videoView={
             <StudentConsultationsView
               consultancySlug={slug}
@@ -152,11 +162,24 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
       ? await resolveConsultationJoinAccess(session.userId, slug, nextConsultation.publicId)
       : null;
 
-    const chatConsultations = await listChatConsultationsForProfessional(
-      context.consultancyId,
-      context.membershipId
-    );
-    const activeChatStudents = await listActiveStudentsForChat(context.consultancyId);
+    let chatConsultations: ChatConsultationDto[] = [];
+    let activeChatStudents: ActiveStudentForChatDto[] = [];
+    let chatError: string | null = null;
+
+    try {
+      const [consultationsRes, studentsRes] = await Promise.all([
+        listChatConsultationsForProfessional(
+          context.consultancyId,
+          context.membershipId
+        ),
+        listActiveStudentsForChat(context.consultancyId),
+      ]);
+      chatConsultations = consultationsRes;
+      activeChatStudents = studentsRes;
+    } catch (err: unknown) {
+      console.error("[Trevo Chat] Falha não bloqueante ao carregar conversas do profissional:", err);
+      chatError = "Não foi possível carregar as conversas do Trevo Chat no momento.";
+    }
 
     const totalUnread = chatConsultations.reduce(
       (acc, c) => acc + (c.unreadCountProfessional || 0),
@@ -179,6 +202,7 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
           initialTab={currentTab}
           chatUnreadCount={totalUnread}
           consultancySlug={slug}
+          chatError={chatError}
           videoView={
             <ProfessionalConsultationsView
               consultancySlug={slug}

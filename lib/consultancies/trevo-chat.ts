@@ -66,6 +66,104 @@ export interface ChatMessageDto {
   createdAt: string;
 }
 
+let _chatSchemaChecked = false;
+
+export async function ensureChatTablesExist(): Promise<void> {
+  if (_chatSchemaChecked) return;
+  const pool = getDbPool();
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS \`chat_consultations\` (
+        \`id\` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        \`public_id\` CHAR(36) NOT NULL,
+        \`consultancy_id\` BIGINT UNSIGNED NOT NULL,
+        \`student_membership_id\` BIGINT UNSIGNED NOT NULL,
+        \`professional_membership_id\` BIGINT UNSIGNED NOT NULL,
+        \`professional_type\` VARCHAR(32) NOT NULL,
+        \`title\` VARCHAR(200) NOT NULL,
+        \`status\` VARCHAR(32) NOT NULL DEFAULT 'AWAITING_STUDENT',
+        \`last_message_at\` DATETIME(3) NULL DEFAULT NULL,
+        \`last_message_preview\` VARCHAR(255) NULL DEFAULT NULL,
+        \`unread_count_student\` INT UNSIGNED NOT NULL DEFAULT 0,
+        \`unread_count_professional\` INT UNSIGNED NOT NULL DEFAULT 0,
+        \`ai_anamnesis_json\` JSON NULL DEFAULT NULL,
+        \`ai_anamnesis_status\` VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+        \`confirmed_form_request_id\` BIGINT UNSIGNED NULL DEFAULT NULL,
+        \`created_by_user_id\` BIGINT UNSIGNED NOT NULL,
+        \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        \`updated_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+
+        PRIMARY KEY (\`id\`),
+        UNIQUE KEY \`uq_chat_consultations_public_id\` (\`public_id\`),
+        KEY \`idx_chat_consultations_tenant_student\` (\`consultancy_id\`, \`student_membership_id\`, \`status\`),
+        KEY \`idx_chat_consultations_tenant_prof\` (\`consultancy_id\`, \`professional_membership_id\`, \`status\`),
+        KEY \`idx_chat_consultations_last_msg\` (\`consultancy_id\`, \`last_message_at\`),
+
+        CONSTRAINT \`fk_chat_consultations_consultancy\` FOREIGN KEY (\`consultancy_id\`) REFERENCES \`consultancies\` (\`id\`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+        CONSTRAINT \`fk_chat_consultations_student\` FOREIGN KEY (\`student_membership_id\`) REFERENCES \`consultancy_members\` (\`id\`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+        CONSTRAINT \`fk_chat_consultations_professional\` FOREIGN KEY (\`professional_membership_id\`) REFERENCES \`consultancy_members\` (\`id\`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+        CONSTRAINT \`fk_chat_consultations_created_by\` FOREIGN KEY (\`created_by_user_id\`) REFERENCES \`users\` (\`id\`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+        CONSTRAINT \`fk_chat_consultations_form_request\` FOREIGN KEY (\`confirmed_form_request_id\`) REFERENCES \`consultancy_custom_form_requests\` (\`id\`) ON DELETE SET NULL ON UPDATE RESTRICT
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS \`chat_messages\` (
+        \`id\` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        \`public_id\` CHAR(36) NOT NULL,
+        \`consultation_id\` BIGINT UNSIGNED NOT NULL,
+        \`sender_user_id\` BIGINT UNSIGNED NOT NULL,
+        \`sender_role\` VARCHAR(32) NOT NULL,
+        \`content\` TEXT NULL DEFAULT NULL,
+        \`message_type\` VARCHAR(32) NOT NULL DEFAULT 'TEXT',
+        \`attachment_url\` VARCHAR(1024) NULL DEFAULT NULL,
+        \`attachment_name\` VARCHAR(255) NULL DEFAULT NULL,
+        \`attachment_size_bytes\` BIGINT UNSIGNED NULL DEFAULT NULL,
+        \`attachment_mime_type\` VARCHAR(128) NULL DEFAULT NULL,
+        \`audio_duration_seconds\` INT UNSIGNED NULL DEFAULT NULL,
+        \`read_at\` DATETIME(3) NULL DEFAULT NULL,
+        \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+        PRIMARY KEY (\`id\`),
+        UNIQUE KEY \`uq_chat_messages_public_id\` (\`public_id\`),
+        KEY \`idx_chat_messages_consultation_created\` (\`consultation_id\`, \`created_at\`),
+        KEY \`idx_chat_messages_sender\` (\`sender_user_id\`, \`created_at\`),
+
+        CONSTRAINT \`fk_chat_messages_consultation\` FOREIGN KEY (\`consultation_id\`) REFERENCES \`chat_consultations\` (\`id\`) ON DELETE CASCADE ON UPDATE RESTRICT,
+        CONSTRAINT \`fk_chat_messages_sender\` FOREIGN KEY (\`sender_user_id\`) REFERENCES \`users\` (\`id\`) ON DELETE RESTRICT ON UPDATE RESTRICT
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    try {
+      await pool.query(
+        `INSERT IGNORE INTO schema_migrations (migration, checksum) VALUES ('051_trevo_chat_and_anamnesis.sql', 'runtime_bootstrapped');`
+      );
+    } catch {}
+
+    _chatSchemaChecked = true;
+  } catch (schemaErr) {
+    console.warn("[Trevo Chat] ensureChatTablesExist warning:", schemaErr);
+  }
+}
+
+async function executeWithAutoSchema<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err: unknown) {
+    const isMissingTable =
+      err &&
+      typeof err === "object" &&
+      (("code" in err && (err as { code: string }).code === "ER_NO_SUCH_TABLE") ||
+        ("message" in err && String((err as { message: string }).message).includes("doesn't exist")));
+
+    if (isMissingTable) {
+      await ensureChatTablesExist();
+      return await fn();
+    }
+    throw err;
+  }
+}
+
 /**
  * Lists all active chat consultations for a professional in a consultancy.
  */
@@ -73,19 +171,20 @@ export async function listChatConsultationsForProfessional(
   consultancyId: number,
   professionalMembershipId: number
 ): Promise<ChatConsultationDto[]> {
-  const pool = getDbPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  return executeWithAutoSchema(async () => {
+    const pool = getDbPool();
+    const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT 
       cc.id,
       cc.public_id,
       cc.consultancy_id,
       cc.student_membership_id,
       u_stud.id AS student_user_id,
-      u_stud.name AS student_name,
+      u_stud.full_name AS student_name,
       u_stud.email AS student_email,
       cc.professional_membership_id,
       u_prof.id AS professional_user_id,
-      u_prof.name AS professional_name,
+      u_prof.full_name AS professional_name,
       cc.professional_type,
       cc.title,
       cc.status,
@@ -108,7 +207,8 @@ export async function listChatConsultationsForProfessional(
     [consultancyId, professionalMembershipId]
   );
 
-  return (rows as RowDataPacket[]).map(mapRowToConsultationDto);
+    return (rows as RowDataPacket[]).map(mapRowToConsultationDto);
+  });
 }
 
 /**
@@ -118,19 +218,20 @@ export async function listChatConsultationsForStudent(
   consultancyId: number,
   studentMembershipId: number
 ): Promise<ChatConsultationDto[]> {
-  const pool = getDbPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  return executeWithAutoSchema(async () => {
+    const pool = getDbPool();
+    const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT 
       cc.id,
       cc.public_id,
       cc.consultancy_id,
       cc.student_membership_id,
       u_stud.id AS student_user_id,
-      u_stud.name AS student_name,
+      u_stud.full_name AS student_name,
       u_stud.email AS student_email,
       cc.professional_membership_id,
       u_prof.id AS professional_user_id,
-      u_prof.name AS professional_name,
+      u_prof.full_name AS professional_name,
       cc.professional_type,
       cc.title,
       cc.status,
@@ -153,7 +254,8 @@ export async function listChatConsultationsForStudent(
     [consultancyId, studentMembershipId]
   );
 
-  return (rows as RowDataPacket[]).map(mapRowToConsultationDto);
+    return (rows as RowDataPacket[]).map(mapRowToConsultationDto);
+  });
 }
 
 /**
@@ -163,43 +265,45 @@ export async function getChatConsultationByPublicId(
   consultancyId: number,
   chatPublicId: string
 ): Promise<ChatConsultationDto | null> {
-  const pool = getDbPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT 
-      cc.id,
-      cc.public_id,
-      cc.consultancy_id,
-      cc.student_membership_id,
-      u_stud.id AS student_user_id,
-      u_stud.name AS student_name,
-      u_stud.email AS student_email,
-      cc.professional_membership_id,
-      u_prof.id AS professional_user_id,
-      u_prof.name AS professional_name,
-      cc.professional_type,
-      cc.title,
-      cc.status,
-      cc.last_message_at,
-      cc.last_message_preview,
-      cc.unread_count_student,
-      cc.unread_count_professional,
-      cc.ai_anamnesis_json,
-      cc.ai_anamnesis_status,
-      cc.confirmed_form_request_id,
-      cc.created_at,
-      cc.updated_at
-    FROM chat_consultations cc
-    INNER JOIN consultancy_members cm_stud ON cm_stud.id = cc.student_membership_id
-    INNER JOIN users u_stud ON u_stud.id = cm_stud.user_id
-    INNER JOIN consultancy_members cm_prof ON cm_prof.id = cc.professional_membership_id
-    INNER JOIN users u_prof ON u_prof.id = cm_prof.user_id
-    WHERE cc.consultancy_id = ? AND cc.public_id = ?
-    LIMIT 1;`,
-    [consultancyId, chatPublicId]
-  );
+  return executeWithAutoSchema(async () => {
+    const pool = getDbPool();
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT 
+        cc.id,
+        cc.public_id,
+        cc.consultancy_id,
+        cc.student_membership_id,
+        u_stud.id AS student_user_id,
+        u_stud.full_name AS student_name,
+        u_stud.email AS student_email,
+        cc.professional_membership_id,
+        u_prof.id AS professional_user_id,
+        u_prof.full_name AS professional_name,
+        cc.professional_type,
+        cc.title,
+        cc.status,
+        cc.last_message_at,
+        cc.last_message_preview,
+        cc.unread_count_student,
+        cc.unread_count_professional,
+        cc.ai_anamnesis_json,
+        cc.ai_anamnesis_status,
+        cc.confirmed_form_request_id,
+        cc.created_at,
+        cc.updated_at
+      FROM chat_consultations cc
+      INNER JOIN consultancy_members cm_stud ON cm_stud.id = cc.student_membership_id
+      INNER JOIN users u_stud ON u_stud.id = cm_stud.user_id
+      INNER JOIN consultancy_members cm_prof ON cm_prof.id = cc.professional_membership_id
+      INNER JOIN users u_prof ON u_prof.id = cm_prof.user_id
+      WHERE cc.consultancy_id = ? AND cc.public_id = ?
+      LIMIT 1;`,
+      [consultancyId, chatPublicId]
+    );
 
-  if (!rows || rows.length === 0) return null;
-  return mapRowToConsultationDto(rows[0]);
+    if (!rows || rows.length === 0) return null;
+    return mapRowToConsultationDto(rows[0]);
+  });
 }
 
 /**
@@ -213,53 +317,55 @@ export async function getOrCreateChatConsultation(params: {
   title?: string;
   createdByUserId: number;
 }): Promise<ChatConsultationDto> {
-  const pool = getDbPool();
+  return executeWithAutoSchema(async () => {
+    const pool = getDbPool();
 
-  // Try to find existing
-  const [existing] = await pool.execute<RowDataPacket[]>(
-    `SELECT public_id FROM chat_consultations
-     WHERE consultancy_id = ? AND student_membership_id = ? AND professional_membership_id = ?
-     LIMIT 1;`,
-    [params.consultancyId, params.studentMembershipId, params.professionalMembershipId]
-  );
+    // Try to find existing
+    const [existing] = await pool.execute<RowDataPacket[]>(
+      `SELECT public_id FROM chat_consultations
+       WHERE consultancy_id = ? AND student_membership_id = ? AND professional_membership_id = ?
+       LIMIT 1;`,
+      [params.consultancyId, params.studentMembershipId, params.professionalMembershipId]
+    );
 
-  if (existing && existing.length > 0) {
-    const chat = await getChatConsultationByPublicId(params.consultancyId, existing[0].public_id);
-    if (chat) return chat;
-  }
+    if (existing && existing.length > 0) {
+      const chat = await getChatConsultationByPublicId(params.consultancyId, existing[0].public_id);
+      if (chat) return chat;
+    }
 
-  const newPublicId = crypto.randomUUID();
-  const title = params.title || `Consulta ${params.professionalType === "PERSONAL" ? "Treino" : "Nutrição"}`;
+    const newPublicId = crypto.randomUUID();
+    const title = params.title || `Consulta ${params.professionalType === "PERSONAL" ? "Treino" : "Nutrição"}`;
 
-  await pool.execute<ResultSetHeader>(
-    `INSERT INTO chat_consultations (
-      public_id,
-      consultancy_id,
-      student_membership_id,
-      professional_membership_id,
-      professional_type,
-      title,
-      status,
-      created_by_user_id,
-      created_at,
-      updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, 'AWAITING_STUDENT', ?, NOW(3), NOW(3));`,
-    [
-      newPublicId,
-      params.consultancyId,
-      params.studentMembershipId,
-      params.professionalMembershipId,
-      params.professionalType,
-      title,
-      params.createdByUserId,
-    ]
-  );
+    await pool.execute<ResultSetHeader>(
+      `INSERT INTO chat_consultations (
+        public_id,
+        consultancy_id,
+        student_membership_id,
+        professional_membership_id,
+        professional_type,
+        title,
+        status,
+        created_by_user_id,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'AWAITING_STUDENT', ?, NOW(3), NOW(3));`,
+      [
+        newPublicId,
+        params.consultancyId,
+        params.studentMembershipId,
+        params.professionalMembershipId,
+        params.professionalType,
+        title,
+        params.createdByUserId,
+      ]
+    );
 
-  const created = await getChatConsultationByPublicId(params.consultancyId, newPublicId);
-  if (!created) {
-    throw new Error("Falha ao inicializar o Trevo Chat.");
-  }
-  return created;
+    const created = await getChatConsultationByPublicId(params.consultancyId, newPublicId);
+    if (!created) {
+      throw new Error("Falha ao inicializar o Trevo Chat.");
+    }
+    return created;
+  });
 }
 
 /**
@@ -269,35 +375,37 @@ export async function listChatMessages(
   consultationId: number,
   limit: number = 100
 ): Promise<ChatMessageDto[]> {
-  const pool = getDbPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT 
-      cm.id,
-      cm.public_id,
-      cm.consultation_id,
-      cc.public_id AS consultation_public_id,
-      cm.sender_user_id,
-      cm.sender_role,
-      u.name AS sender_name,
-      cm.content,
-      cm.message_type,
-      cm.attachment_url,
-      cm.attachment_name,
-      cm.attachment_size_bytes,
-      cm.attachment_mime_type,
-      cm.audio_duration_seconds,
-      cm.read_at,
-      cm.created_at
-    FROM chat_messages cm
-    INNER JOIN chat_consultations cc ON cc.id = cm.consultation_id
-    INNER JOIN users u ON u.id = cm.sender_user_id
-    WHERE cm.consultation_id = ?
-    ORDER BY cm.created_at ASC
-    LIMIT ?;`,
-    [consultationId, limit]
-  );
+  return executeWithAutoSchema(async () => {
+    const pool = getDbPool();
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT 
+        cm.id,
+        cm.public_id,
+        cm.consultation_id,
+        cc.public_id AS consultation_public_id,
+        cm.sender_user_id,
+        cm.sender_role,
+        u.full_name AS sender_name,
+        cm.content,
+        cm.message_type,
+        cm.attachment_url,
+        cm.attachment_name,
+        cm.attachment_size_bytes,
+        cm.attachment_mime_type,
+        cm.audio_duration_seconds,
+        cm.read_at,
+        cm.created_at
+      FROM chat_messages cm
+      INNER JOIN chat_consultations cc ON cc.id = cm.consultation_id
+      INNER JOIN users u ON u.id = cm.sender_user_id
+      WHERE cm.consultation_id = ?
+      ORDER BY cm.created_at ASC
+      LIMIT ?;`,
+      [consultationId, limit]
+    );
 
-  return (rows as RowDataPacket[]).map(mapRowToMessageDto);
+    return (rows as RowDataPacket[]).map(mapRowToMessageDto);
+  });
 }
 
 /**
@@ -317,6 +425,7 @@ export async function sendChatMessage(params: {
   audioDurationSeconds?: number | null;
   consultancySlug: string;
 }): Promise<ChatMessageDto> {
+  await ensureChatTablesExist();
   const pool = getDbPool();
   const connection = await pool.getConnection();
 
@@ -331,10 +440,10 @@ export async function sendChatMessage(params: {
         cc.consultancy_id,
         cc.student_membership_id,
         cm_stud.user_id AS student_user_id,
-        u_stud.name AS student_name,
+        u_stud.full_name AS student_name,
         cc.professional_membership_id,
         cm_prof.user_id AS professional_user_id,
-        u_prof.name AS professional_name
+        u_prof.full_name AS professional_name
        FROM chat_consultations cc
        INNER JOIN consultancy_members cm_stud ON cm_stud.id = cc.student_membership_id
        INNER JOIN users u_stud ON u_stud.id = cm_stud.user_id
@@ -466,7 +575,7 @@ export async function sendChatMessage(params: {
         cc.public_id AS consultation_public_id,
         cm.sender_user_id,
         cm.sender_role,
-        u.name AS sender_name,
+        u.full_name AS sender_name,
         cm.content,
         cm.message_type,
         cm.attachment_url,
@@ -783,7 +892,7 @@ export async function listActiveStudentsForChat(
     `SELECT cm.id AS membership_id,
             cm.public_id AS membership_public_id,
             u.public_id AS user_public_id,
-            COALESCE(u.name, 'Aluno') AS name,
+            COALESCE(u.full_name, 'Aluno') AS name,
             COALESCE(u.email, '') AS email
      FROM consultancy_members cm
      JOIN users u ON u.id = cm.user_id
@@ -792,8 +901,8 @@ export async function listActiveStudentsForChat(
        AND cm.status = 'ACTIVE'
        AND u.status = 'ACTIVE'
        AND cmr.role = 'STUDENT'
-     GROUP BY cm.id, cm.public_id, u.public_id, u.name, u.email
-     ORDER BY u.name ASC;`,
+     GROUP BY cm.id, cm.public_id, u.public_id, u.full_name, u.email
+     ORDER BY u.full_name ASC;`,
     [consultancyId]
   );
 

@@ -213,16 +213,56 @@ async function runTests() {
   );
 
   assert.ok(
+    headerFile.includes('createPortal'),
+    'Header menu uses createPortal to render bottom sheet above bottom navigation and header'
+  );
+  assert.ok(
+    headerFile.includes('document.body.style.overflow = "hidden"'),
+    'Header menu locks body scroll when open'
+  );
+  assert.ok(
+    headerFile.includes('Nova ficha') && !headerFile.includes('Selecione como deseja prescrever'),
+    'Header features clean "Nova ficha" title and removed "Selecione como deseja prescrever"'
+  );
+  assert.ok(
+    !headerFile.includes('rounded-full mx-auto sm:hidden') && !headerFile.includes('w-10 h-1'),
+    'Drag handle (alça cinza) is removed as requested'
+  );
+  assert.ok(
     headerFile.includes('Criar manual'),
     'Header menu includes "Criar manual" option'
+  );
+  assert.ok(
+    headerFile.includes('Escolha os exercícios e monte a ficha.'),
+    'Header menu includes exact copy "Escolha os exercícios e monte a ficha."'
   );
   assert.ok(
     headerFile.includes('Importar com IA'),
     'Header menu includes "Importar com IA" option'
   );
   assert.ok(
+    headerFile.includes('Transforme um treino existente em ficha.'),
+    'Header menu includes exact copy "Transforme um treino existente em ficha."'
+  );
+  assert.ok(
     headerFile.includes('Criar com IA'),
     'Header menu includes "Criar com IA" option'
+  );
+  assert.ok(
+    headerFile.includes('Gere uma ficha a partir das suas orientações.'),
+    'Header menu includes exact copy "Gere uma ficha a partir das suas orientações."'
+  );
+  assert.ok(
+    headerFile.includes('min-h-[72px]'),
+    'Menu options enforce min-h-[72px] touch height'
+  );
+  assert.ok(
+    headerFile.includes('env(safe-area-inset-bottom'),
+    'Menu includes safe area bottom padding'
+  );
+  assert.ok(
+    headerFile.includes('min-h-[44px]') && headerFile.includes('min-w-[44px]'),
+    'Close button enforces minimum 44x44px touch target'
   );
   assert.ok(
     headerFile.includes('TrainingAiImportModal'),
@@ -232,11 +272,7 @@ async function runTests() {
     headerFile.includes('TrainingAiGenerateModal'),
     'Header connects to TrainingAiGenerateModal'
   );
-  assert.ok(
-    headerFile.includes('min-h-[44px]') || headerFile.includes('min-h-[48px]') || headerFile.includes('min-h-[56px]'),
-    'Menu options honor touch target >= 44px'
-  );
-  pass('Speed dial vertical menu with 3 options verified');
+  pass('Nova ficha bottom sheet modal verified with portal, 72px options, safe-area and exact copy');
 
   const generateModalFile = fs.readFileSync(
     path.resolve(

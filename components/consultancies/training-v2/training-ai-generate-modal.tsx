@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type {
   ResolvedTrainingProposal,
@@ -126,6 +127,22 @@ export function TrainingAiGenerateModal({
       .catch(() => {});
   }, [isOpen, consultancySlug]);
 
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
   // Handle ESC key to dismiss
   useEffect(() => {
     if (!isOpen) return;
@@ -138,7 +155,7 @@ export function TrainingAiGenerateModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   async function handleGenerateProposal(e: React.FormEvent) {
     e.preventDefault();
@@ -224,7 +241,7 @@ Defina repetições, séries e descansos para cada exercício e respeite as rest
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
       onClick={handleClose}
@@ -578,6 +595,7 @@ Defina repetições, séries e descansos para cada exercício e respeite as rest
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

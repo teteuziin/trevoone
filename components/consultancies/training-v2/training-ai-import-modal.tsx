@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type {
   ResolvedTrainingProposal,
@@ -27,12 +28,12 @@ export function TrainingAiImportModal({
   const router = useRouter();
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isOpen = isOpenControlled !== undefined ? isOpenControlled : internalIsOpen;
-  const setIsOpen = (val: boolean) => {
+  const setIsOpen = useCallback((val: boolean) => {
     setInternalIsOpen(val);
     if (!val && onCloseControlled) {
       onCloseControlled();
     }
-  };
+  }, [onCloseControlled]);
   const [mode, setMode] = useState<"FILE" | "TEXT">("FILE");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pastedText, setPastedText] = useState("");
@@ -75,6 +76,35 @@ export function TrainingAiImportModal({
       // Ignore
     }
   };
+
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
+  // Handle ESC key to dismiss
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (state === "ANALYZING" || state === "SAVING") return;
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, state, setIsOpen]);
 
   const handleOpen = () => {
     setIsOpen(true);
@@ -238,7 +268,7 @@ export function TrainingAiImportModal({
       )}
 
       {/* Modal */}
-      {isOpen && (
+      {isOpen && mounted && createPortal(
         <div
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
           onClick={handleClose}
@@ -643,7 +673,8 @@ export function TrainingAiImportModal({
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

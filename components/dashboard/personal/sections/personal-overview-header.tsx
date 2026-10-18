@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   DuotoneStudentsIcon,
@@ -86,16 +87,75 @@ export function PersonalOverviewHeader({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isImportAiOpen, setIsImportAiOpen] = useState(false);
   const [isGenerateAiOpen, setIsGenerateAiOpen] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
-  // Close menu on Escape
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const sheetContentRef = useRef<HTMLDivElement>(null);
+
+  const handleCloseMenu = useCallback(() => {
+    setIsMenuOpen(false);
+    setTimeout(() => {
+      triggerRef.current?.focus();
+    }, 50);
+  }, []);
+
+  // Lock body scroll when menu is open
   useEffect(() => {
     if (!isMenuOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsMenuOpen(false);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isMenuOpen]);
+
+  // Initial focus on close button, Escape key handler, Tab focus trap
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const timer = setTimeout(() => {
+      closeBtnRef.current?.focus();
+    }, 20);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        handleCloseMenu();
+        return;
+      }
+      if (e.key === "Tab") {
+        if (!sheetContentRef.current) return;
+        const focusable = sheetContentRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMenuOpen, handleCloseMenu]);
 
   return (
     <div className="w-full">
@@ -128,9 +188,13 @@ export function PersonalOverviewHeader({
 
             <button
               type="button"
-              onClick={() => setIsMenuOpen(true)}
+              onClick={(e) => {
+                triggerRef.current = e.currentTarget;
+                setIsMenuOpen(true);
+              }}
               className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-sm active:translate-y-[1px] transition-colors cursor-pointer select-none"
               aria-expanded={isMenuOpen}
+              aria-haspopup="dialog"
               aria-label="Opções para criar nova ficha"
             >
               <svg className="w-4 h-4 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -207,9 +271,13 @@ export function PersonalOverviewHeader({
       {/* Botão Fixo Mobile (Nova ficha) que abre as 3 opções */}
       <button
         type="button"
-        onClick={() => setIsMenuOpen(true)}
+        onClick={(e) => {
+          triggerRef.current = e.currentTarget;
+          setIsMenuOpen(true);
+        }}
         aria-label="Abrir opções de nova ficha de treino"
         aria-expanded={isMenuOpen}
+        aria-haspopup="dialog"
         className="md:hidden fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-4 z-40 min-h-[48px] px-5 rounded-full bg-[#10B981] hover:bg-[#059669] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg select-none cursor-pointer focus:outline-none active:translate-y-[2px] transition-transform"
       >
         <svg className="w-4 h-4 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -218,111 +286,109 @@ export function PersonalOverviewHeader({
         <span>Nova ficha</span>
       </button>
 
-      {/* Menu Vertical de 3 Opções (Modal / Bottom Sheet com superfícies sólidas) */}
-      {isMenuOpen && (
+      {/* Menu Vertical de 3 Opções (Modal / Bottom Sheet com superfícies sólidas acima da navegação via Portal) */}
+      {mounted && isMenuOpen && createPortal(
         <div
           className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
-          onClick={() => setIsMenuOpen(false)}
+          onClick={handleCloseMenu}
           role="dialog"
           aria-modal="true"
           aria-labelledby="new-workout-menu-title"
         >
           <div
-            className="w-full sm:max-w-md bg-white dark:bg-[#151619] border-t sm:border border-[#E5E7EB] dark:border-[#303238] rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 space-y-3.5 shadow-2xl animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-150 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6 text-[#17191D] dark:text-[#E5E7EB]"
+            ref={sheetContentRef}
+            className="w-full sm:max-w-md max-h-[90dvh] flex flex-col bg-white dark:bg-[#151619] border-t sm:border border-[#E5E7EB] dark:border-[#303238] rounded-t-3xl sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-150 overflow-hidden text-[#17191D] dark:text-[#E5E7EB]"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Mobile Drag Indicator */}
-            <div className="w-10 h-1 bg-[#D1D5DB] dark:bg-[#303238] rounded-full mx-auto sm:hidden -mt-1 mb-2" />
-
-            {/* Menu Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-[#E5E7EB] dark:border-[#303238]">
-              <div>
-                <h3 id="new-workout-menu-title" className="text-base font-bold text-[#17191D] dark:text-white">
-                  Nova ficha de treino
-                </h3>
-                <p className="text-xs text-[#6B7280] dark:text-[#8E95A2]">
-                  Selecione como deseja prescrever
-                </p>
-              </div>
+            {/* Header: Nova ficha + Botão Fechar (mínimo 44x44px) */}
+            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-[#E5E7EB] dark:border-[#303238] shrink-0">
+              <h2 id="new-workout-menu-title" className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white">
+                Nova ficha
+              </h2>
 
               <button
+                ref={closeBtnRef}
                 type="button"
-                onClick={() => setIsMenuOpen(false)}
-                className="p-2 rounded-lg text-[#6B7280] hover:text-[#17191D] dark:text-[#8E95A2] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] min-h-[44px] min-w-[44px] flex items-center justify-center"
+                onClick={handleCloseMenu}
+                className="p-2 rounded-xl text-[#6B7280] hover:text-[#17191D] dark:text-[#8E95A2] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer transition-colors"
                 aria-label="Fechar"
               >
                 <XIcon className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Opção 1: Criar manual */}
-            <Link
-              href={`/consultoria/${consultancySlug}/rotinas/novo`}
-              prefetch={false}
-              onClick={() => setIsMenuOpen(false)}
-              className="flex items-center gap-3.5 p-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] hover:bg-[#F3F4F6] dark:hover:bg-[#222429] border border-[#E5E7EB] dark:border-[#303238] transition-colors group min-h-[56px] select-none cursor-pointer"
-            >
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 group-hover:scale-105 transition-transform">
-                <PencilClipboardIcon className="w-5 h-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
-                  Criar manual
-                </p>
-                <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-0.5">
-                  Monte do zero passo a passo
-                </p>
-              </div>
-              <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
-            </Link>
+            {/* Três Opções em Largura Total, min-height 72px cada, gap 12px, safe-area-inset-bottom */}
+            <div className="p-4 sm:p-5 space-y-3 overflow-y-auto pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:pb-5">
+              {/* Opção 1: Criar manual */}
+              <Link
+                href={`/consultoria/${consultancySlug}/rotinas/novo`}
+                prefetch={false}
+                onClick={handleCloseMenu}
+                className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-[#F9FAFB] hover:bg-[#F3F4F6] dark:bg-[#1B1D21] dark:hover:bg-[#222429] border border-[#E5E7EB] dark:border-[#303238] transition-colors group min-h-[72px] h-auto select-none cursor-pointer text-left"
+              >
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 group-hover:scale-105 transition-transform">
+                  <PencilClipboardIcon className="w-6 h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
+                    Criar manual
+                  </p>
+                  <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-normal">
+                    Escolha os exercícios e monte a ficha.
+                  </p>
+                </div>
+                <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
+              </Link>
 
-            {/* Opção 2: Importar com IA */}
-            <button
-              type="button"
-              onClick={() => {
-                setIsMenuOpen(false);
-                setIsImportAiOpen(true);
-              }}
-              className="w-full text-left flex items-center gap-3.5 p-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] hover:bg-[#F3F4F6] dark:hover:bg-[#222429] border border-[#E5E7EB] dark:border-[#303238] transition-colors group min-h-[56px] select-none cursor-pointer"
-            >
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20 group-hover:scale-105 transition-transform">
-                <DocumentUploadIcon className="w-5 h-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
-                  Importar com IA
-                </p>
-                <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-0.5">
-                  Cole um texto ou PDF para converter
-                </p>
-              </div>
-              <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
-            </button>
+              {/* Opção 2: Importar com IA */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsImportAiOpen(true);
+                }}
+                className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-[#F9FAFB] hover:bg-[#F3F4F6] dark:bg-[#1B1D21] dark:hover:bg-[#222429] border border-[#E5E7EB] dark:border-[#303238] transition-colors group min-h-[72px] h-auto select-none cursor-pointer text-left"
+              >
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20 group-hover:scale-105 transition-transform">
+                  <DocumentUploadIcon className="w-6 h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
+                    Importar com IA
+                  </p>
+                  <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-normal">
+                    Transforme um treino existente em ficha.
+                  </p>
+                </div>
+                <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
+              </button>
 
-            {/* Opção 3: Criar com IA */}
-            <button
-              type="button"
-              onClick={() => {
-                setIsMenuOpen(false);
-                setIsGenerateAiOpen(true);
-              }}
-              className="w-full text-left flex items-center gap-3.5 p-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] hover:bg-[#F3F4F6] dark:hover:bg-[#222429] border border-[#E5E7EB] dark:border-[#303238] transition-colors group min-h-[56px] select-none cursor-pointer"
-            >
-              <div className="w-10 h-10 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/20 group-hover:scale-105 transition-transform">
-                <SparklesWandIcon className="w-5 h-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
-                  Criar com IA
-                </p>
-                <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-0.5">
-                  Gere uma ficha estruturada com parâmetros
-                </p>
-              </div>
-              <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
-            </button>
+              {/* Opção 3: Criar com IA */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsGenerateAiOpen(true);
+                }}
+                className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-[#F9FAFB] hover:bg-[#F3F4F6] dark:bg-[#1B1D21] dark:hover:bg-[#222429] border border-[#E5E7EB] dark:border-[#303238] transition-colors group min-h-[72px] h-auto select-none cursor-pointer text-left"
+              >
+                <div className="w-12 h-12 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/20 group-hover:scale-105 transition-transform">
+                  <SparklesWandIcon className="w-6 h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
+                    Criar com IA
+                  </p>
+                  <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-normal">
+                    Gere uma ficha a partir das suas orientações.
+                  </p>
+                </div>
+                <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal 1: Importar com IA */}

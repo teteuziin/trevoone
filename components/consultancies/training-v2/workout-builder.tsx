@@ -1576,7 +1576,7 @@ export function WorkoutBuilder({
                         className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[44px] text-zinc-200 hover:text-white transition-colors"
                       >
                         <EyeIcon className="w-3.5 h-3.5 text-teal-400" />
-                        <span>Pré-visualizar como aluno</span>
+                        <span>Visão do aluno</span>
                       </button>
                       {!isDraft && (
                         <a
@@ -1823,15 +1823,15 @@ export function WorkoutBuilder({
                     )}
                   </button>
 
-                  {/* Prévia */}
+                  {/* Visão do aluno */}
                   <button
                     type="button"
                     onClick={() => setIsPreviewOpen(true)}
                     className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
-                    title="Pré-visualizar como aluno"
+                    title="Visualizar treino exatamente como o aluno vê"
                   >
                     <EyeIcon className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>Prévia</span>
+                    <span>Visão do aluno</span>
                   </button>
 
                   {/* Primary CTA: Publicar */}
@@ -1859,15 +1859,15 @@ export function WorkoutBuilder({
                     <span>Assistente de Treino</span>
                   </button>
 
-                  {/* Prévia */}
+                  {/* Visão do aluno */}
                   <button
                     type="button"
                     onClick={() => setIsPreviewOpen(true)}
                     className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
-                    title="Pré-visualizar como aluno"
+                    title="Visualizar treino exatamente como o aluno vê"
                   >
                     <EyeIcon className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>Prévia</span>
+                    <span>Visão do aluno</span>
                   </button>
 
                   {/* Secondary CTA: Enviar ficha */}
@@ -1928,7 +1928,7 @@ export function WorkoutBuilder({
                           className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
                         >
                           <EyeIcon className="w-3.5 h-3.5 text-teal-400" />
-                          <span>Pré-visualizar como aluno</span>
+                          <span>Visão do aluno</span>
                         </button>
                         {!isDraft && (
                           <a
@@ -2687,6 +2687,8 @@ export function WorkoutBuilder({
                   blocks: version.blocks,
                 }}
                 consultancySlug={consultancySlug}
+                isPreview={true}
+                isDraft={isDraft}
               />
             </div>
           </div>

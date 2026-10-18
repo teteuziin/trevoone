@@ -31,6 +31,11 @@ export type SequenceMediaItem = {
   muscleGroup?: string | null;
   equipment?: string | null;
   notes?: string | null;
+  setsCount?: number | null;
+  loadKg?: number | null;
+  restSeconds?: number | null;
+  rounds?: number | null;
+  advancedMethod?: string | null;
 };
 
 export type SequenceMediaExperience = {
@@ -40,6 +45,7 @@ export type SequenceMediaExperience = {
   hasPlayableMedia: boolean;
   overrideMediaUrl?: string | null;
   restAfterSeconds?: number | null;
+  rounds?: number | null;
   items: SequenceMediaItem[];
   movements: SequenceMediaItem[];
   totalMovements: number;
@@ -242,6 +248,11 @@ export function buildSequenceMediaFromCombination(
       muscleGroup: it.muscleGroupSnapshot || null,
       equipment: it.equipmentSnapshot || null,
       notes: it.notes || null,
+      setsCount: it.sets?.length || 3,
+      loadKg: targetSet?.targetLoadKg ?? null,
+      restSeconds: targetSet?.targetRestSeconds ?? null,
+      rounds: combination.rounds || it.sets?.length || 3,
+      advancedMethod: ((it.methodConfig as Record<string, unknown> | null)?.advancedMethod as string | null) || null,
     };
   });
 
@@ -264,6 +275,7 @@ export function buildSequenceMediaFromCombination(
     title: combination.title || `${type.replace("_", "-")} (${items.length} exercícios)`,
     hasPlayableMedia,
     restAfterSeconds: combination.restAfterSeconds ?? null,
+    rounds: combination.rounds || combItems[0]?.sets?.length || 3,
     items,
     movements: items,
     totalMovements: items.length,

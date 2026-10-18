@@ -24,6 +24,10 @@ import {
   searchExercisesForPickerAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
 import type { StudentSearchResult } from "@/lib/training-v2/assignment-repository";
+import {
+  getCombinationTheme,
+  STUDIO_COMBINATION_TYPE_LABELS,
+} from "./training-studio-tokens";
 
 export type TrainingStudioAssistantProps = {
   isOpen: boolean;
@@ -91,6 +95,23 @@ type AssistantCard =
       title: string;
       blocks: string[];
       onApply: () => Promise<void>;
+    }
+  | {
+      type: "proposal_combination";
+      title: string;
+      combType: WorkoutCombinationType;
+      targetCategoryTitle: string;
+      items: Array<{ name: string; reps: string; series: number }>;
+      onApply: () => Promise<void>;
+    }
+  | {
+      type: "block_clarification";
+      dayName: string;
+      blockId?: string;
+      blockTitle?: string | null;
+      onAddExercises: () => void;
+      onBuildCompleteBlock: () => Promise<void>;
+      onCreateBlock?: () => Promise<void>;
     }
   | {
       type: "exercise_ambiguity";
@@ -173,6 +194,81 @@ function AssistantMessageCard({
         >
           ✓ Aplicar esta divisão
         </button>
+      </div>
+    );
+  }
+
+  if (card.type === "proposal_combination") {
+    const theme = getCombinationTheme(card.combType);
+    const typeLabel = STUDIO_COMBINATION_TYPE_LABELS[card.combType];
+    return (
+      <div className={`p-3.5 rounded-2xl border ${theme.borderClass} ${theme.cardBgClass} space-y-3 shadow-xs`}>
+        <div className="flex items-center justify-between gap-2">
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${theme.badgeClass}`}>
+            Proposta de {typeLabel}
+          </span>
+          <span className="text-[11px] font-bold text-zinc-300">
+            Destino: {card.targetCategoryTitle}
+          </span>
+        </div>
+        <div className="space-y-1.5">
+          {card.items.map((it, idx) => (
+            <div key={idx} className="flex items-center gap-2 text-xs font-bold p-2 rounded-xl bg-zinc-950/80 border border-zinc-800">
+              <span className={`w-6 h-6 rounded-lg ${theme.letterAvatarClass} text-xs font-black flex items-center justify-center shrink-0`}>
+                {String.fromCharCode(65 + idx)}.
+              </span>
+              <span className="flex-1 truncate text-white">{it.name}</span>
+              <span className="text-[11px] text-zinc-400 shrink-0">{it.series}x {it.reps}</span>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={card.onApply}
+          className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-xs min-h-[40px] cursor-pointer flex items-center justify-center gap-2 active:scale-[0.99] transition-all"
+        >
+          <span>⚡ Aplicar {typeLabel} no treino</span>
+        </button>
+      </div>
+    );
+  }
+
+  if (card.type === "block_clarification") {
+    return (
+      <div className="p-3.5 rounded-2xl bg-zinc-950/80 border border-emerald-500/30 space-y-3">
+        <div className="text-xs font-bold text-zinc-200">
+          {card.blockTitle ? `Bloco identificado: ${card.blockTitle}` : `Novo bloco: ${card.dayName}`}
+        </div>
+        <div className="flex flex-col gap-2">
+          {card.blockId ? (
+            <>
+              <button
+                type="button"
+                onClick={card.onAddExercises}
+                className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs min-h-[40px] flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.99] transition-all"
+              >
+                <span>+ Adicionar exercícios neste bloco</span>
+              </button>
+              <button
+                type="button"
+                onClick={card.onBuildCompleteBlock}
+                className="w-full py-2.5 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 font-bold text-xs min-h-[40px] flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-all"
+              >
+                <span>⚡ Montar treino completo para este dia</span>
+              </button>
+            </>
+          ) : (
+            card.onCreateBlock && (
+              <button
+                type="button"
+                onClick={card.onCreateBlock}
+                className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs min-h-[40px] flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.99] transition-all"
+              >
+                <span>+ Criar bloco &quot;{card.dayName}&quot;</span>
+              </button>
+            )
+          )}
+        </div>
       </div>
     );
   }
@@ -350,7 +446,6 @@ export function TrainingStudioAssistant({
   onDeleteExercise,
   onOpenExercisePicker,
   onOpenCreateCustom,
-  onStartGuidedCombination,
   onOpenPublishDialog,
   onCreateDraft,
   onOpenPreview,
@@ -402,15 +497,25 @@ export function TrainingStudioAssistant({
   const recognitionRef = useRef<ISpeechRecognitionInstance | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const isNearBottomRef = useRef<boolean>(true);
 
-  const scrollToBottom = useCallback(() => {
-    if (chatScrollRef.current) {
+  const handleScroll = useCallback(() => {
+    if (!chatScrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatScrollRef.current;
+    isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 80;
+  }, []);
+
+  const scrollToBottom = useCallback((force = false) => {
+    if (chatScrollRef.current && (force || isNearBottomRef.current)) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      isNearBottomRef.current = true;
     }
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
+    const lastMsg = messages[messages.length - 1];
+    const isUserMsg = lastMsg?.sender === "user";
+    scrollToBottom(isUserMsg);
   }, [messages, flowState, scrollToBottom]);
 
   const handleClose = useCallback(() => {
@@ -560,6 +665,121 @@ export function TrainingStudioAssistant({
       setErrorMessage(null);
 
       try {
+        // 0. Day / Block Planning Intent (e.g. "Quero montar algo na segunda", "montar treino na quarta", "o que fazer na sexta")
+        const DAY_MATCHERS: Array<{ key: string; display: string }> = [
+          { key: "segunda", display: "Segunda-feira" },
+          { key: "terca", display: "Terça-feira" },
+          { key: "quarta", display: "Quarta-feira" },
+          { key: "quinta", display: "Quinta-feira" },
+          { key: "sexta", display: "Sexta-feira" },
+          { key: "sabado", display: "Sábado" },
+          { key: "domingo", display: "Domingo" },
+        ];
+
+        const matchedDay = DAY_MATCHERS.find((d) => normalized.includes(d.key));
+        const isDayPlanning = Boolean(
+          matchedDay &&
+          (normalized.includes("montar") ||
+           normalized.includes("fazer") ||
+           normalized.includes("treino") ||
+           normalized.includes("bloco") ||
+           normalized.includes("algo") ||
+           normalized.includes("na ") ||
+           normalized.includes("no ") ||
+           normalized.startsWith(matchedDay.key))
+        );
+
+        if (isDayPlanning && matchedDay) {
+          const matchingBlocks = categories.filter((c) => {
+            const normTitle = (c.title || "")
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "");
+            return normTitle.includes(matchedDay.key);
+          });
+
+          if (matchingBlocks.length === 1) {
+            const block = matchingBlocks[0];
+            setSelectedTargetIdOverride(block.publicId);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `asst-${Date.now()}`,
+                sender: "assistant",
+                text: `Identifiquei o bloco **${block.title}** (${block.items?.length || 0} exercícios). Você quer adicionar exercícios ou montar o bloco completo de ${matchedDay.display}?`,
+                timestamp: new Date(),
+                card: {
+                  type: "block_clarification",
+                  dayName: matchedDay.display,
+                  blockId: block.publicId,
+                  blockTitle: block.title,
+                  onAddExercises: () => {
+                    setMessages((m) => [
+                      ...m,
+                      {
+                        id: `asst-${Date.now()}`,
+                        sender: "assistant",
+                        text: `Perfeito! O bloco **${block.title}** está selecionado como destino. Diga o nome do exercício (ex: "Adicionar supino reto") ou o tipo de combinação.`,
+                        timestamp: new Date(),
+                      },
+                    ]);
+                  },
+                  onBuildCompleteBlock: async () => {
+                    setMessages((m) => [
+                      ...m,
+                      {
+                        id: `asst-${Date.now()}`,
+                        sender: "assistant",
+                        text: `Para o bloco **${block.title}**, recomendo prescrever um exercício multiarticular principal seguido de uma combinação em bi-set. Diga: "Quero um bi-set de peito" ou "Adicionar supino reto".`,
+                        timestamp: new Date(),
+                      },
+                    ]);
+                  },
+                },
+              },
+            ]);
+            setIsExecuting(false);
+            return;
+          }
+
+          if (matchingBlocks.length === 0) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `asst-${Date.now()}`,
+                sender: "assistant",
+                text: `Não encontrei um bloco para **${matchedDay.display}**. Deseja criar o bloco agora?`,
+                timestamp: new Date(),
+                card: {
+                  type: "block_clarification",
+                  dayName: matchedDay.display,
+                  onAddExercises: () => {},
+                  onBuildCompleteBlock: async () => {},
+                  onCreateBlock: async () => {
+                    if (onCreateCategory) {
+                      const newId = await onCreateCategory(`${matchedDay.display} — Treino`);
+                      if (newId) {
+                        setSelectedTargetIdOverride(newId);
+                        setMessages((m) => [
+                          ...m,
+                          {
+                            id: `asst-${Date.now()}`,
+                            sender: "assistant",
+                            text: `✅ Bloco **${matchedDay.display} — Treino** criado e selecionado como destino! O que deseja prescrever primeiro?`,
+                            timestamp: new Date(),
+                          },
+                        ]);
+                      }
+                    }
+                  },
+                },
+              },
+            ]);
+            setIsExecuting(false);
+            return;
+          }
+        }
+
         // 1. Division Creation ("montar divisão ABC", "divisão ABC", "divisão ABCD", "divisão AB")
         if (
           normalized.includes("divisao abc") ||
@@ -740,14 +960,15 @@ export function TrainingStudioAssistant({
           return;
         }
 
-        // 3. Combination Intent ("combinar em bi-set", "criar bi-set", "tri-set", "circuito")
+        // 3. Combination Intent ("combinar em bi-set", "criar bi-set", "tri-set", "circuito", "quero um bi-set de peito")
         if (
           normalized.includes("bi-set") ||
           normalized.includes("biset") ||
           normalized.includes("tri-set") ||
           normalized.includes("triset") ||
           normalized.includes("circuito") ||
-          normalized.includes("super-serie")
+          normalized.includes("super-serie") ||
+          normalized.includes("superserie")
         ) {
           if (version.status !== "DRAFT") {
             setFlowState("published_warning");
@@ -756,21 +977,124 @@ export function TrainingStudioAssistant({
           }
 
           const target = await getOrResolveTargetCategory();
-          const activeBlock = categories.find((c) => c.publicId === target.id) || categories[0];
-          const blockItems = activeBlock?.items || [];
-
           const combType: WorkoutCombinationType =
             normalized.includes("tri-set") || normalized.includes("triset")
               ? "TRI_SET"
               : normalized.includes("circuito")
               ? "CIRCUIT"
+              : normalized.includes("super-serie") || normalized.includes("superserie")
+              ? "SUPERSET"
               : "BI_SET";
 
+          const combLabel = STUDIO_COMBINATION_TYPE_LABELS[combType];
+
+          // Check if user specified a muscle group: e.g. "bi-set de peito", "tri-set de costas", "circuito de pernas"
+          const MUSCLE_PRESETS: Record<string, string[]> = {
+            peito: ["Supino Reto", "Crucifixo com Halteres", "Supino Inclinado com Halteres", "Crossover na Polia"],
+            costas: ["Puxada Alta Aberta", "Remada Baixa", "Remada Curvada", "Pulldown na Polia"],
+            perna: ["Agachamento Livre", "Cadeira Extensora", "Leg Press 45", "Mesa Flexora"],
+            pernas: ["Agachamento Livre", "Cadeira Extensora", "Leg Press 45", "Mesa Flexora"],
+            quadriceps: ["Agachamento Livre", "Cadeira Extensora", "Leg Press 45", "Passada com Halteres"],
+            posterior: ["Stiff com Barra", "Mesa Flexora", "Cadeira Flexora", "Elevação Pélvica"],
+            ombro: ["Desenvolvimento com Halteres", "Elevação Lateral", "Elevação Frontal", "Crucifixo Invertido"],
+            ombros: ["Desenvolvimento com Halteres", "Elevação Lateral", "Elevação Frontal", "Crucifixo Invertido"],
+            braco: ["Rosca Direta com Barra", "Tríceps Corda", "Rosca Martelo", "Tríceps Testa"],
+            bracos: ["Rosca Direta com Barra", "Tríceps Corda", "Rosca Martelo", "Tríceps Testa"],
+            biceps: ["Rosca Direta com Barra", "Rosca Scott", "Rosca Martelo", "Rosca Alternada"],
+            triceps: ["Tríceps Corda", "Tríceps Testa", "Tríceps Pulley", "Tríceps Francês"],
+            abdomen: ["Abdominal Supra", "Prancha Isométrica", "Abdominal Infra", "Abdominal Remador"],
+          };
+
+          const matchedMuscle = Object.keys(MUSCLE_PRESETS).find((m) => normalized.includes(m));
+
+          if (matchedMuscle) {
+            const neededCount = combType === "TRI_SET" ? 3 : combType === "CIRCUIT" ? 4 : 2;
+            const chosenNames = MUSCLE_PRESETS[matchedMuscle].slice(0, neededCount);
+
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `asst-${Date.now()}`,
+                sender: "assistant",
+                text: `Montei uma proposta de **${combLabel} de ${matchedMuscle}** para o bloco **${target.title}**:`,
+                timestamp: new Date(),
+                card: {
+                  type: "proposal_combination",
+                  title: `${combLabel} de ${matchedMuscle}`,
+                  combType,
+                  targetCategoryTitle: target.title,
+                  items: chosenNames.map((name) => ({
+                    name,
+                    series: 3,
+                    reps: "10-12 reps",
+                  })),
+                  onApply: async () => {
+                    if (!onAddExerciseToCategory || !onCreateCombination) return;
+                    const addedItemIds: string[] = [];
+                    const addedItemsData: Array<{
+                      name: string;
+                      seriesCount: number;
+                      reps: string;
+                      loadKg?: number | null;
+                      restSeconds: number;
+                    }> = [];
+
+                    for (const exName of chosenNames) {
+                      const searchRes = await searchExercisesForPickerAction(consultancySlug, { query: exName });
+                      const exId = searchRes.data?.[0]?.publicId;
+                      if (exId) {
+                        const added = await onAddExerciseToCategory(target.id, exId);
+                        if (added) {
+                          addedItemIds.push(added.publicId);
+                          addedItemsData.push({
+                            name: added.exerciseNameSnapshot,
+                            seriesCount: 3,
+                            reps: "10-12 reps",
+                            restSeconds: 60,
+                          });
+                        }
+                      }
+                    }
+
+                    if (addedItemIds.length >= 2) {
+                      await onCreateCombination({
+                        blockPublicId: target.id,
+                        combinationType: combType,
+                        restAfterSeconds: 60,
+                        itemPublicIds: addedItemIds,
+                      });
+
+                      setMessages((m) => [
+                        ...m,
+                        {
+                          id: `asst-${Date.now()}`,
+                          sender: "assistant",
+                          text: `✅ ${combLabel} de ${matchedMuscle} criado e agrupado com sucesso no bloco **${target.title}**!`,
+                          timestamp: new Date(),
+                          card: {
+                            type: "mutation_result",
+                            title: `${combLabel} em ${target.title}`,
+                            savedStatus: "✓ Salvo no servidor",
+                            items: addedItemsData,
+                          },
+                        },
+                      ]);
+                    }
+                  },
+                },
+              },
+            ]);
+            setIsExecuting(false);
+            return;
+          }
+
+          // If no muscle group specified, check if current block has items to combine
+          const activeBlock = categories.find((c) => c.publicId === target.id) || categories[0];
+          const uncombinedItems = (activeBlock?.items || []).filter((i) => !i.combinationPublicId);
           const neededCount = combType === "TRI_SET" ? 3 : combType === "CIRCUIT" ? 4 : 2;
 
-          if (blockItems.length >= neededCount && onCreateCombination) {
-            // Select the last items of the block
-            const targetItems = blockItems.slice(-neededCount);
+          if (uncombinedItems.length >= neededCount && onCreateCombination) {
+            const targetItems = uncombinedItems.slice(-neededCount);
             await onCreateCombination({
               blockPublicId: target.id,
               combinationType: combType,
@@ -782,11 +1106,11 @@ export function TrainingStudioAssistant({
               {
                 id: `asst-${Date.now()}`,
                 sender: "assistant",
-                text: `Criei o **${combType === "TRI_SET" ? "Tri-set" : combType === "CIRCUIT" ? "Circuito" : "Bi-set"}** com sucesso no bloco **${target.title}**!`,
+                text: `Criei o **${combLabel}** agrupando os últimos ${neededCount} exercícios no bloco **${target.title}**!`,
                 timestamp: new Date(),
                 card: {
                   type: "mutation_result",
-                  title: `${combType === "TRI_SET" ? "Tri-set" : combType === "CIRCUIT" ? "Circuito" : "Bi-set"} agrupado em ${target.title}`,
+                  title: `${combLabel} agrupado em ${target.title}`,
                   savedStatus: "✓ Salvo no servidor",
                   items: targetItems.map((it) => ({
                     name: it.exerciseNameSnapshot,
@@ -800,8 +1124,15 @@ export function TrainingStudioAssistant({
               },
             ]);
           } else {
-            handleClose();
-            onStartGuidedCombination(combType);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `asst-${Date.now()}`,
+                sender: "assistant",
+                text: `Para qual grupo muscular você deseja montar o **${combLabel}**? Você pode dizer, por exemplo: "Quero um bi-set de peito", "bi-set de costas", "pernas" ou "braços".`,
+                timestamp: new Date(),
+              },
+            ]);
           }
           setIsExecuting(false);
           return;
@@ -1114,13 +1445,59 @@ export function TrainingStudioAssistant({
           return;
         }
 
+        // Conversational / Ambiguous check
+        const isConversational =
+          normalized.includes("quero montar") ||
+          normalized.includes("montar algo") ||
+          normalized.includes("o que fazer") ||
+          normalized.includes("fazer algo") ||
+          normalized.includes("como faco") ||
+          normalized.includes("como funciona") ||
+          normalized.includes("ajuda") ||
+          normalized.includes("bom dia") ||
+          normalized.includes("boa tarde") ||
+          normalized.includes("ola") ||
+          normalized.includes("oi");
+
+        const isExplicitAdd =
+          /^(?:adicione|adicionar|coloque|colocar|inclua|incluir|botar|bote|passar|inserir|bota)\s+/i.test(trimmed);
+
+        const isExplicitCustom =
+          normalized.includes("criar personalizado") ||
+          normalized.includes("cadastrar exercicio") ||
+          normalized.includes("novo exercicio personalizado") ||
+          normalized.includes("exercicio proprio");
+
+        if (isConversational && !isExplicitAdd) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `asst-${Date.now()}`,
+              sender: "assistant",
+              text: `Posso te ajudar a prescrever exercícios, montar divisões (ABC, ABCD), criar combinações (bi-set, tri-set, circuito) ou ajustar repetições e descansos. Qual treino ou dia você gostaria de trabalhar agora?`,
+              timestamp: new Date(),
+            },
+          ]);
+          setIsExecuting(false);
+          return;
+        }
+
         // 9. Add Exercise to Category (General Catalog Search & Direct Addition)
         const addClean = trimmed
-          .replace(/^(?:adicione|adicionar|coloque|colocar|inclua|incluir|botar|bote|passar)\s+/i, "")
+          .replace(/^(?:adicione|adicionar|coloque|colocar|inclua|incluir|botar|bote|passar|inserir|bota)\s+/i, "")
           .replace(/^(?:o\s+|a\s+|os\s+|as\s+)/i, "")
           .trim();
 
-        if (addClean.length >= 2) {
+        const wordCount = addClean.split(/\s+/).length;
+        const looksLikeExercise =
+          addClean.length >= 2 &&
+          wordCount <= 6 &&
+          !addClean.includes("?") &&
+          !addClean.toLowerCase().includes("divisao") &&
+          !addClean.toLowerCase().includes("treino") &&
+          (isExplicitAdd || wordCount <= 4);
+
+        if (looksLikeExercise) {
           if (version.status !== "DRAFT") {
             setFlowState("published_warning");
             setIsExecuting(false);
@@ -1186,13 +1563,32 @@ export function TrainingStudioAssistant({
             return;
           }
 
-          // Not found -> provide custom fallback option
+          if (isExplicitCustom || isExplicitAdd) {
+            // Explicit intent to create or add custom
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `asst-${Date.now()}`,
+                sender: "assistant",
+                text: `Não encontrei "${addClean}" na biblioteca oficial. Deseja cadastrar como exercício personalizado com vídeo próprio?`,
+                timestamp: new Date(),
+                card: {
+                  type: "custom_fallback",
+                  exerciseName: addClean,
+                  targetCategoryId: target.id,
+                },
+              },
+            ]);
+            setIsExecuting(false);
+            return;
+          }
+
           setMessages((prev) => [
             ...prev,
             {
               id: `asst-${Date.now()}`,
               sender: "assistant",
-              text: `Não encontrei "${addClean}" na biblioteca oficial. Deseja cadastrar como exercício personalizado com vídeo próprio?`,
+              text: `Não encontrei exercícios com o termo "${addClean}" no catálogo. Deseja buscar por outro nome ou cadastrar um exercício personalizado?`,
               timestamp: new Date(),
               card: {
                 type: "custom_fallback",
@@ -1237,7 +1633,6 @@ export function TrainingStudioAssistant({
       onOpenPreview,
       onOpenPublishDialog,
       onRenameCategory,
-      onStartGuidedCombination,
       onUpdateExerciseQuickConfig,
       version.status,
     ]
@@ -1378,11 +1773,14 @@ export function TrainingStudioAssistant({
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={handleClose}
-                className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer min-h-[36px]"
-                title="Ver ficha completa"
+                onClick={() => {
+                  handleClose();
+                  onOpenPreview?.();
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer min-h-[36px] flex items-center gap-1.5"
+                title="Pré-visualizar visão real do aluno"
               >
-                👁️ Ver ficha
+                <span>👁️ Visão do aluno</span>
               </button>
               <button
                 type="button"
@@ -1421,7 +1819,11 @@ export function TrainingStudioAssistant({
         </div>
 
         {/* Content: Conversation History / Interactive Thread */}
-        <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 scroll-smooth">
+        <div
+          ref={chatScrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 scroll-smooth"
+        >
           {/* Messages Thread */}
           {messages.map((msg) => {
             const isAsst = msg.sender === "assistant";
@@ -1727,7 +2129,7 @@ export function TrainingStudioAssistant({
                     handleExecuteCommand(commandInput);
                   }
                 }}
-                placeholder="Escreva ou dite o que deseja fazer (ex: 'Adicionar supino reto', 'Montar divisão ABC', 'Combinar em bi-set', 'Ajustar descanso para 60s')..."
+                placeholder="Descreva o que deseja montar ou ajustar..."
                 className="w-full px-3.5 py-2.5 text-base font-semibold rounded-2xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none min-h-[72px] max-h-36 leading-snug"
               />
             </div>

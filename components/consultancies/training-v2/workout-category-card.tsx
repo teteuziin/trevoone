@@ -1069,7 +1069,7 @@ export function WorkoutCategoryCard({
                 title="Criar combinação (Bi-set, Tri-set, Circuito ou Super-série)"
               >
                 <ZapIcon className="w-4 h-4 text-amber-500 shrink-0" />
-                <span>⚡ Criar combinação</span>
+                <span>Criar combinação</span>
               </button>
             )}
           </div>
@@ -2052,9 +2052,9 @@ export function WorkoutCategoryCard({
       )}
 
       {/* Guided Combination Modal (Bi-Set, Tri-Set, Circuit directly from card) */}
-      {guidedModalState.isOpen && guidedModalState.initialItem && (
+      {guidedModalState.isOpen && (
         <GuidedCombinationModal
-          key={`${guidedModalState.type}-${guidedModalState.initialItem.publicId}`}
+          key={`${guidedModalState.type}-${guidedModalState.initialItem?.publicId || "new"}`}
           isOpen={guidedModalState.isOpen}
           onClose={() =>
             setGuidedModalState({

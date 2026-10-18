@@ -12,17 +12,31 @@ import {
   resolveConsultationJoinAccess,
   type ConsultationProfessionalType,
 } from "@/lib/consultancies/consultations";
+import {
+  listChatConsultationsForStudent,
+  listChatConsultationsForProfessional,
+  listActiveStudentsForChat,
+} from "@/lib/consultancies/trevo-chat";
 import { StudentConsultationsView } from "@/components/consultancies/student-consultations-view";
 import { ProfessionalConsultationsView } from "@/components/consultancies/professional-consultations-view";
+import { ConsultationsTabbedContainer } from "@/components/consultancies/consultations-tabbed-container";
+import { TrevoChatWorkspace } from "@/components/consultancies/trevo-chat/trevo-chat-workspace";
 
 type PageProps = {
   params: Promise<{
     slug: string;
   }>;
+  searchParams?: Promise<{
+    tab?: string;
+    c?: string;
+  }>;
 };
 
-export default async function ConsultasPage({ params }: PageProps) {
+export default async function ConsultasPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const currentTab = resolvedSearchParams.tab === "video" ? "video" : "chat";
+  const initialChatPublicId = resolvedSearchParams.c || null;
 
   const session = await getCurrentSession();
   if (!session) {
@@ -67,6 +81,13 @@ export default async function ConsultasPage({ params }: PageProps) {
 
     const otherUpcoming = upcoming.slice(1);
 
+    const chatConsultations = await listChatConsultationsForStudent(
+      context.consultancyId,
+      context.membershipId
+    );
+
+    const totalUnread = chatConsultations.reduce((acc, c) => acc + (c.unreadCountStudent || 0), 0);
+
     return (
       <ConsultancyAppShell
         consultancyName={context.consultancyName}
@@ -75,18 +96,34 @@ export default async function ConsultasPage({ params }: PageProps) {
         roles={context.roles}
         userName={session.fullName}
         userEmail={session.email}
-      userPublicId={session.userPublicId}
-      hasProfilePhoto={session.hasProfilePhoto}
-      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+        userPublicId={session.userPublicId}
+        hasProfilePhoto={session.hasProfilePhoto}
+        profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       >
-        <StudentConsultationsView
+        <ConsultationsTabbedContainer
+          initialTab={currentTab}
+          chatUnreadCount={totalUnread}
           consultancySlug={slug}
-          consultancyName={context.consultancyName}
-          timezone={timezone}
-          nextConsultation={nextConsultation}
-          joinAccess={joinAccess}
-          upcomingConsultations={otherUpcoming}
-          historyConsultations={history}
+          videoView={
+            <StudentConsultationsView
+              consultancySlug={slug}
+              consultancyName={context.consultancyName}
+              timezone={timezone}
+              nextConsultation={nextConsultation}
+              joinAccess={joinAccess}
+              upcomingConsultations={otherUpcoming}
+              historyConsultations={history}
+            />
+          }
+          chatView={
+            <TrevoChatWorkspace
+              consultancySlug={slug}
+              currentUserId={session.userId}
+              isProfessional={false}
+              consultations={chatConsultations}
+              initialActivePublicId={initialChatPublicId}
+            />
+          }
         />
       </ConsultancyAppShell>
     );
@@ -115,6 +152,17 @@ export default async function ConsultasPage({ params }: PageProps) {
       ? await resolveConsultationJoinAccess(session.userId, slug, nextConsultation.publicId)
       : null;
 
+    const chatConsultations = await listChatConsultationsForProfessional(
+      context.consultancyId,
+      context.membershipId
+    );
+    const activeChatStudents = await listActiveStudentsForChat(context.consultancyId);
+
+    const totalUnread = chatConsultations.reduce(
+      (acc, c) => acc + (c.unreadCountProfessional || 0),
+      0
+    );
+
     return (
       <ConsultancyAppShell
         consultancyName={context.consultancyName}
@@ -123,19 +171,37 @@ export default async function ConsultasPage({ params }: PageProps) {
         roles={context.roles}
         userName={session.fullName}
         userEmail={session.email}
-      userPublicId={session.userPublicId}
-      hasProfilePhoto={session.hasProfilePhoto}
-      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+        userPublicId={session.userPublicId}
+        hasProfilePhoto={session.hasProfilePhoto}
+        profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       >
-        <ProfessionalConsultationsView
+        <ConsultationsTabbedContainer
+          initialTab={currentTab}
+          chatUnreadCount={totalUnread}
           consultancySlug={slug}
-          consultancyName={context.consultancyName}
-          timezone={timezone}
-          professionalType={professionalType}
-          activeStudents={activeStudents}
-          upcomingConsultations={upcoming}
-          historyConsultations={history}
-          joinAccessForNext={joinAccessForNext}
+          videoView={
+            <ProfessionalConsultationsView
+              consultancySlug={slug}
+              consultancyName={context.consultancyName}
+              timezone={timezone}
+              professionalType={professionalType}
+              activeStudents={activeStudents}
+              upcomingConsultations={upcoming}
+              historyConsultations={history}
+              joinAccessForNext={joinAccessForNext}
+            />
+          }
+          chatView={
+            <TrevoChatWorkspace
+              consultancySlug={slug}
+              currentUserId={session.userId}
+              isProfessional={true}
+              professionalType={professionalType}
+              consultations={chatConsultations}
+              initialActivePublicId={initialChatPublicId}
+              activeStudents={activeChatStudents}
+            />
+          }
         />
       </ConsultancyAppShell>
     );

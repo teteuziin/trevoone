@@ -35,6 +35,7 @@ import { addExerciseItemToBlockAction, createCustomExerciseAction } from "@/app/
 import type { CustomExerciseFormData } from "./custom-exercise-inline-modal";
 import type { WorkoutRootDto, WorkoutVersionDto } from "@/lib/training-v2/types";
 import { TrainingStudioAssistant } from "./training-studio-assistant";
+import { BlockOrderModal, type ReorderEntry } from "./block-order-modal";
 
 export function parseActiveRest(title?: string | null): { isActive: boolean; activity: string } {
   if (!title) return { isActive: false, activity: "" };
@@ -241,6 +242,9 @@ export type CategoryCardProps = {
   onDeleteCategory: (categoryPublicId: string) => Promise<void>;
   onMoveCategoryUp: (categoryIndex: number) => Promise<void>;
   onMoveCategoryDown: (categoryIndex: number) => Promise<void>;
+  onMoveCategoryStart?: (categoryIndex: number) => Promise<void> | void;
+  onMoveCategoryEnd?: (categoryIndex: number) => Promise<void> | void;
+  onMoveCategoryToPosition?: (categoryIndex: number, targetPos: number) => Promise<void> | void;
   onDuplicateExercise: (itemPublicId: string) => Promise<void>;
   onMoveExerciseToCategory: (itemPublicId: string, targetCategoryPublicId: string) => Promise<void>;
   onDeleteExercise: (itemPublicId: string) => Promise<void>;
@@ -584,6 +588,9 @@ export function WorkoutCategoryCard({
   onDeleteCategory,
   onMoveCategoryUp,
   onMoveCategoryDown,
+  onMoveCategoryStart,
+  onMoveCategoryEnd,
+  onMoveCategoryToPosition,
   onDuplicateExercise,
   onMoveExerciseToCategory,
   onDeleteExercise,
@@ -615,6 +622,7 @@ export function WorkoutCategoryCard({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(category.title || "");
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
+  const [isOrganizeOrderModalOpen, setIsOrganizeOrderModalOpen] = useState(false);
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
   const [activeExerciseMenuId, setActiveExerciseMenuId] = useState<string | null>(null);
   const [movingExerciseId, setMovingExerciseId] = useState<string | null>(null);
@@ -825,11 +833,25 @@ export function WorkoutCategoryCard({
   function handleMoveEntryInContainer(
     containerEntries: ContainerEntry[],
     entryIdx: number,
-    direction: "up" | "down",
+    direction: "up" | "down" | "start" | "end" | number,
     subBlockPublicId?: string | null
   ) {
-    const targetIdx = direction === "up" ? entryIdx - 1 : entryIdx + 1;
-    if (targetIdx < 0 || targetIdx >= containerEntries.length) return;
+    let targetIdx: number;
+    if (direction === "up") {
+      targetIdx = entryIdx - 1;
+    } else if (direction === "down") {
+      targetIdx = entryIdx + 1;
+    } else if (direction === "start") {
+      targetIdx = 0;
+    } else if (direction === "end") {
+      targetIdx = containerEntries.length - 1;
+    } else if (typeof direction === "number") {
+      targetIdx = Math.max(0, Math.min(containerEntries.length - 1, direction));
+    } else {
+      return;
+    }
+
+    if (targetIdx < 0 || targetIdx >= containerEntries.length || targetIdx === entryIdx) return;
 
     const newEntries = [...containerEntries];
     const [moved] = newEntries.splice(entryIdx, 1);
@@ -942,6 +964,19 @@ export function WorkoutCategoryCard({
               <span>Assistente</span>
             </button>
 
+            {isDraft && (
+              <button
+                type="button"
+                onClick={() => setIsOrganizeOrderModalOpen(true)}
+                title="Organizar ordem de execução deste treino"
+                aria-label="Organizar ordem deste treino"
+                className="px-2.5 py-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer min-h-[38px] shadow-xs"
+              >
+                <MoveIcon className="w-3.5 h-3.5 text-amber-500" />
+                <span className="hidden sm:inline">Organizar ordem</span>
+              </button>
+            )}
+
             <div className="relative">
               <button
                 type="button"
@@ -1017,6 +1052,18 @@ export function WorkoutCategoryCard({
                     <div className="p-1 space-y-0.5">
                       <button
                         type="button"
+                        onClick={() => {
+                          setIsCategoryMenuOpen(false);
+                          setIsOrganizeOrderModalOpen(true);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                      >
+                        <MoveIcon className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Organizar ordem</span>
+                      </button>
+
+                      <button
+                        type="button"
                         disabled={categoryIndex === 0}
                         onClick={() => {
                           setIsCategoryMenuOpen(false);
@@ -1040,6 +1087,57 @@ export function WorkoutCategoryCard({
                         <ArrowDown className="w-3.5 h-3.5" />
                         <span>Mover para baixo</span>
                       </button>
+
+                      {onMoveCategoryStart && (
+                        <button
+                          type="button"
+                          disabled={categoryIndex === 0}
+                          onClick={() => {
+                            setIsCategoryMenuOpen(false);
+                            startTransition(() => onMoveCategoryStart(categoryIndex));
+                          }}
+                          className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left disabled:opacity-40 cursor-pointer"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Mover para o início</span>
+                        </button>
+                      )}
+
+                      {onMoveCategoryEnd && (
+                        <button
+                          type="button"
+                          disabled={categoryIndex === totalCategories - 1}
+                          onClick={() => {
+                            setIsCategoryMenuOpen(false);
+                            startTransition(() => onMoveCategoryEnd(categoryIndex));
+                          }}
+                          className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left disabled:opacity-40 cursor-pointer"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Mover para o final</span>
+                        </button>
+                      )}
+
+                      {onMoveCategoryToPosition && totalCategories > 1 && (
+                        <div className="px-3 py-1.5 flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-[var(--text-secondary)] font-medium">Posição:</span>
+                          <select
+                            value={categoryIndex + 1}
+                            onChange={(e) => {
+                              setIsCategoryMenuOpen(false);
+                              const targetPos = Number(e.target.value) - 1;
+                              startTransition(() => onMoveCategoryToPosition(categoryIndex, targetPos));
+                            }}
+                            className="px-2 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-primary)] cursor-pointer"
+                          >
+                            {Array.from({ length: totalCategories }, (_, i) => (
+                              <option key={i + 1} value={i + 1}>
+                                {i + 1}º de {totalCategories}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
 
                     <div className="p-1">
@@ -1433,6 +1531,9 @@ export function WorkoutCategoryCard({
                               isDraft={isDraft}
                               onMoveEntryUp={() => handleMoveEntryInContainer(entries, activeEntryIdx, "up", subBlock.publicId)}
                               onMoveEntryDown={() => handleMoveEntryInContainer(entries, activeEntryIdx, "down", subBlock.publicId)}
+                              onMoveEntryStart={() => handleMoveEntryInContainer(entries, activeEntryIdx, "start", subBlock.publicId)}
+                              onMoveEntryEnd={() => handleMoveEntryInContainer(entries, activeEntryIdx, "end", subBlock.publicId)}
+                              onMoveEntryToPosition={(pos) => handleMoveEntryInContainer(entries, activeEntryIdx, pos, subBlock.publicId)}
                               onOpenEditCombination={(c) => setEditingCombination(c)}
                               onOpenQuickEdit={(it) => setQuickEditingItem(it)}
                               onOpenActions={(it, idx, tot) =>
@@ -1531,6 +1632,9 @@ export function WorkoutCategoryCard({
                                 onDelete={() => onDeleteExercise(item.publicId)}
                                 onMoveUp={handleItemMoveUp}
                                 onMoveDown={handleItemMoveDown}
+                                onMoveStart={onReorderExercises ? async () => { await handleMoveEntryInContainer(entries, activeEntryIdx, "start", subBlock.publicId); } : undefined}
+                                onMoveEnd={onReorderExercises ? async () => { await handleMoveEntryInContainer(entries, activeEntryIdx, "end", subBlock.publicId); } : undefined}
+                                onMoveToPosition={onReorderExercises ? async (targetPos: number) => { await handleMoveEntryInContainer(entries, activeEntryIdx, targetPos, subBlock.publicId); } : undefined}
                                 onMoveToCategory={(targetCatId) =>
                                   onMoveExerciseToCategory(item.publicId, targetCatId)
                                 }
@@ -1645,6 +1749,9 @@ export function WorkoutCategoryCard({
                         isDraft={isDraft}
                         onMoveEntryUp={() => handleMoveEntryInContainer(flatEntries, activeEntryIdx, "up", null)}
                         onMoveEntryDown={() => handleMoveEntryInContainer(flatEntries, activeEntryIdx, "down", null)}
+                        onMoveEntryStart={() => handleMoveEntryInContainer(flatEntries, activeEntryIdx, "start", null)}
+                        onMoveEntryEnd={() => handleMoveEntryInContainer(flatEntries, activeEntryIdx, "end", null)}
+                        onMoveEntryToPosition={(pos) => handleMoveEntryInContainer(flatEntries, activeEntryIdx, pos, null)}
                         onOpenEditCombination={(c) => setEditingCombination(c)}
                         onOpenQuickEdit={(it) => setQuickEditingItem(it)}
                         onOpenActions={(it, idx, tot) =>
@@ -1737,6 +1844,9 @@ export function WorkoutCategoryCard({
                           onDelete={() => onDeleteExercise(item.publicId)}
                           onMoveUp={handleItemMoveUp}
                           onMoveDown={handleItemMoveDown}
+                          onMoveStart={onReorderExercises ? async () => { await handleMoveEntryInContainer(flatEntries, activeEntryIdx, "start", null); } : undefined}
+                          onMoveEnd={onReorderExercises ? async () => { await handleMoveEntryInContainer(flatEntries, activeEntryIdx, "end", null); } : undefined}
+                          onMoveToPosition={onReorderExercises ? async (targetPos: number) => { await handleMoveEntryInContainer(flatEntries, activeEntryIdx, targetPos, null); } : undefined}
                           onMoveToCategory={(targetCatId) =>
                             onMoveExerciseToCategory(item.publicId, targetCatId)
                           }
@@ -2007,6 +2117,36 @@ export function WorkoutCategoryCard({
               await onMoveExerciseDown(category.publicId, actionsSheetItem.index);
             }
           }}
+          onMoveStart={async () => {
+            const subId = actionsSheetItem.subBlockPublicId;
+            setActionsSheetItem(null);
+            if (onReorderExercises) {
+              const entries = hasSubBlocks && subId
+                ? buildContainerEntries(items.filter((i) => i.subBlockPublicId === subId), combinations.filter((c) => c.subBlockPublicId === subId), subId)
+                : buildContainerEntries(items, combinations, null);
+              handleMoveEntryInContainer(entries, actionsSheetItem.index, "start", subId);
+            }
+          }}
+          onMoveEnd={async () => {
+            const subId = actionsSheetItem.subBlockPublicId;
+            setActionsSheetItem(null);
+            if (onReorderExercises) {
+              const entries = hasSubBlocks && subId
+                ? buildContainerEntries(items.filter((i) => i.subBlockPublicId === subId), combinations.filter((c) => c.subBlockPublicId === subId), subId)
+                : buildContainerEntries(items, combinations, null);
+              handleMoveEntryInContainer(entries, actionsSheetItem.index, "end", subId);
+            }
+          }}
+          onMoveToPosition={async (targetPos) => {
+            const subId = actionsSheetItem.subBlockPublicId;
+            setActionsSheetItem(null);
+            if (onReorderExercises) {
+              const entries = hasSubBlocks && subId
+                ? buildContainerEntries(items.filter((i) => i.subBlockPublicId === subId), combinations.filter((c) => c.subBlockPublicId === subId), subId)
+                : buildContainerEntries(items, combinations, null);
+              handleMoveEntryInContainer(entries, actionsSheetItem.index, targetPos, subId);
+            }
+          }}
           onMoveToCategory={async (targetCatId) => {
             const id = actionsSheetItem.item.publicId;
             setActionsSheetItem(null);
@@ -2132,6 +2272,21 @@ export function WorkoutCategoryCard({
           }}
           onOpenPublishDialog={() => onOpenPublishDialog?.()}
           onCreateDraft={onCreateDraft}
+        />
+      )}
+
+      {/* Block Order Modal (Organizar Ordem) */}
+      {isOrganizeOrderModalOpen && (
+        <BlockOrderModal
+          isOpen={isOrganizeOrderModalOpen}
+          categoryTitle={categoryTitle}
+          entries={buildContainerEntries(items, combinations, null) as ReorderEntry[]}
+          onClose={() => setIsOrganizeOrderModalOpen(false)}
+          onSaveOrder={async (itemPublicIds) => {
+            if (onReorderExercises) {
+              await onReorderExercises(category.publicId, itemPublicIds);
+            }
+          }}
         />
       )}
     </div>
@@ -2584,6 +2739,9 @@ type ExerciseRowProps = {
   onDelete: () => Promise<void>;
   onMoveUp: () => Promise<void>;
   onMoveDown: () => Promise<void>;
+  onMoveStart?: () => Promise<void>;
+  onMoveEnd?: () => Promise<void>;
+  onMoveToPosition?: (targetPosition: number) => Promise<void>;
   onMoveToCategory: (targetCategoryPublicId: string) => Promise<void>;
   onSaveQuickConfig: (config: QuickConfigInput) => Promise<void>;
   onResolve?: () => void;
@@ -2633,6 +2791,9 @@ function ExerciseRow({
   onDelete,
   onMoveUp,
   onMoveDown,
+  onMoveStart,
+  onMoveEnd,
+  onMoveToPosition,
   onMoveToCategory,
   onSaveQuickConfig,
   onResolve,
@@ -3109,6 +3270,54 @@ function ExerciseRow({
                               <ArrowDown className="w-3.5 h-3.5 text-emerald-500" />
                               <span>Mover para baixo</span>
                             </button>
+                            {onMoveStart && (
+                              <button
+                                type="button"
+                                disabled={itemIndex === 0 || isPending}
+                                onClick={() => {
+                                  onCloseMenu();
+                                  startTransition(() => onMoveStart?.() || Promise.resolve());
+                                }}
+                                className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left disabled:opacity-35 cursor-pointer min-h-[40px] sm:min-h-[34px]"
+                              >
+                                <ArrowUp className="w-3.5 h-3.5 text-emerald-500" />
+                                <span>Mover para o início</span>
+                              </button>
+                            )}
+                            {onMoveEnd && (
+                              <button
+                                type="button"
+                                disabled={itemIndex === totalItems - 1 || isPending}
+                                onClick={() => {
+                                  onCloseMenu();
+                                  startTransition(() => onMoveEnd?.() || Promise.resolve());
+                                }}
+                                className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left disabled:opacity-35 cursor-pointer min-h-[40px] sm:min-h-[34px]"
+                              >
+                                <ArrowDown className="w-3.5 h-3.5 text-emerald-500" />
+                                <span>Mover para o final</span>
+                              </button>
+                            )}
+                            {onMoveToPosition && totalItems > 1 && (
+                              <div className="px-3 py-1.5 flex items-center justify-between gap-2">
+                                <span className="text-[11px] text-[var(--text-secondary)] font-medium">Posição:</span>
+                                <select
+                                  value={itemIndex + 1}
+                                  onChange={(e) => {
+                                    onCloseMenu();
+                                    const targetPos = Number(e.target.value) - 1;
+                                    startTransition(() => onMoveToPosition?.(targetPos) || Promise.resolve());
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-primary)] cursor-pointer"
+                                >
+                                  {Array.from({ length: totalItems }, (_, i) => (
+                                    <option key={i + 1} value={i + 1}>
+                                      {i + 1}º de {totalItems}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
                           </>
                         ) : (
                           <>
@@ -3574,6 +3783,9 @@ export type UnifiedCombinationBlockProps = {
   isDraft: boolean;
   onMoveEntryUp?: () => void;
   onMoveEntryDown?: () => void;
+  onMoveEntryStart?: () => void;
+  onMoveEntryEnd?: () => void;
+  onMoveEntryToPosition?: (position: number) => void;
   onOpenEditCombination: (combination: WorkoutItemCombinationDto) => void;
   onOpenQuickEdit: (item: WorkoutBlockItemDto) => void;
   onOpenActions: (item: WorkoutBlockItemDto, index: number, total: number, combinationPublicId?: string) => void;
@@ -3599,6 +3811,9 @@ export function UnifiedCombinationBlock({
   isDraft,
   onMoveEntryUp,
   onMoveEntryDown,
+  onMoveEntryStart,
+  onMoveEntryEnd,
+  onMoveEntryToPosition,
   onOpenEditCombination,
   onOpenQuickEdit,
   onOpenActions,
@@ -3704,6 +3919,54 @@ export function UnifiedCombinationBlock({
                               <ArrowDown className="w-4 h-4" />
                               <span>Mover para baixo</span>
                             </button>
+                          )}
+                          {onMoveEntryStart && (
+                            <button
+                              type="button"
+                              disabled={entryIndex === 0}
+                              onClick={() => {
+                                setIsCombMenuOpen(false);
+                                onMoveEntryStart();
+                              }}
+                              className="w-full px-3 py-2.5 rounded-lg hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 text-left cursor-pointer min-h-[44px]"
+                            >
+                              <ArrowUp className="w-4 h-4 text-emerald-500" />
+                              <span>Mover para o início</span>
+                            </button>
+                          )}
+                          {onMoveEntryEnd && (
+                            <button
+                              type="button"
+                              disabled={entryIndex >= totalEntries - 1}
+                              onClick={() => {
+                                setIsCombMenuOpen(false);
+                                onMoveEntryEnd();
+                              }}
+                              className="w-full px-3 py-2.5 rounded-lg hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 text-left cursor-pointer min-h-[44px]"
+                            >
+                              <ArrowDown className="w-4 h-4 text-emerald-500" />
+                              <span>Mover para o final</span>
+                            </button>
+                          )}
+                          {onMoveEntryToPosition && totalEntries > 1 && (
+                            <div className="px-3 py-2 flex items-center justify-between gap-2">
+                              <span className="text-[11px] text-[var(--text-secondary)] font-medium">Posição:</span>
+                              <select
+                                value={entryIndex + 1}
+                                onChange={(e) => {
+                                  setIsCombMenuOpen(false);
+                                  const targetPos = Number(e.target.value) - 1;
+                                  onMoveEntryToPosition(targetPos);
+                                }}
+                                className="px-2 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-primary)] cursor-pointer"
+                              >
+                                {Array.from({ length: totalEntries }, (_, i) => (
+                                  <option key={i + 1} value={i + 1}>
+                                    {i + 1}º de {totalEntries}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                           )}
                         </div>
                       )}
@@ -3871,7 +4134,88 @@ export function UnifiedCombinationBlock({
               {isCombMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setIsCombMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1 text-xs font-semibold text-[var(--text-primary)] animate-in fade-in zoom-in-95 duration-100">
+                  <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1 text-xs font-semibold text-[var(--text-primary)] animate-in fade-in zoom-in-95 duration-100 divide-y divide-[var(--border-subtle)]">
+                    {(onMoveEntryUp || onMoveEntryDown || onMoveEntryStart || onMoveEntryEnd) && (
+                      <div className="p-1 space-y-0.5">
+                        {onMoveEntryUp && (
+                          <button
+                            type="button"
+                            disabled={entryIndex === 0}
+                            onClick={() => {
+                              setIsCombMenuOpen(false);
+                              onMoveEntryUp();
+                            }}
+                            className="w-full px-3 py-1.5 hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 text-left cursor-pointer min-h-[30px]"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                            <span>Mover para cima</span>
+                          </button>
+                        )}
+                        {onMoveEntryDown && (
+                          <button
+                            type="button"
+                            disabled={entryIndex >= totalEntries - 1}
+                            onClick={() => {
+                              setIsCombMenuOpen(false);
+                              onMoveEntryDown();
+                            }}
+                            className="w-full px-3 py-1.5 hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 text-left cursor-pointer min-h-[30px]"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                            <span>Mover para baixo</span>
+                          </button>
+                        )}
+                        {onMoveEntryStart && (
+                          <button
+                            type="button"
+                            disabled={entryIndex === 0}
+                            onClick={() => {
+                              setIsCombMenuOpen(false);
+                              onMoveEntryStart();
+                            }}
+                            className="w-full px-3 py-1.5 hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 text-left cursor-pointer min-h-[30px]"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Mover para o início</span>
+                          </button>
+                        )}
+                        {onMoveEntryEnd && (
+                          <button
+                            type="button"
+                            disabled={entryIndex >= totalEntries - 1}
+                            onClick={() => {
+                              setIsCombMenuOpen(false);
+                              onMoveEntryEnd();
+                            }}
+                            className="w-full px-3 py-1.5 hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 text-left cursor-pointer min-h-[30px]"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Mover para o final</span>
+                          </button>
+                        )}
+                        {onMoveEntryToPosition && totalEntries > 1 && (
+                          <div className="px-3 py-1 flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-[var(--text-secondary)] font-medium">Posição:</span>
+                            <select
+                              value={entryIndex + 1}
+                              onChange={(e) => {
+                                setIsCombMenuOpen(false);
+                                const targetPos = Number(e.target.value) - 1;
+                                onMoveEntryToPosition(targetPos);
+                              }}
+                              className="px-2 py-0.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-primary)] cursor-pointer"
+                            >
+                              {Array.from({ length: totalEntries }, (_, i) => (
+                                <option key={i + 1} value={i + 1}>
+                                  {i + 1}º de {totalEntries}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="p-1 space-y-0.5">
                     <button
                       type="button"
                       onClick={() => {
@@ -3925,7 +4269,8 @@ export function UnifiedCombinationBlock({
                       </button>
                     )}
                   </div>
-                </>
+                </div>
+              </>
               )}
             </div>
           )}
@@ -5320,6 +5665,9 @@ export function ExerciseActionsSheet({
   onDelete,
   onMoveUp,
   onMoveDown,
+  onMoveStart,
+  onMoveEnd,
+  onMoveToPosition,
   onMoveToCategory,
   onOpenConvertCustom,
   onCombineFromHere,
@@ -5340,6 +5688,9 @@ export function ExerciseActionsSheet({
   onDelete: () => Promise<void>;
   onMoveUp: () => Promise<void>;
   onMoveDown: () => Promise<void>;
+  onMoveStart?: () => Promise<void>;
+  onMoveEnd?: () => Promise<void>;
+  onMoveToPosition?: (targetPosition: number) => Promise<void>;
   onMoveToCategory: (targetCatId: string) => Promise<void>;
   onOpenConvertCustom: () => void;
   onCombineFromHere?: () => void;
@@ -5509,6 +5860,50 @@ export function ExerciseActionsSheet({
             <ArrowDown className="w-4 h-4 text-amber-500" />
             <span>{inCombination ? "Mover para Baixo no Bi-set" : "Mover para Baixo"}</span>
           </button>
+
+          {onMoveStart && !inCombination && (
+            <button
+              type="button"
+              disabled={itemIndex === 0}
+              onClick={onMoveStart}
+              className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-[var(--text-primary)] min-h-[48px] disabled:opacity-40 cursor-pointer"
+            >
+              <ArrowUp className="w-4 h-4 text-emerald-500" />
+              <span>Mover para o Início</span>
+            </button>
+          )}
+
+          {onMoveEnd && !inCombination && (
+            <button
+              type="button"
+              disabled={itemIndex === totalItems - 1}
+              onClick={onMoveEnd}
+              className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-[var(--text-primary)] min-h-[48px] disabled:opacity-40 cursor-pointer"
+            >
+              <ArrowDown className="w-4 h-4 text-emerald-500" />
+              <span>Mover para o Final</span>
+            </button>
+          )}
+
+          {onMoveToPosition && !inCombination && totalItems > 1 && (
+            <div className="px-4 py-3 flex items-center justify-between gap-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+              <span className="text-xs font-bold text-[var(--text-secondary)]">Escolher posição:</span>
+              <select
+                value={itemIndex + 1}
+                onChange={(e) => {
+                  const targetIdx = Number(e.target.value) - 1;
+                  onMoveToPosition(targetIdx);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] cursor-pointer"
+              >
+                {Array.from({ length: totalItems }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    {i + 1}º de {totalItems}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {!inCombination && otherCategories.length > 0 && (
             <button

@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     color: "#059669",
     backgroundColor: "#ecfdf5",
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
     paddingVertical: 1.5,
     borderRadius: 3,
     borderWidth: 0.5,
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: "#fde68a",
     borderRadius: 3,
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
     paddingVertical: 1.5,
     marginTop: 2,
     marginBottom: 3,
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: "absolute",
-    bottom: 20,
+    bottom: 18,
     left: 36,
     right: 36,
     flexDirection: "row",
@@ -275,8 +275,17 @@ const styles = StyleSheet.create({
     borderTopWidth: 0.75,
     borderTopColor: "#cbd5e1",
     paddingTop: 6,
-    fontSize: 7.5,
-    color: "#94a3b8",
+    fontSize: 8,
+    color: "#64748b",
+  },
+  footerLeft: {
+    fontSize: 8,
+    color: "#64748b",
+  },
+  footerRight: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    color: "#059669",
   },
   pdfCombinationCard: {
     backgroundColor: "#f8fafc",
@@ -319,10 +328,10 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     color: "#ffffff",
     backgroundColor: "#059669",
-    width: 13,
-    height: 13,
+    width: 14,
+    height: 14,
     textAlign: "center",
-    borderRadius: 6.5,
+    borderRadius: 7,
     marginRight: 6,
   },
   pdfTransitionText: {
@@ -391,7 +400,9 @@ export function formatExerciseSetsSummary(sets: WorkoutItemSetDto[]): {
 
   const numSets = sets.length;
   const firstSet = sets[0];
-  const allSameReps = sets.every((s) => s.targetReps === firstSet.targetReps && s.targetRepsMax === firstSet.targetRepsMax);
+  const allSameReps = sets.every(
+    (s) => s.targetReps === firstSet.targetReps && s.targetRepsMax === firstSet.targetRepsMax
+  );
   const allSameLoad = sets.every((s) => s.targetLoadKg === firstSet.targetLoadKg);
   const allSameRest = sets.every((s) => s.targetRestSeconds === firstSet.targetRestSeconds);
 
@@ -399,17 +410,28 @@ export function formatExerciseSetsSummary(sets: WorkoutItemSetDto[]): {
 
   // Sets and Reps
   if (allSameReps && firstSet.targetReps) {
-    const repsStr = firstSet.targetRepsMax && firstSet.targetRepsMax > firstSet.targetReps
-      ? `${firstSet.targetReps}–${firstSet.targetRepsMax}`
-      : `${firstSet.targetReps}`;
+    const repsStr =
+      firstSet.targetRepsMax && firstSet.targetRepsMax > firstSet.targetReps
+        ? `${firstSet.targetReps}–${firstSet.targetRepsMax}`
+        : `${firstSet.targetReps}`;
     parts.push(`${numSets} × ${repsStr}`);
   } else if (allSameReps && firstSet.targetDurationSeconds) {
-    parts.push(`${numSets} × ${formatDurationNatural(firstSet.targetDurationSeconds, firstSet.durationUnit)}`);
+    parts.push(
+      `${numSets} × ${formatDurationNatural(firstSet.targetDurationSeconds, firstSet.durationUnit)}`
+    );
   } else {
-    parts.push(`${numSets} séries`);
+    // Varied reps between sets (e.g. 12 / 10 / 8)
+    const repsSeq = sets
+      .map((s) => (s.targetReps ? (s.targetRepsMax ? `${s.targetReps}-${s.targetRepsMax}` : `${s.targetReps}`) : null))
+      .filter(Boolean);
+    if (repsSeq.length === numSets) {
+      parts.push(`${numSets} séries (${repsSeq.join(" / ")} reps)`);
+    } else {
+      parts.push(`${numSets} séries`);
+    }
   }
 
-  // Load (ONLY if load is not null and > 0)
+  // Load (ONLY if load is not null and > 0 - never show 0 kg)
   if (allSameLoad && firstSet.targetLoadKg && Number(firstSet.targetLoadKg) > 0) {
     parts.push(`Carga: ${firstSet.targetLoadKg} kg`);
   }
@@ -426,7 +448,10 @@ export function formatExerciseSetsSummary(sets: WorkoutItemSetDto[]): {
     reps: s.targetReps ?? null,
     loadKg: s.targetLoadKg && Number(s.targetLoadKg) > 0 ? Number(s.targetLoadKg) : null,
     restSeconds: s.targetRestSeconds && Number(s.targetRestSeconds) > 0 ? Number(s.targetRestSeconds) : null,
-    durationSeconds: s.targetDurationSeconds && Number(s.targetDurationSeconds) > 0 ? Number(s.targetDurationSeconds) : null,
+    durationSeconds:
+      s.targetDurationSeconds && Number(s.targetDurationSeconds) > 0
+        ? Number(s.targetDurationSeconds)
+        : null,
   }));
 
   return { summaryString, setsDetail };
@@ -435,17 +460,17 @@ export function formatExerciseSetsSummary(sets: WorkoutItemSetDto[]): {
 export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPlan }) {
   return (
     <Document
-      title={`Ficha de Treino — ${plan.studentName || plan.title}`}
-      author={plan.personalTrainerName || plan.consultancyName || "Trevo One"}
-      subject="Prescrição de Treino Oficial"
-      keywords="treino, musculação, ficha, trevo one, personal"
+      title={`${plan.title} - ${plan.consultancyName}`}
+      author={plan.personalTrainerName || plan.consultancyName}
+      subject="Ficha de Treino Oficial"
+      creator="TREVO ONE"
     >
       <Page size="A4" style={styles.page}>
-        {/* Document Header */}
+        {/* Header Bar */}
         <View style={styles.headerBar}>
           <View style={styles.brandRow}>
             <Text style={styles.brandLogo}>
-              TREVO <Text style={styles.brandAccent}>ONE</Text>
+              TREVO<Text style={styles.brandAccent}>ONE</Text>
             </Text>
             <View style={styles.headerRight}>
               {plan.isDraft && <Text style={styles.draftBadge}>Rascunho</Text>}
@@ -456,17 +481,18 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
           <Text style={styles.workoutTitle}>{plan.title}</Text>
           {plan.subtitle && <Text style={styles.workoutSubtitle}>{plan.subtitle}</Text>}
 
+          {/* Metadata Grid */}
           <View style={styles.metadataGrid}>
-            {plan.studentName && plan.studentName.trim() && (
+            {plan.studentName && (
               <View style={styles.metadataCol}>
-                <Text style={styles.metadataLabel}>Aluno(a)</Text>
-                <Text style={styles.metadataValue}>{plan.studentName.trim()}</Text>
+                <Text style={styles.metadataLabel}>Aluno</Text>
+                <Text style={styles.metadataValue}>{plan.studentName}</Text>
               </View>
             )}
 
             {plan.personalTrainerName && (
               <View style={styles.metadataCol}>
-                <Text style={styles.metadataLabel}>Personal Trainer</Text>
+                <Text style={styles.metadataLabel}>Prescrito por</Text>
                 <Text style={styles.metadataValue}>{plan.personalTrainerName}</Text>
               </View>
             )}
@@ -480,23 +506,25 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
 
             <View style={styles.metadataCol}>
               <Text style={styles.metadataLabel}>Data de Emissão</Text>
-              <Text style={styles.metadataValue}>{plan.startsOnFormatted || plan.generationDateFormatted}</Text>
+              <Text style={styles.metadataValue}>
+                {plan.startsOnFormatted || plan.generationDateFormatted}
+              </Text>
             </View>
           </View>
         </View>
 
         {/* General Notes / Guidance */}
         {plan.notes && plan.notes.trim().length > 0 && (
-          <View style={styles.notesBox}>
+          <View style={styles.notesBox} wrap={false}>
             <Text style={styles.notesTitle}>Orientações Gerais</Text>
             <Text style={styles.notesText}>{plan.notes.trim()}</Text>
           </View>
         )}
 
-        {/* Categories and Exercises */}
+        {/* Categories and Exercises (wrap=false removed from block level to allow multi-page flow) */}
         {plan.blocks.map((block, bIdx) => (
-          <View key={`b-${bIdx}`} style={styles.categoryBlock} wrap={false}>
-            <View style={styles.categoryHeader}>
+          <View key={`b-${bIdx}`} style={styles.categoryBlock}>
+            <View style={styles.categoryHeader} wrap={false}>
               <Text style={styles.categoryTitle}>{block.name}</Text>
               {block.instructions && block.instructions.trim().length > 0 && (
                 <Text style={styles.categoryInstructions}>{block.instructions.trim()}</Text>
@@ -592,7 +620,7 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
                         )}
                       </View>
 
-                      {/* Method / Observation (ONLY if present) - displayed prominently ABOVE prescription */}
+                      {/* Method / Observation (displayed prominently ABOVE prescription) */}
                       {ex.notes && ex.notes.trim().length > 0 && (
                         <View style={styles.methodBadge}>
                           <Text style={styles.methodBadgeText}>Método / Obs: {ex.notes.trim()}</Text>
@@ -651,10 +679,10 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
                               )}
                             </View>
 
-                            {/* Method / Observation (ONLY if present) - displayed prominently ABOVE prescription */}
+                            {/* Method / Observation */}
                             {it.notes && it.notes.trim().length > 0 && (
                               <View style={styles.methodBadge}>
-                                <Text style={styles.methodBadgeText}>Método: {it.notes.trim()}</Text>
+                                <Text style={styles.methodBadgeText}>Método / Obs: {it.notes.trim()}</Text>
                               </View>
                             )}
 
@@ -685,13 +713,16 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
           </View>
         ))}
 
-        {/* Fixed Footer */}
+        {/* Fixed Footer with dynamic page numbering (Página X de Y) */}
         <View style={styles.footer} fixed>
-          <Text>TREVO ONE • Sistema Profissional</Text>
-          <Text>
-            Gerado em {plan.generationDateFormatted}
+          <Text style={styles.footerLeft}>
+            TREVO ONE • {plan.consultancyName || "Sistema Profissional"}
             {plan.versionNumber ? ` • Versão ${plan.versionNumber}` : ""}
           </Text>
+          <Text
+            style={styles.footerRight}
+            render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
+          />
         </View>
       </Page>
     </Document>

@@ -616,9 +616,26 @@ export function WorkoutBuilder({
   }
 
   // Reorder Categories
-  async function handleMoveCategory(categoryIndex: number, direction: "up" | "down") {
-    const targetIdx = direction === "up" ? categoryIndex - 1 : categoryIndex + 1;
-    if (targetIdx < 0 || targetIdx >= categories.length) return;
+  async function handleMoveCategory(
+    categoryIndex: number,
+    direction: "up" | "down" | "start" | "end" | number
+  ) {
+    let targetIdx: number;
+    if (direction === "up") {
+      targetIdx = categoryIndex - 1;
+    } else if (direction === "down") {
+      targetIdx = categoryIndex + 1;
+    } else if (direction === "start") {
+      targetIdx = 0;
+    } else if (direction === "end") {
+      targetIdx = categories.length - 1;
+    } else if (typeof direction === "number") {
+      targetIdx = Math.max(0, Math.min(categories.length - 1, direction));
+    } else {
+      return;
+    }
+
+    if (targetIdx < 0 || targetIdx >= categories.length || targetIdx === categoryIndex) return;
 
     const reordered = [...categories];
     const [moved] = reordered.splice(categoryIndex, 1);
@@ -2328,6 +2345,9 @@ export function WorkoutBuilder({
                       onDeleteCategory={handleDeleteCategory}
                       onMoveCategoryUp={(idx) => handleMoveCategory(idx, "up")}
                       onMoveCategoryDown={(idx) => handleMoveCategory(idx, "down")}
+                      onMoveCategoryStart={(idx) => handleMoveCategory(idx, "start")}
+                      onMoveCategoryEnd={(idx) => handleMoveCategory(idx, "end")}
+                      onMoveCategoryToPosition={(idx, targetPos) => handleMoveCategory(idx, targetPos)}
                       onDuplicateExercise={handleDuplicateExercise}
                       onMoveExerciseToCategory={handleMoveExerciseToCategory}
                       onDeleteExercise={handleDeleteExercise}

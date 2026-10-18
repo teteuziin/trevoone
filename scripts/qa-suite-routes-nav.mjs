@@ -61,10 +61,10 @@ export async function runRoutesNavSuite() {
   const pages = allRoutes.filter((r) => r.type === "PAGE");
   const apis = allRoutes.filter((r) => r.type === "API");
 
-  runTest(`ROUTES INVENTORY: Discovered exactly 104 total routes (${pages.length} pages, ${apis.length} APIs)`, () => {
-    assert.equal(allRoutes.length, 104, "Total routes in App Router must be 104");
+  runTest(`ROUTES INVENTORY: Discovered exactly 106 total routes (${pages.length} pages, ${apis.length} APIs)`, () => {
+    assert.equal(allRoutes.length, 106, "Total routes in App Router must be 106");
     assert.equal(pages.length, 73, "Page routes in App Router must be 73");
-    assert.equal(apis.length, 31, "API route handlers in App Router must be 31");
+    assert.equal(apis.length, 33, "API route handlers in App Router must be 33");
   });
 
   runTest("REGRESSION GUARD 1: No dead link '/consultoria/[slug]/planos' in admin view", () => {
@@ -130,6 +130,8 @@ export async function runRoutesNavSuite() {
       "/api/consultancies/[slug]/nutricao/pdf",
       "/api/internal/consultation-reminders",
       "/api/training-v2/media",
+      "/api/consultancies/[slug]/chat/messages",
+      "/api/consultancies/[slug]/chat/attachments/[attachmentPublicId]",
     ];
 
     const apiStrings = apis.map((a) => a.route.replace(/\/$/, ""));

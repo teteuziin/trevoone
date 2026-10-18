@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/icons/duotone-icons";
 import { TrainingAiImportModal } from "@/components/consultancies/training-v2/training-ai-import-modal";
 import { TrainingAiGenerateModal } from "@/components/consultancies/training-v2/training-ai-generate-modal";
+import { WorkoutTemplatePicker } from "@/components/consultancies/training-v2/workout-template-picker";
 
 export interface PersonalOverviewHeaderProps {
   consultancySlug: string;
@@ -62,6 +63,16 @@ function XIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
+function LayersIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points="2 12 12 17 22 12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -87,6 +98,7 @@ export function PersonalOverviewHeader({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isImportAiOpen, setIsImportAiOpen] = useState(false);
   const [isGenerateAiOpen, setIsGenerateAiOpen] = useState(false);
+  const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -317,9 +329,9 @@ export function PersonalOverviewHeader({
               </button>
             </div>
 
-            {/* Três Opções em Largura Total, min-height 72px cada, gap 12px, safe-area-inset-bottom */}
+            {/* Quatro Opções em Largura Total, min-height 72px cada, gap 12px, safe-area-inset-bottom */}
             <div className="p-4 sm:p-5 space-y-3 overflow-y-auto pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:pb-5">
-              {/* Opção 1: Criar manual */}
+              {/* Opção 1: Criar manualmente */}
               <Link
                 href={`/consultoria/${consultancySlug}/rotinas/novo`}
                 prefetch={false}
@@ -331,16 +343,39 @@ export function PersonalOverviewHeader({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
-                    Criar manual
+                    Criar manualmente
                   </p>
                   <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-normal">
-                    Escolha os exercícios e monte a ficha.
+                    Monte uma ficha em branco escolhendo blocos e exercícios.
                   </p>
                 </div>
                 <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
               </Link>
 
-              {/* Opção 2: Importar com IA */}
+              {/* Opção 2: Criar do zero com IA */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsGenerateAiOpen(true);
+                }}
+                className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-[#F9FAFB] hover:bg-[#F3F4F6] dark:bg-[#1B1D21] dark:hover:bg-[#222429] border border-[#E5E7EB] dark:border-[#303238] transition-colors group min-h-[72px] h-auto select-none cursor-pointer text-left"
+              >
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 group-hover:scale-105 transition-transform">
+                  <SparklesWandIcon className="w-6 h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
+                    Criar do zero com IA
+                  </p>
+                  <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-normal">
+                    Descreva o treino e deixe a IA estruturar a ficha completa.
+                  </p>
+                </div>
+                <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
+              </button>
+
+              {/* Opção 3: Importar com IA */}
               <button
                 type="button"
                 onClick={() => {
@@ -357,30 +392,30 @@ export function PersonalOverviewHeader({
                     Importar com IA
                   </p>
                   <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-normal">
-                    Transforme um treino existente em ficha.
+                    Transforme um PDF, foto ou texto em ficha de treino.
                   </p>
                 </div>
                 <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
               </button>
 
-              {/* Opção 3: Criar com IA */}
+              {/* Opção 4: Usar modelo */}
               <button
                 type="button"
                 onClick={() => {
                   setIsMenuOpen(false);
-                  setIsGenerateAiOpen(true);
+                  setIsTemplatePickerOpen(true);
                 }}
                 className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-[#F9FAFB] hover:bg-[#F3F4F6] dark:bg-[#1B1D21] dark:hover:bg-[#222429] border border-[#E5E7EB] dark:border-[#303238] transition-colors group min-h-[72px] h-auto select-none cursor-pointer text-left"
               >
                 <div className="w-12 h-12 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/20 group-hover:scale-105 transition-transform">
-                  <SparklesWandIcon className="w-6 h-6" />
+                  <LayersIcon className="w-6 h-6" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
-                    Criar com IA
+                    Usar modelo
                   </p>
                   <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-normal">
-                    Gere uma ficha a partir das suas orientações.
+                    Aproveite um modelo já estruturado para personalizar rapidamente.
                   </p>
                 </div>
                 <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
@@ -399,11 +434,18 @@ export function PersonalOverviewHeader({
         hideTrigger={true}
       />
 
-      {/* Modal 2: Criar com IA (parâmetros estruturados) */}
+      {/* Modal 2: Criar do zero com IA */}
       <TrainingAiGenerateModal
         consultancySlug={consultancySlug}
         isOpen={isGenerateAiOpen}
         onClose={() => setIsGenerateAiOpen(false)}
+      />
+
+      {/* Modal 3: Usar modelo */}
+      <WorkoutTemplatePicker
+        consultancySlug={consultancySlug}
+        isOpen={isTemplatePickerOpen}
+        onClose={() => setIsTemplatePickerOpen(false)}
       />
     </div>
   );

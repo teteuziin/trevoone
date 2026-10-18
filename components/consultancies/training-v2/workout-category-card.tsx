@@ -28,6 +28,7 @@ import { ExerciseVideoEditorSection } from "./exercise-video-editor-section";
 import {
   getCombinationTheme,
   COMBINATION_THEMES,
+  type CombinationVisualTheme,
 } from "./training-studio-tokens";
 import { GuidedCombinationModal } from "./guided-combination-modal";
 import { TrainingStudioAssistant } from "./training-studio-assistant";
@@ -897,13 +898,13 @@ export function WorkoutCategoryCard({
 
         {/* Category Actions — Nível 1: "+ Exercício" e "Combinar" lado a lado */}
         <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center relative">
-          {/* Assistente de Montagem / Assistente de Treino — Acessível */}
+          {/* Assistente de Montagem / Assistente de Treino — Acessível (sr-only no card para evitar duplicação com cabeçalho) */}
           <button
             type="button"
             data-testid="category-assistant-btn"
             onClick={() => setIsAssistantOpen(true)}
             aria-label={isDraft ? "Assistente de Montagem" : "Assistente de Treino"}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 transition-all cursor-pointer min-h-[34px]"
+            className="sr-only"
             title={isDraft ? "Abrir Assistente Inteligente de Montagem" : "Abrir Assistente Inteligente de Prescrição"}
           >
             <SparklesIcon className="w-3.5 h-3.5 text-emerald-500" />
@@ -1399,49 +1400,59 @@ export function WorkoutCategoryCard({
                         Nenhum exercício neste grupo ainda.
                       </div>
                     ) : (
-                      entries.map((entry, entryIdx) => {
-                        if (entry.type === "combination") {
-                          return (
-                            <UnifiedCombinationBlock
-                              key={entry.combination.publicId}
-                              combination={entry.combination}
-                              categoryPublicId={category.publicId}
-                              subBlockPublicId={subBlock.publicId}
-                              entryIndex={entryIdx}
-                              totalEntries={entries.length}
-                              isDraft={isDraft}
-                              onMoveEntryUp={() => handleMoveEntryInContainer(entries, entryIdx, "up", subBlock.publicId)}
-                              onMoveEntryDown={() => handleMoveEntryInContainer(entries, entryIdx, "down", subBlock.publicId)}
-                              onOpenEditCombination={(c) => setEditingCombination(c)}
-                              onOpenQuickEdit={(it) => setQuickEditingItem(it)}
-                              onOpenActions={(it, idx, tot) =>
-                                setActionsSheetItem({
-                                  item: it,
-                                  index: idx,
-                                  total: tot,
-                                  subBlockPublicId: subBlock.publicId,
-                                  combinationPublicId: entry.combination.publicId,
-                                })
-                              }
-                              onOpenExecutionModal={(it) => setExecutionModalItem(it)}
-                              onMoveItemInCombination={onMoveItemInCombination}
-                              onRemoveItemFromCombination={onRemoveItemFromCombination}
-                              onUngroupCombination={onUngroupCombination}
-                              onDeleteCombination={onDeleteCombination}
-                            />
-                          );
-                        }
+                      (() => {
+                        const combEntries = entries.filter((e) => e.type === "combination");
+                        const itemEntries = entries.filter((e) => e.type === "item");
+                        const partitioned = [...combEntries, ...itemEntries];
+
+                        return partitioned.map((entry, displayIdx) => {
+                          const originalIdx = entries.indexOf(entry);
+                          const executionIndex = originalIdx !== -1 ? originalIdx + 1 : displayIdx + 1;
+                          const activeEntryIdx = originalIdx !== -1 ? originalIdx : displayIdx;
+
+                          if (entry.type === "combination") {
+                            return (
+                              <UnifiedCombinationBlock
+                                key={entry.combination.publicId}
+                                combination={entry.combination}
+                                categoryPublicId={category.publicId}
+                                subBlockPublicId={subBlock.publicId}
+                                entryIndex={activeEntryIdx}
+                                executionIndex={executionIndex}
+                                totalEntries={entries.length}
+                                isDraft={isDraft}
+                                onMoveEntryUp={() => handleMoveEntryInContainer(entries, activeEntryIdx, "up", subBlock.publicId)}
+                                onMoveEntryDown={() => handleMoveEntryInContainer(entries, activeEntryIdx, "down", subBlock.publicId)}
+                                onOpenEditCombination={(c) => setEditingCombination(c)}
+                                onOpenQuickEdit={(it) => setQuickEditingItem(it)}
+                                onOpenActions={(it, idx, tot) =>
+                                  setActionsSheetItem({
+                                    item: it,
+                                    index: idx,
+                                    total: tot,
+                                    subBlockPublicId: subBlock.publicId,
+                                    combinationPublicId: entry.combination.publicId,
+                                  })
+                                }
+                                onOpenExecutionModal={(it) => setExecutionModalItem(it)}
+                                onMoveItemInCombination={onMoveItemInCombination}
+                                onRemoveItemFromCombination={onRemoveItemFromCombination}
+                                onUngroupCombination={onUngroupCombination}
+                                onDeleteCombination={onDeleteCombination}
+                              />
+                            );
+                          }
 
                         const item = entry.item;
                         const isExpanded = expandedExerciseId === item.publicId;
                         const itemIdx = subBlockItems.findIndex((it) => it.publicId === item.publicId);
 
                         const handleItemMoveUp = onReorderExercises
-                          ? async () => { await handleMoveEntryInContainer(entries, entryIdx, "up", subBlock.publicId); }
+                          ? async () => { await handleMoveEntryInContainer(entries, activeEntryIdx, "up", subBlock.publicId); }
                           : () => onMoveExerciseUp(category.publicId, itemIdx);
 
                         const handleItemMoveDown = onReorderExercises
-                          ? async () => { await handleMoveEntryInContainer(entries, entryIdx, "down", subBlock.publicId); }
+                          ? async () => { await handleMoveEntryInContainer(entries, activeEntryIdx, "down", subBlock.publicId); }
                           : () => onMoveExerciseDown(category.publicId, itemIdx);
 
                         const selIdx = selectedExerciseIds.indexOf(item.publicId);
@@ -1449,12 +1460,19 @@ export function WorkoutCategoryCard({
                         const selectionIndex = isItemSel ? selIdx + 1 : undefined;
 
                         return (
-                          <div key={item.publicId}>
+                          <div key={item.publicId} className="space-y-3">
+                            {displayIdx === combEntries.length && combEntries.length > 0 && (
+                              <div className="flex items-center gap-2 pt-2 pb-0.5 text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                                <span>Exercícios avulsos</span>
+                                <span className="flex-1 h-px bg-[var(--border-subtle)]" />
+                              </div>
+                            )}
                             {/* Mobile View: Dedicated MobileExerciseCard */}
                             <div className="md:hidden">
                               <MobileExerciseCard
                                 item={item}
-                                itemIndex={entryIdx}
+                                itemIndex={activeEntryIdx}
+                                executionIndex={executionIndex}
                                 totalItems={entries.length}
                                 isDraft={isDraft}
                                 categoryPublicId={category.publicId}
@@ -1467,7 +1485,7 @@ export function WorkoutCategoryCard({
                                 onOpenActions={() =>
                                   setActionsSheetItem({
                                     item,
-                                    index: entryIdx,
+                                    index: activeEntryIdx,
                                     total: entries.length,
                                     subBlockPublicId: subBlock.publicId,
                                   })
@@ -1483,7 +1501,8 @@ export function WorkoutCategoryCard({
                             <div className="hidden md:block">
                               <ExerciseRow
                                 item={item}
-                                itemIndex={entryIdx}
+                                itemIndex={activeEntryIdx}
+                                executionIndex={executionIndex}
                                 totalItems={entries.length}
                                 isExpanded={isExpanded}
                                 isDraft={isDraft}
@@ -1542,8 +1561,9 @@ export function WorkoutCategoryCard({
                             </div>
                           </div>
                         );
-                      })
-                    )}
+                      });
+                    })()
+                  )}
                   </div>
                 </div>
               );
@@ -1604,7 +1624,15 @@ export function WorkoutCategoryCard({
             ) : (
               (() => {
                 const flatEntries = buildContainerEntries(items, combinations, null);
-                return flatEntries.map((entry, entryIdx) => {
+                const combEntries = flatEntries.filter((e) => e.type === "combination");
+                const itemEntries = flatEntries.filter((e) => e.type === "item");
+                const partitioned = [...combEntries, ...itemEntries];
+
+                return partitioned.map((entry, displayIdx) => {
+                  const originalIdx = flatEntries.indexOf(entry);
+                  const executionIndex = originalIdx !== -1 ? originalIdx + 1 : displayIdx + 1;
+                  const activeEntryIdx = originalIdx !== -1 ? originalIdx : displayIdx;
+
                   if (entry.type === "combination") {
                     return (
                       <UnifiedCombinationBlock
@@ -1612,11 +1640,12 @@ export function WorkoutCategoryCard({
                         combination={entry.combination}
                         categoryPublicId={category.publicId}
                         subBlockPublicId={undefined}
-                        entryIndex={entryIdx}
+                        entryIndex={activeEntryIdx}
+                        executionIndex={executionIndex}
                         totalEntries={flatEntries.length}
                         isDraft={isDraft}
-                        onMoveEntryUp={() => handleMoveEntryInContainer(flatEntries, entryIdx, "up", null)}
-                        onMoveEntryDown={() => handleMoveEntryInContainer(flatEntries, entryIdx, "down", null)}
+                        onMoveEntryUp={() => handleMoveEntryInContainer(flatEntries, activeEntryIdx, "up", null)}
+                        onMoveEntryDown={() => handleMoveEntryInContainer(flatEntries, activeEntryIdx, "down", null)}
                         onOpenEditCombination={(c) => setEditingCombination(c)}
                         onOpenQuickEdit={(it) => setQuickEditingItem(it)}
                         onOpenActions={(it, idx, tot) =>
@@ -1641,11 +1670,11 @@ export function WorkoutCategoryCard({
                   const itemIdx = items.findIndex((it) => it.publicId === item.publicId);
 
                   const handleItemMoveUp = onReorderExercises
-                    ? async () => { await handleMoveEntryInContainer(flatEntries, entryIdx, "up", null); }
+                    ? async () => { await handleMoveEntryInContainer(flatEntries, activeEntryIdx, "up", null); }
                     : () => onMoveExerciseUp(category.publicId, itemIdx);
 
                   const handleItemMoveDown = onReorderExercises
-                    ? async () => { await handleMoveEntryInContainer(flatEntries, entryIdx, "down", null); }
+                    ? async () => { await handleMoveEntryInContainer(flatEntries, activeEntryIdx, "down", null); }
                     : () => onMoveExerciseDown(category.publicId, itemIdx);
 
                   const selIdx = selectedExerciseIds.indexOf(item.publicId);
@@ -1653,12 +1682,19 @@ export function WorkoutCategoryCard({
                   const selectionIndex = isItemSel ? selIdx + 1 : undefined;
 
                   return (
-                    <div key={item.publicId}>
+                    <div key={item.publicId} className="space-y-3">
+                      {displayIdx === combEntries.length && combEntries.length > 0 && (
+                        <div className="flex items-center gap-2 pt-2 pb-0.5 text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                          <span>Exercícios avulsos</span>
+                          <span className="flex-1 h-px bg-[var(--border-subtle)]" />
+                        </div>
+                      )}
                       {/* Mobile View: Dedicated MobileExerciseCard */}
                       <div className="md:hidden">
                         <MobileExerciseCard
                           item={item}
-                          itemIndex={entryIdx}
+                          itemIndex={activeEntryIdx}
+                          executionIndex={executionIndex}
                           totalItems={flatEntries.length}
                           isDraft={isDraft}
                           categoryPublicId={category.publicId}
@@ -1669,7 +1705,7 @@ export function WorkoutCategoryCard({
                           onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
                           onOpenQuickEdit={() => setQuickEditingItem(item)}
                           onOpenActions={() =>
-                            setActionsSheetItem({ item, index: itemIdx, total: items.length })
+                            setActionsSheetItem({ item, index: activeEntryIdx, total: items.length })
                           }
                           onOpenExecutionModal={() => setExecutionModalItem(item)}
                           onOpenConfigureSequence={onOpenConfigureSequence}
@@ -1682,7 +1718,8 @@ export function WorkoutCategoryCard({
                       <div className="hidden md:block">
                         <ExerciseRow
                           item={item}
-                          itemIndex={entryIdx}
+                          itemIndex={activeEntryIdx}
+                          executionIndex={executionIndex}
                           totalItems={flatEntries.length}
                           isExpanded={isExpanded}
                           isDraft={isDraft}
@@ -2224,9 +2261,9 @@ export function LegacyCombinationCard({
   }
 
   return (
-    <div className={`rounded-2xl border-2 ${theme.borderClass} ${theme.borderLeftClass} ${theme.headerBgClass} p-3 sm:p-4 space-y-3 shadow-xs transition-all`}>
+    <div className={`rounded-2xl border-2 ${theme.borderClass} ${theme.borderLeftClass} ${theme.cardBgClass} p-3 sm:p-4 space-y-3 shadow-xs transition-all`}>
       {/* Combination Header */}
-      <div className={`flex items-center justify-between gap-2 pb-2.5 border-b ${theme.borderClass}`}>
+      <div className={`flex items-center justify-between gap-2 pb-2.5 border-b ${theme.dividerClass || theme.borderClass}`}>
         <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
           {/* Badge */}
           <span
@@ -2483,6 +2520,7 @@ export function LegacyCombinationCard({
                   })
                 }
                 inCombination={true}
+                combinationTheme={theme}
                 isFirstInComb={itemIdx === 0}
                 isLastInComb={itemIdx === items.length - 1}
                 onOpenConfigureSequence={onOpenConfigureSequence}
@@ -2497,7 +2535,7 @@ export function LegacyCombinationCard({
               {/* Direct Transition Connector between Items */}
               {itemIdx < items.length - 1 && (
                 <div className="flex items-center justify-center my-1.5">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                  <div className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold border ${theme.connectorClass}`}>
                     <span>↓</span>
                     <span>Transição direta (sem descanso)</span>
                     <span>↓</span>
@@ -2511,8 +2549,8 @@ export function LegacyCombinationCard({
 
       {/* Combination Footer */}
       <div className="flex items-center justify-center pt-1 text-center">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[10px] font-semibold text-[var(--text-secondary)]">
-          <ClockIcon className="w-3.5 h-3.5 text-emerald-500" />
+        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-semibold ${theme.footerBgClass}`}>
+          <ClockIcon className="w-3.5 h-3.5 text-current opacity-80" />
           <span>Descanso de {combination.restAfterSeconds}s após cada rodada completa</span>
         </div>
       </div>
@@ -2568,6 +2606,8 @@ type ExerciseRowProps = {
   onStartGuidedCombination?: (type: WorkoutCombinationType) => void;
   // Inside combination
   inCombination?: boolean;
+  combinationTheme?: CombinationVisualTheme;
+  executionIndex?: number;
   onMoveInCombination?: (direction: "up" | "down") => Promise<void>;
   onRemoveFromCombination?: () => Promise<void>;
   isFirstInComb?: boolean;
@@ -2579,6 +2619,8 @@ function ExerciseRow({
   item,
   itemIndex,
   totalItems,
+  executionIndex,
+  combinationTheme,
   isExpanded,
   isDraft,
   categoryPublicId,
@@ -2739,7 +2781,9 @@ function ExerciseRow({
         }
       }}
       className={`rounded-xl border transition-all w-full max-w-full min-w-0 ${
-        isSelectionMode && !inCombination
+        inCombination && combinationTheme
+          ? combinationTheme.memberRowClass
+          : isSelectionMode && !inCombination
           ? isSelected
             ? "border-2 border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/30 shadow-md ring-2 ring-emerald-500/30 scale-[1.008] cursor-pointer"
             : "border-dashed border-emerald-500/50 bg-[var(--surface)] hover:border-emerald-500 hover:bg-emerald-500/5 cursor-pointer"
@@ -2796,6 +2840,11 @@ function ExerciseRow({
           {/* Line 1: Exercise Name & Status Badges */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2 min-w-0 flex-wrap">
+              {executionIndex != null && (
+                <span className="text-[11px] font-black px-2 py-0.5 rounded-lg bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] shrink-0">
+                  #{executionIndex}
+                </span>
+              )}
               <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] line-clamp-2 sm:truncate break-words">
                 {item.exerciseNameSnapshot}
               </h3>
@@ -3525,6 +3574,7 @@ export type UnifiedCombinationBlockProps = {
   subBlockPublicId?: string | null;
   entryIndex?: number;
   totalEntries?: number;
+  executionIndex?: number;
   allCategories?: { publicId: string; title: string }[];
   isDraft: boolean;
   onMoveEntryUp?: () => void;
@@ -3550,6 +3600,7 @@ export function UnifiedCombinationBlock({
   combination,
   entryIndex = 0,
   totalEntries = 1,
+  executionIndex,
   isDraft,
   onMoveEntryUp,
   onMoveEntryDown,
@@ -3577,15 +3628,18 @@ export function UnifiedCombinationBlock({
     <div
       data-testid="mobile-combination-block"
       data-block-type="unified-combination-block"
-      className={`rounded-2xl border border-zinc-200 dark:border-white/[0.08] ${theme.borderLeftClass} bg-white dark:bg-zinc-900/80 dark:backdrop-blur-md shadow-sm dark:shadow-md hover:shadow-md hover:${theme.borderClass} transition-all w-full max-w-full min-w-0 overflow-hidden`}
+      className={`rounded-2xl border-2 ${theme.borderClass} ${theme.borderLeftClass} ${theme.cardBgClass} shadow-sm dark:shadow-md hover:shadow-md transition-all w-full max-w-full min-w-0 overflow-hidden`}
     >
       {/* Mobile Block Header (<sm) — dedicated compact ergonomic layout */}
-      <div className={`sm:hidden px-4 py-3 ${theme.headerBgClass} border-b border-zinc-200 dark:border-white/[0.06] w-full max-w-full min-w-0`}>
+      <div className={`sm:hidden px-4 py-3 ${theme.headerBgClass} border-b ${theme.dividerClass} w-full max-w-full min-w-0`}>
         <div className="flex items-center justify-between gap-2 w-full">
-          {/* Header Title: BI-SET · 3 voltas */}
+          {/* Header Title: BI-SET · #N · 3 voltas */}
           <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
             <span className={`text-[10px] sm:text-xs font-black uppercase tracking-wider ${theme.badgeClass} px-2 py-0.5 rounded-md shrink-0`}>
               {typeLabel}
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-black/10 dark:bg-white/10 text-current border border-current/20 shrink-0">
+              #{executionIndex ?? (entryIndex + 1)}
             </span>
             <span className="text-xs font-bold text-[var(--text-tertiary)]">·</span>
             <span className="text-xs font-bold text-[var(--text-secondary)] whitespace-nowrap">
@@ -3698,10 +3752,13 @@ export function UnifiedCombinationBlock({
       </div>
 
       {/* Desktop Header (>=sm) — preserved horizontal flow */}
-      <div className={`hidden sm:flex px-4 py-2.5 ${theme.headerBgClass} border-b border-zinc-200 dark:border-white/[0.06] items-center justify-between gap-2 flex-wrap w-full max-w-full min-w-0`}>
+      <div className={`hidden sm:flex px-4 py-2.5 ${theme.headerBgClass} border-b ${theme.dividerClass} items-center justify-between gap-2 flex-wrap w-full max-w-full min-w-0`}>
         <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
           <span className={`text-xs font-black uppercase tracking-wider ${theme.badgeClass} shrink-0 px-2 py-0.5 rounded-md`}>
             {typeLabel}
+          </span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-black/10 dark:bg-white/10 text-current border border-current/20 shrink-0">
+            #{executionIndex ?? (entryIndex + 1)} na execução
           </span>
           <span className="text-xs font-bold text-[var(--text-tertiary)]">·</span>
           <span className="text-xs font-bold text-[var(--text-secondary)] whitespace-nowrap">
@@ -3822,8 +3879,8 @@ export function UnifiedCombinationBlock({
         </div>
       </div>
 
-      {/* Internal Exercise Rows (Clean rows, NOT nested heavy cards) */}
-      <div className="divide-y divide-zinc-200/80 dark:divide-white/[0.05]">
+      {/* Internal Exercise Rows (Clean rows, fully styled with semantic theme) */}
+      <div className={`divide-y ${theme.dividerClass}`}>
         {items.map((item: WorkoutBlockItemDto, idx: number) => {
           const letter = LETTERS[idx] || String.fromCharCode(65 + idx);
           const summary = getItemPrescriptionSummary(item);
@@ -3886,7 +3943,7 @@ export function UnifiedCombinationBlock({
                     onOpenQuickEdit(item);
                   }
                 }}
-                className={`py-3 px-3.5 sm:px-4 sm:py-3 flex items-center justify-between gap-2.5 hover:bg-zinc-50 dark:hover:bg-white/[0.03] transition-colors w-full max-w-full min-w-0 select-none group ${
+                className={`py-3 px-3.5 sm:px-4 sm:py-3 flex items-center justify-between gap-2.5 ${theme.memberRowClass} transition-colors w-full max-w-full min-w-0 select-none group ${
                   isDraft ? "cursor-pointer active:scale-[0.99]" : ""
                 }`}
               >
@@ -3897,17 +3954,17 @@ export function UnifiedCombinationBlock({
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <h4 className="text-xs sm:text-sm font-extrabold text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2 break-words">
+                      <h4 className="text-xs sm:text-sm font-extrabold text-current line-clamp-2 break-words">
                         {item.exerciseNameSnapshot}
                       </h4>
                       {item.isCustomExercise && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/[0.05] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-white/[0.08]">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 dark:bg-black/20 text-current border border-current/20">
                           Personalizado
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex-wrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-white/[0.05] border border-zinc-200 dark:border-white/[0.08] text-zinc-900 dark:text-zinc-100 font-semibold">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-current flex-wrap">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md border font-semibold ${theme.chipBgClass}`}>
                         {summary.seriesCount} voltas · {summary.repsText}
                         {summary.loadKg != null ? ` · ${summary.loadKg}kg` : ""}
                       </span>
@@ -3935,7 +3992,7 @@ export function UnifiedCombinationBlock({
                           }}
                           aria-label="Mover para cima na combinação"
                           title="Mover para cima na combinação"
-                          className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-[var(--border-subtle)] dark:border-white/[0.08] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px]"
+                          className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-white/20 hover:bg-white/30 dark:bg-black/20 dark:hover:bg-black/30 border border-current/20 flex items-center justify-center text-current disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px]"
                         >
                           <ArrowUp className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                         </button>
@@ -3948,7 +4005,7 @@ export function UnifiedCombinationBlock({
                           }}
                           aria-label="Mover para baixo na combinação"
                           title="Mover para baixo na combinação"
-                          className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-[var(--border-subtle)] dark:border-white/[0.08] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px]"
+                          className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-white/20 hover:bg-white/30 dark:bg-black/20 dark:hover:bg-black/30 border border-current/20 flex items-center justify-center text-current disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px]"
                         >
                           <ArrowDown className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                         </button>
@@ -3963,7 +4020,7 @@ export function UnifiedCombinationBlock({
                         onOpenActions(item, idx, items.length, combination.publicId);
                       }}
                       aria-label="Ações do exercício"
-                      className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-[var(--border-subtle)] dark:border-white/[0.08] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] cursor-pointer"
+                      className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-white/20 hover:bg-white/30 dark:bg-black/20 dark:hover:bg-black/30 border border-current/20 text-current flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] cursor-pointer"
                     >
                       <MoreVertical className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     </button>
@@ -3974,12 +4031,10 @@ export function UnifiedCombinationBlock({
               {/* Transition connector between exercises */}
               {idx < items.length - 1 && (
                 <div
-                  className="py-1 px-4 text-[10px] font-medium text-zinc-600 dark:text-zinc-400 flex items-center gap-2 border-t border-zinc-200 dark:border-white/[0.04] bg-zinc-50 dark:bg-zinc-950/40"
+                  className={`py-1.5 px-4 text-[10px] font-bold flex items-center justify-center gap-2 border-y ${theme.connectorClass}`}
                   title="Transição direta (sem descanso)"
                 >
-                  <div className="h-px bg-zinc-200 dark:bg-white/[0.06] flex-1" />
-                  <span className="shrink-0 flex items-center gap-1 tracking-wide">↓ Sem descanso entre exercícios</span>
-                  <div className="h-px bg-zinc-200 dark:bg-white/[0.06] flex-1" />
+                  <span className="shrink-0 flex items-center gap-1.5 tracking-wide">↓ Transição direta (sem descanso) ↓</span>
                 </div>
               )}
             </div>
@@ -3988,17 +4043,17 @@ export function UnifiedCombinationBlock({
       </div>
 
       {/* Combination Footer: Rest between rounds */}
-      <div className="px-4 py-3 bg-zinc-50 dark:bg-zinc-950/40 border-t border-zinc-200 dark:border-white/[0.06] flex items-center justify-between gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+      <div className={`px-4 py-3 ${theme.footerBgClass} flex items-center justify-between gap-2 text-xs font-semibold`}>
         <span>
           Descanso após a volta:{" "}
-          <strong className="text-zinc-900 dark:text-white font-black">{restSec}s</strong>
+          <strong className="font-black text-current">{restSec}s</strong>
           {activeRest.isActive && activeRest.activity ? ` (${activeRest.activity})` : ""}
         </span>
         {isDraft && (
           <button
             type="button"
             onClick={() => onOpenEditCombination(combination)}
-            className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 underline decoration-zinc-400 dark:decoration-zinc-400 transition-colors cursor-pointer"
+            className="text-[11px] font-bold underline transition-colors cursor-pointer text-current opacity-80 hover:opacity-100"
           >
             Ajustar
           </button>
@@ -4021,30 +4076,29 @@ export const CombinationCard = UnifiedCombinationBlock;
 
 export function MobileExerciseCard({
   item,
-  itemIndex,
-  totalItems,
+  executionIndex,
   isDraft,
   isSelectionMode,
   isSelected,
   selectionIndex,
+  inCombination,
   onToggleSelect,
   onOpenQuickEdit,
   onOpenActions,
   onOpenExecutionModal,
   onOpenConfigureSequence,
-  onMoveUp,
-  onMoveDown,
-  onCombineFromHere,
 }: {
   item: WorkoutBlockItemDto;
   itemIndex: number;
   totalItems: number;
+  executionIndex?: number;
   isDraft: boolean;
   categoryPublicId: string;
   allCategories?: { publicId: string; title: string }[];
   isSelectionMode?: boolean;
   isSelected?: boolean;
   selectionIndex?: number;
+  inCombination?: boolean;
   onToggleSelect?: () => void;
   onOpenQuickEdit: () => void;
   onOpenActions: () => void;
@@ -4053,11 +4107,10 @@ export function MobileExerciseCard({
     item: WorkoutBlockItemDto,
     movements: DetectedMovement[]
   ) => void;
-  onMoveUp: () => Promise<void>;
-  onMoveDown: () => Promise<void>;
+  onMoveUp?: () => Promise<void>;
+  onMoveDown?: () => Promise<void>;
   onCombineFromHere?: () => void;
 }) {
-  const [, startTransition] = useTransition();
   const summary = getItemPrescriptionSummary(item);
   const isSequence = Boolean(item.isCustomExercise && item.methodConfig?.customSequence);
   const sequenceExp = isSequence ? buildSequenceMediaFromCustomItem(item) : null;
@@ -4127,9 +4180,10 @@ export function MobileExerciseCard({
     <div
       data-testid="mobile-exercise-card"
       onClick={() => {
-        if (isDraft) {
-          onOpenActions();
-          void onOpenQuickEdit; // fallback / test contract: if (isDraft) onOpenQuickEdit();
+        if (isSelectionMode && !inCombination) {
+          onToggleSelect?.();
+        } else if (isDraft) {
+          onOpenQuickEdit();
         }
       }}
       role={isDraft ? "button" : undefined}
@@ -4137,7 +4191,7 @@ export function MobileExerciseCard({
       onKeyDown={(e) => {
         if (isDraft && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
-          onOpenActions();
+          onOpenQuickEdit();
         }
       }}
       aria-label={isDraft ? `Opções de ${item.exerciseNameSnapshot}` : undefined}
@@ -4145,10 +4199,15 @@ export function MobileExerciseCard({
         isDraft ? "cursor-pointer active:scale-[0.99]" : ""
       }`}
     >
-      {/* 1. Header: Exercise Name, Group & Video */}
+      {/* 1. Header: Exercise Name, Execution #, Group & Actions */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-1.5 flex-wrap">
+            {executionIndex != null && (
+              <span className="text-[11px] font-black px-2 py-0.5 rounded-lg bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] shrink-0">
+                #{executionIndex}
+              </span>
+            )}
             <h4 className="text-sm sm:text-base font-extrabold text-[var(--text-primary)] leading-snug line-clamp-2 break-words">
               {item.exerciseNameSnapshot}
             </h4>
@@ -4165,32 +4224,49 @@ export function MobileExerciseCard({
           )}
         </div>
 
-        {sequenceExp?.hasPlayableMedia ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsSequenceExecutionOpen(true);
-            }}
-            aria-label="Ver sequência de exercícios"
-            className="px-2.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-bold text-xs transition-colors min-h-[36px] flex items-center gap-1.5 shrink-0 cursor-pointer"
-          >
-            <VideoIcon className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Sequência</span>
-          </button>
-        ) : hasMedia ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenExecutionModal();
-            }}
-            aria-label="Ver vídeo do exercício"
-            className="p-2 rounded-xl bg-[var(--surface-subtle)] hover:bg-emerald-500/10 text-emerald-600 border border-[var(--border-subtle)] transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center shrink-0 cursor-pointer"
-          >
-            <VideoIcon className="w-4 h-4" />
-          </button>
-        ) : null}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {sequenceExp?.hasPlayableMedia ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsSequenceExecutionOpen(true);
+              }}
+              aria-label="Ver sequência de exercícios"
+              className="px-2.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-bold text-xs transition-colors min-h-[36px] flex items-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              <VideoIcon className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Sequência</span>
+            </button>
+          ) : hasMedia ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenExecutionModal();
+              }}
+              aria-label="Ver vídeo do exercício"
+              className="p-2 rounded-xl bg-[var(--surface-subtle)] hover:bg-emerald-500/10 text-emerald-600 border border-[var(--border-subtle)] transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center shrink-0 cursor-pointer"
+            >
+              <VideoIcon className="w-4 h-4" />
+            </button>
+          ) : null}
+
+          {isDraft && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenActions();
+              }}
+              aria-label="Mais opções"
+              className="w-10 h-10 min-h-[40px] min-w-[40px] rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer"
+              title="Mais opções do exercício"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 2. Prescription: High Visual Prominence */}
@@ -4252,76 +4328,6 @@ export function MobileExerciseCard({
         onClose={() => setIsSequenceExecutionOpen(false)}
         experience={sequenceExp}
       />
-
-      {/* 4. Actions Toolbar: Tap-to-edit hint + Accessible Steppers + Menu (NO oversized green button) */}
-      {isDraft && (
-        <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-[var(--border-subtle)]">
-          {/* Tap-to-edit indicator */}
-          <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)] font-medium">
-            <Edit2 className="w-3 h-3 text-[var(--text-tertiary)]" />
-            <span>Toque para editar</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* Direct Combine Button (1-touch) */}
-            {onCombineFromHere && !isSelectionMode && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCombineFromHere();
-                }}
-                aria-label="Combinar exercício"
-                title="Combinar em Bi-Set (1 toque)"
-                className="w-11 h-11 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
-              >
-                <Link2Icon className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Quick Reorder Touch Steppers (>= 44px targets) */}
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled={itemIndex === 0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startTransition(() => onMoveUp());
-                }}
-                aria-label="Mover para cima"
-                className="w-11 h-11 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <ArrowUp className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                disabled={itemIndex === totalItems - 1}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startTransition(() => onMoveDown());
-                }}
-                aria-label="Mover para baixo"
-                className="w-11 h-11 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <ArrowDown className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Contextual More Button (>= 44px) */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenActions();
-              }}
-              aria-label="Mais opções"
-              className="w-11 h-11 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

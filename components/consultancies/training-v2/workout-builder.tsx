@@ -533,27 +533,33 @@ export function WorkoutBuilder({
   }
 
   // Create Category
-  async function handleCreateCategory() {
-    if (!newCategoryName.trim()) return;
+  async function handleCreateCategory(customTitle?: string): Promise<string | undefined> {
+    const targetTitle = (customTitle !== undefined ? customTitle : newCategoryName).trim();
+    if (!targetTitle) return undefined;
+    let createdPublicId: string | undefined = undefined;
     await runWithAutosave(async () => {
       const res = await createCategoryAction(
         consultancySlug,
         version.publicId,
-        newCategoryName.trim()
+        targetTitle
       );
       if (res.ok && res.data) {
+        createdPublicId = res.data.publicId;
         setVersion((prev) => ({
           ...prev,
           blocks: [...(prev.blocks || []), res.data!],
         }));
-        setNewCategoryName("");
-        setIsCreatingCategory(false);
+        if (!customTitle) {
+          setNewCategoryName("");
+          setIsCreatingCategory(false);
+        }
         notify(`Categoria "${res.data.title}" criada.`);
       } else {
         notify(res.error || "Erro ao criar categoria.");
         throw new Error(res.error || "Erro ao criar categoria.");
       }
     });
+    return createdPublicId;
   }
 
   // Rename Category
@@ -1499,64 +1505,42 @@ export function WorkoutBuilder({
 
       {/* Top Header — Solid Graphite/Black in BOTH light and dark themes (Area 15 & 16) */}
       <div className="relative rounded-2xl sm:rounded-3xl p-4 sm:p-6 bg-zinc-950 border border-zinc-800 shadow-xl overflow-hidden w-full max-w-full min-w-0 space-y-4 text-white">
-        {/* Mobile Header (<sm): Compact layout */}
-        <div data-testid="compact-mobile-header" className="sm:hidden space-y-3 w-full max-w-full min-w-0 relative z-10">
-          {/* Mobile Line 1: Voltar · Estado de salvamento · Mais opções */}
+        {/* Mobile Header (<sm): Streamlined 2-Row Ergonomic Layout */}
+        <div data-testid="compact-mobile-header" className="sm:hidden space-y-2.5 w-full max-w-full min-w-0 relative z-10">
+          {/* Linha 1: Voltar · Nome do treino · Menu ••• */}
           <div className="flex items-center justify-between gap-2 w-full min-w-0">
             <Link
               href={backHref}
               aria-label="Voltar para rotinas"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-300 hover:text-white min-h-[44px] shrink-0 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-300 hover:text-white min-h-[44px] min-w-[44px] shrink-0 transition-colors"
             >
               <ArrowLeftIcon className="w-4 h-4 text-emerald-400" />
               <span>Voltar</span>
             </Link>
 
-            {/* Live Autosave Indicator (Draft only) */}
-            {isDraft ? (
-              <div
-                data-testid="builder-autosave-indicator"
-                className="inline-flex items-center justify-center min-w-[110px] h-7 px-1 text-center shrink-0"
-              >
-                {saveStatus === "saving" && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 whitespace-nowrap">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    <span>Salvando…</span>
-                  </span>
-                )}
-                {saveStatus === "saved" && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
-                    <CheckIcon className="w-3 h-3 text-emerald-400" />
-                    <span>Salvo{lastSavedAt ? ` às ${lastSavedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
-                  </span>
-                )}
-                {saveStatus === "error" && (
-                  <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 whitespace-nowrap"
-                    title={saveErrorMessage || "Erro ao salvar alterações no servidor"}
-                  >
-                    <AlertCircleIcon className="w-3 h-3 text-rose-400" />
-                    <span>Erro ao salvar</span>
-                    <button
-                      type="button"
-                      onClick={() => retryLastSaveRef.current?.()}
-                      className="underline ml-0.5 font-bold hover:text-white cursor-pointer"
-                    >
-                      Tentar
-                    </button>
-                  </span>
-                )}
-              </div>
-            ) : (
-              <span
-                data-testid="builder-status-badge"
-                className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-              >
-                Publicado V{version.versionNumber}
-              </span>
-            )}
+            <div className="flex-1 min-w-0 px-1">
+              {isDraft ? (
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTitle(val);
+                    scheduleMetadataSave({ title: val });
+                  }}
+                  onBlur={flushPendingMetadata}
+                  placeholder="Nome do treino"
+                  className="w-full text-base font-black text-white tracking-tight bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-emerald-500 focus:outline-none transition-all py-1 truncate"
+                  title="Clique para editar o nome do treino"
+                />
+              ) : (
+                <h1 className="text-base font-black text-white tracking-tight truncate">
+                  {title}
+                </h1>
+              )}
+            </div>
 
-            {/* Mais opções button */}
+            {/* Menu ••• com ações secundárias */}
             <div className="relative shrink-0">
               <button
                 type="button"
@@ -1578,10 +1562,10 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           setIsMetadataExpanded(!isMetadataExpanded);
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[44px] text-zinc-200 hover:text-white transition-colors"
                       >
                         <SlidersIcon className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>{isMetadataExpanded ? "Ocultar dados da ficha" : "Dados da ficha"}</span>
+                        <span>{isMetadataExpanded ? "Ocultar dados" : "Configurações e dados"}</span>
                       </button>
                       <button
                         type="button"
@@ -1589,7 +1573,7 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           setIsPreviewOpen(true);
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[44px] text-zinc-200 hover:text-white transition-colors"
                       >
                         <EyeIcon className="w-3.5 h-3.5 text-teal-400" />
                         <span>Pré-visualizar como aluno</span>
@@ -1600,7 +1584,7 @@ export function WorkoutBuilder({
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={() => setIsHeaderMenuOpen(false)}
-                          className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
+                          className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[44px] text-zinc-200 hover:text-white transition-colors"
                         >
                           <DownloadIcon className="w-3.5 h-3.5 text-emerald-400" />
                           <span>Baixar PDF</span>
@@ -1614,7 +1598,7 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           handleDuplicateFicha();
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[44px] text-zinc-200 hover:text-white transition-colors"
                       >
                         <CopyIcon className="w-3.5 h-3.5 text-blue-400" />
                         <span>Duplicar treino</span>
@@ -1625,7 +1609,7 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           handleSaveAsModel();
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-zinc-800 flex items-center gap-2 text-left cursor-pointer min-h-[44px] text-zinc-200 hover:text-white transition-colors"
                       >
                         <BookmarkIcon className="w-3.5 h-3.5 text-amber-400" />
                         <span>Salvar como modelo</span>
@@ -1638,7 +1622,7 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           setIsDeleteDialogOpen(true);
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-rose-500/10 text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] transition-colors"
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-rose-500/10 text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[44px] transition-colors"
                       >
                         <TrashIcon className="w-3.5 h-3.5" />
                         <span>{isDraft ? "Excluir rascunho" : "Excluir treino"}</span>
@@ -1650,114 +1634,90 @@ export function WorkoutBuilder({
             </div>
           </div>
 
-          {/* Mobile Line 2: Status do treino · Nome do treino */}
-          <div className="flex items-center gap-2 w-full min-w-0">
-            {isDraft && (
+          {/* Linha 2: Status · Indicador discreto · Assistente · Publicar/Editar */}
+          <div data-testid="mobile-builder-header" className="flex items-center justify-between gap-2 w-full min-w-0 pt-0.5">
+            {/* Left: Status Badge & Autosave indicator */}
+            <div className="flex items-center gap-1.5 min-w-0 shrink">
               <span
                 data-testid="builder-status-badge"
-                className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full shrink-0 tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 tracking-wider ${
+                  isDraft
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                    : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                }`}
               >
-                Rascunho V{version.versionNumber}
+                {isDraft ? `V${version.versionNumber}` : `V${version.versionNumber}`}
               </span>
-            )}
-            {workout.isTemplate && (
-              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-zinc-900 text-zinc-300 border border-zinc-800 shrink-0">
-                Modelo
-              </span>
-            )}
-            {isDraft ? (
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setTitle(val);
-                  scheduleMetadataSave({ title: val });
-                }}
-                onBlur={flushPendingMetadata}
-                placeholder="Nome da ficha de treino"
-                className="text-lg font-black text-white tracking-tight bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-emerald-500 focus:outline-none transition-all py-0.5 flex-1 min-w-0"
-                title="Clique para editar o nome da ficha (salvamento automático)"
-              />
-            ) : (
-              <h1 className="text-lg font-black text-white tracking-tight truncate flex-1 min-w-0">
-                {title}
-              </h1>
-            )}
-          </div>
 
-          {/* Mobile Line 3: Objetivo, nível e duração, quando disponíveis */}
-          <div data-testid="mobile-header-meta" className="flex items-center gap-1.5 text-xs text-zinc-300 font-medium flex-wrap">
-            {objective && objective.trim() && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-200 truncate max-w-[150px]">
-                {objective}
-              </span>
-            )}
-            {difficultyLevel && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-200">
-                {difficultyLevel === "BEGINNER"
-                  ? "Iniciante"
-                  : difficultyLevel === "ADVANCED"
-                  ? "Avançado"
-                  : difficultyLevel === "INTERMEDIATE"
-                  ? "Intermediário"
-                  : difficultyLevel}
-              </span>
-            )}
-            {estimatedDurationMinutes != null && estimatedDurationMinutes > 0 && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-200">
-                <ClockIcon className="w-3.5 h-3.5 text-emerald-400" />
-                <span>~{estimatedDurationMinutes} min</span>
-              </span>
-            )}
-          </div>
-
-          {/* Mobile Action bar */}
-          <div data-testid="mobile-builder-header" className="w-full pt-1 space-y-2">
-            {isDraft ? (
-              <div className="flex items-center gap-2 w-full">
-                <button
-                  type="button"
-                  data-testid="mobile-top-assistant-button"
-                  onClick={() => {
-                    setIsLibrarySidebarOpen(false);
-                    setIsTopAssistantOpen(true);
-                  }}
-                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
+              {isDraft && (
+                <div
+                  data-testid="builder-autosave-indicator"
+                  className="inline-flex items-center shrink-0 text-[10px] text-zinc-400 font-medium"
                 >
-                  <SparklesIcon className="w-4 h-4 text-emerald-400" />
-                  <span>Assistente</span>
-                </button>
+                  {saveStatus === "saving" && (
+                    <span className="inline-flex items-center gap-1 text-amber-300 whitespace-nowrap">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      <span>Salvando</span>
+                    </span>
+                  )}
+                  {saveStatus === "saved" && (
+                    <span className="inline-flex items-center gap-1 text-emerald-400 whitespace-nowrap">
+                      <CheckIcon className="w-3 h-3 text-emerald-400" />
+                      <span>Salvo</span>
+                    </span>
+                  )}
+                  {saveStatus === "error" && (
+                    <span className="inline-flex items-center gap-1 text-rose-400 whitespace-nowrap">
+                      <AlertCircleIcon className="w-3 h-3" />
+                      <button
+                        type="button"
+                        onClick={() => retryLastSaveRef.current?.()}
+                        className="underline font-bold"
+                      >
+                        Erro
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Assistente & Ação Principal */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                data-testid="mobile-top-assistant-button"
+                onClick={() => {
+                  setIsLibrarySidebarOpen(false);
+                  setIsTopAssistantOpen(true);
+                }}
+                className="px-3 py-2 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 min-h-[44px] flex items-center gap-1.5 cursor-pointer text-center"
+              >
+                <SparklesIcon className="w-4 h-4 text-emerald-400" />
+                <span>Assistente</span>
+              </button>
+
+              {isDraft ? (
                 <button
                   type="button"
                   data-testid="publish-workout-button"
                   onClick={handleOpenPublishDialog}
-                  className="flex-1 py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white min-h-[44px] flex items-center justify-center gap-2 cursor-pointer text-center active:scale-[0.98]"
+                  className="px-3.5 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white min-h-[44px] flex items-center gap-1.5 cursor-pointer text-center active:scale-[0.98]"
                 >
                   <SendIcon className="w-4 h-4" />
                   <span>Publicar</span>
                 </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 w-full">
-                <button
-                  type="button"
-                  onClick={() => setIsAssignModalOpen(true)}
-                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
-                >
-                  <UserPlusIcon className="w-4 h-4 text-emerald-400" />
-                  <span>Enviar ficha</span>
-                </button>
+              ) : (
                 <button
                   type="button"
                   onClick={handleCreateNewVersion}
-                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center active:scale-[0.98]"
+                  className="px-3.5 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white min-h-[44px] flex items-center gap-1.5 cursor-pointer text-center active:scale-[0.98]"
                 >
                   <Edit3Icon className="w-4 h-4" />
-                  <span>Editar treino</span>
+                  <span>Editar</span>
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
@@ -2285,7 +2245,7 @@ export function WorkoutBuilder({
                   </div>
 
                   {/* Horizontal Tabs / Pills (Desktop & Tablet >=sm) */}
-                  <div className="relative w-full max-w-full min-w-0">
+                  <div className="hidden sm:block relative w-full max-w-full min-w-0">
                     <div
                       ref={tabsContainerRef}
                       data-testid="mobile-category-tabs"
@@ -2435,7 +2395,9 @@ export function WorkoutBuilder({
                     <button
                       type="button"
                       disabled={!newCategoryName.trim() || isPending}
-                      onClick={handleCreateCategory}
+                      onClick={() => {
+                        handleCreateCategory();
+                      }}
                       className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 transition-colors min-h-[44px] cursor-pointer"
                     >
                       {isPending ? "Criando..." : "Criar"}
@@ -2911,6 +2873,13 @@ export function WorkoutBuilder({
           version={version}
           categories={categories}
           selectedCategoryPublicId={categories[activeMobileCategoryIndex >= 0 ? activeMobileCategoryIndex : 0]?.publicId || null}
+          onCreateCategory={handleCreateCategory}
+          onRenameCategory={handleRenameCategory}
+          onDeleteCategory={handleDeleteCategory}
+          onAddExerciseToCategory={handleAddExerciseToCategory}
+          onCreateCombination={handleCreateCombination}
+          onUpdateExerciseQuickConfig={handleUpdateExerciseQuickConfig}
+          onDeleteExercise={handleDeleteExercise}
           onOpenExercisePicker={(catId) => {
             setActiveCategoryForPicker(catId);
           }}
@@ -2922,6 +2891,7 @@ export function WorkoutBuilder({
           }}
           onOpenPublishDialog={handleOpenPublishDialog}
           onCreateDraft={handleCreateNewVersion}
+          onOpenPreview={() => setIsPreviewOpen(true)}
         />
       )}
     </div>

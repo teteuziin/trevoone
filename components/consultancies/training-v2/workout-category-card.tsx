@@ -31,9 +31,10 @@ import {
   type CombinationVisualTheme,
 } from "./training-studio-tokens";
 import { GuidedCombinationModal } from "./guided-combination-modal";
-import { TrainingStudioAssistant } from "./training-studio-assistant";
-import { addExerciseItemToBlockAction } from "@/app/consultoria/[slug]/rotinas/actions";
+import { addExerciseItemToBlockAction, createCustomExerciseAction } from "@/app/consultoria/[slug]/rotinas/actions";
+import type { CustomExerciseFormData } from "./custom-exercise-inline-modal";
 import type { WorkoutRootDto, WorkoutVersionDto } from "@/lib/training-v2/types";
+import { TrainingStudioAssistant } from "./training-studio-assistant";
 
 export function parseActiveRest(title?: string | null): { isActive: boolean; activity: string } {
   if (!title) return { isActive: false, activity: "" };
@@ -697,6 +698,35 @@ export function WorkoutCategoryCard({
     return null;
   }
 
+  async function handleCreateCustomAndCombineItem(data: CustomExerciseFormData) {
+    if (!consultancySlug) return null;
+    const res = await createCustomExerciseAction(consultancySlug, category.publicId, {
+      name: data.name,
+      muscleGroup: data.muscleGroup,
+      equipment: data.equipment,
+      instructions: data.instructions,
+      subBlockPublicId: guidedModalState.subBlockPublicId,
+      customVideoUrl: data.videoUrl,
+      mediaAssetPublicId: data.videoKey,
+      saveToLibrary: data.saveToMyLibrary,
+      notes: data.notes,
+      isSequence: data.isSequence || data.type === "SEQUENCE",
+      sequenceMovements: data.sequenceMovements,
+      sets: [
+        {
+          setType: "NORMAL",
+          targetReps: parseInt(data.reps || "10", 10) || 10,
+          targetLoadKg: data.load ? parseFloat(data.load.replace(",", ".")) || undefined : undefined,
+          targetRestSeconds: data.restSeconds ? Number(data.restSeconds) : 60,
+        },
+      ],
+    });
+    if (res.ok && res.data) {
+      return res.data;
+    }
+    return null;
+  }
+
   // Mobile Bottom Sheets & Modals state
   const [quickEditingItem, setQuickEditingItem] = useState<WorkoutBlockItemDto | null>(null);
   const [editingCombination, setEditingCombination] = useState<WorkoutItemCombinationDto | null>(null);
@@ -1050,7 +1080,7 @@ export function WorkoutCategoryCard({
               title="Adicionar exercício a este treino"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>+ Adicionar exercício</span>
+              <span>Adicionar exercício</span>
             </button>
 
             {onCreateCombination && (
@@ -1386,48 +1416,42 @@ export function WorkoutCategoryCard({
                         Nenhum exercício neste grupo ainda.
                       </div>
                     ) : (
-                      (() => {
-                        const combEntries = entries.filter((e) => e.type === "combination");
-                        const itemEntries = entries.filter((e) => e.type === "item");
-                        const partitioned = [...combEntries, ...itemEntries];
+                      entries.map((entry, displayIdx) => {
+                        const executionIndex = displayIdx + 1;
+                        const activeEntryIdx = displayIdx;
 
-                        return partitioned.map((entry, displayIdx) => {
-                          const originalIdx = entries.indexOf(entry);
-                          const executionIndex = originalIdx !== -1 ? originalIdx + 1 : displayIdx + 1;
-                          const activeEntryIdx = originalIdx !== -1 ? originalIdx : displayIdx;
-
-                          if (entry.type === "combination") {
-                            return (
-                              <UnifiedCombinationBlock
-                                key={entry.combination.publicId}
-                                combination={entry.combination}
-                                categoryPublicId={category.publicId}
-                                subBlockPublicId={subBlock.publicId}
-                                entryIndex={activeEntryIdx}
-                                executionIndex={executionIndex}
-                                totalEntries={entries.length}
-                                isDraft={isDraft}
-                                onMoveEntryUp={() => handleMoveEntryInContainer(entries, activeEntryIdx, "up", subBlock.publicId)}
-                                onMoveEntryDown={() => handleMoveEntryInContainer(entries, activeEntryIdx, "down", subBlock.publicId)}
-                                onOpenEditCombination={(c) => setEditingCombination(c)}
-                                onOpenQuickEdit={(it) => setQuickEditingItem(it)}
-                                onOpenActions={(it, idx, tot) =>
-                                  setActionsSheetItem({
-                                    item: it,
-                                    index: idx,
-                                    total: tot,
-                                    subBlockPublicId: subBlock.publicId,
-                                    combinationPublicId: entry.combination.publicId,
-                                  })
-                                }
-                                onOpenExecutionModal={(it) => setExecutionModalItem(it)}
-                                onMoveItemInCombination={onMoveItemInCombination}
-                                onRemoveItemFromCombination={onRemoveItemFromCombination}
-                                onUngroupCombination={onUngroupCombination}
-                                onDeleteCombination={onDeleteCombination}
-                              />
-                            );
-                          }
+                        if (entry.type === "combination") {
+                          return (
+                            <UnifiedCombinationBlock
+                              key={entry.combination.publicId}
+                              combination={entry.combination}
+                              categoryPublicId={category.publicId}
+                              subBlockPublicId={subBlock.publicId}
+                              entryIndex={activeEntryIdx}
+                              executionIndex={executionIndex}
+                              totalEntries={entries.length}
+                              isDraft={isDraft}
+                              onMoveEntryUp={() => handleMoveEntryInContainer(entries, activeEntryIdx, "up", subBlock.publicId)}
+                              onMoveEntryDown={() => handleMoveEntryInContainer(entries, activeEntryIdx, "down", subBlock.publicId)}
+                              onOpenEditCombination={(c) => setEditingCombination(c)}
+                              onOpenQuickEdit={(it) => setQuickEditingItem(it)}
+                              onOpenActions={(it, idx, tot) =>
+                                setActionsSheetItem({
+                                  item: it,
+                                  index: idx,
+                                  total: tot,
+                                  subBlockPublicId: subBlock.publicId,
+                                  combinationPublicId: entry.combination.publicId,
+                                })
+                              }
+                              onOpenExecutionModal={(it) => setExecutionModalItem(it)}
+                              onMoveItemInCombination={onMoveItemInCombination}
+                              onRemoveItemFromCombination={onRemoveItemFromCombination}
+                              onUngroupCombination={onUngroupCombination}
+                              onDeleteCombination={onDeleteCombination}
+                            />
+                          );
+                        }
 
                         const item = entry.item;
                         const isExpanded = expandedExerciseId === item.publicId;
@@ -1447,12 +1471,6 @@ export function WorkoutCategoryCard({
 
                         return (
                           <div key={item.publicId} className="space-y-3">
-                            {displayIdx === combEntries.length && combEntries.length > 0 && (
-                              <div className="flex items-center gap-2 pt-2 pb-0.5 text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                                <span>Exercícios avulsos</span>
-                                <span className="flex-1 h-px bg-[var(--border-subtle)]" />
-                              </div>
-                            )}
                             {/* Mobile View: Dedicated MobileExerciseCard */}
                             <div className="md:hidden">
                               <MobileExerciseCard
@@ -1547,8 +1565,7 @@ export function WorkoutCategoryCard({
                             </div>
                           </div>
                         );
-                      });
-                    })()
+                      })
                   )}
                   </div>
                 </div>
@@ -1610,14 +1627,10 @@ export function WorkoutCategoryCard({
             ) : (
               (() => {
                 const flatEntries = buildContainerEntries(items, combinations, null);
-                const combEntries = flatEntries.filter((e) => e.type === "combination");
-                const itemEntries = flatEntries.filter((e) => e.type === "item");
-                const partitioned = [...combEntries, ...itemEntries];
 
-                return partitioned.map((entry, displayIdx) => {
-                  const originalIdx = flatEntries.indexOf(entry);
-                  const executionIndex = originalIdx !== -1 ? originalIdx + 1 : displayIdx + 1;
-                  const activeEntryIdx = originalIdx !== -1 ? originalIdx : displayIdx;
+                return flatEntries.map((entry, displayIdx) => {
+                  const executionIndex = displayIdx + 1;
+                  const activeEntryIdx = displayIdx;
 
                   if (entry.type === "combination") {
                     return (
@@ -1669,12 +1682,6 @@ export function WorkoutCategoryCard({
 
                   return (
                     <div key={item.publicId} className="space-y-3">
-                      {displayIdx === combEntries.length && combEntries.length > 0 && (
-                        <div className="flex items-center gap-2 pt-2 pb-0.5 text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                          <span>Exercícios avulsos</span>
-                          <span className="flex-1 h-px bg-[var(--border-subtle)]" />
-                        </div>
-                      )}
                       {/* Mobile View: Dedicated MobileExerciseCard */}
                       <div className="md:hidden">
                         <MobileExerciseCard
@@ -2070,6 +2077,8 @@ export function WorkoutCategoryCard({
           consultancySlug={consultancySlug || ""}
           onConfirmCombination={handleConfirmGuidedCombination}
           onAddAndCombineItem={handleAddAndCombineItem}
+          onCreateCustomAndCombineItem={handleCreateCustomAndCombineItem}
+          onDeleteTemporaryItem={onDeleteExercise}
         />
       )}
 

@@ -2656,10 +2656,10 @@ export function WorkoutBuilder({
             <div className="p-4 sm:p-5 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--surface-subtle)]">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
-                  PRÉ-VISUALIZAÇÃO DO ALUNO
+                  MODO DE VISUALIZAÇÃO
                 </span>
                 <h3 className="text-base font-extrabold text-[var(--text-primary)]">
-                  {title}
+                  Prévia da Ficha do Aluno
                 </h3>
               </div>
               <button
@@ -2675,7 +2675,7 @@ export function WorkoutBuilder({
                 workout={{
                   assignmentPublicId: "preview-mode",
                   consultancyName: "TREVO ONE",
-                  startsOn: new Date().toISOString().split("T")[0],
+                  startsOn: null,
                   endsOn: null,
                   versionNumber: version.versionNumber,
                   title: title,

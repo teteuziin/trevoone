@@ -91,6 +91,8 @@ type UnifiedExercisePickerProps = {
   onClose: () => void;
   onSelectExercise: (exercisePublicId: string) => Promise<void>;
   onOpenCustomModal: () => void;
+  contextTitle?: string;
+  selectButtonLabel?: string;
 };
 
 type SourceTab = "TODOS" | "TREVO_ONE" | "CONSULTORIA" | "MEUS";
@@ -101,6 +103,8 @@ export function UnifiedExercisePicker({
   onClose,
   onSelectExercise,
   onOpenCustomModal,
+  contextTitle = "Adicionar Exercício",
+  selectButtonLabel = "Adicionar",
 }: UnifiedExercisePickerProps) {
   const [source, setSource] = useState<SourceTab>("TODOS");
   const [searchQuery, setSearchQuery] = useState("");
@@ -156,14 +160,14 @@ export function UnifiedExercisePicker({
         </div>
 
         {/* Header */}
-        <div className="p-4 sm:p-6 border-b border-[var(--border-subtle)] space-y-3.5 shrink-0 bg-[var(--surface)]">
+        <div className="p-4 sm:p-5 border-b border-[var(--border-subtle)] space-y-3 shrink-0 bg-[var(--surface)]">
           <div className="flex items-center justify-between gap-3">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)] block">
                 BIBLIOTECA DE EXERCÍCIOS
               </span>
-              <h2 className="text-lg sm:text-xl font-heading font-black text-[var(--foreground)]">
-                Adicionar Exercício
+              <h2 className="text-base sm:text-lg font-heading font-black text-[var(--foreground)]">
+                {contextTitle}
               </h2>
             </div>
             <button
@@ -176,26 +180,8 @@ export function UnifiedExercisePicker({
             </button>
           </div>
 
-          {/* Action to create custom inline */}
-          <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)]">
-            <div className="text-xs text-[var(--foreground)]">
-              <span className="font-bold">Exercício não listado?</span> Crie uma variação personalizada rápida.
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onOpenCustomModal();
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shrink-0 shadow-2xs min-h-[38px] cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Personalizado</span>
-            </button>
-          </div>
-
-          {/* Search bar & source filters */}
-          <div className="space-y-2.5">
+          {/* Search bar with clear button */}
+          <div className="space-y-2">
             <div className="relative">
               <Search className="w-4 h-4 text-[var(--foreground-muted)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -203,34 +189,61 @@ export function UnifiedExercisePicker({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar por nome do exercício..."
-                className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] focus:outline-none focus:ring-2 focus:ring-emerald-500 text-[var(--foreground)] min-h-[44px]"
+                className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] focus:outline-none focus:ring-2 focus:ring-emerald-500 text-[var(--foreground)] min-h-[44px]"
               />
+              {searchQuery.trim().length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Limpar busca"
+                  className="p-2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
-            {/* Source tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              {[
-                { id: "TODOS", label: "Todos" },
-                { id: "TREVO_ONE", label: "Trevo One" },
-                { id: "CONSULTORIA", label: "Minha Consultoria" },
-                { id: "MEUS", label: "Só para mim" },
-              ].map((tab) => {
-                const isActive = source === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setSource(tab.id as SourceTab)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all min-h-[36px] flex items-center cursor-pointer ${
-                      isActive
-                        ? "bg-emerald-600 text-white shadow-2xs"
-                        : "text-[var(--foreground-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] border border-[var(--border-subtle)] bg-[var(--surface)]"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
+            {/* Source tabs and discrete create custom button */}
+            <div className="flex items-center justify-between gap-2 pt-0.5">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none flex-1">
+                {[
+                  { id: "TODOS", label: "Todos" },
+                  { id: "TREVO_ONE", label: "Trevo One" },
+                  { id: "CONSULTORIA", label: "Consultoria" },
+                  { id: "MEUS", label: "Só para mim" },
+                ].map((tab) => {
+                  const isActive = source === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setSource(tab.id as SourceTab)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all min-h-[36px] flex items-center cursor-pointer ${
+                        isActive
+                          ? "bg-emerald-600 text-white shadow-2xs"
+                          : "text-[var(--foreground-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] border border-[var(--border-subtle)] bg-[var(--surface)]"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Discrete Custom Action */}
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenCustomModal();
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/25 transition-all shrink-0 cursor-pointer min-h-[36px]"
+                title="Cadastrar novo exercício personalizado"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Criar personalizado</span>
+                <span className="sm:hidden">Personalizado</span>
+              </button>
             </div>
           </div>
         </div>
@@ -283,28 +296,29 @@ export function UnifiedExercisePicker({
                   className="p-3.5 sm:p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-emerald-500/50 transition-all flex flex-col gap-2.5 shadow-2xs group"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    {/* Left: Thumbnail & info */}
-                    <div className="flex items-center gap-3 min-w-0">
-                      {/* Exercise Capa / Thumbnail */}
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] overflow-hidden shrink-0 flex items-center justify-center">
-                        {thumbnailUrl ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
+                    {/* Left: Optional Thumbnail & Exercise Info */}
+                    <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                      {/* Exercise Capa / Thumbnail - Only shown if real thumbnail exists */}
+                      {thumbnailUrl && (
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] overflow-hidden shrink-0 flex items-center justify-center">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={thumbnailUrl}
                             alt={ex.name}
                             className="w-full h-full object-cover"
                             loading="lazy"
                           />
-                        ) : (
-                          <Dumbbell className="w-6 h-6 text-[var(--foreground-muted)] opacity-50" />
-                        )}
-                      </div>
+                        </div>
+                      )}
 
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-bold text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
-                            {ex.name}
-                          </h4>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        {/* Name without aggressive truncation */}
+                        <h4 className="text-sm sm:text-base font-bold text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors break-words line-clamp-2 leading-snug">
+                          {ex.name}
+                        </h4>
+
+                        {/* Badges + Muscle Group + Equipment */}
+                        <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] flex-wrap">
                           {isGlobal && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
                               <Globe className="w-2.5 h-2.5" />
@@ -323,10 +337,7 @@ export function UnifiedExercisePicker({
                               Só para mim
                             </span>
                           )}
-                        </div>
-
-                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] flex-wrap">
-                          <span>{ex.muscleGroupPrimary}</span>
+                          <span>{ex.muscleGroupPrimary || "Geral"}</span>
                           {ex.equipment && (
                             <>
                               <span>•</span>
@@ -335,32 +346,30 @@ export function UnifiedExercisePicker({
                           )}
                         </div>
 
-                        {/* Ver Execução Button */}
-                        <div className="pt-0.5">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (hasExecution) {
+                        {/* Ver Execução Button - ONLY rendered when real execution media is available */}
+                        {hasExecution && (
+                          <div className="pt-0.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setPreviewingExerciseId(isPreviewing ? null : ex.publicId);
-                              } else {
-                                setExecutionModalExercise(ex);
-                              }
-                            }}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                              isPreviewing
-                                ? "bg-emerald-600 text-white shadow-2xs"
-                                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20"
-                            }`}
-                          >
-                            {isGif ? (
-                              <span className="text-[10px] font-black tracking-wider uppercase">GIF</span>
-                            ) : (
-                              <Video className="w-3.5 h-3.5" />
-                            )}
-                            <span>{isPreviewing ? "Ocultar execução" : "Ver execução"}</span>
-                          </button>
-                        </div>
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer min-h-[32px] ${
+                                isPreviewing
+                                  ? "bg-emerald-600 text-white shadow-2xs"
+                                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20"
+                              }`}
+                            >
+                              {isGif ? (
+                                <span className="text-[10px] font-black tracking-wider uppercase">GIF</span>
+                              ) : (
+                                <Video className="w-3.5 h-3.5" />
+                              )}
+                              <span>{isPreviewing ? "Ocultar execução" : "Ver execução"}</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -372,14 +381,14 @@ export function UnifiedExercisePicker({
                         handleSelect(ex.publicId);
                       }}
                       disabled={isSelecting}
-                      className="inline-flex items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-2xs shrink-0 min-h-[44px] min-w-[90px] cursor-pointer"
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-2xs shrink-0 min-h-[44px] min-w-[92px] cursor-pointer"
                     >
                       {isSelecting ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <>
                           <Plus className="w-3.5 h-3.5" />
-                          <span>Adicionar</span>
+                          <span>{selectButtonLabel}</span>
                         </>
                       )}
                     </button>

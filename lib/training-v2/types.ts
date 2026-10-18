@@ -352,7 +352,7 @@ export type WorkoutAssignmentDto = {
 export type StudentWorkoutViewContract = {
   assignmentPublicId: string;
   consultancyName: string;
-  startsOn: string;
+  startsOn: string | null;
   endsOn: string | null;
   versionNumber: number;
   title: string;

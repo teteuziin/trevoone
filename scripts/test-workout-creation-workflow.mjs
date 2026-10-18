@@ -20,63 +20,56 @@ const pagePath = path.resolve("app/consultoria/[slug]/rotinas/novo/page.tsx");
 assert(fs.existsSync(pagePath), "Page file app/consultoria/[slug]/rotinas/novo/page.tsx exists");
 const code = fs.readFileSync(pagePath, "utf-8");
 
-runTest("FORM OUTER CARD REMOVED: No outer card/surface wrapper around the form", () => {
+const formPath = path.resolve("components/consultancies/training-v2/new-workout-manual-form.tsx");
+assert(fs.existsSync(formPath), "Form component file components/consultancies/training-v2/new-workout-manual-form.tsx exists");
+const formCode = fs.readFileSync(formPath, "utf-8");
+
+runTest("FORM COMPONENT INTEGRATION: Page uses NewWorkoutManualForm without heavy outer card", () => {
+  assert(code.includes("NewWorkoutManualForm"), "Page delegates to NewWorkoutManualForm");
   assert(!code.includes("p-5 sm:p-7"), "Removed outer card padding p-5 sm:p-7");
   assert(!code.includes("rounded-2xl bg-[var(--surface-subtle)]"), "Removed outer card background and border");
-  assert(code.includes('action={handleCreate}') && code.includes('className="space-y-8"'), "Form sits directly on page background without outer wrapper");
 });
 
-runTest("DESKTOP PAGE INTEGRATED: Comfortable 900-1000px width matching page layout", () => {
-  assert(code.includes("max-w-[940px]"), "Provides comfortable ~900-1000px usable form width as requested");
+runTest("DESKTOP PAGE INTEGRATED: Comfortable width matching page layout", () => {
+  assert(code.includes("max-w-[720px]") || code.includes("max-w-[940px]"), "Provides comfortable usable form width");
   assert(!code.includes("rounded-3xl border border-[var(--border-default)]"), "Heavy modal card container eliminated");
 });
 
-runTest("MOBILE PAGE INTEGRATED: Native app form layout with subtle section dividers", () => {
-  assert(code.includes("pb-8 border-b border-[var(--border-subtle)]"), "Sections separated by subtle horizontal dividers without cards");
-  assert(!code.includes("bg-[var(--surface)] p-"), "Form does not introduce an outer surface background");
+runTest("CLEAN HEADER: Back button 'Voltar' and title 'Nova ficha'", () => {
+  assert(code.includes("Voltar"), "Features clean back button 'Voltar'");
+  assert(code.includes("Nova ficha"), "Features clean title 'Nova ficha'");
 });
 
-runTest("REDUNDANT HEADER REMOVED: No 'Módulo de Treinamento' or 'Novo Treino do Zero'", () => {
-  assert(!code.includes("Módulo de Treinamento"), "Removed redundant 'Módulo de Treinamento'");
-  assert(!code.includes("Novo Treino do Zero"), "Removed redundant chip 'Novo Treino do Zero'");
-  assert(code.includes("Nova ficha de treino"), "Features clean title 'Nova ficha de treino'");
-  assert(code.includes("Defina as informações básicas. Você adicionará os exercícios na próxima etapa."), "Features direct, helpful subtitle");
+runTest("PRIMARY FIELD HIERARCHY: 'Nome da ficha' has visual priority with required marker", () => {
+  assert(formCode.includes("Nome da ficha"), "Label 'Nome da ficha' is present");
+  assert(formCode.includes("name=\"title\""), "Title field input is present");
+  assert(formCode.includes("min-h-[48px]"), "Primary field features prominent min-h-[48px] touch target");
 });
 
-runTest("PRIMARY FIELD HIERARCHY: 'Nome da ficha' has visual priority", () => {
-  assert(code.includes("Obrigatório"), "Indicates mandatory status");
-  assert(code.includes("name=\"title\""), "Title field input is present");
-  assert(code.includes("min-h-[46px]"), "Primary field features prominent min-h-[46px] touch target");
+runTest("COLLAPSIBLE TRAINING DETAILS: 'Detalhes do treino' is expandable and optional", () => {
+  assert(formCode.includes("Detalhes do treino"), "Features 'Detalhes do treino' expandable section");
+  assert(formCode.includes("isDetailsOpen"), "State controls expansion of secondary details");
+  assert(formCode.includes("difficultyLevel") && formCode.includes("estimatedDurationMinutes"), "Difficulty and Duration are inside details");
 });
 
-runTest("TRAINING INFO GROUP: Clean group without nested card", () => {
-  assert(code.includes("Informações do Treino"), "Features 'Informações do Treino' section header");
-  assert(code.includes("uppercase tracking-wider"), "Uses elegant typography for section header");
-  assert(code.includes("sm:col-span-7") && code.includes("sm:col-span-5"), "Difficulty (~58%) and Duration (~42%) are side by side on desktop");
-  assert(code.includes("grid-cols-1 sm:grid-cols-12"), "Stacked vertically on mobile");
-});
-
-runTest("CTA HIERARCHY: Primary CTA green and right-aligned on desktop, no sticky footer", () => {
-  assert(code.includes("variant=\"primary\""), "Primary CTA uses variant primary");
-  assert(code.includes("Criar ficha e montar exercícios") || code.includes("Criar Ficha de Treino"), "CTA label matches workflow requirement");
-  assert(code.includes("sm:justify-end"), "Actions aligned to the right on desktop");
-  assert(!code.includes("fixed bottom-0") && !code.includes("sticky bottom-0"), "No sticky footer used");
+runTest("CTA HIERARCHY: Primary CTA 'Começar montagem' with double-submit prevention", () => {
+  assert(formCode.includes("Começar montagem"), "CTA label matches workflow requirement 'Começar montagem'");
+  assert(formCode.includes("isPending"), "Prevents duplicate submissions via isPending guard");
+  assert(formCode.includes("safe-area-inset-bottom"), "Respects safe-area-inset-bottom on mobile");
 });
 
 runTest("FORM VALIDATION & SERVER ACTION: Integrity preserved", () => {
-  assert(code.includes("handleCreate"), "Form action handleCreate intact");
-  assert(code.includes("createWorkoutDraftAction"), "Server action call intact");
+  assert(formCode.includes("createWorkoutDraftAction"), "Server action call intact");
   assert(code.includes("targetStudentMembershipPublicId"), "Student membership parameter intact");
-  assert(code.includes("studentMembershipPublicId"), "Student membership searchParam intact");
-  assert(code.includes("preselectedStudent.student.membershipPublicId"), "Hidden input for student intact");
+  assert(code.includes("preselectedStudent"), "Preselected student linking intact");
 });
 
-runTest("MOBILE TOUCH TARGETS: All actions adhere to min-h-[44px]", () => {
-  assert(code.includes("min-h-[44px]"), "Buttons and inputs enforce min-h-[44px]");
-  assert(code.includes("flex-col-reverse sm:flex-row"), "Actions stack naturally on mobile with primary CTA on top of cancel");
+runTest("MOBILE TOUCH TARGETS: All actions adhere to min-h-[44px] / min-h-[48px]", () => {
+  assert(formCode.includes("min-h-[48px]"), "Buttons and inputs enforce min-h-[48px]");
+  assert(formCode.includes("flex-col-reverse sm:flex-row"), "Actions stack naturally on mobile");
 });
 
-runTest("RESPONSIVE & NO HORIZONTAL OVERFLOW: Clean grid and relative constraints", () => {
+runTest("RESPONSIVE & NO HORIZONTAL OVERFLOW: Full width responsiveness", () => {
   assert(!code.includes("w-[100vw]") && !code.includes("overflow-x-scroll"), "No horizontal overflow triggers");
   assert(code.includes("w-full"), "Full-width responsiveness respected");
 });

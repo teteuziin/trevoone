@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { PwaRegistry } from "@/components/pwa/pwa-registry";
 import { BrandWallpaper } from "@/components/brand/brand-wallpaper";
@@ -7,22 +7,39 @@ import { NetworkStatusToast } from "@/components/pwa/network-status-toast";
 import { BetaWatermark } from "@/components/brand/beta-watermark";
 import { SafeBoundary } from "@/components/ui/safe-boundary";
 
-const geistSans = Geist({
-  subsets: ["latin"],
+const geistSans = localFont({
+  src: "./fonts/Geist-Variable.woff2",
   variable: "--font-geist",
   display: "swap",
+  weight: "100 900",
 });
 
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
+const geistMono = localFont({
+  src: "./fonts/GeistMono-Variable.woff2",
   variable: "--font-geist-mono",
   display: "swap",
+  weight: "100 900",
 });
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
+const plusJakartaSans = localFont({
+  src: [
+    {
+      path: "./fonts/PlusJakartaSans-Medium.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "./fonts/PlusJakartaSans-SemiBold.woff2",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "./fonts/PlusJakartaSans-Bold.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-heading",
-  weight: ["500", "600", "700"],
   display: "swap",
 });
 

@@ -91,6 +91,8 @@ export interface PlanListItemDto {
   activeAssignmentsCount?: number;
   assignedStudentName?: string | null;
   mealsCount?: number;
+  publishedVersionPublicId?: string | null;
+  publishedVersionNumber?: number | null;
   currentVersion: {
     publicId: string;
     versionNumber: number;
@@ -608,7 +610,9 @@ export async function listPlansForConsultancy(
         v.updated_at AS current_version_updated_at,
         (SELECT COUNT(*) FROM nutrition_v2_assignments na JOIN nutrition_v2_plan_versions nv ON nv.id = na.nutrition_plan_version_id WHERE nv.nutrition_plan_id = p.id AND na.status = 'ACTIVE' AND na.deleted_at IS NULL) AS active_assignments_count,
         (SELECT u.full_name FROM nutrition_v2_assignments na JOIN nutrition_v2_plan_versions nv ON nv.id = na.nutrition_plan_version_id JOIN consultancy_members cm ON cm.id = na.student_membership_id JOIN users u ON u.id = cm.user_id WHERE nv.nutrition_plan_id = p.id AND na.status = 'ACTIVE' AND na.deleted_at IS NULL ORDER BY na.id DESC LIMIT 1) AS assigned_student_name,
-        (SELECT COUNT(*) FROM nutrition_v2_meals nm WHERE nm.nutrition_plan_version_id = v.id AND nm.deleted_at IS NULL) AS meals_count
+        (SELECT COUNT(*) FROM nutrition_v2_meals nm WHERE nm.nutrition_plan_version_id = v.id AND nm.deleted_at IS NULL) AS meals_count,
+        (SELECT pv.public_id FROM nutrition_v2_plan_versions pv WHERE pv.nutrition_plan_id = p.id AND pv.status = 'PUBLISHED' AND pv.deleted_at IS NULL ORDER BY pv.version_number DESC LIMIT 1) AS published_version_public_id,
+        (SELECT pv.version_number FROM nutrition_v2_plan_versions pv WHERE pv.nutrition_plan_id = p.id AND pv.status = 'PUBLISHED' AND pv.deleted_at IS NULL ORDER BY pv.version_number DESC LIMIT 1) AS published_version_number
       FROM nutrition_v2_plans p
       LEFT JOIN nutrition_v2_plan_versions v ON v.id = (
         SELECT pv.id FROM nutrition_v2_plan_versions pv
@@ -632,6 +636,8 @@ export async function listPlansForConsultancy(
       activeAssignmentsCount: Number(r.active_assignments_count || 0),
       assignedStudentName: r.assigned_student_name ? String(r.assigned_student_name) : null,
       mealsCount: Number(r.meals_count || 0),
+      publishedVersionPublicId: r.published_version_public_id ? String(r.published_version_public_id) : null,
+      publishedVersionNumber: r.published_version_number != null ? Number(r.published_version_number) : null,
       currentVersion: r.current_version_publicId || r.current_version_public_id
         ? {
             publicId: String(r.current_version_public_id),

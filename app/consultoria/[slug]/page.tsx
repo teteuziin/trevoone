@@ -267,6 +267,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
               updatedAt: p.updatedAt,
               mealsCount: p.mealsCount,
               isTemplate: Boolean(p.isTemplate),
+              publishedVersionPublicId: p.publishedVersionPublicId || null,
+              publishedVersionNumber: p.publishedVersionNumber != null ? p.publishedVersionNumber : null,
             })),
           };
         } catch {

@@ -35,6 +35,8 @@ export interface NutritionistPlanSummaryItem {
   updatedAt?: Date | string | null;
   mealsCount?: number;
   isTemplate?: boolean;
+  publishedVersionPublicId?: string | null;
+  publishedVersionNumber?: number | null;
 }
 
 export type NutritionPlanSummaryItem = NutritionistPlanSummaryItem;
@@ -159,6 +161,8 @@ export function DashboardNutritionistView({
       updatedAt: p.updatedAt,
       mealsCount: p.mealsCount,
       isTemplate: p.isTemplate,
+      publishedVersionPublicId: p.publishedVersionPublicId || null,
+      publishedVersionNumber: p.publishedVersionNumber != null ? p.publishedVersionNumber : null,
     }));
   }, [recentPlans]);
 

@@ -7,6 +7,8 @@ import {
   isPlanActive,
   hasPlanDraftOrRevision,
 } from "@/lib/nutrition-v2/plan-classification";
+import { NutritionAssignModal } from "@/components/consultancies/nutrition-v2/nutrition-assign-modal";
+import { NutritionDraftWarningModal } from "@/components/consultancies/nutrition-v2/nutrition-draft-warning-modal";
 
 export interface NutritionPlanRow {
   publicId: string;
@@ -22,6 +24,8 @@ export interface NutritionPlanRow {
   updatedAt?: Date | string | null;
   mealsCount?: number;
   isTemplate?: boolean;
+  publishedVersionPublicId?: string | null;
+  publishedVersionNumber?: number | null;
 }
 
 export interface NutritionPlansTableProps {
@@ -140,6 +144,11 @@ export function NutritionPlansTable({
   const [sortBy, setSortBy] = useState<NutritionSortOption>("recent");
   const [statusFilter, setStatusFilter] = useState<NutritionStatusFilterOption>("ALL");
 
+  // Assignment & Draft Warning states
+  const [assignPlan, setAssignPlan] = useState<NutritionPlanRow | null>(null);
+  const [draftWarningPlan, setDraftWarningPlan] = useState<NutritionPlanRow | null>(null);
+  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
+
   // Mobile Touch Scroll Guard
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const isScrollingRef = useRef(false);
@@ -163,6 +172,14 @@ export function NutritionPlansTable({
   const handleCardClick = (publicId: string) => {
     if (isScrollingRef.current) return;
     router.push(`/consultoria/${consultancySlug}/planos-v2/${publicId}`);
+  };
+
+  const handleOpenSendPlan = (plan: NutritionPlanRow) => {
+    if (!plan.publishedVersionPublicId) {
+      setDraftWarningPlan(plan);
+    } else {
+      setAssignPlan(plan);
+    }
   };
 
   const filteredPlans = useMemo(() => {
@@ -409,14 +426,26 @@ export function NutritionPlansTable({
                       </td>
 
                       {/* AÇÕES */}
-                      <td className="py-3.5 px-4 text-right">
-                        <Link
-                          href={`/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`}
-                          prefetch={false}
-                          className="inline-flex items-center justify-center min-h-[44px] px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors shadow-xs select-none cursor-pointer"
-                        >
-                          Editar plano
-                        </Link>
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenSendPlan(plan);
+                            }}
+                            className="inline-flex items-center justify-center min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors shadow-xs select-none cursor-pointer"
+                          >
+                            Enviar plano
+                          </button>
+                          <Link
+                            href={`/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`}
+                            prefetch={false}
+                            className="inline-flex items-center justify-center min-h-[38px] px-3 py-1.5 rounded-lg text-xs font-semibold text-[#374151] dark:text-[#C2C8CF] bg-[#F3F4F6] dark:bg-[#1B1D21] hover:bg-[#E5E7EB] dark:hover:bg-[#252830] border border-[#D1D5DB] dark:border-[#303238] transition-colors select-none cursor-pointer"
+                          >
+                            Editar plano
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -491,8 +520,8 @@ export function NutritionPlansTable({
                   </div>
 
                   {/* Linha de Ação Mobile (alvo mínimo de toque >= 44px) */}
-                  <div className="pt-2 flex items-center justify-between border-t border-[#F3F4F6] dark:border-[#222429]">
-                    <div className="text-[11px] text-[#6B7280] dark:text-[#9CA3AF]">
+                  <div className="pt-2.5 flex items-center justify-between gap-2 border-t border-[#F3F4F6] dark:border-[#222429]">
+                    <div className="text-[11px] text-[#6B7280] dark:text-[#9CA3AF] truncate">
                       {hasDraft ? (
                         <span className="text-amber-600 dark:text-amber-400 font-medium">
                           Rascunho em edição
@@ -508,20 +537,71 @@ export function NutritionPlansTable({
                       )}
                     </div>
 
-                    <Link
-                      href={`/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`}
-                      prefetch={false}
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center justify-center px-3.5 py-2 min-h-[44px] rounded-lg text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 active:bg-emerald-200 border border-emerald-200 dark:border-emerald-800/60 transition-colors shadow-xs select-none cursor-pointer"
-                    >
-                      <span>Editar plano</span>
-                    </Link>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenSendPlan(plan);
+                        }}
+                        className="inline-flex items-center justify-center px-3.5 py-2 min-h-[44px] rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors shadow-xs select-none cursor-pointer"
+                      >
+                        Enviar plano
+                      </button>
+                      <Link
+                        href={`/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`}
+                        prefetch={false}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center justify-center px-3 py-2 min-h-[44px] rounded-lg text-xs font-semibold text-[#374151] dark:text-[#C2C8CF] bg-[#F3F4F6] dark:bg-[#1B1D21] hover:bg-[#E5E7EB] dark:hover:bg-[#252830] border border-[#D1D5DB] dark:border-[#303238] transition-colors shadow-xs select-none cursor-pointer"
+                      >
+                        Editar plano
+                      </Link>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
         </>
+      )}
+
+      {/* Feedback Toast */}
+      {successFeedback && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200 flex items-center gap-2">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{successFeedback}</span>
+        </div>
+      )}
+
+      {/* Modal de Atribuição / Envio */}
+      {assignPlan && assignPlan.publishedVersionPublicId && (
+        <NutritionAssignModal
+          slug={consultancySlug}
+          planPublicId={assignPlan.publicId}
+          planTitle={assignPlan.title}
+          versionPublicId={assignPlan.publishedVersionPublicId}
+          versionNumber={assignPlan.publishedVersionNumber || assignPlan.versionNumber || 1}
+          isOpen={true}
+          onClose={() => setAssignPlan(null)}
+          onSuccess={() => {
+            setAssignPlan(null);
+            setSuccessFeedback("Plano alimentar enviado com sucesso!");
+            setTimeout(() => setSuccessFeedback(null), 4000);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {/* Modal de Aviso de Rascunho Não Publicado */}
+      {draftWarningPlan && (
+        <NutritionDraftWarningModal
+          isOpen={true}
+          onClose={() => setDraftWarningPlan(null)}
+          planTitle={draftWarningPlan.title}
+          editorHref={`/consultoria/${consultancySlug}/planos-v2/${draftWarningPlan.publicId}`}
+        />
       )}
     </section>
   );

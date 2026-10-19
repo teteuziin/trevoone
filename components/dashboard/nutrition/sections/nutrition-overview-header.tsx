@@ -2,12 +2,19 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   DuotoneStudentsIcon,
   DuotoneNutritionIcon,
   DuotoneFormsIcon,
 } from "@/components/ui/icons/duotone-icons";
 import { NutritionAiImportModal } from "@/components/consultancies/nutrition-v2/nutrition-ai-import-modal";
+import {
+  NutritionPlanChoiceModal,
+  type NutritionPlanCreationChoice,
+} from "@/components/consultancies/nutrition-v2/nutrition-plan-choice-modal";
+import { NutritionAiGenerateModal } from "@/components/consultancies/nutrition-v2/nutrition-ai-generate-modal";
+import { NutritionTemplatePickerModal } from "@/components/consultancies/nutrition-v2/nutrition-template-picker-modal";
 
 export interface NutritionOverviewHeaderProps {
   consultancySlug: string;
@@ -49,7 +56,24 @@ export function NutritionOverviewHeader({
   const displayDraftPlans =
     draftPlansCount !== undefined && draftPlansCount !== null ? draftPlansCount : "—";
 
+  const router = useRouter();
+  const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
+  const [isGenerateAiOpen, setIsGenerateAiOpen] = useState(false);
   const [isImportAiOpen, setIsImportAiOpen] = useState(false);
+  const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
+
+  const handleSelectChoice = (choice: NutritionPlanCreationChoice) => {
+    setIsChoiceModalOpen(false);
+    if (choice === "manual") {
+      router.push(`/consultoria/${consultancySlug}/planos-v2/novo`);
+    } else if (choice === "ai-scratch") {
+      setIsGenerateAiOpen(true);
+    } else if (choice === "ai-import") {
+      setIsImportAiOpen(true);
+    } else if (choice === "template") {
+      setIsTemplatePickerOpen(true);
+    }
+  };
 
   return (
     <header className="w-full">
@@ -80,14 +104,15 @@ export function NutritionOverviewHeader({
               <span>Importar plano</span>
             </button>
 
-            <Link
-              href={`/consultoria/${consultancySlug}/planos-v2/novo`}
-              prefetch={false}
+            {/* + Novo plano (Ação primária de novo plano - sem duplicar o ícone + com o texto) */}
+            <button
+              type="button"
+              onClick={() => setIsChoiceModalOpen(true)}
               className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white flex items-center justify-center gap-2 shadow-sm active:translate-y-[1px] transition-colors cursor-pointer select-none whitespace-nowrap"
             >
               <PlusIcon className="w-4 h-4 stroke-[3] shrink-0" />
-              <span>+ Novo plano</span>
-            </Link>
+              <span>Novo plano</span>
+            </button>
           </div>
         </div>
 
@@ -161,7 +186,21 @@ export function NutritionOverviewHeader({
         </div>
       </div>
 
-      {/* Modal de Importação com IA para Nutrição */}
+      {/* 1. Modal Seletor de Opções (Como deseja criar o plano?) */}
+      <NutritionPlanChoiceModal
+        isOpen={isChoiceModalOpen}
+        onClose={() => setIsChoiceModalOpen(false)}
+        onSelectOption={handleSelectChoice}
+      />
+
+      {/* 2. Modal Criar do Zero com IA */}
+      <NutritionAiGenerateModal
+        consultancySlug={consultancySlug}
+        isOpen={isGenerateAiOpen}
+        onClose={() => setIsGenerateAiOpen(false)}
+      />
+
+      {/* 3. Modal Importar com IA (também acionado diretamente pelo botão 'Importar plano') */}
       {isImportAiOpen && (
         <NutritionAiImportModal
           consultancySlug={consultancySlug}
@@ -170,6 +209,13 @@ export function NutritionOverviewHeader({
           hideTrigger={true}
         />
       )}
+
+      {/* 4. Modal Usar Modelo */}
+      <NutritionTemplatePickerModal
+        consultancySlug={consultancySlug}
+        isOpen={isTemplatePickerOpen}
+        onClose={() => setIsTemplatePickerOpen(false)}
+      />
     </header>
   );
 }

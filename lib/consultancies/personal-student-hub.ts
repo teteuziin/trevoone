@@ -34,6 +34,12 @@ export interface PersonalStudentSummary {
   latestWorkoutStatus: string | null;
   latestAssignmentStatus: "ACTIVE" | "ENDED" | null;
   latestAssignmentStartsOn: string | null;
+  activeNutritionPlanTitle?: string | null;
+  activeNutritionPlanPublicId?: string | null;
+  activeNutritionVersionPublicId?: string | null;
+  activeNutritionVersionNumber?: number | null;
+  activeNutritionStartsOn?: string | null;
+  hasActiveNutritionPlan?: boolean;
 }
 
 export interface PersonalStudentProfile {
@@ -48,6 +54,10 @@ export interface PersonalStudentProfile {
 
 export interface PersonalStudentOverview {
   objective: string | null;
+  nutritionGoal?: string | null;
+  allergies?: string | null;
+  intolerances?: string | null;
+  dietaryRestrictions?: string | null;
   birthDate: string | null;
   age: string | null;
   sex: string | null;
@@ -197,6 +207,13 @@ export interface PersonalStudentDetail {
   completedSessions: CompletedWorkoutSession[];
   measurements: PhysicalMeasurement[];
   nutrition?: StudentNutritionItem[];
+  draftNutritionPlan?: {
+    planPublicId: string;
+    versionPublicId: string;
+    versionNumber: number;
+    title: string;
+    updatedAt: string;
+  } | null;
 }
 
 /**
@@ -227,6 +244,12 @@ export async function listPersonalStudents(params: {
           COALESCE(w.status, wv.status) AS latest_workout_status,
           latest_wa.status AS latest_assignment_status,
           latest_wa.starts_on AS latest_assignment_starts_on,
+          curr_nutri.plan_title AS active_nutrition_plan_title,
+          curr_nutri.plan_public_id AS active_nutrition_plan_public_id,
+          curr_nutri.version_public_id AS active_nutrition_version_public_id,
+          curr_nutri.version_number AS active_nutrition_version_number,
+          curr_nutri.starts_on AS active_nutrition_starts_on,
+          IF(curr_nutri.assignment_public_id IS NOT NULL, 1, 0) AS has_active_nutrition_plan,
           (
             SELECT JSON_UNQUOTE(JSON_EXTRACT(sis.responses_json, '$.main_goal'))
             FROM student_intake_submissions sis
@@ -255,12 +278,28 @@ export async function listPersonalStudents(params: {
         ) latest_wa ON latest_wa.student_membership_id = cm.id
         LEFT JOIN workout_versions wv ON wv.id = latest_wa.workout_version_id
         LEFT JOIN workouts w ON w.id = wv.workout_id
+        LEFT JOIN (
+          SELECT
+            a.student_membership_id,
+            a.public_id AS assignment_public_id,
+            p.public_id AS plan_public_id,
+            COALESCE(v.title, p.title) AS plan_title,
+            v.version_number,
+            v.public_id AS version_public_id,
+            a.starts_on
+          FROM nutrition_v2_assignments a
+          INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
+          INNER JOIN nutrition_v2_plans p ON p.id = v.nutrition_plan_id
+          WHERE a.consultancy_id = ?
+            AND a.status = 'ACTIVE'
+            AND a.deleted_at IS NULL
+        ) curr_nutri ON curr_nutri.student_membership_id = cm.id
         WHERE cm.consultancy_id = ?
           AND cm.status = 'ACTIVE'
           AND u.deleted_at IS NULL
       `;
 
-      const queryParams: (string | number)[] = [consultancyId];
+      const queryParams: (string | number)[] = [consultancyId, consultancyId];
 
       if (search && search.trim()) {
         const q = `%${search.trim()}%`;
@@ -283,6 +322,12 @@ export async function listPersonalStudents(params: {
         latestWorkoutStatus: r.latest_workout_status ? String(r.latest_workout_status) : null,
         latestAssignmentStatus: (r.latest_assignment_status as "ACTIVE" | "ENDED") || null,
         latestAssignmentStartsOn: r.latest_assignment_starts_on ? formatDateYmd(r.latest_assignment_starts_on) : null,
+        activeNutritionPlanTitle: r.active_nutrition_plan_title ? String(r.active_nutrition_plan_title) : null,
+        activeNutritionPlanPublicId: r.active_nutrition_plan_public_id ? String(r.active_nutrition_plan_public_id) : null,
+        activeNutritionVersionPublicId: r.active_nutrition_version_public_id ? String(r.active_nutrition_version_public_id) : null,
+        activeNutritionVersionNumber: r.active_nutrition_version_number ? Number(r.active_nutrition_version_number) : null,
+        activeNutritionStartsOn: r.active_nutrition_starts_on ? formatDateYmd(r.active_nutrition_starts_on) : null,
+        hasActiveNutritionPlan: Boolean(r.has_active_nutrition_plan),
       }));
     } catch (enrichmentError) {
       console.error("[PersonalStudentHub] Enriched list query failed, falling back to core list:", enrichmentError);
@@ -327,6 +372,12 @@ export async function listPersonalStudents(params: {
         latestWorkoutStatus: null,
         latestAssignmentStatus: null,
         latestAssignmentStartsOn: null,
+        activeNutritionPlanTitle: null,
+        activeNutritionPlanPublicId: null,
+        activeNutritionVersionPublicId: null,
+        activeNutritionVersionNumber: null,
+        activeNutritionStartsOn: null,
+        hasActiveNutritionPlan: false,
       }));
     }
   } finally {
@@ -463,7 +514,8 @@ export async function getPersonalStudentDetail(params: {
             submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : null,
             questions,
           });
-        } else {
+        }
+        if (!isAnamnesis) {
           const title = String(row.form_key).toLowerCase().includes("physical")
             ? "Questionário de Avaliação Física"
             : `Questionário / ${String(row.form_key).replace(/_/g, " ")}`;
@@ -1073,12 +1125,58 @@ export async function getPersonalStudentDetail(params: {
       nutritionPlans = [];
     }
 
+    // 8.6. Fetch Draft Nutrition V2 Plan if any
+    let draftNutritionPlan: PersonalStudentDetail["draftNutritionPlan"] = null;
+    try {
+      const [draftRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          p.public_id AS plan_public_id,
+          v.public_id AS version_public_id,
+          v.version_number,
+          COALESCE(v.title, p.title) AS draft_title,
+          v.updated_at
+         FROM nutrition_v2_assignments a
+         INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
+         INNER JOIN nutrition_v2_plans p ON p.id = v.nutrition_plan_id
+         WHERE a.consultancy_id = ?
+           AND a.student_membership_id = ?
+           AND a.status = 'DRAFT'
+           AND a.deleted_at IS NULL
+           AND v.status = 'DRAFT'
+           AND v.deleted_at IS NULL
+         ORDER BY a.id DESC
+         LIMIT 1;`,
+        [consultancyId, membershipId]
+      );
+      if (Array.isArray(draftRows) && draftRows.length > 0) {
+        const dr = draftRows[0];
+        draftNutritionPlan = {
+          planPublicId: String(dr.plan_public_id),
+          versionPublicId: String(dr.version_public_id),
+          versionNumber: Number(dr.version_number || 1),
+          title: String(dr.draft_title),
+          updatedAt: dr.updated_at ? new Date(dr.updated_at).toISOString() : new Date().toISOString(),
+        };
+      }
+    } catch {
+      draftNutritionPlan = null;
+    }
+
     // 9. Overview Metrics
     const latestWorkout = workouts.length > 0 ? workouts[0] : null;
     const activeWorkoutsCount = workouts.filter((w) => w.status === "ACTIVE").length;
 
+    const nutritionGoal = mergedResponses.main_goal ? String(mergedResponses.main_goal) : null;
+    const allergies = mergedResponses.food_allergies ? String(mergedResponses.food_allergies) : null;
+    const intolerances = mergedResponses.food_intolerances ? String(mergedResponses.food_intolerances) : null;
+    const dietaryRestrictions = mergedResponses.medical_restrictions ? String(mergedResponses.medical_restrictions) : null;
+
     const overview: PersonalStudentOverview = {
       objective: mergedResponses.main_goal ? String(mergedResponses.main_goal) : (latestWorkout?.objective || null),
+      nutritionGoal,
+      allergies,
+      intolerances,
+      dietaryRestrictions,
       birthDate: mergedResponses.birth_date ? String(mergedResponses.birth_date) : null,
       age: mergedResponses.age ? String(mergedResponses.age) : null,
       sex: mergedResponses.sex ? String(mergedResponses.sex) : null,
@@ -1112,6 +1210,7 @@ export async function getPersonalStudentDetail(params: {
       completedSessions,
       measurements,
       nutrition: nutritionPlans,
+      draftNutritionPlan,
     };
   } finally {
     if (connection) {

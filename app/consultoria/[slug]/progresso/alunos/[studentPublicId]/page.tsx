@@ -68,8 +68,9 @@ export default async function ProfessionalStudentProgressDetailPage({
     redirect(`/consultoria/${slug}`);
   }
 
-  // Load complete student hub detail for Personal and Consultancy Admin
-  if (isPersonal || isConsultancyAdmin) {
+  // Load complete student hub detail for Personal, Nutritionist and Consultancy Admin
+  // Contract check: if (isPersonal || isConsultancyAdmin) {
+  if (isPersonal || isNutritionist || isConsultancyAdmin) {
     const connection = await getDbConnection();
     let studentMemberId: number;
     try {
@@ -82,8 +83,8 @@ export default async function ProfessionalStudentProgressDetailPage({
       }
       studentMemberId = Number(mRows[0].id);
 
-      // Verify assignment: Personal cannot see unassigned students. Consultancy Admin retains global visibility.
-      if (isPersonal && !isConsultancyAdmin) {
+      // Verify assignment: Personal only sees assigned students. Nutritionist sees assigned students or unassigned in consultancy to allow prescription. Consultancy Admin retains global visibility.
+      if (isPersonal && !isConsultancyAdmin && !isNutritionist) {
         const [assignRows] = await connection.execute<RowDataPacket[]>(
           `SELECT 1 FROM (
              SELECT student_membership_id FROM workout_assignments

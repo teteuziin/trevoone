@@ -4,8 +4,15 @@ import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserAvatar } from "@/components/account/user-avatar";
-import { DuotoneStudentsIcon, DuotoneTrainingIcon } from "@/components/ui/icons/duotone-icons";
+import { DuotoneStudentsIcon, DuotoneTrainingIcon, DuotoneNutritionIcon } from "@/components/ui/icons/duotone-icons";
 import type { PersonalStudentSummary } from "@/lib/consultancies/personal-student-hub";
+import {
+  NutritionPlanChoiceModal,
+  type NutritionPlanCreationChoice,
+} from "../nutrition-v2/nutrition-plan-choice-modal";
+import { NutritionAiGenerateModal } from "../nutrition-v2/nutrition-ai-generate-modal";
+import { NutritionAiImportModal } from "../nutrition-v2/nutrition-ai-import-modal";
+import { NutritionTemplatePickerModal } from "../nutrition-v2/nutrition-template-picker-modal";
 
 function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -91,11 +98,38 @@ export function PersonalStudentList({
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState(initialSearch);
-  const [filter, setFilter] = useState<"all" | "with_workout" | "without_workout">(
-    initialFilter === "with_workout" || initialFilter === "without_workout" ? initialFilter : "all"
+  const [filter, setFilter] = useState<string>(
+    initialFilter || "all"
   );
   const [sortBy, setSortBy] = useState<"name_asc" | "recent" | "name_desc">("name_asc");
   const [currentPage, setCurrentPage] = useState(initialPage);
+
+  // Selected student for NutritionPlanChoiceModal
+  const [selectedStudentForPlan, setSelectedStudentForPlan] = useState<PersonalStudentSummary | null>(null);
+  const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
+  const [isGenerateAiOpen, setIsGenerateAiOpen] = useState(false);
+  const [isImportAiOpen, setIsImportAiOpen] = useState(false);
+  const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
+
+  const handleOpenPlanCreation = (student: PersonalStudentSummary) => {
+    setSelectedStudentForPlan(student);
+    setIsChoiceModalOpen(true);
+  };
+
+  const handleSelectPlanChoice = (choice: NutritionPlanCreationChoice) => {
+    setIsChoiceModalOpen(false);
+    if (!selectedStudentForPlan) return;
+    const studentPubId = selectedStudentForPlan.membershipPublicId;
+    if (choice === "manual") {
+      router.push(`/consultoria/${consultancySlug}/planos-v2/novo?student=${studentPubId}&studentId=${studentPubId}`);
+    } else if (choice === "ai-scratch") {
+      setIsGenerateAiOpen(true);
+    } else if (choice === "ai-import") {
+      setIsImportAiOpen(true);
+    } else if (choice === "template") {
+      setIsTemplatePickerOpen(true);
+    }
+  };
 
   // Real Counts
   const totalCount = students.length;
@@ -107,16 +141,32 @@ export function PersonalStudentList({
     () => students.filter((s) => !s.latestWorkoutTitle || s.latestAssignmentStatus !== "ACTIVE").length,
     [students]
   );
+  const withPlanCount = useMemo(
+    () => students.filter((s) => Boolean(s.hasActiveNutritionPlan)).length,
+    [students]
+  );
+  const withoutPlanCount = useMemo(
+    () => students.filter((s) => !s.hasActiveNutritionPlan).length,
+    [students]
+  );
 
   // Filtered & Sorted Student List
   const filteredStudents = useMemo(() => {
     return students
       .filter((student) => {
         // Status filter
-        if (filter === "with_workout") {
-          if (student.latestAssignmentStatus !== "ACTIVE" || !student.latestWorkoutTitle) return false;
-        } else if (filter === "without_workout") {
-          if (student.latestWorkoutTitle && student.latestAssignmentStatus === "ACTIVE") return false;
+        if (isEffectiveNutritionist) {
+          if (filter === "with_plan" || filter === "with_workout") {
+            if (!student.hasActiveNutritionPlan) return false;
+          } else if (filter === "without_plan" || filter === "without_workout") {
+            if (student.hasActiveNutritionPlan) return false;
+          }
+        } else {
+          if (filter === "with_workout") {
+            if (student.latestAssignmentStatus !== "ACTIVE" || !student.latestWorkoutTitle) return false;
+          } else if (filter === "without_workout") {
+            if (student.latestWorkoutTitle && student.latestAssignmentStatus === "ACTIVE") return false;
+          }
         }
 
         // Search query filter (ignoring accents & case)
@@ -141,7 +191,7 @@ export function PersonalStudentList({
         }
         return 0;
       });
-  }, [students, filter, searchQuery, sortBy]);
+  }, [students, filter, searchQuery, sortBy, isEffectiveNutritionist]);
 
   // Pagination calculations (10 students per page)
   const PAGE_SIZE = 10;
@@ -163,7 +213,7 @@ export function PersonalStudentList({
     window.history.replaceState(null, "", targetUrl);
   }, [safePage, filter, searchQuery, consultancySlug]);
 
-  function handleFilterChange(newFilter: "all" | "with_workout" | "without_workout") {
+  function handleFilterChange(newFilter: "all" | "with_workout" | "without_workout" | "with_plan" | "without_plan") {
     setFilter(newFilter);
     setCurrentPage(1);
   }
@@ -264,31 +314,35 @@ export function PersonalStudentList({
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
-              <DuotoneStudentsIcon className="w-5 h-5 text-blue-400" />
+            <div className={`w-10 h-10 rounded-xl ${isEffectiveNutritionist ? "bg-emerald-500/10 border-emerald-500/20" : "bg-blue-500/10 border-blue-500/20"} border flex items-center justify-center shrink-0`}>
+              {isEffectiveNutritionist ? (
+                <DuotoneNutritionIcon className="w-5 h-5 text-emerald-400" />
+              ) : (
+                <DuotoneStudentsIcon className="w-5 h-5 text-blue-400" />
+              )}
             </div>
             <div className="min-w-0">
               <div className="flex items-baseline gap-2.5">
                 <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                  Alunos
+                  {isEffectiveNutritionist ? "Pacientes" : "Alunos"}
                 </h1>
                 <span className="text-xs sm:text-sm text-[#8E929C] font-normal">
-                  {totalCount} {totalCount === 1 ? "aluno cadastrado" : "alunos cadastrados"}
+                  {totalCount} {isEffectiveNutritionist ? (totalCount === 1 ? "paciente cadastrado" : "pacientes cadastrados") : (totalCount === 1 ? "aluno cadastrado" : "alunos cadastrados")}
                 </span>
               </div>
               <p className="text-xs text-[#8E929C] truncate">
-                Gestão e acompanhamento direto dos alunos da consultoria
+                {isEffectiveNutritionist ? "Gestão e acompanhamento direto dos pacientes da consultoria" : "Gestão e acompanhamento direto dos alunos da consultoria"}
               </p>
             </div>
           </div>
 
           {isAdmin && (
             <Link
-              href={`/consultoria/${consultancySlug}/administracao/membros`}
+              href={`/consultoria/${consultancySlug}/membros`}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-[#10B981] hover:bg-[#059669] active:bg-[#047857] transition-colors min-h-[44px] shadow-sm shrink-0 self-start sm:self-auto"
             >
               <UserPlusIcon className="w-4 h-4" />
-              <span>Convidar membro</span>
+              <span>{isEffectiveNutritionist ? "Convidar paciente" : "Convidar membro"}</span>
             </Link>
           )}
         </div>
@@ -309,7 +363,7 @@ export function PersonalStudentList({
             type="text"
             value={searchQuery}
             onChange={handleSearchChange}
-            placeholder="Buscar aluno por nome ou e-mail..."
+            placeholder={isEffectiveNutritionist ? "Buscar paciente por nome ou e-mail..." : "Buscar aluno por nome ou e-mail..."}
             className="w-full h-11 sm:h-12 pl-10 pr-10 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-sm text-[#17191D] dark:text-[#F3F4F6] placeholder-zinc-400 focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] transition-all min-h-[44px]"
           />
           {searchQuery && (
@@ -343,35 +397,71 @@ export function PersonalStudentList({
               </span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => handleFilterChange("with_workout")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[40px] inline-flex items-center gap-1.5 cursor-pointer ${
-                filter === "with_workout"
-                  ? "bg-[#10B981] text-white shadow-xs"
-                  : "bg-[#F9FAFB] dark:bg-[#1B1D21] text-[#4B5563] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#25282F] border border-[#E5E7EB] dark:border-[#303238]"
-              }`}
-            >
-              <span>Com treino</span>
-              <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${filter === "with_workout" ? "bg-white/20 text-white" : "bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-600 dark:text-zinc-300"}`}>
-                {withWorkoutCount}
-              </span>
-            </button>
+            {isEffectiveNutritionist ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange("with_plan")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[40px] inline-flex items-center gap-1.5 cursor-pointer ${
+                    filter === "with_plan" || filter === "with_workout"
+                      ? "bg-[#10B981] text-white shadow-xs"
+                      : "bg-[#F9FAFB] dark:bg-[#1B1D21] text-[#4B5563] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#25282F] border border-[#E5E7EB] dark:border-[#303238]"
+                  }`}
+                >
+                  <span>Com plano ativo</span>
+                  <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${(filter === "with_plan" || filter === "with_workout") ? "bg-white/20 text-white" : "bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-600 dark:text-zinc-300"}`}>
+                    {withPlanCount}
+                  </span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => handleFilterChange("without_workout")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[40px] inline-flex items-center gap-1.5 cursor-pointer ${
-                filter === "without_workout"
-                  ? "bg-[#10B981] text-white shadow-xs"
-                  : "bg-[#F9FAFB] dark:bg-[#1B1D21] text-[#4B5563] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#25282F] border border-[#E5E7EB] dark:border-[#303238]"
-              }`}
-            >
-              <span>Sem treino</span>
-              <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${filter === "without_workout" ? "bg-white/20 text-white" : "bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-600 dark:text-zinc-300"}`}>
-                {withoutWorkoutCount}
-              </span>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange("without_plan")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[40px] inline-flex items-center gap-1.5 cursor-pointer ${
+                    filter === "without_plan" || filter === "without_workout"
+                      ? "bg-[#10B981] text-white shadow-xs"
+                      : "bg-[#F9FAFB] dark:bg-[#1B1D21] text-[#4B5563] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#25282F] border border-[#E5E7EB] dark:border-[#303238]"
+                  }`}
+                >
+                  <span>Sem plano ativo</span>
+                  <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${(filter === "without_plan" || filter === "without_workout") ? "bg-white/20 text-white" : "bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-600 dark:text-zinc-300"}`}>
+                    {withoutPlanCount}
+                  </span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange("with_workout")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[40px] inline-flex items-center gap-1.5 cursor-pointer ${
+                    filter === "with_workout"
+                      ? "bg-[#10B981] text-white shadow-xs"
+                      : "bg-[#F9FAFB] dark:bg-[#1B1D21] text-[#4B5563] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#25282F] border border-[#E5E7EB] dark:border-[#303238]"
+                  }`}
+                >
+                  <span>Com treino</span>
+                  <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${filter === "with_workout" ? "bg-white/20 text-white" : "bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-600 dark:text-zinc-300"}`}>
+                    {withWorkoutCount}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange("without_workout")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[40px] inline-flex items-center gap-1.5 cursor-pointer ${
+                    filter === "without_workout"
+                      ? "bg-[#10B981] text-white shadow-xs"
+                      : "bg-[#F9FAFB] dark:bg-[#1B1D21] text-[#4B5563] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#25282F] border border-[#E5E7EB] dark:border-[#303238]"
+                  }`}
+                >
+                  <span>Sem treino</span>
+                  <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${filter === "without_workout" ? "bg-white/20 text-white" : "bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-600 dark:text-zinc-300"}`}>
+                    {withoutWorkoutCount}
+                  </span>
+                </button>
+              </>
+            )}
           </div>
 
           {/* Sort Selector */}
@@ -400,8 +490,8 @@ export function PersonalStudentList({
       <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl sm:rounded-3xl shadow-xs overflow-hidden">
         {/* Desktop Header Row */}
         <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-3 bg-[#F9FAFB] dark:bg-[#1B1D21] border-b border-[#E5E7EB] dark:border-[#303238] text-[11px] font-bold uppercase tracking-wider text-[#6B7280] dark:text-[#8E929C]">
-          <div className="col-span-5">Aluno</div>
-          <div className="col-span-4">Status do treino</div>
+          <div className="col-span-5">{isEffectiveNutritionist ? "Paciente" : "Aluno"}</div>
+          <div className="col-span-4">{isEffectiveNutritionist ? "Plano alimentar" : "Status do treino"}</div>
           <div className="col-span-3 text-right">Ações</div>
         </div>
 
@@ -410,8 +500,8 @@ export function PersonalStudentList({
           <div className="p-8 sm:p-12 text-center space-y-3">
             <p className="text-sm font-semibold text-[#17191D] dark:text-[#F3F4F6]">
               {searchQuery.trim()
-                ? `Nenhum aluno encontrado para "${searchQuery}" com o filtro selecionado.`
-                : "Nenhum aluno encontrado para este filtro."}
+                ? `Nenhum ${isEffectiveNutritionist ? "paciente" : "aluno"} encontrado para "${searchQuery}" com o filtro selecionado.`
+                : `Nenhum ${isEffectiveNutritionist ? "paciente" : "aluno"} encontrado para este filtro.`}
             </p>
             {(searchQuery.trim() || filter !== "all") && (
               <button
@@ -432,9 +522,13 @@ export function PersonalStudentList({
             {paginatedStudents.map((student) => {
               const hasActiveWorkout =
                 student.latestAssignmentStatus === "ACTIVE" && Boolean(student.latestWorkoutTitle);
+              const hasActiveNutrition = Boolean(student.hasActiveNutritionPlan && student.activeNutritionPlanTitle);
 
               const studentDetailHref = `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?fromPage=${safePage}&filter=${filter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`;
               const createWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
+              const openPlanHref = student.activeNutritionPlanPublicId
+                ? `/consultoria/${consultancySlug}/planos-v2/${student.activeNutritionPlanPublicId}?student=${student.membershipPublicId}`
+                : null;
 
               return (
                 <div
@@ -443,7 +537,7 @@ export function PersonalStudentList({
                 >
                   {/* Desktop Layout (Columns) */}
                   <div className="hidden md:grid md:grid-cols-12 md:items-center gap-4 px-6 py-4">
-                    {/* Aluno: Avatar + Nome + Email */}
+                    {/* Aluno/Paciente: Avatar + Nome + Email */}
                     <div className="col-span-5 flex items-center gap-3.5 min-w-0">
                       <Link href={studentDetailHref} className="shrink-0" aria-label={`Perfil de ${student.name}`}>
                         <UserAvatar
@@ -466,32 +560,67 @@ export function PersonalStudentList({
                       </div>
                     </div>
 
-                    {/* Status do Treino */}
+                    {/* Status: Plano Alimentar vs Treino */}
                     <div className="col-span-4 min-w-0">
-                      {hasActiveWorkout ? (
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 max-w-full">
-                          <DuotoneTrainingIcon className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                          <span className="truncate">
-                            Treino ativo: {student.latestWorkoutTitle}
-                          </span>
-                        </div>
+                      {isEffectiveNutritionist ? (
+                        hasActiveNutrition ? (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 max-w-full">
+                            <DuotoneNutritionIcon className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            <span className="truncate">
+                              Plano ativo: {student.activeNutritionPlanTitle}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
+                            <span>Sem plano ativo</span>
+                          </div>
+                        )
                       ) : (
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
-                          <span>Sem treino prescrito</span>
-                        </div>
+                        hasActiveWorkout ? (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 max-w-full">
+                            <DuotoneTrainingIcon className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            <span className="truncate">
+                              Treino ativo: {student.latestWorkoutTitle}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
+                            <span>Sem treino prescrito</span>
+                          </div>
+                        )
                       )}
                     </div>
 
                     {/* Ações */}
                     <div className="col-span-3 flex items-center justify-end gap-2 shrink-0">
-                      {!hasActiveWorkout && !isEffectiveNutritionist && (
-                        <Link
-                          href={createWorkoutHref}
-                          className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#10B981] hover:bg-[#059669] transition-colors min-h-[40px] inline-flex items-center gap-1 shrink-0"
-                        >
-                          <PlusIcon className="w-3.5 h-3.5" />
-                          <span>Criar treino</span>
-                        </Link>
+                      {isEffectiveNutritionist ? (
+                        hasActiveNutrition && openPlanHref ? (
+                          <Link
+                            href={openPlanHref}
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#10B981] hover:bg-[#059669] transition-colors min-h-[40px] inline-flex items-center gap-1 shrink-0 shadow-xs cursor-pointer"
+                          >
+                            <span>Abrir plano</span>
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPlanCreation(student)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#10B981] hover:bg-[#059669] transition-colors min-h-[40px] inline-flex items-center gap-1 shrink-0 shadow-xs cursor-pointer"
+                          >
+                            <PlusIcon className="w-3.5 h-3.5" />
+                            <span>Criar plano</span>
+                          </button>
+                        )
+                      ) : (
+                        !hasActiveWorkout && (
+                          <Link
+                            href={createWorkoutHref}
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#10B981] hover:bg-[#059669] transition-colors min-h-[40px] inline-flex items-center gap-1 shrink-0"
+                          >
+                            <PlusIcon className="w-3.5 h-3.5" />
+                            <span>Criar treino</span>
+                          </Link>
+                        )
                       )}
 
                       <Link
@@ -550,33 +679,74 @@ export function PersonalStudentList({
                       </div>
                     </div>
 
-                    {/* Linha 2: Status do Treino + Ação Independente "+ Treino" */}
+                    {/* Linha 2: Status + Ação Secundária */}
                     <div className="flex items-center justify-between gap-2 pt-0.5">
                       <div className="min-w-0 flex-1">
-                        {hasActiveWorkout ? (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 max-w-full">
-                            <DuotoneTrainingIcon className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                            <span className="truncate">
-                              Treino ativo: {student.latestWorkoutTitle}
-                            </span>
-                          </div>
+                        {isEffectiveNutritionist ? (
+                          hasActiveNutrition ? (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 max-w-full">
+                              <DuotoneNutritionIcon className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                              <span className="truncate">
+                                Plano ativo: {student.activeNutritionPlanTitle}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
+                              <span>Sem plano ativo</span>
+                            </div>
+                          )
                         ) : (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
-                            <span>Sem treino prescrito</span>
-                          </div>
+                          hasActiveWorkout ? (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 max-w-full">
+                              <DuotoneTrainingIcon className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                              <span className="truncate">
+                                Treino ativo: {student.latestWorkoutTitle}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
+                              <span>Sem treino prescrito</span>
+                            </div>
+                          )
                         )}
                       </div>
 
-                      {!hasActiveWorkout && !isEffectiveNutritionist && (
-                        <Link
-                          href={createWorkoutHref}
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-[#10B981] hover:bg-[#059669] min-h-[38px] transition-colors shrink-0 shadow-xs cursor-pointer"
-                          aria-label={`Criar treino para ${student.name}`}
-                        >
-                          <PlusIcon className="w-3.5 h-3.5" />
-                          <span>+ Treino</span>
-                        </Link>
+                      {isEffectiveNutritionist ? (
+                        hasActiveNutrition && openPlanHref ? (
+                          <Link
+                            href={openPlanHref}
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-[#10B981] hover:bg-[#059669] min-h-[38px] transition-colors shrink-0 shadow-xs cursor-pointer"
+                            aria-label={`Abrir plano alimentar de ${student.name}`}
+                          >
+                            <span>Abrir plano</span>
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenPlanCreation(student);
+                            }}
+                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-[#10B981] hover:bg-[#059669] min-h-[38px] transition-colors shrink-0 shadow-xs cursor-pointer"
+                            aria-label={`Criar plano alimentar para ${student.name}`}
+                          >
+                            <PlusIcon className="w-3.5 h-3.5" />
+                            <span>+ Plano</span>
+                          </button>
+                        )
+                      ) : (
+                        !hasActiveWorkout && (
+                          <Link
+                            href={createWorkoutHref}
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-[#10B981] hover:bg-[#059669] min-h-[38px] transition-colors shrink-0 shadow-xs cursor-pointer"
+                            aria-label={`Criar treino para ${student.name}`}
+                          >
+                            <PlusIcon className="w-3.5 h-3.5" />
+                            <span>+ Treino</span>
+                          </Link>
+                        )
                       )}
                     </div>
                   </div>
@@ -594,7 +764,7 @@ export function PersonalStudentList({
           <div className="p-4 sm:px-6 py-3.5 bg-[#F9FAFB] dark:bg-[#1B1D21] border-t border-[#E5E7EB] dark:border-[#303238] flex flex-col sm:flex-row items-center justify-between gap-3">
             <span className="text-xs text-[#6B7280] dark:text-[#8E929C]">
               Mostrando <strong className="text-[#17191D] dark:text-[#F3F4F6]">{startIndex + 1}–{Math.min(endIndex, filteredStudents.length)}</strong> de{" "}
-              <strong className="text-[#17191D] dark:text-[#F3F4F6]">{filteredStudents.length}</strong> alunos
+              <strong className="text-[#17191D] dark:text-[#F3F4F6]">{filteredStudents.length}</strong> {isEffectiveNutritionist ? "pacientes" : "alunos"}
             </span>
 
             <div className="flex items-center gap-2">
@@ -625,6 +795,34 @@ export function PersonalStudentList({
           </div>
         )}
       </div>
+
+      {/* =========================================================================
+          MODAIS DE CRIAÇÃO DE PLANO NUTRICIONAL (4 OPÇÕES)
+          ========================================================================= */}
+      <NutritionPlanChoiceModal
+        isOpen={isChoiceModalOpen}
+        onClose={() => setIsChoiceModalOpen(false)}
+        onSelectOption={handleSelectPlanChoice}
+      />
+
+      <NutritionAiGenerateModal
+        isOpen={isGenerateAiOpen}
+        onClose={() => setIsGenerateAiOpen(false)}
+        consultancySlug={consultancySlug}
+      />
+
+      <NutritionAiImportModal
+        isOpenControlled={isImportAiOpen}
+        onCloseControlled={() => setIsImportAiOpen(false)}
+        consultancySlug={consultancySlug}
+        hideTrigger={true}
+      />
+
+      <NutritionTemplatePickerModal
+        isOpen={isTemplatePickerOpen}
+        onClose={() => setIsTemplatePickerOpen(false)}
+        consultancySlug={consultancySlug}
+      />
     </div>
   );
 }

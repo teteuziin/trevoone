@@ -12,7 +12,15 @@ import {
   DuotonePhotosIcon,
   DuotoneAnamnesisIcon,
   DuotoneFormsIcon,
+  DuotoneNutritionIcon,
 } from "@/components/ui/icons/duotone-icons";
+import {
+  NutritionPlanChoiceModal,
+  type NutritionPlanCreationChoice,
+} from "../nutrition-v2/nutrition-plan-choice-modal";
+import { NutritionAiGenerateModal } from "../nutrition-v2/nutrition-ai-generate-modal";
+import { NutritionAiImportModal } from "../nutrition-v2/nutrition-ai-import-modal";
+import { NutritionTemplatePickerModal } from "../nutrition-v2/nutrition-template-picker-modal";
 import { PersonalRequestModal, type RequestModalType } from "./personal-request-modal";
 import { StudentNewWorkoutSheet } from "./student-new-workout-sheet";
 import { StudentPhotosMural } from "./student-photos-mural";
@@ -32,7 +40,16 @@ interface PersonalStudentDetailViewProps {
   backHref?: string;
 }
 
-type TabKey = "visao-geral" | "treinos" | "fotos" | "anamnese" | "formularios" | "avaliacoes" | "nutricao";
+type TabKey =
+  | "visao-geral"
+  | "treinos"
+  | "fotos"
+  | "anamnese"
+  | "formularios"
+  | "avaliacoes"
+  | "nutricao"
+  | "planos"
+  | "evolucao";
 
 // ============================================================================
 // ICONS
@@ -174,14 +191,38 @@ export function PersonalStudentDetailView({
     type: "PHOTOS",
   });
 
+  // Nutrition plan creation choice modal states
+  const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
+  const [isGenerateAiOpen, setIsGenerateAiOpen] = useState(false);
+  const [isImportAiOpen, setIsImportAiOpen] = useState(false);
+  const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
+
+  const handleSelectPlanChoice = (choice: NutritionPlanCreationChoice) => {
+    setIsChoiceModalOpen(false);
+    const studentPubId = student.membershipPublicId;
+    if (choice === "manual") {
+      router.push(`/consultoria/${consultancySlug}/planos-v2/novo?student=${studentPubId}&studentId=${studentPubId}`);
+    } else if (choice === "ai-scratch") {
+      setIsGenerateAiOpen(true);
+    } else if (choice === "ai-import") {
+      setIsImportAiOpen(true);
+    } else if (choice === "template") {
+      setIsTemplatePickerOpen(true);
+    }
+  };
+
   const isNutritionist = effectiveMode === "NUTRITIONIST" || (userRoles.includes("NUTRITIONIST") && effectiveMode !== "PERSONAL");
   const isPersonal = effectiveMode === "PERSONAL" || (userRoles.includes("PERSONAL") && effectiveMode !== "NUTRITIONIST");
+  const isEffectiveNutritionist = effectiveMode === "NUTRITIONIST" || (isNutritionist && !isPersonal);
 
   const createPlanHref = `/consultoria/${consultancySlug}/planos-v2/novo?student=${student.membershipPublicId}&studentId=${student.membershipPublicId}`;
+  const createWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
 
   // Real active workout vs ended workouts
   const activeWorkout = workouts.find((w) => w.status === "ACTIVE") || null;
   const endedWorkouts = workouts.filter((w) => w.status === "ENDED");
+  const activeNutritionPlan = nutrition.find((n) => n.status === "ACTIVE") || null;
+  const draftNutritionPlan = detail.draftNutritionPlan || null;
 
   // Navigation sections list (Ordered per specification)
   const desktopTabs: Array<{
@@ -190,25 +231,39 @@ export function PersonalStudentDetailView({
     icon: React.ComponentType<{ className?: string }>;
     count?: number;
     badge?: string;
-  }> = [
-    { key: "visao-geral", label: "Visão Geral", icon: DuotoneOverviewIcon },
-    { key: "treinos", label: "Treinos", icon: DuotoneTrainingIcon, count: workouts.length },
-    { key: "fotos", label: "Fotos", icon: DuotonePhotosIcon, count: photos.length },
-    {
-      key: "anamnese",
-      label: "Anamnese",
-      icon: DuotoneAnamnesisIcon,
-      badge: overview.hasAnamnesis ? "Preenchida" : "Pendente",
-    },
-    { key: "formularios", label: "Formulários", icon: DuotoneFormsIcon, count: forms.length },
-  ];
+  }> = isEffectiveNutritionist
+    ? [
+        { key: "visao-geral", label: "Visão geral", icon: DuotoneOverviewIcon },
+        { key: "planos", label: "Planos alimentares", icon: DuotoneNutritionIcon, count: nutrition.length },
+        { key: "evolucao", label: "Evolução", icon: DuotonePhotosIcon, count: photos.length + measurements.length },
+        {
+          key: "anamnese",
+          label: "Anamnese",
+          icon: DuotoneAnamnesisIcon,
+          badge: overview.hasAnamnesis ? "Preenchida" : "Pendente",
+        },
+        { key: "formularios", label: "Formulários", icon: DuotoneFormsIcon, count: forms.length },
+      ]
+    : [
+        { key: "visao-geral", label: "Visão Geral", icon: DuotoneOverviewIcon },
+        { key: "treinos", label: "Treinos", icon: DuotoneTrainingIcon, count: workouts.length },
+        { key: "fotos", label: "Fotos", icon: DuotonePhotosIcon, count: photos.length },
+        {
+          key: "anamnese",
+          label: "Anamnese",
+          icon: DuotoneAnamnesisIcon,
+          badge: overview.hasAnamnesis ? "Preenchida" : "Pendente",
+        },
+        { key: "formularios", label: "Formulários", icon: DuotoneFormsIcon, count: forms.length },
+      ];
 
-  if (measurements.length > 0) {
-    desktopTabs.push({ key: "avaliacoes", label: "Avaliações", icon: ScaleIcon, count: measurements.length });
-  }
-
-  if (nutrition.length > 0) {
-    desktopTabs.push({ key: "nutricao", label: "Nutrição", icon: AppleIcon, count: nutrition.length });
+  if (!isEffectiveNutritionist) {
+    if (measurements.length > 0) {
+      desktopTabs.push({ key: "avaliacoes", label: "Avaliações", icon: ScaleIcon, count: measurements.length });
+    }
+    if (nutrition.length > 0) {
+      desktopTabs.push({ key: "nutricao", label: "Nutrição", icon: AppleIcon, count: nutrition.length });
+    }
   }
 
   // Mobile sections list matching desktop
@@ -226,7 +281,7 @@ export function PersonalStudentDetailView({
   return (
     <div className="space-y-5 sm:space-y-6 pb-16">
       {/* =========================================================================
-          BREADCRUMB / VOLTAR AOS ALUNOS (Sem respiro vertical exagerado)
+          BREADCRUMB / VOLTAR AOS PACIENTES OU ALUNOS
           ========================================================================= */}
       <div className="flex items-center justify-between">
         <Link
@@ -234,7 +289,7 @@ export function PersonalStudentDetailView({
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] cursor-pointer"
         >
           <ArrowLeftIcon className="w-4 h-4" />
-          <span>Voltar aos alunos</span>
+          <span>{isEffectiveNutritionist ? "Voltar aos pacientes" : "Voltar aos alunos"}</span>
         </Link>
       </div>
 
@@ -269,14 +324,25 @@ export function PersonalStudentDetailView({
 
           {/* Ações do Cabeçalho: CTA Contextual Único + Menu Secundário */}
           <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t border-[#303238] sm:border-0">
-            {activeTab === "nutricao" || (effectiveMode === "NUTRITIONIST" && !activeWorkout) || (isNutritionist && !isPersonal) ? (
-              <Link
-                href={createPlanHref}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 transition-colors min-h-[44px] shadow-sm cursor-pointer"
-              >
-                <AppleIcon className="w-4 h-4" />
-                <span>Criar plano alimentar</span>
-              </Link>
+            {activeTab === "planos" || (activeTab === "nutricao" || (effectiveMode === "NUTRITIONIST" && !activeWorkout) || (isNutritionist && !isPersonal)) ? (
+              activeNutritionPlan ? (
+                <Link
+                  href={`/consultoria/${consultancySlug}/planos-v2/${activeNutritionPlan.planPublicId}?student=${student.membershipPublicId}`}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 transition-colors min-h-[44px] shadow-sm cursor-pointer"
+                >
+                  <AppleIcon className="w-4 h-4" />
+                  <span>Abrir plano</span>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsChoiceModalOpen(true)}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 transition-colors min-h-[44px] shadow-sm cursor-pointer"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  <span>Criar plano alimentar</span>
+                </button>
+              )
             ) : activeWorkout ? (
               <Link
                 href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
@@ -359,6 +425,22 @@ export function PersonalStudentDetailView({
                       <ScaleIcon className="w-4 h-4 text-amber-400" />
                       <span>Abrir Cockpit de Evolução 360°</span>
                     </button>
+                    <Link
+                      href={createWorkoutHref}
+                      onClick={() => setIsSecondaryMenuOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#E5E7EB] hover:bg-[#2A2D33] transition-colors min-h-[40px] text-left"
+                    >
+                      <DumbbellIcon className="w-4 h-4 text-emerald-400" />
+                      <span>{isEffectiveNutritionist ? "Atribuir rotina de treino" : "Criar nova rotina de treino"}</span>
+                    </Link>
+                    <Link
+                      href={createPlanHref}
+                      onClick={() => setIsSecondaryMenuOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#E5E7EB] hover:bg-[#2A2D33] transition-colors min-h-[40px] text-left"
+                    >
+                      <AppleIcon className="w-4 h-4 text-emerald-400" />
+                      <span>Novo plano alimentar</span>
+                    </Link>
                     {student.email && (
                       <a
                         href={`mailto:${student.email}`}
@@ -518,322 +600,635 @@ export function PersonalStudentDetailView({
       {activeTab === "visao-geral" && (
         <div className="space-y-5" data-testid="tab-visao-geral">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* Coluna 1: Radar do Aluno + Treino Atual */}
-            <div className="space-y-5">
-              {/* Radar do Aluno / Acompanhamento */}
-              <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
-                      Acompanhamento &amp; Aderência
-                    </span>
-                    <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
-                      Radar do Aluno
-                    </h3>
-                  </div>
-                  {studentMonitoring ? (
-                    <Badge
-                      variant={
-                        studentMonitoring.state === "CRITICAL"
-                          ? "danger"
-                          : studentMonitoring.state === "ATTENTION"
-                          ? "warning"
-                          : studentMonitoring.state === "INSUFFICIENT_DATA"
-                          ? "neutral"
-                          : "success"
-                      }
-                      size="sm"
-                    >
-                      {studentMonitoring.state === "CRITICAL"
-                        ? "Crítico"
-                        : studentMonitoring.state === "ATTENTION"
-                        ? "Requer Atenção"
-                        : studentMonitoring.state === "INSUFFICIENT_DATA"
-                        ? "Sem Dados Suficientes"
-                        : "Em Dia"}
-                    </Badge>
-                  ) : (
-                    <Badge variant="neutral" size="sm">Monitoramento Normal</Badge>
-                  )}
-                </div>
-
-                {/* 4 Indicadores Objetivos em Linha Compacta */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                    <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
-                      Último Uso
-                    </span>
-                    <p className="text-xs font-bold text-[var(--text-primary)] truncate">
-                      {studentMonitoring?.metrics.lastActiveAt
-                        ? new Date(studentMonitoring.metrics.lastActiveAt).toLocaleDateString("pt-BR", {
-                            day: "2-digit",
-                            month: "short",
-                          })
-                        : "Sem registro"}
-                    </p>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                    <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
-                      Treinos (7d)
-                    </span>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">
-                      {studentMonitoring?.metrics.completedWorkoutsLast7d ?? 0} concluído(s)
-                    </p>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                    <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
-                      Check-ins (7d)
-                    </span>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">
-                      {studentMonitoring?.metrics.recentCheckinsCount ?? 0} registrado(s)
-                    </p>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                    <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
-                      Nutrição (7d)
-                    </span>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">
-                      {studentMonitoring && studentMonitoring.metrics.offPlanDietCount > 0
-                        ? `${studentMonitoring.metrics.offPlanDietCount} fora do plano`
-                        : "Sem desvios"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Alertas em aberto (se houver) */}
-                {studentMonitoring &&
-                  studentMonitoring.alerts.filter((a) => a.status === "OPEN").length > 0 && (
-                    <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle)]">
-                      {studentMonitoring.alerts
-                        .filter((a) => a.status === "OPEN")
-                        .map((alert) => (
-                          <div
-                            key={alert.id}
-                            className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center gap-2 text-xs"
-                          >
-                            <span
-                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
-                                alert.severity === "CRITICAL"
-                                  ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                              }`}
-                            >
-                              {alert.severity === "CRITICAL" ? "Crítico" : "Atenção"}
-                            </span>
-                            <span className="text-[var(--text-primary)] font-medium truncate">
-                              {alert.statement}
-                            </span>
-                          </div>
-                        ))}
+            {isEffectiveNutritionist ? (
+              <>
+                {/* Coluna 1: Plano Alimentar Atual + Acompanhamento Nutricional */}
+                <div className="space-y-5">
+                  {/* Plano Alimentar Atual */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <AppleIcon className="w-5 h-5 text-emerald-500" />
+                        <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
+                          Plano Alimentar Atual
+                        </h3>
+                      </div>
+                      {activeNutritionPlan ? (
+                        <Badge variant="success" size="sm">Ativo</Badge>
+                      ) : (
+                        <Badge variant="neutral" size="sm">Nenhum ativo</Badge>
+                      )}
                     </div>
-                  )}
-              </div>
 
-              {/* Treino Atual */}
-              <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <DuotoneTrainingIcon className="w-5 h-5" />
-                    <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
-                      Treino Atual
-                    </h3>
+                    {activeNutritionPlan ? (
+                      <div className="space-y-3">
+                        <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                          <p className="font-heading text-sm font-bold text-[var(--text-primary)] truncate">
+                            {activeNutritionPlan.title}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-[var(--text-tertiary)]">
+                            <span>Versão {activeNutritionPlan.versionNumber}</span>
+                            <span>•</span>
+                            <span>Início: {formatDisplayDate(activeNutritionPlan.startsOn)}</span>
+                            {activeNutritionPlan.endsOn && (
+                              <>
+                                <span>•</span>
+                                <span>Término: {formatDisplayDate(activeNutritionPlan.endsOn)}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {draftNutritionPlan && (
+                          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-400 flex items-center justify-between gap-2">
+                            <span className="font-medium truncate">
+                              Nova versão em rascunho (v{draftNutritionPlan.versionNumber})
+                            </span>
+                            <Link
+                              href={`/consultoria/${consultancySlug}/planos-v2/${draftNutritionPlan.planPublicId}?version=${draftNutritionPlan.versionPublicId}&student=${student.membershipPublicId}`}
+                              className="font-bold underline shrink-0 hover:text-amber-600 dark:hover:text-amber-300"
+                            >
+                              Continuar edição →
+                            </Link>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/consultoria/${consultancySlug}/planos-v2/${activeNutritionPlan.planPublicId}?student=${student.membershipPublicId}`}
+                            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors min-h-[40px] cursor-pointer"
+                          >
+                            <span>Abrir plano</span>
+                            <ChevronRightIcon className="w-3.5 h-3.5" />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("planos")}
+                            className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2 min-h-[40px] cursor-pointer"
+                          >
+                            Ver histórico →
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          Nenhum plano alimentar ativo no momento para este paciente.
+                        </p>
+                        {draftNutritionPlan && (
+                          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-400 flex items-center justify-between gap-2">
+                            <span className="font-medium truncate">
+                              Rascunho disponível: {draftNutritionPlan.title} (v{draftNutritionPlan.versionNumber})
+                            </span>
+                            <Link
+                              href={`/consultoria/${consultancySlug}/planos-v2/${draftNutritionPlan.planPublicId}?version=${draftNutritionPlan.versionPublicId}&student=${student.membershipPublicId}`}
+                              className="font-bold underline shrink-0 hover:text-amber-600 dark:hover:text-amber-300"
+                            >
+                              Continuar edição →
+                            </Link>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setIsChoiceModalOpen(true)}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors min-h-[40px] cursor-pointer"
+                        >
+                          <PlusIcon className="w-3.5 h-3.5" />
+                          <span>Criar plano</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {activeWorkout ? (
-                    <Badge variant="success" size="sm">Em andamento</Badge>
-                  ) : (
-                    <Badge variant="neutral" size="sm">Nenhum ativo</Badge>
-                  )}
+
+                  {/* Acompanhamento Nutricional */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500">
+                          Acompanhamento Clínico &amp; Aderência
+                        </span>
+                        <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
+                          Acompanhamento Nutricional
+                        </h3>
+                      </div>
+                      {studentMonitoring && (studentMonitoring.metrics.recentCheckinsCount ?? 0) > 0 ? (
+                        <Badge
+                          variant={
+                            studentMonitoring.state === "CRITICAL"
+                              ? "danger"
+                              : studentMonitoring.state === "ATTENTION"
+                              ? "warning"
+                              : "success"
+                          }
+                          size="sm"
+                        >
+                          {studentMonitoring.state === "CRITICAL"
+                            ? "Crítico"
+                            : studentMonitoring.state === "ATTENTION"
+                            ? "Atenção"
+                            : "Em Dia"}
+                        </Badge>
+                      ) : (
+                        <Badge variant="neutral" size="sm">Sem registros no período</Badge>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                        <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
+                          Último Acesso
+                        </span>
+                        <p className="text-xs font-bold text-[var(--text-primary)] truncate">
+                          {studentMonitoring?.metrics.lastActiveAt
+                            ? new Date(studentMonitoring.metrics.lastActiveAt).toLocaleDateString("pt-BR", {
+                                day: "2-digit",
+                                month: "short",
+                              })
+                            : "Sem registro"}
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                        <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
+                          Check-ins (7d)
+                        </span>
+                        <p className="text-xs font-bold text-[var(--text-primary)]">
+                          {(studentMonitoring?.metrics.recentCheckinsCount ?? 0) > 0
+                            ? `${studentMonitoring?.metrics.recentCheckinsCount} registrado(s)`
+                            : "Sem registros"}
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                        <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
+                          Desvios Dieta
+                        </span>
+                        <p className="text-xs font-bold text-[var(--text-primary)]">
+                          {(studentMonitoring?.metrics.recentCheckinsCount ?? 0) > 0
+                            ? (studentMonitoring && studentMonitoring.metrics.offPlanDietCount > 0
+                                ? `${studentMonitoring.metrics.offPlanDietCount} fora do plano`
+                                : "Sem desvios")
+                            : "Dados insuficientes"}
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                        <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
+                          Plano Ativo
+                        </span>
+                        <p className="text-xs font-bold text-[var(--text-primary)] truncate">
+                          {activeNutritionPlan ? `v${activeNutritionPlan.versionNumber}` : "Nenhum"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {activeWorkout ? (
-                  <div className="space-y-3">
-                    <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                      <p className="font-heading text-sm font-bold text-[var(--text-primary)] truncate">
-                        {activeWorkout.title}
+                {/* Coluna 2: Objetivo Nutricional + Dados Pessoais + Alergias + Registros */}
+                <div className="space-y-5">
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-4">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500 block">
+                        Objetivo Nutricional
+                      </span>
+                      <p className="font-heading text-base font-bold text-[var(--text-primary)]">
+                        {overview.nutritionGoal || overview.objective || "Não informado"}
                       </p>
-                      {activeWorkout.subtitle && (
-                        <p className="text-xs text-[var(--text-secondary)] truncate">
-                          {activeWorkout.subtitle}
+                      {!overview.nutritionGoal && !overview.objective && (
+                        <p className="text-[11px] text-[var(--text-tertiary)]">
+                          O paciente ainda não informou sua meta na anamnese nutricional.
                         </p>
                       )}
-                      <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-[var(--text-tertiary)]">
-                        <span>Versão {activeWorkout.versionNumber}</span>
-                        <span>•</span>
-                        <span>Início: {formatDisplayDate(activeWorkout.startsOn)}</span>
-                        {activeWorkout.endsOn && (
-                          <>
-                            <span>•</span>
-                            <span>Término: {formatDisplayDate(activeWorkout.endsOn)}</span>
-                          </>
-                        )}
+                    </div>
+
+                    <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                        Dados Biométricos &amp; Cadastrais
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                          <span className="text-[10px] text-[var(--text-tertiary)] block">Peso Atual</span>
+                          <p className="text-sm font-bold text-[var(--text-primary)]">
+                            {overview.weightKg ? `${overview.weightKg} kg` : "Não informado"}
+                          </p>
+                          {overview.lastWeightRecordedOn && (
+                            <span className="text-[10px] text-[var(--text-tertiary)] block">
+                              em {formatDisplayDate(overview.lastWeightRecordedOn)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                          <span className="text-[10px] text-[var(--text-tertiary)] block">Altura</span>
+                          <p className="text-sm font-bold text-[var(--text-primary)]">
+                            {overview.heightCm ? `${overview.heightCm} cm` : "Não informado"}
+                          </p>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                          <span className="text-[10px] text-[var(--text-tertiary)] block">Idade</span>
+                          <p className="text-sm font-bold text-[var(--text-primary)]">
+                            {overview.age ? `${overview.age} anos` : (overview.birthDate ? formatDisplayDate(overview.birthDate) : "Não informado")}
+                          </p>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                          <span className="text-[10px] text-[var(--text-tertiary)] block">Sexo</span>
+                          <p className="text-sm font-bold text-[var(--text-primary)]">
+                            {overview.sex ? (overview.sex === "M" || overview.sex === "MALE" ? "Masculino" : overview.sex === "F" || overview.sex === "FEMALE" ? "Feminino" : overview.sex) : "Não informado"}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
-                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors min-h-[40px] cursor-pointer"
-                      >
-                        <span>Abrir treino</span>
-                        <ChevronRightIcon className="w-3.5 h-3.5" />
-                      </Link>
+                    {/* Alergias e Restrições Alimentares com Destaque */}
+                    <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 block">
+                        Alergias &amp; Restrições Alimentares
+                      </span>
+                      {overview.allergies || overview.intolerances || overview.dietaryRestrictions ? (
+                        <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 space-y-2 text-xs">
+                          {overview.allergies && (
+                            <div>
+                              <span className="font-bold text-rose-700 dark:text-rose-300">Alergias: </span>
+                              <span className="text-rose-900 dark:text-rose-200">{overview.allergies}</span>
+                            </div>
+                          )}
+                          {overview.intolerances && (
+                            <div>
+                              <span className="font-bold text-amber-700 dark:text-amber-300">Intolerâncias: </span>
+                              <span className="text-amber-900 dark:text-amber-200">{overview.intolerances}</span>
+                            </div>
+                          )}
+                          {overview.dietaryRestrictions && (
+                            <div>
+                              <span className="font-bold text-zinc-700 dark:text-zinc-300">Restrições Clínicas: </span>
+                              <span className="text-zinc-900 dark:text-zinc-200">{overview.dietaryRestrictions}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+                          Nenhuma alergia ou restrição alimentar relatada na anamnese.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Registros Clínicos & Documentos */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                      Registros &amp; Documentos
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       <button
                         type="button"
-                        onClick={() => setActiveTab("treinos")}
-                        className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2 min-h-[40px] cursor-pointer"
+                        onClick={() => setActiveTab("evolucao")}
+                        className="p-3 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-left transition-colors cursor-pointer"
                       >
-                        Ver todos os treinos →
+                        <span className="text-xs font-bold text-[var(--text-primary)] block">Evolução</span>
+                        <span className="text-[11px] text-[var(--text-tertiary)]">{photos.length + measurements.length} registro(s)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("anamnese")}
+                        className="p-3 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-left transition-colors cursor-pointer"
+                      >
+                        <span className="text-xs font-bold text-[var(--text-primary)] block">Anamnese</span>
+                        <span className="text-[11px] text-[var(--text-tertiary)]">{overview.hasAnamnesis ? "Preenchida" : "Pendente"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("formularios")}
+                        className="p-3 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-left transition-colors cursor-pointer"
+                      >
+                        <span className="text-xs font-bold text-[var(--text-primary)] block">Formulários</span>
+                        <span className="text-[11px] text-[var(--text-tertiary)]">{forms.length} formulário(s)</span>
                       </button>
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      Nenhuma rotina de treino ativa no momento para este aluno.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setIsNewWorkoutSheetOpen(true)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors min-h-[40px] cursor-pointer"
-                    >
-                      <PlusIcon className="w-3.5 h-3.5" />
-                      <span>Criar treino</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Coluna 2: Objetivo e Dados Pessoais + Registros */}
-            <div className="space-y-5">
-              {/* Objetivo e Dados Pessoais */}
-              <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-4">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)] block">
-                    Objetivo Principal
-                  </span>
-                  <p className="font-heading text-base font-bold text-[var(--text-primary)]">
-                    {overview.objective || "Não informado"}
-                  </p>
-                  {!overview.objective && (
-                    <p className="text-[11px] text-[var(--text-tertiary)]">
-                      O aluno ainda não informou sua meta na anamnese ou cadastro.
-                    </p>
-                  )}
                 </div>
-
-                <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                    Dados Biométricos &amp; Cadastrais
-                  </span>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">Peso Atual</span>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">
-                        {overview.weightKg ? `${overview.weightKg} kg` : "Não informado"}
-                      </p>
-                      {overview.lastWeightRecordedOn && (
-                        <span className="text-[10px] text-[var(--text-tertiary)] block">
-                          em {formatDisplayDate(overview.lastWeightRecordedOn)}
+              </>
+            ) : (
+              <>
+                {/* Coluna 1: Radar do Aluno + Treino Atual */}
+                <div className="space-y-5">
+                  {/* Radar do Aluno / Acompanhamento */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
+                          Acompanhamento &amp; Aderência
                         </span>
+                        <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
+                          Radar do Aluno
+                        </h3>
+                      </div>
+                      {studentMonitoring ? (
+                        <Badge
+                          variant={
+                            studentMonitoring.state === "CRITICAL"
+                              ? "danger"
+                              : studentMonitoring.state === "ATTENTION"
+                              ? "warning"
+                              : studentMonitoring.state === "INSUFFICIENT_DATA"
+                              ? "neutral"
+                              : "success"
+                          }
+                          size="sm"
+                        >
+                          {studentMonitoring.state === "CRITICAL"
+                            ? "Crítico"
+                            : studentMonitoring.state === "ATTENTION"
+                            ? "Requer Atenção"
+                            : studentMonitoring.state === "INSUFFICIENT_DATA"
+                            ? "Sem Dados Suficientes"
+                            : "Em Dia"}
+                        </Badge>
+                      ) : (
+                        <Badge variant="neutral" size="sm">Monitoramento Normal</Badge>
                       )}
                     </div>
 
-                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">Altura</span>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">
-                        {overview.heightCm ? `${overview.heightCm} cm` : "Não informado"}
-                      </p>
+                    {/* 4 Indicadores Objetivos em Linha Compacta */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                        <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
+                          Último Uso
+                        </span>
+                        <p className="text-xs font-bold text-[var(--text-primary)] truncate">
+                          {studentMonitoring?.metrics.lastActiveAt
+                            ? new Date(studentMonitoring.metrics.lastActiveAt).toLocaleDateString("pt-BR", {
+                                day: "2-digit",
+                                month: "short",
+                              })
+                            : "Sem registro"}
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                        <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
+                          Treinos (7d)
+                        </span>
+                        <p className="text-xs font-bold text-[var(--text-primary)]">
+                          {studentMonitoring?.metrics.completedWorkoutsLast7d ?? 0} concluído(s)
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                        <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
+                          Check-ins (7d)
+                        </span>
+                        <p className="text-xs font-bold text-[var(--text-primary)]">
+                          {studentMonitoring?.metrics.recentCheckinsCount ?? 0} registrado(s)
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                        <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
+                          Nutrição (7d)
+                        </span>
+                        <p className="text-xs font-bold text-[var(--text-primary)]">
+                          {studentMonitoring && studentMonitoring.metrics.offPlanDietCount > 0
+                            ? `${studentMonitoring.metrics.offPlanDietCount} fora do plano`
+                            : "Sem desvios"}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">Idade</span>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">
-                        {overview.age ? `${overview.age} anos` : "Não informado"}
-                      </p>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">Sexo</span>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">
-                        {overview.sex || "Não informado"}
-                      </p>
-                    </div>
+                    {/* Alertas em aberto (se houver) */}
+                    {studentMonitoring &&
+                      studentMonitoring.alerts.filter((a) => a.status === "OPEN").length > 0 && (
+                        <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle)]">
+                          {studentMonitoring.alerts
+                            .filter((a) => a.status === "OPEN")
+                            .map((alert) => (
+                              <div
+                                key={alert.id}
+                                className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center gap-2 text-xs"
+                              >
+                                <span
+                                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                                    alert.severity === "CRITICAL"
+                                      ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                  }`}
+                                >
+                                  {alert.severity === "CRITICAL" ? "Crítico" : "Atenção"}
+                                </span>
+                                <span className="text-[var(--text-primary)] font-medium truncate">
+                                  {alert.statement}
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                      )}
                   </div>
-                  <p className="text-[11px] text-[var(--text-tertiary)] pt-1">
-                    Membro desde: {formatDisplayDate(student.joinedAt)}
-                  </p>
+
+                  {/* Treino Atual */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <DuotoneTrainingIcon className="w-5 h-5" />
+                        <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
+                          Treino Atual
+                        </h3>
+                      </div>
+                      {activeWorkout ? (
+                        <Badge variant="success" size="sm">Em andamento</Badge>
+                      ) : (
+                        <Badge variant="neutral" size="sm">Nenhum ativo</Badge>
+                      )}
+                    </div>
+
+                    {activeWorkout ? (
+                      <div className="space-y-3">
+                        <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                          <p className="font-heading text-sm font-bold text-[var(--text-primary)] truncate">
+                            {activeWorkout.title}
+                          </p>
+                          {activeWorkout.subtitle && (
+                            <p className="text-xs text-[var(--text-secondary)] truncate">
+                              {activeWorkout.subtitle}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-[var(--text-tertiary)]">
+                            <span>Versão {activeWorkout.versionNumber}</span>
+                            <span>•</span>
+                            <span>Início: {formatDisplayDate(activeWorkout.startsOn)}</span>
+                            {activeWorkout.endsOn && (
+                              <>
+                                <span>•</span>
+                                <span>Término: {formatDisplayDate(activeWorkout.endsOn)}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
+                            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors min-h-[40px] cursor-pointer"
+                          >
+                            <span>Abrir treino</span>
+                            <ChevronRightIcon className="w-3.5 h-3.5" />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("treinos")}
+                            className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2 min-h-[40px] cursor-pointer"
+                          >
+                            Ver todos os treinos →
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          Nenhuma rotina de treino ativa no momento para este aluno.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setIsNewWorkoutSheetOpen(true)}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors min-h-[40px] cursor-pointer"
+                        >
+                          <PlusIcon className="w-3.5 h-3.5" />
+                          <span>Criar treino</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Registros */}
-              <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3.5">
-                <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                  Registros &amp; Documentos
-                </h3>
-                <div className="divide-y divide-[var(--border-subtle)]">
-                  <div className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <DuotonePhotosIcon className="w-4 h-4 shrink-0" />
-                      <div>
-                        <p className="font-semibold text-[var(--text-primary)]">Fotos de Evolução</p>
+                {/* Coluna 2: Objetivo e Dados Pessoais + Registros */}
+                <div className="space-y-5">
+                  {/* Objetivo e Dados Pessoais */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-4">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)] block">
+                        Objetivo Principal
+                      </span>
+                      <p className="font-heading text-base font-bold text-[var(--text-primary)]">
+                        {overview.objective || "Não informado"}
+                      </p>
+                      {!overview.objective && (
                         <p className="text-[11px] text-[var(--text-tertiary)]">
-                          {photos.length > 0 ? `${photos.length} avaliação(ões) registrada(s)` : "Nenhuma foto anexada"}
+                          O aluno ainda não informou sua meta na anamnese ou cadastro.
                         </p>
-                      </div>
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("fotos")}
-                      className="text-xs font-bold text-[var(--brand)] hover:underline shrink-0 min-h-[36px] flex items-center cursor-pointer"
-                    >
-                      Ver fotos →
-                    </button>
+
+                    <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                        Dados Biométricos &amp; Cadastrais
+                      </span>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                          <span className="text-[10px] text-[var(--text-tertiary)] block">Peso Atual</span>
+                          <p className="text-sm font-bold text-[var(--text-primary)]">
+                            {overview.weightKg ? `${overview.weightKg} kg` : "Não informado"}
+                          </p>
+                          {overview.lastWeightRecordedOn && (
+                            <span className="text-[10px] text-[var(--text-tertiary)] block">
+                              em {formatDisplayDate(overview.lastWeightRecordedOn)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                          <span className="text-[10px] text-[var(--text-tertiary)] block">Altura</span>
+                          <p className="text-sm font-bold text-[var(--text-primary)]">
+                            {overview.heightCm ? `${overview.heightCm} cm` : "Não informado"}
+                          </p>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                          <span className="text-[10px] text-[var(--text-tertiary)] block">Idade</span>
+                          <p className="text-sm font-bold text-[var(--text-primary)]">
+                            {overview.age ? `${overview.age} anos` : "Não informado"}
+                          </p>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                          <span className="text-[10px] text-[var(--text-tertiary)] block">Sexo</span>
+                          <p className="text-sm font-bold text-[var(--text-primary)]">
+                            {overview.sex || "Não informado"}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-[var(--text-tertiary)] pt-1">
+                        Membro desde: {formatDisplayDate(student.joinedAt)}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <DuotoneAnamnesisIcon className="w-4 h-4 shrink-0" />
-                      <div>
-                        <p className="font-semibold text-[var(--text-primary)]">Anamnese &amp; Saúde</p>
-                        <p className="text-[11px] text-[var(--text-tertiary)]">
-                          {overview.hasAnamnesis ? `${anamnesis.length} seção(ões) preenchida(s)` : "Aguardando preenchimento"}
-                        </p>
+                  {/* Registros */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3.5">
+                    <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                      Registros &amp; Documentos
+                    </h3>
+                    <div className="divide-y divide-[var(--border-subtle)]">
+                      <div className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <DuotonePhotosIcon className="w-4 h-4 shrink-0" />
+                          <div>
+                            <p className="font-semibold text-[var(--text-primary)]">Fotos de Evolução</p>
+                            <p className="text-[11px] text-[var(--text-tertiary)]">
+                              {photos.length > 0 ? `${photos.length} avaliação(ões) registrada(s)` : "Nenhuma foto anexada"}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("fotos")}
+                          className="text-xs font-bold text-[var(--brand)] hover:underline shrink-0 min-h-[36px] flex items-center cursor-pointer"
+                        >
+                          Ver fotos →
+                        </button>
                       </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("anamnese")}
-                      className="text-xs font-bold text-[var(--brand)] hover:underline shrink-0 min-h-[36px] flex items-center cursor-pointer"
-                    >
-                      Ver anamnese →
-                    </button>
-                  </div>
 
-                  <div className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <DuotoneFormsIcon className="w-4 h-4 shrink-0" />
-                      <div>
-                        <p className="font-semibold text-[var(--text-primary)]">Formulários &amp; Questionários</p>
-                        <p className="text-[11px] text-[var(--text-tertiary)]">
-                          {forms.length > 0 ? `${forms.length} formulário(s) respondido(s)` : "Nenhum formulário respondido"}
-                        </p>
+                      <div className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <DuotoneAnamnesisIcon className="w-4 h-4 shrink-0" />
+                          <div>
+                            <p className="font-semibold text-[var(--text-primary)]">Anamnese &amp; Saúde</p>
+                            <p className="text-[11px] text-[var(--text-tertiary)]">
+                              {overview.hasAnamnesis ? `${anamnesis.length} seção(ões) preenchida(s)` : "Aguardando preenchimento"}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("anamnese")}
+                          className="text-xs font-bold text-[var(--brand)] hover:underline shrink-0 min-h-[36px] flex items-center cursor-pointer"
+                        >
+                          Ver anamnese →
+                        </button>
+                      </div>
+
+                      <div className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <DuotoneFormsIcon className="w-4 h-4 shrink-0" />
+                          <div>
+                            <p className="font-semibold text-[var(--text-primary)]">Formulários &amp; Questionários</p>
+                            <p className="text-[11px] text-[var(--text-tertiary)]">
+                              {forms.length > 0 ? `${forms.length} formulário(s) respondido(s)` : "Nenhum formulário respondido"}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("formularios")}
+                          className="text-xs font-bold text-[var(--brand)] hover:underline shrink-0 min-h-[36px] flex items-center cursor-pointer"
+                        >
+                          Ver formulários →
+                        </button>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("formularios")}
-                      className="text-xs font-bold text-[var(--brand)] hover:underline shrink-0 min-h-[36px] flex items-center cursor-pointer"
-                    >
-                      Ver formulários →
-                    </button>
                   </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1113,23 +1508,165 @@ export function PersonalStudentDetailView({
       )}
 
       {/* =========================================================================
-          SEÇÃO 7: NUTRIÇÃO (Planos Nutricionais se houver)
+          SEÇÃO: PLANOS ALIMENTARES (Prescrição Nutricional)
           ========================================================================= */}
-      {activeTab === "nutricao" && nutrition.length > 0 && (
+      {(activeTab === "planos" || (activeTab === "nutricao" && isEffectiveNutritionist)) && (
+        <div className="space-y-6" data-testid="tab-planos">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                Planos Alimentares do Paciente
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Gerencie planos ativos, histórico de versões e prescrição nutricional.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsChoiceModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors min-h-[40px] cursor-pointer"
+            >
+              <PlusIcon className="w-3.5 h-3.5" />
+              <span>Novo plano</span>
+            </button>
+          </div>
+
+          {nutrition.length === 0 ? (
+            <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-white dark:bg-[#151619] text-center space-y-3.5 shadow-xs">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
+                <AppleIcon className="w-6 h-6 text-emerald-500" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                  Nenhum plano alimentar criado para este paciente
+                </p>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  Crie o primeiro plano alimentar personalizado com refeições, metas calóricas e alimentos.
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsChoiceModalOpen(true)}
+                className="font-bold min-h-[44px] cursor-pointer"
+              >
+                Criar primeiro plano
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {nutrition.map((plan) => (
+                <div
+                  key={plan.assignmentPublicId}
+                  className={`p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#151619] border ${
+                    plan.status === "ACTIVE"
+                      ? "border-emerald-500/40 shadow-xs"
+                      : "border-[#E5E7EB] dark:border-[#26272B]"
+                  } space-y-3`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={plan.status === "ACTIVE" ? "success" : "neutral"} size="sm">
+                        {plan.status === "ACTIVE" ? "Plano Ativo" : "Encerrado"}
+                      </Badge>
+                      <span className="text-xs font-medium text-[var(--text-tertiary)]">
+                        Versão {plan.versionNumber}
+                      </span>
+                    </div>
+                    <span className="text-xs text-[var(--text-secondary)]">
+                      Início: {formatDisplayDate(plan.startsOn)}
+                      {plan.endsOn ? ` • Término: ${formatDisplayDate(plan.endsOn)}` : ""}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
+                      {plan.title}
+                    </h3>
+                    {plan.notesForStudent && (
+                      <p className="text-xs text-[var(--text-secondary)] italic">
+                        &quot;{plan.notesForStudent}&quot;
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <Link
+                      href={`/consultoria/${consultancySlug}/planos-v2/${plan.planPublicId}?student=${student.membershipPublicId}`}
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors min-h-[40px] cursor-pointer"
+                    >
+                      <span>Abrir plano</span>
+                      <ChevronRightIcon className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          SEÇÃO: EVOLUÇÃO (Fotos + Medições Corporais para Nutricionista)
+          ========================================================================= */}
+      {activeTab === "evolucao" && (
+        <div className="space-y-6" data-testid="tab-evolucao">
+          <StudentPhotosMural
+            consultancySlug={consultancySlug}
+            studentPublicId={student.membershipPublicId}
+            studentName={student.name}
+            photos={photos}
+            onRequestPhotosClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
+          />
+
+          {measurements.length > 0 && (
+            <div className="space-y-4 pt-4 border-t border-[var(--border-subtle)]">
+              <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                Histórico de Medições Corporais ({measurements.length})
+              </h2>
+              <div className="space-y-3">
+                {measurements.map((m, idx) => (
+                  <div
+                    key={`${m.recordedOn}-${idx}`}
+                    className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-[var(--text-primary)]">
+                        Data: {formatDisplayDate(m.recordedOn)}
+                      </span>
+                      {m.weightKg && (
+                        <span className="font-extrabold text-sm text-[var(--brand)]">
+                          {m.weightKg} kg
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs text-[var(--text-secondary)] pt-2 border-t border-[var(--border-subtle)]">
+                      {m.waistCm && <div>Cintura: <span className="font-semibold text-[var(--text-primary)]">{m.waistCm}cm</span></div>}
+                      {m.abdomenCm && <div>Abdômen: <span className="font-semibold text-[var(--text-primary)]">{m.abdomenCm}cm</span></div>}
+                      {m.hipCm && <div>Quadril: <span className="font-semibold text-[var(--text-primary)]">{m.hipCm}cm</span></div>}
+                      {m.armCm && <div>Braço: <span className="font-semibold text-[var(--text-primary)]">{m.armCm}cm</span></div>}
+                      {m.thighCm && <div>Coxa: <span className="font-semibold text-[var(--text-primary)]">{m.thighCm}cm</span></div>}
+                    </div>
+                    {m.note && (
+                      <p className="text-[11px] text-[var(--text-tertiary)] italic">{m.note}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          SEÇÃO 7: NUTRIÇÃO (Para Personal Trainer quando houver planos)
+          ========================================================================= */}
+      {activeTab === "nutricao" && !isEffectiveNutritionist && nutrition.length > 0 && (
         <div className="space-y-4" data-testid="tab-nutricao">
           <div className="flex items-center justify-between">
             <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
               Planos Nutricionais Prescritos ({nutrition.length})
             </h2>
-            {isNutritionist && (
-              <Link
-                href={createPlanHref}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 min-h-[40px]"
-              >
-                <PlusIcon className="w-3.5 h-3.5" />
-                <span>Novo plano</span>
-              </Link>
-            )}
           </div>
           <div className="space-y-3">
             {nutrition.map((plan) => (
@@ -1156,9 +1693,6 @@ export function PersonalStudentDetailView({
         </div>
       )}
 
-
-
-
       {/* Modal para Solicitar Fotos, Anamnese ou Formulário */}
       <PersonalRequestModal
         isOpen={requestModal.isOpen}
@@ -1176,6 +1710,32 @@ export function PersonalStudentDetailView({
         consultancySlug={consultancySlug}
         studentMembershipPublicId={student.membershipPublicId}
         studentName={student.name}
+      />
+
+      {/* Modais de Criação de Plano Nutricional */}
+      <NutritionPlanChoiceModal
+        isOpen={isChoiceModalOpen}
+        onClose={() => setIsChoiceModalOpen(false)}
+        onSelectOption={handleSelectPlanChoice}
+      />
+
+      <NutritionAiGenerateModal
+        isOpen={isGenerateAiOpen}
+        onClose={() => setIsGenerateAiOpen(false)}
+        consultancySlug={consultancySlug}
+      />
+
+      <NutritionAiImportModal
+        isOpenControlled={isImportAiOpen}
+        onCloseControlled={() => setIsImportAiOpen(false)}
+        consultancySlug={consultancySlug}
+        hideTrigger={true}
+      />
+
+      <NutritionTemplatePickerModal
+        isOpen={isTemplatePickerOpen}
+        onClose={() => setIsTemplatePickerOpen(false)}
+        consultancySlug={consultancySlug}
       />
     </div>
   );

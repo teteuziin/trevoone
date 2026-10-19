@@ -150,6 +150,14 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
           </div>
         )}
 
+        {preselectedStudent && (
+          <input
+            type="hidden"
+            name="targetStudent"
+            value={preselectedStudent.student.membershipPublicId}
+          />
+        )}
+
         {/* Formulário Novo com Detalhes do Treino Expansíveis e Ação Começar Montagem */}
         <NewWorkoutManualForm
           consultancySlug={slug}

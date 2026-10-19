@@ -72,19 +72,17 @@ export async function ConsultancyAppShell({
   }
 
   const isPreview = resolvedViewModeState?.isPreview ?? false;
-  const isMultiRolePersonalAdmin = safeRoles.includes("PERSONAL") && safeRoles.includes("CONSULTANCY_ADMIN");
-  const presentationRoles: ConsultancyRole[] = isPreview && resolvedViewModeState?.effectiveMode
-    ? [
-        resolvedViewModeState.effectiveMode === "ADMIN"
-          ? "CONSULTANCY_ADMIN"
-          : (resolvedViewModeState.effectiveMode as ConsultancyRole),
-      ]
-    : isMultiRolePersonalAdmin && resolvedViewModeState?.effectiveMode
-    ? [
-        resolvedViewModeState.effectiveMode === "ADMIN"
-          ? "CONSULTANCY_ADMIN"
-          : "PERSONAL",
-      ]
+  const isMultiRole = safeRoles.length > 1;
+  const effectiveRole: ConsultancyRole | undefined = resolvedViewModeState?.effectiveMode
+    ? resolvedViewModeState.effectiveMode === "ADMIN"
+      ? "CONSULTANCY_ADMIN"
+      : (resolvedViewModeState.effectiveMode as ConsultancyRole)
+    : undefined;
+
+  const presentationRoles: ConsultancyRole[] = isPreview && effectiveRole
+    ? [effectiveRole]
+    : effectiveRole && isMultiRole
+    ? [effectiveRole]
     : safeRoles;
 
   const isPersonal = presentationRoles.includes("PERSONAL");
@@ -540,8 +538,20 @@ export async function ConsultancyAppShell({
     return 0;
   });
   const roleLabels: string[] = [];
-  if (isMultiRolePersonalAdmin && resolvedViewModeState?.effectiveMode) {
-    roleLabels.push(resolvedViewModeState.effectiveMode === "ADMIN" ? "Administrador da Consultoria" : "Personal Trainer");
+  if (effectiveRole && isMultiRole) {
+    if (resolvedViewModeState?.effectiveMode === "ADMIN") {
+      roleLabels.push("Administrador da Consultoria");
+    } else if (resolvedViewModeState?.effectiveMode === "NUTRITIONIST") {
+      roleLabels.push("Nutricionista");
+    } else if (resolvedViewModeState?.effectiveMode === "PERSONAL") {
+      roleLabels.push("Personal Trainer");
+    } else if (resolvedViewModeState?.effectiveMode === "STUDENT") {
+      roleLabels.push("Aluno");
+    } else if (resolvedViewModeState?.effectiveMode === "INFLUENCER") {
+      roleLabels.push("Influenciador", "VIP");
+    } else {
+      roleLabels.push(ROLE_LABELS[effectiveRole] || effectiveRole);
+    }
   } else {
     for (const r of sortedRolesForLabels) {
       if (r === "INFLUENCER") {

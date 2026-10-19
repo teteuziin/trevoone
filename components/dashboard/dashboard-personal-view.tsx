@@ -206,7 +206,7 @@ export function DashboardPersonalView({
 // Importar
 // /rotinas/novo
 // /rotinas?action=import
-// /progresso/alunos
+// title: "Alunos", href: `/consultoria/${consultancySlug}/progresso/alunos`
 // /rotinas
 // var(--surface) var(--text-primary) var(--text-secondary) var(--border-default) var(--brand)
 // displayStudents displayPlans

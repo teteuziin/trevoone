@@ -11,12 +11,14 @@ interface ChatInputBarProps {
   }) => Promise<boolean>;
   isSending: boolean;
   disabled?: boolean;
+  disabledMessage?: string;
 }
 
 export function ChatInputBar({
   onSendMessage,
   isSending,
   disabled = false,
+  disabledMessage,
 }: ChatInputBarProps) {
   const [text, setText] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -356,13 +358,15 @@ export function ChatInputBar({
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={
-                recordedAudioUrl
+                disabled && disabledMessage
+                  ? disabledMessage
+                  : recordedAudioUrl
                   ? "Adicionar legenda ao áudio (opcional)..."
                   : selectedFile
                   ? "Adicionar legenda ao anexo (opcional)..."
                   : "Digite sua mensagem..."
               }
-              className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] focus:border-emerald-500 focus:outline-none text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] resize-none max-h-32 leading-relaxed"
+              className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] focus:border-emerald-500 focus:outline-none text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] resize-none max-h-32 leading-relaxed disabled:opacity-60"
             />
           </div>
 

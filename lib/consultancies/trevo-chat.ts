@@ -11,9 +11,21 @@ import {
 } from "../ai/chat-anamnesis-extractor";
 
 export type ChatConsultationStatus =
+  | "PROPOSED"
+  | "CONFIRMED"
+  | "COMPLETED"
+  | "DECLINED"
+  | "CANCELED"
   | "AWAITING_STUDENT"
-  | "AWAITING_PROFESSIONAL"
-  | "COMPLETED";
+  | "AWAITING_PROFESSIONAL";
+
+export function isChatMessagingUnlocked(status: ChatConsultationStatus): boolean {
+  return (
+    status === "CONFIRMED" ||
+    status === "AWAITING_STUDENT" ||
+    status === "AWAITING_PROFESSIONAL"
+  );
+}
 
 export type ChatMessageType =
   | "TEXT"
@@ -36,6 +48,16 @@ export interface ChatConsultationDto {
   professionalType: "PERSONAL" | "NUTRITIONIST";
   title: string;
   status: ChatConsultationStatus;
+  proposedByUserId: number | null;
+  proposedStartAt: string | null;
+  proposedStartFormatted?: string | null;
+  studentAcceptedAt: string | null;
+  professionalAcceptedAt: string | null;
+  declinedReason: string | null;
+  declinedAt: string | null;
+  canceledAt: string | null;
+  topic?: string | null;
+  isMutualConfirmed: boolean;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
   unreadCountStudent: number;
@@ -81,7 +103,14 @@ export async function ensureChatTablesExist(): Promise<void> {
         \`professional_membership_id\` BIGINT UNSIGNED NOT NULL,
         \`professional_type\` VARCHAR(32) NOT NULL,
         \`title\` VARCHAR(200) NOT NULL,
-        \`status\` VARCHAR(32) NOT NULL DEFAULT 'AWAITING_STUDENT',
+        \`status\` VARCHAR(32) NOT NULL DEFAULT 'PROPOSED',
+        \`proposed_by_user_id\` BIGINT UNSIGNED NULL DEFAULT NULL,
+        \`proposed_start_at\` DATETIME(3) NULL DEFAULT NULL,
+        \`student_accepted_at\` DATETIME(3) NULL DEFAULT NULL,
+        \`professional_accepted_at\` DATETIME(3) NULL DEFAULT NULL,
+        \`declined_reason\` VARCHAR(255) NULL DEFAULT NULL,
+        \`declined_at\` DATETIME(3) NULL DEFAULT NULL,
+        \`canceled_at\` DATETIME(3) NULL DEFAULT NULL,
         \`last_message_at\` DATETIME(3) NULL DEFAULT NULL,
         \`last_message_preview\` VARCHAR(255) NULL DEFAULT NULL,
         \`unread_count_student\` INT UNSIGNED NOT NULL DEFAULT 0,
@@ -98,6 +127,8 @@ export async function ensureChatTablesExist(): Promise<void> {
         KEY \`idx_chat_consultations_tenant_student\` (\`consultancy_id\`, \`student_membership_id\`, \`status\`),
         KEY \`idx_chat_consultations_tenant_prof\` (\`consultancy_id\`, \`professional_membership_id\`, \`status\`),
         KEY \`idx_chat_consultations_last_msg\` (\`consultancy_id\`, \`last_message_at\`),
+        KEY \`idx_chat_consultations_proposed\` (\`consultancy_id\`, \`proposed_start_at\`),
+        KEY \`idx_chat_consultations_proposed_by\` (\`proposed_by_user_id\`),
 
         CONSTRAINT \`fk_chat_consultations_consultancy\` FOREIGN KEY (\`consultancy_id\`) REFERENCES \`consultancies\` (\`id\`) ON DELETE RESTRICT ON UPDATE RESTRICT,
         CONSTRAINT \`fk_chat_consultations_student\` FOREIGN KEY (\`student_membership_id\`) REFERENCES \`consultancy_members\` (\`id\`) ON DELETE RESTRICT ON UPDATE RESTRICT,
@@ -106,6 +137,27 @@ export async function ensureChatTablesExist(): Promise<void> {
         CONSTRAINT \`fk_chat_consultations_form_request\` FOREIGN KEY (\`confirmed_form_request_id\`) REFERENCES \`consultancy_custom_form_requests\` (\`id\`) ON DELETE SET NULL ON UPDATE RESTRICT
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    // Check if migration 052 columns exist in case the table already existed
+    try {
+      const [cols] = await pool.query<RowDataPacket[]>(
+        `SHOW COLUMNS FROM chat_consultations LIKE 'proposed_start_at'`
+      );
+      if (cols.length === 0) {
+        await pool.query(`
+          ALTER TABLE chat_consultations
+            ADD COLUMN proposed_by_user_id BIGINT UNSIGNED NULL DEFAULT NULL AFTER confirmed_form_request_id,
+            ADD COLUMN proposed_start_at DATETIME(3) NULL DEFAULT NULL AFTER proposed_by_user_id,
+            ADD COLUMN student_accepted_at DATETIME(3) NULL DEFAULT NULL AFTER proposed_start_at,
+            ADD COLUMN professional_accepted_at DATETIME(3) NULL DEFAULT NULL AFTER student_accepted_at,
+            ADD COLUMN declined_reason VARCHAR(255) NULL DEFAULT NULL AFTER professional_accepted_at,
+            ADD COLUMN declined_at DATETIME(3) NULL DEFAULT NULL AFTER declined_reason,
+            ADD COLUMN canceled_at DATETIME(3) NULL DEFAULT NULL AFTER declined_at,
+            ADD KEY idx_chat_consultations_proposed (consultancy_id, proposed_start_at),
+            ADD KEY idx_chat_consultations_proposed_by (proposed_by_user_id);
+        `);
+      }
+    } catch {}
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS \`chat_messages\` (
@@ -136,7 +188,9 @@ export async function ensureChatTablesExist(): Promise<void> {
 
     try {
       await pool.query(
-        `INSERT IGNORE INTO schema_migrations (migration, checksum) VALUES ('051_trevo_chat_and_anamnesis.sql', 'runtime_bootstrapped');`
+        `INSERT IGNORE INTO schema_migrations (migration, checksum) VALUES 
+          ('051_trevo_chat_and_anamnesis.sql', 'runtime_bootstrapped'),
+          ('052_trevo_chat_bilateral_appointments.sql', 'runtime_bootstrapped');`
       );
     } catch {}
 
@@ -188,6 +242,13 @@ export async function listChatConsultationsForProfessional(
       cc.professional_type,
       cc.title,
       cc.status,
+      cc.proposed_by_user_id,
+      cc.proposed_start_at,
+      cc.student_accepted_at,
+      cc.professional_accepted_at,
+      cc.declined_reason,
+      cc.declined_at,
+      cc.canceled_at,
       cc.last_message_at,
       cc.last_message_preview,
       cc.unread_count_student,
@@ -235,6 +296,13 @@ export async function listChatConsultationsForStudent(
       cc.professional_type,
       cc.title,
       cc.status,
+      cc.proposed_by_user_id,
+      cc.proposed_start_at,
+      cc.student_accepted_at,
+      cc.professional_accepted_at,
+      cc.declined_reason,
+      cc.declined_at,
+      cc.canceled_at,
       cc.last_message_at,
       cc.last_message_preview,
       cc.unread_count_student,
@@ -282,6 +350,13 @@ export async function getChatConsultationByPublicId(
         cc.professional_type,
         cc.title,
         cc.status,
+        cc.proposed_by_user_id,
+        cc.proposed_start_at,
+        cc.student_accepted_at,
+        cc.professional_accepted_at,
+        cc.declined_reason,
+        cc.declined_at,
+        cc.canceled_at,
         cc.last_message_at,
         cc.last_message_preview,
         cc.unread_count_student,
@@ -369,6 +444,319 @@ export async function getOrCreateChatConsultation(params: {
 }
 
 /**
+ * Proposes a bilateral chat consultation with a reference start date/time.
+ * Starts in 'PROPOSED' state with automatic acceptance by proposer.
+ */
+export async function proposeChatConsultation(params: {
+  consultancyId: number;
+  studentMembershipId: number;
+  professionalMembershipId: number;
+  professionalType: "PERSONAL" | "NUTRITIONIST";
+  proposedByUserId: number;
+  proposedStartAt: Date;
+  title?: string;
+  consultancySlug: string;
+}): Promise<ChatConsultationDto> {
+  return executeWithAutoSchema(async () => {
+    const pool = getDbPool();
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Check participants exist
+      const [members] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, user_id FROM consultancy_members
+         WHERE consultancy_id = ? AND id IN (?, ?)`,
+        [params.consultancyId, params.studentMembershipId, params.professionalMembershipId]
+      );
+
+      const studentMember = members.find((m) => Number(m.id) === Number(params.studentMembershipId));
+      const profMember = members.find((m) => Number(m.id) === Number(params.professionalMembershipId));
+
+      if (!studentMember || !profMember) {
+        throw new Error("Participantes não encontrados na consultoria.");
+      }
+
+      const isProposedByStudent = Number(params.proposedByUserId) === Number(studentMember.user_id);
+      const studentAcceptedAt = isProposedByStudent ? new Date() : null;
+      const professionalAcceptedAt = !isProposedByStudent ? new Date() : null;
+      const recipientUserId = isProposedByStudent ? Number(profMember.user_id) : Number(studentMember.user_id);
+
+      const newPublicId = crypto.randomUUID();
+      const title = params.title || `Consulta ${params.professionalType === "PERSONAL" ? "Treino" : "Nutrição"}`;
+
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO chat_consultations (
+          public_id,
+          consultancy_id,
+          student_membership_id,
+          professional_membership_id,
+          professional_type,
+          title,
+          status,
+          proposed_by_user_id,
+          proposed_start_at,
+          student_accepted_at,
+          professional_accepted_at,
+          created_by_user_id,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 'PROPOSED', ?, ?, ?, ?, ?, NOW(3), NOW(3));`,
+        [
+          newPublicId,
+          params.consultancyId,
+          params.studentMembershipId,
+          params.professionalMembershipId,
+          params.professionalType,
+          title,
+          params.proposedByUserId,
+          params.proposedStartAt,
+          studentAcceptedAt,
+          professionalAcceptedAt,
+          params.proposedByUserId,
+        ]
+      );
+
+      let notif = null;
+      try {
+        notif = await createNotificationInTransaction(connection, {
+          userId: recipientUserId,
+          consultancyId: params.consultancyId,
+          priority: "HIGH",
+          eventType: "CHAT_MESSAGE",
+          title: "Nova proposta no Trevo Chat",
+          body: "Você recebeu uma proposta de agendamento no Trevo Chat. Aceite para liberar o chat assíncrono.",
+          deepLink: `/consultoria/${params.consultancySlug}/consultas?tab=chat&c=${newPublicId}`,
+          dedupeKey: `chat_prop_${newPublicId}`,
+          sourceType: "CHAT_MESSAGE",
+          sourcePublicId: newPublicId,
+        });
+      } catch (err) {
+        console.warn("[Trevo Chat] Aviso ao criar notificação de proposta:", err);
+      }
+
+      await connection.commit();
+
+      if (notif) {
+        deliverNotificationAfterCommit(notif.id).catch(() => {});
+      }
+
+      const created = await getChatConsultationByPublicId(params.consultancyId, newPublicId);
+      if (!created) throw new Error("Erro ao carregar proposta criada.");
+      return created;
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
+  });
+}
+
+/**
+ * Responds to a bilateral chat consultation proposal (ACCEPT, COUNTER, DECLINE).
+ */
+export async function respondToChatProposal(params: {
+  consultancyId: number;
+  consultationPublicId: string;
+  responderUserId: number;
+  response: "ACCEPT" | "COUNTER" | "DECLINE";
+  counterProposedStartAt?: Date;
+  declineReason?: string;
+  consultancySlug: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  return executeWithAutoSchema(async () => {
+    const pool = getDbPool();
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      const [cRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT cc.id, cc.public_id, cc.status, cc.student_membership_id, cc.professional_membership_id,
+                cc.proposed_by_user_id, cm_stud.user_id AS student_user_id, cm_prof.user_id AS professional_user_id,
+                u_responder.full_name AS responder_name
+         FROM chat_consultations cc
+         INNER JOIN consultancy_members cm_stud ON cm_stud.id = cc.student_membership_id
+         INNER JOIN consultancy_members cm_prof ON cm_prof.id = cc.professional_membership_id
+         INNER JOIN users u_responder ON u_responder.id = ?
+         WHERE cc.consultancy_id = ? AND cc.public_id = ?
+         LIMIT 1 FOR UPDATE;`,
+        [params.responderUserId, params.consultancyId, params.consultationPublicId]
+      );
+
+      if (!cRows || cRows.length === 0) {
+        throw new Error("Atendimento não encontrado.");
+      }
+
+      const c = cRows[0];
+      const isStudent = Number(params.responderUserId) === Number(c.student_user_id);
+      const isProf = Number(params.responderUserId) === Number(c.professional_user_id);
+
+      if (!isStudent && !isProf) {
+        throw new Error("Apenas os participantes da conversa podem responder à proposta.");
+      }
+
+      const otherUserId = isStudent ? Number(c.professional_user_id) : Number(c.student_user_id);
+      const responderName = c.responder_name || "O outro participante";
+
+      if (params.response === "ACCEPT") {
+        if (isStudent) {
+          await connection.execute(
+            `UPDATE chat_consultations
+             SET student_accepted_at = NOW(3),
+                 status = 'CONFIRMED',
+                 updated_at = NOW(3)
+             WHERE id = ?;`,
+            [c.id]
+          );
+        } else {
+          await connection.execute(
+            `UPDATE chat_consultations
+             SET professional_accepted_at = NOW(3),
+                 status = 'CONFIRMED',
+                 updated_at = NOW(3)
+             WHERE id = ?;`,
+            [c.id]
+          );
+        }
+
+        try {
+          const notif = await createNotificationInTransaction(connection, {
+            userId: otherUserId,
+            consultancyId: params.consultancyId,
+            priority: "HIGH",
+            eventType: "CHAT_MESSAGE",
+            title: "Trevo Chat Confirmado",
+            body: `${responderName} aceitou a proposta. O chat está liberado para vocês responderem quando puderem!`,
+            deepLink: `/consultoria/${params.consultancySlug}/consultas?tab=chat&c=${params.consultationPublicId}`,
+            dedupeKey: `chat_acc_${c.id}_${Date.now()}`,
+            sourceType: "CHAT_MESSAGE",
+            sourcePublicId: params.consultationPublicId,
+          });
+          deliverNotificationAfterCommit(notif.id).catch(() => {});
+        } catch {}
+      } else if (params.response === "COUNTER") {
+        if (!params.counterProposedStartAt) {
+          throw new Error("Novo horário de referência é obrigatório.");
+        }
+
+        const studentAcceptedAt = isStudent ? new Date() : null;
+        const professionalAcceptedAt = isProf ? new Date() : null;
+
+        await connection.execute(
+          `UPDATE chat_consultations
+           SET proposed_by_user_id = ?,
+               proposed_start_at = ?,
+               student_accepted_at = ?,
+               professional_accepted_at = ?,
+               status = 'PROPOSED',
+               updated_at = NOW(3)
+           WHERE id = ?;`,
+          [params.responderUserId, params.counterProposedStartAt, studentAcceptedAt, professionalAcceptedAt, c.id]
+        );
+
+        try {
+          const notif = await createNotificationInTransaction(connection, {
+            userId: otherUserId,
+            consultancyId: params.consultancyId,
+            priority: "NORMAL",
+            eventType: "CHAT_MESSAGE",
+            title: "Novo horário no Trevo Chat",
+            body: `${responderName} sugeriu outro horário de referência para o atendimento.`,
+            deepLink: `/consultoria/${params.consultancySlug}/consultas?tab=chat&c=${params.consultationPublicId}`,
+            dedupeKey: `chat_counter_${c.id}_${Date.now()}`,
+            sourceType: "CHAT_MESSAGE",
+            sourcePublicId: params.consultationPublicId,
+          });
+          deliverNotificationAfterCommit(notif.id).catch(() => {});
+        } catch {}
+      } else if (params.response === "DECLINE") {
+        await connection.execute(
+          `UPDATE chat_consultations
+           SET status = 'DECLINED',
+               declined_reason = ?,
+               declined_at = NOW(3),
+               updated_at = NOW(3)
+           WHERE id = ?;`,
+          [params.declineReason || null, c.id]
+        );
+
+        try {
+          const notif = await createNotificationInTransaction(connection, {
+            userId: otherUserId,
+            consultancyId: params.consultancyId,
+            priority: "NORMAL",
+            eventType: "CHAT_MESSAGE",
+            title: "Atendimento no Trevo Chat recusado",
+            body: `${responderName} não pôde aceitar a proposta de atendimento.`,
+            deepLink: `/consultoria/${params.consultancySlug}/consultas?tab=chat`,
+            dedupeKey: `chat_decl_${c.id}_${Date.now()}`,
+            sourceType: "CHAT_MESSAGE",
+            sourcePublicId: params.consultationPublicId,
+          });
+          deliverNotificationAfterCommit(notif.id).catch(() => {});
+        } catch {}
+      }
+
+      await connection.commit();
+      return { ok: true };
+    } catch (err: unknown) {
+      await connection.rollback();
+      const msg = err instanceof Error ? err.message : "Erro ao responder à proposta.";
+      return { ok: false, error: msg };
+    } finally {
+      connection.release();
+    }
+  });
+}
+
+/**
+ * Cancels a chat consultation (either proposed or active).
+ */
+export async function cancelChatConsultation(params: {
+  consultancyId: number;
+  consultationPublicId: string;
+  userId: number;
+}): Promise<{ ok: boolean; error?: string }> {
+  return executeWithAutoSchema(async () => {
+    const pool = getDbPool();
+    const [cRows] = await pool.execute<RowDataPacket[]>(
+      `SELECT cc.id, cm_stud.user_id AS student_user_id, cm_prof.user_id AS professional_user_id
+       FROM chat_consultations cc
+       INNER JOIN consultancy_members cm_stud ON cm_stud.id = cc.student_membership_id
+       INNER JOIN consultancy_members cm_prof ON cm_prof.id = cc.professional_membership_id
+       WHERE cc.consultancy_id = ? AND cc.public_id = ?
+       LIMIT 1;`,
+      [params.consultancyId, params.consultationPublicId]
+    );
+
+    if (!cRows || cRows.length === 0) {
+      throw new Error("Atendimento não encontrado.");
+    }
+
+    const c = cRows[0];
+    const isStudent = Number(params.userId) === Number(c.student_user_id);
+    const isProf = Number(params.userId) === Number(c.professional_user_id);
+    if (!isStudent && !isProf) {
+      throw new Error("Não autorizado.");
+    }
+
+    await pool.execute(
+      `UPDATE chat_consultations
+       SET status = 'CANCELED',
+           canceled_at = NOW(3),
+           updated_at = NOW(3)
+       WHERE id = ?;`,
+      [c.id]
+    );
+
+    return { ok: true };
+  });
+}
+
+/**
  * Lists messages in a consultation ordered chronologically.
  */
 export async function listChatMessages(
@@ -438,6 +826,7 @@ export async function sendChatMessage(params: {
         cc.id,
         cc.public_id,
         cc.consultancy_id,
+        cc.status,
         cc.student_membership_id,
         cm_stud.user_id AS student_user_id,
         u_stud.full_name AS student_name,
@@ -458,6 +847,15 @@ export async function sendChatMessage(params: {
       throw new Error("Consulta não encontrada.");
     }
     const consultation = cRows[0];
+
+    // Validate that bilateral acceptance has occurred before messages can be sent
+    if (!isChatMessagingUnlocked(consultation.status as ChatConsultationStatus)) {
+      throw new Error(
+        consultation.status === "PROPOSED"
+          ? "O agendamento precisa ser aceito por ambos os participantes antes de iniciar o envio de mensagens."
+          : "Este atendimento está encerrado ou cancelado."
+      );
+    }
 
     const messageType = params.messageType || "TEXT";
     const msgPublicId = crypto.randomUUID();
@@ -511,7 +909,8 @@ export async function sendChatMessage(params: {
 
     const isSenderStudent = Number(params.senderUserId) === Number(consultation.student_user_id);
     const recipientUserId = isSenderStudent ? consultation.professional_user_id : consultation.student_user_id;
-    const newStatus = isSenderStudent ? "AWAITING_PROFESSIONAL" : "AWAITING_STUDENT";
+    const currentStatus = consultation.status as ChatConsultationStatus;
+    const newStatus = currentStatus === "CONFIRMED" ? "CONFIRMED" : isSenderStudent ? "AWAITING_PROFESSIONAL" : "AWAITING_STUDENT";
 
     // 4. Update consultation counters
     if (isSenderStudent) {
@@ -840,6 +1239,28 @@ function mapRowToConsultationDto(row: RowDataPacket): ChatConsultationDto {
     professionalType: row.professional_type as "PERSONAL" | "NUTRITIONIST",
     title: String(row.title || "Consulta"),
     status: row.status as ChatConsultationStatus,
+    proposedByUserId: row.proposed_by_user_id ? Number(row.proposed_by_user_id) : null,
+    proposedStartAt: row.proposed_start_at ? new Date(row.proposed_start_at).toISOString() : null,
+    proposedStartFormatted: row.proposed_start_at
+      ? new Date(row.proposed_start_at).toLocaleString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : null,
+    topic: row.title || null,
+    studentAcceptedAt: row.student_accepted_at ? new Date(row.student_accepted_at).toISOString() : null,
+    professionalAcceptedAt: row.professional_accepted_at ? new Date(row.professional_accepted_at).toISOString() : null,
+    declinedReason: row.declined_reason || null,
+    declinedAt: row.declined_at ? new Date(row.declined_at).toISOString() : null,
+    canceledAt: row.canceled_at ? new Date(row.canceled_at).toISOString() : null,
+    isMutualConfirmed:
+      row.status === "CONFIRMED" ||
+      row.status === "AWAITING_STUDENT" ||
+      row.status === "AWAITING_PROFESSIONAL" ||
+      Boolean(row.student_accepted_at && row.professional_accepted_at),
     lastMessageAt: row.last_message_at ? new Date(row.last_message_at).toISOString() : null,
     lastMessagePreview: row.last_message_preview || null,
     unreadCountStudent: Number(row.unread_count_student || 0),

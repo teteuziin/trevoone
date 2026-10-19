@@ -349,11 +349,11 @@ export async function ConsultancyAppShell({
         iconName: "training",
       },
       {
-        id: "admin-operacoes",
-        label: "Operações",
-        mobileLabel: "Operações",
-        href: `/consultoria/${consultancySlug}/operacoes`,
-        iconName: "operations",
+        id: "atendimento-consultas",
+        label: "Consultas",
+        mobileLabel: "Consultas",
+        href: `/consultoria/${consultancySlug}/consultas`,
+        iconName: "consultations",
       }
     );
   } else if (isNutritionist && isAdmin) {
@@ -373,11 +373,11 @@ export async function ConsultancyAppShell({
         iconName: "nutrition",
       },
       {
-        id: "admin-operacoes",
-        label: "Operações",
-        mobileLabel: "Operações",
-        href: `/consultoria/${consultancySlug}/operacoes`,
-        iconName: "operations",
+        id: "atendimento-consultas",
+        label: "Consultas",
+        mobileLabel: "Consultas",
+        href: `/consultoria/${consultancySlug}/consultas`,
+        iconName: "consultations",
       }
     );
   } else if (isInfluencer && !isStudent) {

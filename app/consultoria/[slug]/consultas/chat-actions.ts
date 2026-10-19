@@ -15,6 +15,9 @@ import {
   confirmAiAnamnesisProposal,
   getOrCreateChatConsultation,
   getChatConsultationByPublicId,
+  proposeChatConsultation,
+  respondToChatProposal,
+  cancelChatConsultation,
   type ChatConsultationStatus,
   type ChatMessageType,
 } from "@/lib/consultancies/trevo-chat";
@@ -295,6 +298,163 @@ export async function startOrOpenChatAction(
     return { ok: true, data: chat };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Erro ao abrir atendimento.";
+    return { ok: false, error: errorMsg };
+  }
+}
+
+/**
+ * Proposes a new bilateral chat consultation with a reference date and time.
+ */
+export async function proposeChatConsultationAction(
+  consultancySlug: string,
+  params: {
+    studentMembershipId?: number;
+    professionalMembershipId?: number;
+    professionalType?: "PERSONAL" | "NUTRITIONIST";
+    referenceDate: string;
+    referenceTime: string;
+    title?: string;
+  }
+): Promise<ActionResult> {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return { ok: false, error: "Não autenticado." };
+
+    const context = await resolveConsultancyContext(session.userId, consultancySlug);
+    if (!context) return { ok: false, error: "Consultoria não encontrada." };
+
+    const isStudent = context.roles.includes("STUDENT");
+    const isPersonal = context.roles.includes("PERSONAL");
+    const isNutritionist = context.roles.includes("NUTRITIONIST");
+
+    let studentMemId = params.studentMembershipId;
+    let profMemId = params.professionalMembershipId;
+    let profType = params.professionalType || "PERSONAL";
+
+    if (isStudent) {
+      studentMemId = context.membershipId;
+      if (!profMemId) {
+        return { ok: false, error: "Profissional não especificado para o agendamento." };
+      }
+    } else if (isPersonal || isNutritionist) {
+      profMemId = context.membershipId;
+      profType = isPersonal ? "PERSONAL" : "NUTRITIONIST";
+      if (!studentMemId) {
+        return { ok: false, error: "Selecione um aluno para propor o agendamento." };
+      }
+    } else {
+      return { ok: false, error: "Perfil não autorizado para propor consultas." };
+    }
+
+    if (!params.referenceDate || !params.referenceTime) {
+      return { ok: false, error: "Informe a data e o horário de referência para a agenda." };
+    }
+
+    const proposedDate = new Date(`${params.referenceDate}T${params.referenceTime}:00`);
+    if (isNaN(proposedDate.getTime())) {
+      return { ok: false, error: "Data ou horário inválido." };
+    }
+
+    const chat = await proposeChatConsultation({
+      consultancyId: context.consultancyId,
+      studentMembershipId: studentMemId,
+      professionalMembershipId: profMemId,
+      professionalType: profType,
+      proposedByUserId: session.userId,
+      proposedStartAt: proposedDate,
+      title: params.title,
+      consultancySlug,
+    });
+
+    revalidatePath(`/consultoria/${consultancySlug}/consultas`);
+    return { ok: true, data: chat };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro ao propor agendamento.";
+    return { ok: false, error: errorMsg };
+  }
+}
+
+/**
+ * Responds to a bilateral chat proposal (ACCEPT, COUNTER, DECLINE).
+ */
+export async function respondToChatProposalAction(
+  consultancySlug: string,
+  chatPublicId: string,
+  response: "ACCEPT" | "COUNTER" | "DECLINE",
+  counterDetails?: {
+    date: string;
+    time: string;
+  },
+  declineReason?: string
+): Promise<ActionResult> {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return { ok: false, error: "Não autenticado." };
+
+    const context = await resolveConsultancyContext(session.userId, consultancySlug);
+    if (!context) return { ok: false, error: "Consultoria não encontrada." };
+
+    let counterDate: Date | undefined = undefined;
+    if (response === "COUNTER") {
+      if (!counterDetails?.date || !counterDetails?.time) {
+        return { ok: false, error: "Informe a nova data e horário sugeridos." };
+      }
+      counterDate = new Date(`${counterDetails.date}T${counterDetails.time}:00`);
+      if (isNaN(counterDate.getTime())) {
+        return { ok: false, error: "Data ou horário inválido." };
+      }
+    }
+
+    const result = await respondToChatProposal({
+      consultancyId: context.consultancyId,
+      consultationPublicId: chatPublicId,
+      responderUserId: session.userId,
+      response,
+      counterProposedStartAt: counterDate,
+      declineReason,
+      consultancySlug,
+    });
+
+    if (!result.ok) {
+      return { ok: false, error: result.error || "Erro ao responder à proposta." };
+    }
+
+    revalidatePath(`/consultoria/${consultancySlug}/consultas`);
+    return { ok: true };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro ao responder à proposta.";
+    return { ok: false, error: errorMsg };
+  }
+}
+
+/**
+ * Cancels a proposed or confirmed chat consultation.
+ */
+export async function cancelChatConsultationAction(
+  consultancySlug: string,
+  chatPublicId: string
+): Promise<ActionResult> {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return { ok: false, error: "Não autenticado." };
+
+    const context = await resolveConsultancyContext(session.userId, consultancySlug);
+    if (!context) return { ok: false, error: "Consultoria não encontrada." };
+
+    const result = await cancelChatConsultation({
+      consultancyId: context.consultancyId,
+      consultationPublicId: chatPublicId,
+      userId: session.userId,
+    });
+
+    if (!result.ok) {
+      return { ok: false, error: result.error || "Erro ao cancelar atendimento." };
+    }
+
+    revalidatePath(`/consultoria/${consultancySlug}/consultas`);
+    return { ok: true };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro ao cancelar atendimento.";
     return { ok: false, error: errorMsg };
   }
 }

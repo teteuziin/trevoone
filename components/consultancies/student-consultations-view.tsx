@@ -19,6 +19,7 @@ export interface StudentConsultationsViewProps {
   joinAccess: ConsultationJoinAccessResult | null;
   upcomingConsultations: ConsultationListItemDto[];
   historyConsultations: ConsultationListItemDto[];
+  hideHeader?: boolean;
 }
 
 function StatusBadge({ status }: { status: ConsultationStatus | "ENDED" }) {
@@ -64,6 +65,7 @@ export function StudentConsultationsView({
   joinAccess,
   upcomingConsultations,
   historyConsultations,
+  hideHeader = false,
 }: StudentConsultationsViewProps) {
   const [selectedForCancel, setSelectedForCancel] = useState<ConsultationListItemDto | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -96,24 +98,29 @@ export function StudentConsultationsView({
   const hasAnyUpcoming = !!nextConsultation || upcomingConsultations.length > 0;
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-8 pb-12">
-      {/* Header */}
-      <PageHeader
-        eyebrow="Teleconsulta 1:1"
-        title="Consultas"
-        description="Acompanhe seus próximos atendimentos e seu histórico."
-        backHref={`/consultoria/${consultancySlug}`}
-        backLabel="Voltar ao painel"
-      />
+    <div className="w-full max-w-4xl mx-auto space-y-6 pb-12">
+      {/* Header (conditionally hidden when rendered inside unified Consultations tabs) */}
+      {!hideHeader && (
+        <PageHeader
+          eyebrow="Teleconsulta 1:1"
+          title="Consultas"
+          description="Acompanhe seus próximos atendimentos e seu histórico."
+          backHref={`/consultoria/${consultancySlug}`}
+          backLabel="Voltar ao painel"
+        />
+      )}
 
-      {/* Timezone Note */}
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
-        <div className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-[var(--brand)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      {/* Timezone Note (Clean & Accurate) */}
+      <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)] px-1">
+        <span className="flex items-center gap-1.5 font-medium">
+          <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span>Horários no fuso da consultoria: <strong className="text-[var(--text-primary)]">{timezone}</strong></span>
-        </div>
+          {timezone === "America/Sao_Paulo" ? "Horários de Brasília" : timezone}
+        </span>
+        <span className="text-[11px] opacity-75">
+          {timezone}
+        </span>
       </div>
 
       {/* Destaque: Próxima Consulta */}
@@ -267,8 +274,8 @@ export function StudentConsultationsView({
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
             </svg>
           }
-          title="Nenhuma consulta agendada"
-          description="Quando seu profissional marcar um atendimento, ele aparecerá aqui."
+          title="Nenhuma videochamada agendada."
+          description="Quando seu profissional marcar um atendimento por vídeo, ele aparecerá aqui."
         />
       )}
 

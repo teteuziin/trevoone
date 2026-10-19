@@ -290,6 +290,23 @@ export function AppearanceSegmentedControl({
   );
 }
 
+function getRoleBadgeColor(lbl: string): string {
+  const lower = lbl.toLowerCase();
+  if (lower.includes("personal") || lower.includes("treinador")) {
+    return "bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30";
+  }
+  if (lower.includes("nutricionista") || lower.includes("nutri")) {
+    return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30";
+  }
+  if (lower.includes("administrador") || lower.includes("admin")) {
+    return "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30";
+  }
+  if (lower.includes("aluno") || lower.includes("paciente") || lower.includes("student")) {
+    return "bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30";
+  }
+  return "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]";
+}
+
 export function ConsultancyNavigation({
   consultancySlug,
   consultancyName,
@@ -416,8 +433,26 @@ export function ConsultancyNavigation({
     Boolean(pathname) &&
     pathname === `${baseSlugHref}/progresso/alunos`;
 
+  const [hasChatQuery, setHasChatQuery] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setHasChatQuery(window.location.search.includes("c="));
+    }
+  }, [pathname]);
+
+  const isConsultasActiveChat =
+    Boolean(pathname) &&
+    pathname.startsWith(`${baseSlugHref}/consultas`) &&
+    hasChatQuery;
+
   const shouldHideMobileBottomNav =
-    isStudentRuntime || isWorkoutBuilder || isNutritionBuilder || isStudentChat || isKeyboardOpen;
+    isStudentRuntime ||
+    isWorkoutBuilder ||
+    isNutritionBuilder ||
+    isStudentChat ||
+    isConsultasActiveChat ||
+    isKeyboardOpen;
 
   function isItemActive(itemHref?: string | null): boolean {
     if (!pathname || !itemHref) return false;
@@ -719,24 +754,21 @@ export function ConsultancyNavigation({
             <ConsultancyLogo
               logoUrl={consultancyLogoUrl}
               name={consultancyName}
-              size={36}
+              size={56}
+              clean={true}
             />
             <div className="min-w-0 flex-1">
-              <p className={`text-sm font-semibold ${
+              <p className={`text-base font-bold tracking-tight ${
                 isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"
               } truncate leading-tight transition-colors`}>
                 {consultancyName}
               </p>
               {roleLabels.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
+                <div className="flex flex-wrap gap-1 mt-1.5">
                   {roleLabels.map((lbl) => (
                     <span
                       key={lbl}
-                      className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                        isDarkOverview
-                          ? "bg-[#E5E7EB] dark:bg-[#1B1D21] border border-[#D1D5DB] dark:border-[#303238] text-[#4B5563] dark:text-[#C2C8CF]"
-                          : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]"
-                      } uppercase tracking-wider`}
+                      className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded ${getRoleBadgeColor(lbl)} uppercase tracking-wider`}
                     >
                       {lbl}
                     </span>
@@ -810,79 +842,132 @@ export function ConsultancyNavigation({
           </nav>
         </div>
 
-        {/* Bottom: User Card, Clear Named Actions, Theme & Exit */}
+        {/* Bottom: Refined Single Account Trigger & Unified Popover */}
         <div
           ref={desktopProfileRef}
-          className={`relative p-4 border-t ${
+          className={`relative p-3 border-t ${
             isDarkOverview
               ? "border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#111215]"
               : "border-[var(--border-default)] bg-[var(--surface)]"
-          } shrink-0 space-y-3`}
+          } shrink-0`}
         >
-          {/* Desktop Account Menu Popover (Menu de conta identificado) */}
+          {/* Desktop Account Menu Popover */}
           {desktopProfileOpen && (
             <div
               role="menu"
               aria-label="Menu da conta"
-              className="absolute bottom-full left-3 right-3 mb-2 z-50 bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl shadow-xl p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+              className="absolute bottom-full left-3 right-3 mb-2 z-50 bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl shadow-2xl p-3 space-y-2.5 animate-in fade-in zoom-in-95 duration-150"
             >
-              <div className="px-3 py-1.5 text-[11px] font-bold text-[#6B7280] dark:text-[#8E95A2] uppercase tracking-wider">
-                Menu da conta
+              {/* User Identity Header */}
+              <div className="flex items-center gap-2.5 pb-2.5 border-b border-[#E5E7EB] dark:border-[#303238]">
+                <UserAvatar
+                  fullName={identity.fullName}
+                  userPublicId={identity.userPublicId}
+                  avatarUrl={identity.avatarUrl}
+                  hasProfilePhoto={identity.hasProfilePhoto}
+                  profilePhotoUpdatedAt={identity.profilePhotoUpdatedAt}
+                  shape="circle"
+                  size="sm"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-[#17191D] dark:text-white truncate">
+                    {identity.fullName}
+                  </p>
+                  {identity.email && (
+                    <p className="text-[11px] text-[#6B7280] dark:text-[#8E95A2] truncate">
+                      {identity.email}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <Link
-                href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
-                onClick={() => setDesktopProfileOpen(false)}
-                role="menuitem"
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-[#17191D] dark:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] transition-colors"
-              >
-                <svg className="w-4 h-4 shrink-0 text-[#6B7280] dark:text-[#8E95A2]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                </svg>
-                <span>Meu perfil</span>
-              </Link>
-
-              <Link
-                href="/notificacoes"
-                onClick={() => setDesktopProfileOpen(false)}
-                role="menuitem"
-                className="flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl text-[#17191D] dark:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] transition-colors"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
+              {/* Navigation Links */}
+              <div className="space-y-0.5">
+                <Link
+                  href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
+                  onClick={() => setDesktopProfileOpen(false)}
+                  role="menuitem"
+                  className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium rounded-xl text-[#17191D] dark:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] transition-colors"
+                >
                   <svg className="w-4 h-4 shrink-0 text-[#6B7280] dark:text-[#8E95A2]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                   </svg>
-                  <span className="truncate">Notificações</span>
-                </div>
-                {unreadNotificationsCount > 0 && (
-                  <span className="w-2 h-2 rounded-full bg-[#10B981] shrink-0" />
-                )}
-              </Link>
+                  <span>Meu perfil</span>
+                </Link>
 
-              <Link
-                href="/conta/seguranca"
-                onClick={() => setDesktopProfileOpen(false)}
-                role="menuitem"
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-[#17191D] dark:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] transition-colors"
-              >
-                <svg className="w-4 h-4 shrink-0 text-[#6B7280] dark:text-[#8E95A2]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                </svg>
-                <span>Segurança e senha</span>
-              </Link>
+                <Link
+                  href="/notificacoes"
+                  onClick={() => setDesktopProfileOpen(false)}
+                  role="menuitem"
+                  className="flex items-center justify-between px-2.5 py-1.5 text-xs font-medium rounded-xl text-[#17191D] dark:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <svg className="w-4 h-4 shrink-0 text-[#6B7280] dark:text-[#8E95A2]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                    </svg>
+                    <span className="truncate">Notificações</span>
+                  </div>
+                  {unreadNotificationsCount > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-[#10B981] shrink-0" />
+                  )}
+                </Link>
 
-              <Link
-                href={`/consultoria/${consultancySlug}/ajuda`}
-                onClick={() => setDesktopProfileOpen(false)}
-                role="menuitem"
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-[#17191D] dark:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] transition-colors"
-              >
-                <svg className="w-4 h-4 shrink-0 text-[#6B7280] dark:text-[#8E95A2]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                  <circle cx="12" cy="12" r="9" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3m.08 4h.01" />
-                </svg>
-                <span>Ajuda e suporte</span>
-              </Link>
+                <Link
+                  href="/conta/seguranca"
+                  onClick={() => setDesktopProfileOpen(false)}
+                  role="menuitem"
+                  className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium rounded-xl text-[#17191D] dark:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] transition-colors"
+                >
+                  <svg className="w-4 h-4 shrink-0 text-[#6B7280] dark:text-[#8E95A2]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                  </svg>
+                  <span>Segurança e senha</span>
+                </Link>
+
+                <Link
+                  href={`/consultoria/${consultancySlug}/ajuda`}
+                  onClick={() => setDesktopProfileOpen(false)}
+                  role="menuitem"
+                  className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-medium rounded-xl text-[#17191D] dark:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] transition-colors"
+                >
+                  <svg className="w-4 h-4 shrink-0 text-[#6B7280] dark:text-[#8E95A2]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                    <circle cx="12" cy="12" r="9" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3m.08 4h.01" />
+                  </svg>
+                  <span>Ajuda e suporte</span>
+                </Link>
+              </div>
+
+              {/* Theme Selector */}
+              <div className="pt-2 border-t border-[#E5E7EB] dark:border-[#303238]">
+                <p className="text-[10px] font-bold text-[#6B7280] dark:text-[#8E95A2] uppercase tracking-wider px-1 mb-1.5">
+                  Tema da interface
+                </p>
+                <AppearanceSegmentedControl
+                  compact
+                  currentTheme={currentTheme}
+                  onThemeSelect={handleThemeSelect}
+                  className="w-full justify-center"
+                />
+              </div>
+
+              {/* Actions: Switch consultancy and Logout */}
+              <div className="pt-2 border-t border-[#E5E7EB] dark:border-[#303238] space-y-1">
+                <Link
+                  href="/selecionar-consultoria"
+                  prefetch={false}
+                  onClick={() => setDesktopProfileOpen(false)}
+                  className="flex items-center justify-center w-full py-2 px-3 text-xs font-semibold rounded-xl text-[#17191D] dark:text-white bg-[#F3F4F6] dark:bg-[#1B1D21] hover:bg-[#E5E7EB] dark:hover:bg-[#252830] transition-colors"
+                >
+                  Trocar consultoria
+                </Link>
+                <LogoutButton
+                  logoutAction={logoutFromConsultancyArea}
+                  className="flex items-center justify-center w-full py-2 px-3 text-xs font-semibold rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+                >
+                  Sair da conta
+                </LogoutButton>
+              </div>
             </div>
           )}
 
@@ -939,40 +1024,6 @@ export function ConsultancyNavigation({
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-
-
-          {/* Theme Selector */}
-          <AppearanceSegmentedControl
-            compact
-            currentTheme={currentTheme}
-            onThemeSelect={handleThemeSelect}
-            className="w-full justify-center"
-          />
-
-          {/* Action Buttons */}
-          <div className="space-y-1.5 pt-0.5">
-            <Link
-              href="/selecionar-consultoria"
-              prefetch={false}
-              className={`flex items-center justify-center w-full py-2 px-3 text-xs font-semibold min-h-[38px] ${
-                isDarkOverview
-                  ? "text-[#17191D] dark:text-white bg-white dark:bg-[#1B1D21] hover:bg-[#E5E7EB] dark:hover:bg-[#252830] border border-[#E5E7EB] dark:border-[#303238]"
-                  : "text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)]"
-              } rounded-xl transition-all shadow-xs depth-interactive`}
-            >
-              Trocar consultoria
-            </Link>
-            <LogoutButton
-              logoutAction={logoutFromConsultancyArea}
-              className={`flex items-center justify-center w-full py-2 px-3 text-xs font-medium min-h-[38px] ${
-                isDarkOverview
-                  ? "text-[#4B5563] dark:text-[#C2C8CF] hover:text-red-600 dark:hover:text-red-400 bg-white dark:bg-[#1B1D21] hover:bg-red-50 dark:hover:bg-red-500/10 border border-[#E5E7EB] dark:border-[#303238] hover:border-red-200 dark:hover:border-red-500/30"
-                  : "text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] bg-[var(--surface-subtle)] hover:bg-[var(--danger-soft)] border border-[var(--border-default)] hover:border-[var(--danger-border)]"
-              } rounded-xl transition-all cursor-pointer depth-interactive`}
-            >
-              Sair da conta
-            </LogoutButton>
-          </div>
         </div>
       </aside>
 

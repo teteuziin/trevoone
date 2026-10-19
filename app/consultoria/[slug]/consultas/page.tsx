@@ -114,6 +114,7 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
           chatUnreadCount={totalUnread}
           consultancySlug={slug}
           chatError={chatError}
+          canSchedule={false}
           videoView={
             <StudentConsultationsView
               consultancySlug={slug}
@@ -123,6 +124,7 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
               joinAccess={joinAccess}
               upcomingConsultations={otherUpcoming}
               historyConsultations={history}
+              hideHeader={true}
             />
           }
           chatView={
@@ -203,6 +205,7 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
           chatUnreadCount={totalUnread}
           consultancySlug={slug}
           chatError={chatError}
+          canSchedule={true}
           videoView={
             <ProfessionalConsultationsView
               consultancySlug={slug}
@@ -213,6 +216,7 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
               upcomingConsultations={upcoming}
               historyConsultations={history}
               joinAccessForNext={joinAccessForNext}
+              hideHeader={true}
             />
           }
           chatView={

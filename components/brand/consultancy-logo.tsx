@@ -9,6 +9,7 @@ interface ConsultancyLogoProps {
   size?: number;
   className?: string;
   priority?: boolean;
+  clean?: boolean;
 }
 
 function isValidInternalPath(url: unknown): url is string {
@@ -35,6 +36,7 @@ export function ConsultancyLogo({
   size = 48,
   className = "",
   priority = false,
+  clean = false,
 }: ConsultancyLogoProps) {
   const [prevLogoUrl, setPrevLogoUrl] = useState(logoUrl);
   const [hasError, setHasError] = useState(false);
@@ -48,10 +50,14 @@ export function ConsultancyLogo({
   const isSafeUrl = isValidInternalPath(logoUrl);
   const showImage = isSafeUrl && !hasError;
 
+  const containerBaseClass = clean
+    ? "relative shrink-0 overflow-hidden flex items-center justify-center rounded-xl"
+    : "relative shrink-0 overflow-hidden flex items-center justify-center rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] shadow-2xs";
+
   if (showImage && logoUrl) {
     return (
       <div
-        className={`relative shrink-0 overflow-hidden flex items-center justify-center rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] shadow-2xs ${className}`.trim()}
+        className={`${containerBaseClass} ${className}`.trim()}
         style={{ width: size, height: size }}
       >
         <Image
@@ -63,7 +69,7 @@ export function ConsultancyLogo({
           unoptimized
           priority={priority}
           onError={() => setHasError(true)}
-          className="w-full h-full object-contain p-1"
+          className={`w-full h-full object-contain ${clean ? "" : "p-1"}`}
         />
       </div>
     );
@@ -73,7 +79,7 @@ export function ConsultancyLogo({
 
   return (
     <div
-      className={`relative shrink-0 flex items-center justify-center rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] font-bold select-none shadow-2xs ${className}`.trim()}
+      className={`${containerBaseClass} text-[var(--text-primary)] font-bold select-none ${className}`.trim()}
       style={{ width: size, height: size, fontSize: Math.max(14, Math.floor(size * 0.45)) }}
       aria-label={name}
     >

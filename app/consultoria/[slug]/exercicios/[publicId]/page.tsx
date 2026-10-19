@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "@/lib/db/mysql";
@@ -7,8 +8,7 @@ import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getExerciseByIdOrPublicId } from "@/lib/training-v2/exercise-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
-import { PageHeader } from "@/components/ui/page-header";
-import { Badge } from "@/components/ui/badge";
+import { DuotoneExercisesIcon } from "@/components/ui/icons/duotone-icons";
 import { ConsultancyExerciseForm } from "@/components/consultancies/training-v2/consultancy-exercise-form";
 
 type PageProps = {
@@ -94,37 +94,50 @@ export default async function ConsultancyExerciseDetailPage({ params }: PageProp
       showDashboardWallpaper={true}
       maxWidth="default"
     >
-      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
-        <PageHeader
-          eyebrow="Módulo de Treinamento"
-          title={exercise.name}
-          description={
-            isGlobal
-              ? "Exercício do acervo oficial Trevo One. Disponível para consulta e prescrição em treinos."
-              : isTenantOwner
-              ? "Edite os detalhes, gerencie fotos e vídeos e controle a visibilidade do exercício."
-              : "Exercício compartilhado na consultoria. Disponível para prescrição nos seus treinos."
-          }
-          backHref={`/consultoria/${slug}/exercicios`}
-          backLabel="Voltar para a Biblioteca"
-          actions={
-            <div className="flex items-center gap-2">
-              {isGlobal ? (
-                <Badge variant="brand" size="sm" className="font-bold">
-                  Trevo One Oficial • Somente Leitura
-                </Badge>
-              ) : exercise.visibility === "CONSULTANCY" ? (
-                <Badge variant="info" size="sm" className="font-bold">
-                  Compartilhado na Consultoria
-                </Badge>
-              ) : (
-                <Badge variant="neutral" size="sm" className="font-bold">
-                  Privado • Só para mim
-                </Badge>
-              )}
+      <div className="w-full max-w-5xl mx-auto space-y-5 pb-16">
+        {/* Compact Header */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#151619] border border-neutral-200/80 dark:border-[#303238] shadow-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              href={`/consultoria/${slug}/exercicios`}
+              className="w-10 h-10 rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-white/5 dark:hover:bg-white/10 active:scale-95 border border-neutral-200 dark:border-white/10 flex items-center justify-center text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
+              aria-label="Voltar para a biblioteca de exercícios"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </Link>
+
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
+              <DuotoneExercisesIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             </div>
-          }
-        />
+
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-bold text-neutral-900 dark:text-white tracking-tight truncate">
+                {exercise.name}
+              </h1>
+              <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-medium truncate">
+                {exercise.muscleGroupPrimary} • {exercise.equipment}
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0 flex items-center gap-2">
+            {isGlobal ? (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">
+                Oficial Trevo One
+              </span>
+            ) : exercise.visibility === "CONSULTANCY" ? (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/20">
+                Minha Consultoria
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/20">
+                Privado • Só para mim
+              </span>
+            )}
+          </div>
+        </div>
 
         <ConsultancyExerciseForm
           slug={slug}

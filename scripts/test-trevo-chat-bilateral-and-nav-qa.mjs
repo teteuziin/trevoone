@@ -66,4 +66,22 @@ const shell = fs.readFileSync(shellPath, "utf-8");
 assert.ok(shell.includes("Consultas"), "Mobile bottom nav items must include Consultas");
 console.log("✓ components/consultancies/consultancy-app-shell.tsx includes Consultas in mobile navigation");
 
+// 8. Verify auto-schema self-healing on ER_BAD_FIELD_ERROR
+assert.ok(trevoChatLib.includes("ER_BAD_FIELD_ERROR"), "lib must handle ER_BAD_FIELD_ERROR in executeWithAutoSchema");
+assert.ok(trevoChatLib.includes("Unknown column"), "lib must catch Unknown column errors");
+assert.ok(trevoChatLib.includes("SHOW COLUMNS FROM chat_consultations"), "lib must inspect columns individually");
+console.log("✓ lib/consultancies/trevo-chat.ts auto-schema self-healing handles missing columns and bad field errors");
+
+// 9. Verify Consultas page enables Dashboard Wallpaper
+const pagePath = path.resolve("app/consultoria/[slug]/consultas/page.tsx");
+const pageContent = fs.readFileSync(pagePath, "utf-8");
+assert.ok(pageContent.includes('showDashboardWallpaper={true}'), "Consultas page must pass showDashboardWallpaper={true} to shell");
+assert.ok(pageContent.includes('themeVariant="dark-overview"'), "Consultas page must pass themeVariant='dark-overview' to shell");
+console.log("✓ app/consultoria/[slug]/consultas/page.tsx enables DashboardWallpaper and dark-overview");
+
+// 10. Verify neutral fallback text in ConsultationsTabbedContainer
+assert.ok(container.includes("Você pode acessar a aba Videochamada."), "Fallback must offer neutral suggestion to access Videochamada");
+assert.ok(!container.includes("funcionando normalmente"), "Fallback must not make unsubstantiated claims of 'funcionando normalmente'");
+console.log("✓ components/consultancies/consultations-tabbed-container.tsx has neutral fallback messaging");
+
 console.log("\n=== ALL QA ASSERTIONS PASSED SUCCESSFULLY! ===");

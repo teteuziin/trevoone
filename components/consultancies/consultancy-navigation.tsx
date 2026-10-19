@@ -433,13 +433,14 @@ export function ConsultancyNavigation({
     Boolean(pathname) &&
     pathname === `${baseSlugHref}/progresso/alunos`;
 
-  const [hasChatQuery, setHasChatQuery] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setHasChatQuery(window.location.search.includes("c="));
-    }
-  }, [pathname]);
+  const hasChatQuery = React.useSyncExternalStore(
+    (onStoreChange) => {
+      window.addEventListener("popstate", onStoreChange);
+      return () => window.removeEventListener("popstate", onStoreChange);
+    },
+    () => (typeof window !== "undefined" ? window.location.search.includes("c=") : false),
+    () => false
+  );
 
   const isConsultasActiveChat =
     Boolean(pathname) &&

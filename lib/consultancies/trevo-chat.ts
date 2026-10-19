@@ -140,24 +140,61 @@ export async function ensureChatTablesExist(): Promise<void> {
 
     // Check if migration 052 columns exist in case the table already existed
     try {
-      const [cols] = await pool.query<RowDataPacket[]>(
-        `SHOW COLUMNS FROM chat_consultations LIKE 'proposed_start_at'`
+      const [existingCols] = await pool.query<RowDataPacket[]>(
+        `SHOW COLUMNS FROM chat_consultations`
       );
-      if (cols.length === 0) {
-        await pool.query(`
-          ALTER TABLE chat_consultations
-            ADD COLUMN proposed_by_user_id BIGINT UNSIGNED NULL DEFAULT NULL AFTER confirmed_form_request_id,
-            ADD COLUMN proposed_start_at DATETIME(3) NULL DEFAULT NULL AFTER proposed_by_user_id,
-            ADD COLUMN student_accepted_at DATETIME(3) NULL DEFAULT NULL AFTER proposed_start_at,
-            ADD COLUMN professional_accepted_at DATETIME(3) NULL DEFAULT NULL AFTER student_accepted_at,
-            ADD COLUMN declined_reason VARCHAR(255) NULL DEFAULT NULL AFTER professional_accepted_at,
-            ADD COLUMN declined_at DATETIME(3) NULL DEFAULT NULL AFTER declined_reason,
-            ADD COLUMN canceled_at DATETIME(3) NULL DEFAULT NULL AFTER declined_at,
-            ADD KEY idx_chat_consultations_proposed (consultancy_id, proposed_start_at),
-            ADD KEY idx_chat_consultations_proposed_by (proposed_by_user_id);
-        `);
+      const colSet = new Set(
+        (existingCols as Array<{ Field: string }>).map((c) => c.Field.toLowerCase())
+      );
+
+      const columnsToAdd: Array<{ name: string; ddl: string }> = [
+        { name: "proposed_by_user_id", ddl: "ADD COLUMN proposed_by_user_id BIGINT UNSIGNED NULL DEFAULT NULL" },
+        { name: "proposed_start_at", ddl: "ADD COLUMN proposed_start_at DATETIME(3) NULL DEFAULT NULL" },
+        { name: "student_accepted_at", ddl: "ADD COLUMN student_accepted_at DATETIME(3) NULL DEFAULT NULL" },
+        { name: "professional_accepted_at", ddl: "ADD COLUMN professional_accepted_at DATETIME(3) NULL DEFAULT NULL" },
+        { name: "declined_reason", ddl: "ADD COLUMN declined_reason VARCHAR(255) NULL DEFAULT NULL" },
+        { name: "declined_at", ddl: "ADD COLUMN declined_at DATETIME(3) NULL DEFAULT NULL" },
+        { name: "canceled_at", ddl: "ADD COLUMN canceled_at DATETIME(3) NULL DEFAULT NULL" },
+        { name: "confirmed_form_request_id", ddl: "ADD COLUMN confirmed_form_request_id BIGINT UNSIGNED NULL DEFAULT NULL" },
+      ];
+
+      for (const col of columnsToAdd) {
+        if (!colSet.has(col.name.toLowerCase())) {
+          try {
+            await pool.query(`ALTER TABLE chat_consultations ${col.ddl}`);
+          } catch (colErr) {
+            console.warn(`[Trevo Chat] Could not add column ${col.name}:`, colErr);
+          }
+        }
       }
-    } catch {}
+
+      // Check indexes on chat_consultations
+      try {
+        const [existingIndexes] = await pool.query<RowDataPacket[]>(
+          `SHOW INDEX FROM chat_consultations WHERE Key_name IN ('idx_chat_consultations_proposed', 'idx_chat_consultations_proposed_by')`
+        );
+        const indexSet = new Set(
+          (existingIndexes as Array<{ Key_name: string }>).map((idx) => idx.Key_name)
+        );
+
+        if (!indexSet.has("idx_chat_consultations_proposed")) {
+          try {
+            await pool.query(
+              `ALTER TABLE chat_consultations ADD KEY idx_chat_consultations_proposed (consultancy_id, proposed_start_at)`
+            );
+          } catch {}
+        }
+        if (!indexSet.has("idx_chat_consultations_proposed_by")) {
+          try {
+            await pool.query(
+              `ALTER TABLE chat_consultations ADD KEY idx_chat_consultations_proposed_by (proposed_by_user_id)`
+            );
+          } catch {}
+        }
+      } catch {}
+    } catch (inspectErr) {
+      console.warn("[Trevo Chat] Error inspecting chat_consultations columns:", inspectErr);
+    }
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS \`chat_messages\` (
@@ -201,16 +238,28 @@ export async function ensureChatTablesExist(): Promise<void> {
 }
 
 async function executeWithAutoSchema<T>(fn: () => Promise<T>): Promise<T> {
+  if (!_chatSchemaChecked) {
+    await ensureChatTablesExist();
+  }
   try {
     return await fn();
   } catch (err: unknown) {
-    const isMissingTable =
+    const isSchemaError =
       err &&
       typeof err === "object" &&
-      (("code" in err && (err as { code: string }).code === "ER_NO_SUCH_TABLE") ||
-        ("message" in err && String((err as { message: string }).message).includes("doesn't exist")));
+      (("code" in err && (
+        (err as { code: string }).code === "ER_NO_SUCH_TABLE" ||
+        (err as { code: string }).code === "ER_BAD_FIELD_ERROR" ||
+        (err as { errno?: number }).errno === 1054 ||
+        (err as { errno?: number }).errno === 1146
+      )) ||
+      ("message" in err && (
+        String((err as { message: string }).message).includes("doesn't exist") ||
+        String((err as { message: string }).message).includes("Unknown column")
+      )));
 
-    if (isMissingTable) {
+    if (isSchemaError) {
+      _chatSchemaChecked = false;
       await ensureChatTablesExist();
       return await fn();
     }
@@ -1308,30 +1357,35 @@ export interface ActiveStudentForChatDto {
 export async function listActiveStudentsForChat(
   consultancyId: number
 ): Promise<ActiveStudentForChatDto[]> {
-  const pool = getDbPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT cm.id AS membership_id,
-            cm.public_id AS membership_public_id,
-            u.public_id AS user_public_id,
-            COALESCE(u.full_name, 'Aluno') AS name,
-            COALESCE(u.email, '') AS email
-     FROM consultancy_members cm
-     JOIN users u ON u.id = cm.user_id
-     JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
-     WHERE cm.consultancy_id = ?
-       AND cm.status = 'ACTIVE'
-       AND u.status = 'ACTIVE'
-       AND cmr.role = 'STUDENT'
-     GROUP BY cm.id, cm.public_id, u.public_id, u.full_name, u.email
-     ORDER BY u.full_name ASC;`,
-    [consultancyId]
-  );
+  try {
+    const pool = getDbPool();
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT cm.id AS membership_id,
+              cm.public_id AS membership_public_id,
+              u.public_id AS user_public_id,
+              COALESCE(u.full_name, 'Aluno') AS name,
+              COALESCE(u.email, '') AS email
+       FROM consultancy_members cm
+       JOIN users u ON u.id = cm.user_id
+       JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       WHERE cm.consultancy_id = ?
+         AND cm.status = 'ACTIVE'
+         AND u.status = 'ACTIVE'
+         AND cmr.role = 'STUDENT'
+       GROUP BY cm.id, cm.public_id, u.public_id, u.full_name, u.email
+       ORDER BY u.full_name ASC;`,
+      [consultancyId]
+    );
 
-  return (rows as RowDataPacket[]).map((r) => ({
-    membershipId: Number(r.membership_id),
-    membershipPublicId: String(r.membership_public_id),
-    userPublicId: String(r.user_public_id),
-    name: String(r.name || "Aluno"),
-    email: String(r.email || ""),
-  }));
+    return (rows as RowDataPacket[]).map((r) => ({
+      membershipId: Number(r.membership_id),
+      membershipPublicId: String(r.membership_public_id),
+      userPublicId: String(r.user_public_id),
+      name: String(r.name || "Aluno"),
+      email: String(r.email || ""),
+    }));
+  } catch (err: unknown) {
+    console.warn("[Trevo Chat] Erro ao listar alunos ativos para chat:", err);
+    return [];
+  }
 }

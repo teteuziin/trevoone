@@ -108,6 +108,8 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
         userPublicId={session.userPublicId}
         hasProfilePhoto={session.hasProfilePhoto}
         profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+        themeVariant="dark-overview"
+        showDashboardWallpaper={true}
       >
         <ConsultationsTabbedContainer
           initialTab={currentTab}
@@ -169,18 +171,20 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
     let chatError: string | null = null;
 
     try {
-      const [consultationsRes, studentsRes] = await Promise.all([
-        listChatConsultationsForProfessional(
-          context.consultancyId,
-          context.membershipId
-        ),
-        listActiveStudentsForChat(context.consultancyId),
-      ]);
-      chatConsultations = consultationsRes;
-      activeChatStudents = studentsRes;
+      chatConsultations = await listChatConsultationsForProfessional(
+        context.consultancyId,
+        context.membershipId
+      );
     } catch (err: unknown) {
       console.error("[Trevo Chat] Falha não bloqueante ao carregar conversas do profissional:", err);
       chatError = "Não foi possível carregar as conversas do Trevo Chat no momento.";
+    }
+
+    try {
+      activeChatStudents = await listActiveStudentsForChat(context.consultancyId);
+    } catch (err: unknown) {
+      console.warn("[Trevo Chat] Falha ao carregar lista de alunos ativos:", err);
+      activeChatStudents = [];
     }
 
     const totalUnread = chatConsultations.reduce(
@@ -199,6 +203,8 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
         userPublicId={session.userPublicId}
         hasProfilePhoto={session.hasProfilePhoto}
         profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+        themeVariant="dark-overview"
+        showDashboardWallpaper={true}
       >
         <ConsultationsTabbedContainer
           initialTab={currentTab}

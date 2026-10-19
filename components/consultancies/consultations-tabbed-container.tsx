@@ -155,7 +155,7 @@ export function ConsultationsTabbedContainer({
                 Trevo Chat temporariamente indisponível
               </h3>
               <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                {chatError} As suas consultas agendadas por videochamada continuam disponíveis e funcionando normalmente.
+                {chatError} Você pode acessar a aba Videochamada.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3 border-t border-[var(--border-subtle)]">

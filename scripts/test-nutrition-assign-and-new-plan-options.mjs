@@ -121,26 +121,31 @@ test("6. NutritionOverviewHeader fixes duplicate '+' and opens choice modal", ()
 // -----------------------------------------------------------------------------
 // 7. NutritionPlanChoiceModal: 4 options with exact copy and responsive layout
 // -----------------------------------------------------------------------------
-test("7. NutritionPlanChoiceModal renders 4 clear options with responsive layout", () => {
+test("7. NutritionPlanChoiceModal renders 4 clear options with responsive layout and exact copy", () => {
   const choiceModal = readFile("components/consultancies/nutrition-v2/nutrition-plan-choice-modal.tsx");
 
-  assert(choiceModal.includes("Como deseja criar o plano?"), "Title must be 'Como deseja criar o plano?'");
+  assert(choiceModal.includes("Novo plano alimentar"), "Title must be 'Novo plano alimentar'");
 
   // Option 1
   assert(choiceModal.includes("Criar manualmente"), "Option 1 title must be 'Criar manualmente'");
-  assert(choiceModal.includes("Monte as refeições e escolha os alimentos"), "Option 1 copy must match");
+  assert(choiceModal.includes("Monte as refeições, escolha os alimentos e defina as porções."), "Option 1 copy must match");
 
   // Option 2
   assert(choiceModal.includes("Criar do zero com IA"), "Option 2 title must be 'Criar do zero com IA'");
-  assert(choiceModal.includes("Descreva o plano que deseja montar"), "Option 2 copy must match");
+  assert(choiceModal.includes("Descreva o plano alimentar que deseja montar."), "Option 2 copy must match");
 
   // Option 3
   assert(choiceModal.includes("Importar com IA"), "Option 3 title must be 'Importar com IA'");
-  assert(choiceModal.includes("Transforme um plano existente em um rascunho editável"), "Option 3 copy must match");
+  assert(choiceModal.includes("Importe um plano alimentar para revisar e editar."), "Option 3 copy must match");
 
   // Option 4
   assert(choiceModal.includes("Usar modelo"), "Option 4 title must be 'Usar modelo'");
-  assert(choiceModal.includes("Comece com um modelo disponível"), "Option 4 copy must match");
+  assert(choiceModal.includes("Escolha um modelo de plano alimentar e personalize."), "Option 4 copy must match");
+
+  // Strict check: no workout terms in nutrition choice modal options
+  assert(!choiceModal.includes("exercício"), "Must not include workout terms like exercício");
+  assert(!choiceModal.includes("ficha"), "Must not include workout terms like ficha");
+  assert(!choiceModal.includes("série"), "Must not include workout terms like série");
 
   // Responsive grid
   assert(choiceModal.includes("grid-cols-1 sm:grid-cols-2"), "Desktop must be 2 cols, mobile 1 col");

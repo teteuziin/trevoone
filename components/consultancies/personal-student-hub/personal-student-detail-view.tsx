@@ -174,10 +174,10 @@ export function PersonalStudentDetailView({
     type: "PHOTOS",
   });
 
-  const isNutritionist = effectiveMode === "NUTRITIONIST" || userRoles.includes("NUTRITIONIST");
-  const isPersonal = effectiveMode === "PERSONAL" || userRoles.includes("PERSONAL");
+  const isNutritionist = effectiveMode === "NUTRITIONIST" || (userRoles.includes("NUTRITIONIST") && effectiveMode !== "PERSONAL");
+  const isPersonal = effectiveMode === "PERSONAL" || (userRoles.includes("PERSONAL") && effectiveMode !== "NUTRITIONIST");
 
-  const createPlanHref = `/consultoria/${consultancySlug}/planos-v2/novo?student=${student.membershipPublicId}`;
+  const createPlanHref = `/consultoria/${consultancySlug}/planos-v2/novo?student=${student.membershipPublicId}&studentId=${student.membershipPublicId}`;
 
   // Real active workout vs ended workouts
   const activeWorkout = workouts.find((w) => w.status === "ACTIVE") || null;
@@ -269,21 +269,21 @@ export function PersonalStudentDetailView({
 
           {/* Ações do Cabeçalho: CTA Contextual Único + Menu Secundário */}
           <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t border-[#303238] sm:border-0">
-            {activeWorkout ? (
-              <Link
-                href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 transition-colors min-h-[44px] shadow-sm cursor-pointer"
-              >
-                <DumbbellIcon className="w-4 h-4" />
-                <span>Abrir treino</span>
-              </Link>
-            ) : isNutritionist && !isPersonal ? (
+            {activeTab === "nutricao" || (effectiveMode === "NUTRITIONIST" && !activeWorkout) || (isNutritionist && !isPersonal) ? (
               <Link
                 href={createPlanHref}
                 className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 transition-colors min-h-[44px] shadow-sm cursor-pointer"
               >
                 <AppleIcon className="w-4 h-4" />
                 <span>Criar plano alimentar</span>
+              </Link>
+            ) : activeWorkout ? (
+              <Link
+                href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 transition-colors min-h-[44px] shadow-sm cursor-pointer"
+              >
+                <DumbbellIcon className="w-4 h-4" />
+                <span>Abrir treino</span>
               </Link>
             ) : (
               <button

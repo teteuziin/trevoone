@@ -109,7 +109,7 @@ export function NutritionPlanChoiceModal({
         <div className="px-5 py-4 border-b border-[#E5E7EB] dark:border-[#303238] flex items-center justify-between bg-slate-50/70 dark:bg-[#1B1D21]/70">
           <div>
             <h2 id="choice-modal-title" className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight">
-              Como deseja criar o plano?
+              Novo plano alimentar
             </h2>
             <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-0.5">
               Escolha a melhor forma de iniciar a prescrição nutricional
@@ -148,7 +148,7 @@ export function NutritionPlanChoiceModal({
                   </span>
                 </div>
                 <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
-                  Monte as refeições e escolha os alimentos diretamente no editor clínico.
+                  Monte as refeições, escolha os alimentos e defina as porções.
                 </p>
               </div>
             </button>
@@ -172,7 +172,7 @@ export function NutritionPlanChoiceModal({
                   </span>
                 </div>
                 <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
-                  Descreva o plano que deseja montar e deixe a IA calcular os nutrientes.
+                  Descreva o plano alimentar que deseja montar.
                 </p>
               </div>
             </button>
@@ -196,7 +196,7 @@ export function NutritionPlanChoiceModal({
                   </span>
                 </div>
                 <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
-                  Transforme um plano existente em um rascunho editável automaticamente.
+                  Importe um plano alimentar para revisar e editar.
                 </p>
               </div>
             </button>
@@ -220,7 +220,7 @@ export function NutritionPlanChoiceModal({
                   </span>
                 </div>
                 <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
-                  Comece com um modelo disponível da consultoria e adapte conforme a necessidade.
+                  Escolha um modelo de plano alimentar e personalize.
                 </p>
               </div>
             </button>

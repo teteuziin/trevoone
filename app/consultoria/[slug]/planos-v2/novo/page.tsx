@@ -31,7 +31,7 @@ function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
 function NovoPlanoContent({ slug }: { slug: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const studentId = searchParams.get("studentId");
+  const studentId = searchParams.get("studentId") || searchParams.get("student");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [autoRedirecting, setAutoRedirecting] = useState(Boolean(studentId));

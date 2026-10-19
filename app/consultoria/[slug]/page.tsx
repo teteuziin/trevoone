@@ -83,14 +83,14 @@ export default async function ConsultancyPage({ params }: PageProps) {
 
   // MULTI-ROLE UNIFIED EXPERIENCE: Load real data for all active roles held by the user
   const isMultiRolePersonalAdmin = isPersonal && isConsultancyAdmin && !effectiveState.isPreview;
-  const isCombinedPersonalAdmin = isMultiRolePersonalAdmin;
+  const isCombinedPersonalAdmin = isMultiRolePersonalAdmin && effectiveMode !== "NUTRITIONIST";
   const isPurePersonal =
     (effectiveMode === "PERSONAL" && !isConsultancyAdmin) ||
     (effectiveState.isPreview && effectiveMode === "PERSONAL");
   const isMultiRoleNutritionistAdmin = isNutritionist && isConsultancyAdmin && !effectiveState.isPreview;
   const isCombinedNutritionistAdmin = isMultiRoleNutritionistAdmin && !isPersonal;
   const isPureNutritionist =
-    (effectiveMode === "NUTRITIONIST" && !isConsultancyAdmin) ||
+    (effectiveMode === "NUTRITIONIST" && (!isConsultancyAdmin || isPersonal)) ||
     (effectiveState.isPreview && effectiveMode === "NUTRITIONIST");
   const isPureAdmin =
     (effectiveMode === "ADMIN" && !isPersonal && !isNutritionist) ||

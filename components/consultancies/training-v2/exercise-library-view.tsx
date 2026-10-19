@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ExerciseItemDto } from "@/lib/training-v2/types";
 import { searchLibraryExercisesAction } from "@/app/consultoria/[slug]/exercicios/actions";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { DuotoneExercisesIcon } from "@/components/ui/icons/duotone-icons";
 
 export type ExerciseTabOption = "TODOS" | "TREVO_ONE" | "CONSULTORIA" | "MEUS";
@@ -437,25 +436,48 @@ export function ExerciseLibraryView({
         </div>
 
         {items.length === 0 ? (
-          <EmptyState
-            title="Nenhum exercício encontrado"
-            description={
-              query || activeFiltersCount > 0
-                ? "Tente ajustar os termos de pesquisa ou remover os filtros aplicados."
-                : selectedTab === "MEUS"
-                ? "Você ainda não criou nenhum exercício privado. Clique em '+ Novo Exercício' para cadastrar."
-                : "Nenhum exercício disponível nesta seção."
-            }
-            action={
-              canCreate ? (
+          <div className="bg-white dark:bg-[#151619] border border-neutral-200/80 dark:border-[#303238] rounded-2xl p-8 text-center space-y-4">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-neutral-100 dark:bg-white/5 border border-neutral-200 dark:border-white/10 flex items-center justify-center text-neutral-400">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" strokeLinecap="round" />
+              </svg>
+            </div>
+
+            <div className="space-y-1 max-w-md mx-auto">
+              <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+                {query.trim()
+                  ? `Nenhum exercício encontrado para "${query}"`
+                  : "Nenhum exercício encontrado"}
+              </h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                {query.trim() || activeFiltersCount > 0
+                  ? "Verifique a ortografia, tente buscar pelo apelido popular ou utilize o filtro por grupo muscular e equipamento."
+                  : selectedTab === "MEUS"
+                  ? "Você ainda não criou nenhum exercício privado. Cadastre um novo exercício personalizado abaixo."
+                  : "Nenhum exercício disponível nesta seção."}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+              {(query.trim() || activeFiltersCount > 0) && (
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                >
+                  Limpar pesquisa e filtros
+                </button>
+              )}
+              {canCreate && (
                 <Link href={`/consultoria/${slug}/exercicios/novo`}>
-                  <Button variant="primary" size="sm" className="font-bold min-h-[44px]">
-                    Cadastrar exercício
+                  <Button variant="primary" size="sm" className="font-bold min-h-[40px] bg-emerald-600 hover:bg-emerald-500 text-white">
+                    + Novo Exercício
                   </Button>
                 </Link>
-              ) : undefined
-            }
-          />
+              )}
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-2.5">
             {items.map((ex) => {

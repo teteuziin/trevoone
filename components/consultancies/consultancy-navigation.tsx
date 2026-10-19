@@ -780,13 +780,14 @@ export function ConsultancyNavigation({
           </Link>
 
           {/* Mode Switcher for Multi-Role on Desktop Sidebar */}
-          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.some(o => o.mode === "PERSONAL" && o.isRealRole) && viewModeState.allowedOptions.some(o => o.mode === "ADMIN" && o.isRealRole) && (
+          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.filter(o => o.isRealRole).length > 1 && (
             <div className="mt-3">
               <CockpitRoleModeSwitcher
                 consultancySlug={consultancySlug}
                 currentMode={viewModeState.effectiveMode}
-                compact={true}
-                className="w-full justify-center"
+                allowedOptions={viewModeState.allowedOptions}
+                variant="desktop"
+                className="w-full"
               />
             </div>
           )}
@@ -1105,10 +1106,12 @@ export function ConsultancyNavigation({
           </nav>
 
           {/* Mode Switcher for Multi-Role on Tablet */}
-          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.some(o => o.mode === "PERSONAL" && o.isRealRole) && viewModeState.allowedOptions.some(o => o.mode === "ADMIN" && o.isRealRole) && (
+          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.filter(o => o.isRealRole).length > 1 && (
             <CockpitRoleModeSwitcher
               consultancySlug={consultancySlug}
               currentMode={viewModeState.effectiveMode}
+              allowedOptions={viewModeState.allowedOptions}
+              variant="mobile"
               compact={true}
               className="hidden sm:inline-flex"
             />
@@ -1161,13 +1164,14 @@ export function ConsultancyNavigation({
           </Link>
 
           {/* Mode Switcher on Mobile Header (Single switcher for mobile viewport) */}
-          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.some(o => o.mode === "PERSONAL" && o.isRealRole) && viewModeState.allowedOptions.some(o => o.mode === "ADMIN" && o.isRealRole) ? (
+          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.filter(o => o.isRealRole).length > 1 ? (
             <div className="flex-1 flex justify-center min-w-0 px-1">
               <CockpitRoleModeSwitcher
                 consultancySlug={consultancySlug}
                 currentMode={viewModeState.effectiveMode}
+                allowedOptions={viewModeState.allowedOptions}
+                variant="mobile"
                 compact={true}
-                className="scale-95 sm:scale-100"
               />
             </div>
           ) : (

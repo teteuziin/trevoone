@@ -49,22 +49,23 @@ export default async function NewConsultancyExercisePage({ params }: PageProps) 
       showDashboardWallpaper={true}
       maxWidth="default"
     >
-      <div className="w-full max-w-5xl mx-auto space-y-5 pb-16">
+      <div className="w-full max-w-3xl mx-auto space-y-5 pb-16">
         {/* Compact Header */}
         <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#151619] border border-neutral-200/80 dark:border-[#303238] shadow-xs flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <Link
               href={`/consultoria/${slug}/exercicios`}
-              className="w-10 h-10 rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-white/5 dark:hover:bg-white/10 active:scale-95 border border-neutral-200 dark:border-white/10 flex items-center justify-center text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-white/5 dark:hover:bg-white/10 active:scale-95 border border-neutral-200 dark:border-white/10 text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-all text-xs font-semibold shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
               aria-label="Voltar para a biblioteca de exercícios"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
+              <span>Voltar para a biblioteca</span>
             </Link>
 
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
             </div>
@@ -73,9 +74,6 @@ export default async function NewConsultancyExercisePage({ params }: PageProps) 
               <h1 className="text-base sm:text-lg font-bold text-neutral-900 dark:text-white tracking-tight truncate">
                 Novo Exercício
               </h1>
-              <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-medium truncate">
-                Cadastrar exercício personalizado para a consultoria
-              </p>
             </div>
           </div>
         </div>

@@ -142,6 +142,7 @@ export async function createConsultancyExerciseDraftAction(
       regressions: input.regressions?.trim() || null,
       visibility,
       status: "DRAFT",
+      aliases: input.aliases,
     });
 
     revalidatePath(`/consultoria/${slug}/exercicios`);

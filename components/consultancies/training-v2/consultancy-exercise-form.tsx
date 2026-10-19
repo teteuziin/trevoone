@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type {
   ExerciseItemDto,
@@ -60,18 +61,18 @@ export function ConsultancyExerciseForm({
 
   const isViewOnly = mode === "view" || !canEdit;
 
-  // Form state
+  // Form state: Note that new exercises DO NOT pre-fill arbitrary defaults like "Peitoral" or "Halteres"
   const [name, setName] = useState(initialData?.name || "");
-  const [muscleGroupPrimary, setMuscleGroupPrimary] = useState(initialData?.muscleGroupPrimary || "Peitoral");
+  const [muscleGroupPrimary, setMuscleGroupPrimary] = useState(initialData?.muscleGroupPrimary || "");
   const [muscleGroupsSecondary, setMuscleGroupsSecondary] = useState(
     initialData?.muscleGroupsSecondary ? initialData.muscleGroupsSecondary.join(", ") : ""
   );
-  const [equipment, setEquipment] = useState(initialData?.equipment || "Halteres");
+  const [equipment, setEquipment] = useState(initialData?.equipment || "");
   const [movementPattern, setMovementPattern] = useState<MovementPattern | "">(
     (initialData?.movementPattern as MovementPattern) || ""
   );
-  const [difficultyLevel, setDifficultyLevel] = useState<DifficultyLevel>(
-    (initialData?.difficultyLevel as DifficultyLevel) || "INTERMEDIATE"
+  const [difficultyLevel, setDifficultyLevel] = useState<DifficultyLevel | "">(
+    (initialData?.difficultyLevel as DifficultyLevel) || ""
   );
   const [description, setDescription] = useState(initialData?.description || "");
   const [instructions, setInstructions] = useState(initialData?.instructions || "");
@@ -80,7 +81,42 @@ export function ConsultancyExerciseForm({
   const [progressions, setProgressions] = useState(initialData?.progressions || "");
   const [regressions, setRegressions] = useState(initialData?.regressions || "");
 
-  // Visibility state: Default is CREATOR_ONLY
+  // Aliases / Outros nomes
+  const [aliasesText, setAliasesText] = useState(
+    initialData?.aliases && initialData.aliases.length > 0 ? initialData.aliases.join(", ") : ""
+  );
+
+  // Accordion open/close state for demand-driven details
+  const [expandedSections, setExpandedSections] = useState<{
+    orientations: boolean;
+    media: boolean;
+    additional: boolean;
+    aliases: boolean;
+  }>({
+    orientations: Boolean(
+      initialData?.instructions ||
+        initialData?.executionTips ||
+        initialData?.commonMistakes ||
+        initialData?.description
+    ),
+    media: mode === "edit",
+    additional: Boolean(
+      initialData?.movementPattern ||
+        initialData?.muscleGroupsSecondary?.length ||
+        initialData?.progressions ||
+        initialData?.regressions
+    ),
+    aliases: Boolean(initialData?.aliases?.length),
+  });
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  // Visibility state: Default is CREATOR_ONLY (Só para mim)
   const [visibility, setVisibility] = useState<"CREATOR_ONLY" | "CONSULTANCY">(
     initialData?.visibility === "CONSULTANCY" ? "CONSULTANCY" : "CREATOR_ONLY"
   );
@@ -125,7 +161,7 @@ export function ConsultancyExerciseForm({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isViewOnly) return;
+    if (isViewOnly || isPending) return;
     setErrorMessage(null);
     setSuccessMessage(null);
 
@@ -151,6 +187,11 @@ export function ConsultancyExerciseForm({
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const aliasesArray = aliasesText
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     startTransition(async () => {
       if (mode === "create") {
         const res = await createConsultancyExerciseDraftAction(slug, {
@@ -159,7 +200,7 @@ export function ConsultancyExerciseForm({
           muscleGroupsSecondary: secondaryArray.length > 0 ? secondaryArray : null,
           equipment: trimmedEquipment,
           movementPattern: movementPattern || null,
-          difficultyLevel,
+          difficultyLevel: difficultyLevel || "INTERMEDIATE",
           description: description.trim() || null,
           instructions: instructions.trim() || null,
           executionTips: executionTips.trim() || null,
@@ -167,6 +208,7 @@ export function ConsultancyExerciseForm({
           progressions: progressions.trim() || null,
           regressions: regressions.trim() || null,
           visibility,
+          aliases: aliasesArray.length > 0 ? aliasesArray : null,
         });
 
         if (!res.ok || !res.data) {
@@ -182,13 +224,14 @@ export function ConsultancyExerciseForm({
           muscleGroupsSecondary: secondaryArray.length > 0 ? secondaryArray : null,
           equipment: trimmedEquipment,
           movementPattern: movementPattern || null,
-          difficultyLevel,
+          difficultyLevel: difficultyLevel || "INTERMEDIATE",
           description: description.trim() || null,
           instructions: instructions.trim() || null,
           executionTips: executionTips.trim() || null,
           commonMistakes: commonMistakes.trim() || null,
           progressions: progressions.trim() || null,
           regressions: regressions.trim() || null,
+          aliases: aliasesArray,
         });
 
         if (!res.ok) {
@@ -196,7 +239,7 @@ export function ConsultancyExerciseForm({
           return;
         }
 
-        setSuccessMessage("Alterações salvas com sucesso.");
+        setSuccessMessage("Exercício atualizado com sucesso.");
         setTimeout(() => setSuccessMessage(null), 3500);
       }
     });
@@ -257,7 +300,6 @@ export function ConsultancyExerciseForm({
     }
 
     if (targetVisibility === "CONSULTANCY") {
-      // Check if attached media has any private media
       const hasPrivateMedia = initialData.media?.some((m) => m.mediaAsset.visibility === "CREATOR_ONLY");
       if (hasPrivateMedia) {
         setShowShareConfirmModal(true);
@@ -265,7 +307,6 @@ export function ConsultancyExerciseForm({
       }
     }
 
-    // Direct transition
     executeVisibilityChange(targetVisibility, false);
   };
 
@@ -305,7 +346,7 @@ export function ConsultancyExerciseForm({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="w-full max-w-3xl mx-auto space-y-6">
       {errorMessage && (
         <Alert variant="danger" title="Atenção">
           {errorMessage}
@@ -321,11 +362,11 @@ export function ConsultancyExerciseForm({
       {/* Share Private Media Confirmation Dialog */}
       {showShareConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-[var(--text-primary)]">
+          <div className="bg-white dark:bg-[#151619] border border-neutral-200 dark:border-[#303238] rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-neutral-900 dark:text-white">
               Compartilhar Mídias Privadas
             </h3>
-            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
               Para compartilhar este exercício com a consultoria, as fotos e vídeos anexados de visibilidade privada
               também serão compartilhados com os demais profissionais da consultoria.
             </p>
@@ -345,7 +386,7 @@ export function ConsultancyExerciseForm({
                 size="sm"
                 disabled={isPending}
                 onClick={() => executeVisibilityChange("CONSULTANCY", true)}
-                className="font-bold"
+                className="font-bold bg-emerald-600 hover:bg-emerald-500 text-white"
               >
                 {isPending ? "Processando..." : "Confirmar e Compartilhar"}
               </Button>
@@ -354,23 +395,23 @@ export function ConsultancyExerciseForm({
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-8">
+      <form onSubmit={handleSave} className="space-y-6">
         {/* =========================================================================
-            SECTION 1: INFORMAÇÕES BÁSICAS
+            CARD PRINCIPAL: INFORMAÇÕES BÁSICAS
             ========================================================================= */}
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 sm:p-7 shadow-xs space-y-5">
-          <div className="flex items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
+        <div className="bg-white dark:bg-[#151619] border border-neutral-200/80 dark:border-[#303238] rounded-2xl p-5 sm:p-7 shadow-xs space-y-5">
+          <div className="flex items-center justify-between gap-4 border-b border-neutral-100 dark:border-[#252830] pb-4">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
-                Informações Principais
+              <h2 className="text-base sm:text-lg font-bold text-neutral-900 dark:text-white tracking-tight">
+                Informações Básicas
               </h2>
-              <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-                Nome, grupo muscular e parâmetros biomecânicos do exercício.
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                Preencha os dados essenciais para cadastrar o exercício na biblioteca.
               </p>
             </div>
             {mode !== "create" && initialData && (
               <div className="shrink-0 flex items-center gap-2">
-                <span className="text-xs text-[var(--text-tertiary)]">Status:</span>
+                <span className="text-xs text-neutral-400">Status:</span>
                 {status === "PUBLISHED" && <Badge variant="success">Publicado</Badge>}
                 {status === "DRAFT" && <Badge variant="warning">Rascunho</Badge>}
                 {status === "ARCHIVED" && <Badge variant="neutral">Arquivado</Badge>}
@@ -379,93 +420,159 @@ export function ConsultancyExerciseForm({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Nome do exercício - Full width */}
             <div className="sm:col-span-2">
               <FormField label="Nome do Exercício" required>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Agachamento Búlgaro com Halteres"
+                  placeholder="Ex: Cadeira Extensora, Supino Reto com Halteres..."
                   disabled={isPending || isViewOnly || isArchived}
                   required
+                  className="text-base sm:text-sm min-h-[44px]"
                 />
               </FormField>
             </div>
 
+            {/* Grupo Muscular Principal */}
             <FormField
               label="Grupo Muscular Principal"
               required
-              helperText="Escolha uma sugestão ou digite uma nova categoria"
+              helperText="Selecione uma categoria sugerida ou digite uma nova"
             >
               <SuggestiveInput
                 value={muscleGroupPrimary}
                 onChange={setMuscleGroupPrimary}
                 suggestions={muscleSuggestions}
-                placeholder="Ex: Peitoral, Adutores / Quadril..."
+                placeholder="Ex: Quadríceps, Peitoral, Costas..."
                 disabled={isPending || isViewOnly || isArchived}
                 required
                 maxLength={100}
+                className="text-base sm:text-sm min-h-[44px]"
               />
             </FormField>
 
+            {/* Equipamento */}
             <FormField
               label="Equipamento"
               required
-              helperText="Escolha um equipamento ou digite um novo"
+              helperText="Selecione o equipamento utilizado no exercício"
             >
               <SuggestiveInput
                 value={equipment}
                 onChange={setEquipment}
                 suggestions={equipmentSuggestions}
-                placeholder="Ex: Halteres, Barra, Máquina..."
+                placeholder="Ex: Máquina, Halteres, Barra, Cabo..."
                 disabled={isPending || isViewOnly || isArchived}
                 required
                 maxLength={100}
+                className="text-base sm:text-sm min-h-[44px]"
               />
             </FormField>
 
-            <FormField label="Padrão de Movimento" optional>
-              <Select
-                value={movementPattern}
-                onChange={(e) => setMovementPattern(e.target.value as MovementPattern | "")}
-                disabled={isPending || isViewOnly || isArchived}
-              >
-                <option value="">Selecione o padrão (opcional)</option>
-                {MOVEMENT_PATTERNS.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
+            {/* Visibilidade do Conteúdo */}
+            <div className="sm:col-span-2 space-y-2 pt-1">
+              <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300">
+                Visibilidade na Consultoria
+              </label>
 
-            <FormField label="Nível de Dificuldade" required>
-              <Select
-                value={difficultyLevel}
-                onChange={(e) => setDifficultyLevel(e.target.value as DifficultyLevel)}
-                disabled={isPending || isViewOnly || isArchived}
-              >
-                <option value="BEGINNER">Iniciante</option>
-                <option value="INTERMEDIATE">Intermediário</option>
-                <option value="ADVANCED">Avançado</option>
-              </Select>
-            </FormField>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label
+                  className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                    visibility === "CREATOR_ONLY"
+                      ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/10 shadow-xs"
+                      : "border-neutral-200 dark:border-[#303238] bg-neutral-50/50 dark:bg-[#1B1D21] hover:bg-neutral-100 dark:hover:bg-[#252830]"
+                  } ${isViewOnly ? "cursor-not-allowed opacity-75" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value="CREATOR_ONLY"
+                    checked={visibility === "CREATOR_ONLY"}
+                    onChange={() => handleVisibilityToggle("CREATOR_ONLY")}
+                    disabled={isPending || isViewOnly || isArchived}
+                    className="mt-1 accent-emerald-600"
+                  />
+                  <div className="min-w-0">
+                    <span className="block text-xs sm:text-sm font-bold text-neutral-900 dark:text-white">
+                      🔒 Só para mim (Privado)
+                    </span>
+                    <span className="block text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 leading-snug">
+                      Visível apenas para você prescrever aos seus alunos.
+                    </span>
+                  </div>
+                </label>
 
-            <div className="sm:col-span-2">
-              <FormField
-                label="Grupos Musculares Secundários"
-                optional
-                helperText="Separe os grupos por vírgula (ex: Glúteos, Isquiotibiais)"
-              >
-                <Input
-                  value={muscleGroupsSecondary}
-                  onChange={(e) => setMuscleGroupsSecondary(e.target.value)}
-                  placeholder="Ex: Glúteos, Isquiotibiais"
-                  disabled={isPending || isViewOnly || isArchived}
-                />
-              </FormField>
+                <label
+                  className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                    visibility === "CONSULTANCY"
+                      ? "border-indigo-500 bg-indigo-500/10 dark:bg-indigo-500/10 shadow-xs"
+                      : "border-neutral-200 dark:border-[#303238] bg-neutral-50/50 dark:bg-[#1B1D21] hover:bg-neutral-100 dark:hover:bg-[#252830]"
+                  } ${isViewOnly ? "cursor-not-allowed opacity-75" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value="CONSULTANCY"
+                    checked={visibility === "CONSULTANCY"}
+                    onChange={() => handleVisibilityToggle("CONSULTANCY")}
+                    disabled={isPending || isViewOnly || isArchived}
+                    className="mt-1 accent-indigo-600"
+                  />
+                  <div className="min-w-0">
+                    <span className="block text-xs sm:text-sm font-bold text-neutral-900 dark:text-white">
+                      👥 Minha consultoria (Compartilhado)
+                    </span>
+                    <span className="block text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 leading-snug">
+                      Disponível para toda a equipe da consultoria prescrever.
+                    </span>
+                  </div>
+                </label>
+              </div>
             </div>
+          </div>
+        </div>
 
-            <div className="sm:col-span-2">
+        {/* =========================================================================
+            DETALHES SOB DEMANDA: ÁREAS EXPANSÍVEIS
+            ========================================================================= */}
+
+        {/* ACCORDION 1: ORIENTAÇÕES E EXECUÇÃO */}
+        <div className="bg-white dark:bg-[#151619] border border-neutral-200/80 dark:border-[#303238] rounded-2xl overflow-hidden shadow-xs transition-all">
+          <button
+            type="button"
+            onClick={() => toggleSection("orientations")}
+            className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 text-left hover:bg-neutral-50/80 dark:hover:bg-[#1B1D21] transition-colors cursor-pointer"
+            aria-expanded={expandedSections.orientations}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 text-sm">
+                📖
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white truncate">
+                  Orientações
+                </h3>
+                <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-medium truncate">
+                  Descrição, instruções de execução, dicas e erros comuns (opcional)
+                </p>
+              </div>
+            </div>
+            <svg
+              className={`w-5 h-5 text-neutral-400 transition-transform duration-200 shrink-0 ${
+                expandedSections.orientations ? "rotate-180" : ""
+              }`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          {expandedSections.orientations && (
+            <div className="p-5 sm:p-6 border-t border-neutral-100 dark:border-[#252830] space-y-4 animate-in fade-in duration-150">
               <FormField label="Descrição Breve" optional>
                 <Textarea
                   value={description}
@@ -473,249 +580,356 @@ export function ConsultancyExerciseForm({
                   placeholder="Objetivo principal e notas gerais do exercício."
                   rows={2}
                   disabled={isPending || isViewOnly || isArchived}
+                  className="text-base sm:text-sm"
                 />
               </FormField>
+
+              <FormField label="Instruções de Execução Passo a Passo" optional>
+                <Textarea
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  placeholder="1. Ajuste o banco de modo que o eixo de rotação alinhe com o joelho...&#10;2. Estenda as pernas controlando o movimento...&#10;3. Retorne sem bater as placas."
+                  rows={3}
+                  disabled={isPending || isViewOnly || isArchived}
+                  className="text-base sm:text-sm"
+                />
+              </FormField>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Dicas Biomecânicas (Cues)" optional>
+                  <Textarea
+                    value={executionTips}
+                    onChange={(e) => setExecutionTips(e.target.value)}
+                    placeholder="Ex: Segure firme nos apoios laterais e mantenha a lombar apoiada."
+                    rows={2}
+                    disabled={isPending || isViewOnly || isArchived}
+                    className="text-base sm:text-sm"
+                  />
+                </FormField>
+
+                <FormField label="Erros Comuns a Evitar" optional>
+                  <Textarea
+                    value={commonMistakes}
+                    onChange={(e) => setCommonMistakes(e.target.value)}
+                    placeholder="Ex: Projetar o quadril para frente ou usar impulso da coluna."
+                    rows={2}
+                    disabled={isPending || isViewOnly || isArchived}
+                    className="text-base sm:text-sm"
+                  />
+                </FormField>
+              </div>
             </div>
-          </div>
+          )}
+        </div>
+
+        {/* ACCORDION 2: FOTOS E VÍDEO */}
+        <div className="bg-white dark:bg-[#151619] border border-neutral-200/80 dark:border-[#303238] rounded-2xl overflow-hidden shadow-xs transition-all">
+          <button
+            type="button"
+            onClick={() => toggleSection("media")}
+            className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 text-left hover:bg-neutral-50/80 dark:hover:bg-[#1B1D21] transition-colors cursor-pointer"
+            aria-expanded={expandedSections.media}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 text-sm">
+                📸
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white truncate">
+                  Fotos e vídeo
+                </h3>
+                <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-medium truncate">
+                  Mídias de demonstração e execução biomecânica
+                </p>
+              </div>
+            </div>
+            <svg
+              className={`w-5 h-5 text-neutral-400 transition-transform duration-200 shrink-0 ${
+                expandedSections.media ? "rotate-180" : ""
+              }`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          {expandedSections.media && (
+            <div className="p-5 sm:p-6 border-t border-neutral-100 dark:border-[#252830] animate-in fade-in duration-150">
+              {mode === "create" ? (
+                <div className="p-4 rounded-xl bg-neutral-50 dark:bg-[#1B1D21] border border-neutral-200 dark:border-[#303238] text-center space-y-2">
+                  <p className="text-xs sm:text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                    💡 Anexo de fotos e vídeos disponível após o salvamento
+                  </p>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-md mx-auto">
+                    Salve este exercício com o nome e grupo muscular. Na tela seguinte você poderá enviar fotos e vídeos de execução diretamente pelo celular ou computador.
+                  </p>
+                </div>
+              ) : initialData ? (
+                <ConsultancyExerciseMediaManager
+                  slug={slug}
+                  consultancyPublicId={consultancyPublicId}
+                  exercisePublicId={initialData.publicId}
+                  exerciseVisibility={initialData.visibility === "CONSULTANCY" ? "CONSULTANCY" : "CREATOR_ONLY"}
+                  mediaList={initialData.media || []}
+                  readOnly={isViewOnly || isArchived}
+                  onMediaChange={() => router.refresh()}
+                />
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        {/* ACCORDION 3: DETALHES ADICIONAIS */}
+        <div className="bg-white dark:bg-[#151619] border border-neutral-200/80 dark:border-[#303238] rounded-2xl overflow-hidden shadow-xs transition-all">
+          <button
+            type="button"
+            onClick={() => toggleSection("additional")}
+            className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 text-left hover:bg-neutral-50/80 dark:hover:bg-[#1B1D21] transition-colors cursor-pointer"
+            aria-expanded={expandedSections.additional}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 text-sm">
+                ⚙️
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white truncate">
+                  Detalhes adicionais
+                </h3>
+                <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-medium truncate">
+                  Nível, padrão de movimento e músculos secundários (opcional)
+                </p>
+              </div>
+            </div>
+            <svg
+              className={`w-5 h-5 text-neutral-400 transition-transform duration-200 shrink-0 ${
+                expandedSections.additional ? "rotate-180" : ""
+              }`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          {expandedSections.additional && (
+            <div className="p-5 sm:p-6 border-t border-neutral-100 dark:border-[#252830] space-y-4 animate-in fade-in duration-150">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Nível de Dificuldade" optional>
+                  <Select
+                    value={difficultyLevel}
+                    onChange={(e) => setDifficultyLevel(e.target.value as DifficultyLevel | "")}
+                    disabled={isPending || isViewOnly || isArchived}
+                    className="text-base sm:text-sm min-h-[44px]"
+                  >
+                    <option value="">Selecione o nível (opcional)</option>
+                    <option value="BEGINNER">Iniciante</option>
+                    <option value="INTERMEDIATE">Intermediário</option>
+                    <option value="ADVANCED">Avançado</option>
+                  </Select>
+                </FormField>
+
+                <FormField label="Padrão de Movimento" optional>
+                  <Select
+                    value={movementPattern}
+                    onChange={(e) => setMovementPattern(e.target.value as MovementPattern | "")}
+                    disabled={isPending || isViewOnly || isArchived}
+                    className="text-base sm:text-sm min-h-[44px]"
+                  >
+                    <option value="">Selecione o padrão (opcional)</option>
+                    {MOVEMENT_PATTERNS.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+
+                <div className="sm:col-span-2">
+                  <FormField
+                    label="Grupos Musculares Secundários"
+                    optional
+                    helperText="Separe os grupos por vírgula (ex: Glúteos, Isquiotibiais)"
+                  >
+                    <Input
+                      value={muscleGroupsSecondary}
+                      onChange={(e) => setMuscleGroupsSecondary(e.target.value)}
+                      placeholder="Ex: Glúteos, Isquiotibiais, Lombar"
+                      disabled={isPending || isViewOnly || isArchived}
+                      className="text-base sm:text-sm min-h-[44px]"
+                    />
+                  </FormField>
+                </div>
+
+                <FormField label="Progressões Recomendadas" optional>
+                  <Textarea
+                    value={progressions}
+                    onChange={(e) => setProgressions(e.target.value)}
+                    placeholder="Ex: Aumentar a carga dos halteres; adicionar pausa de 2 segundos."
+                    rows={2}
+                    disabled={isPending || isViewOnly || isArchived}
+                    className="text-base sm:text-sm"
+                  />
+                </FormField>
+
+                <FormField label="Regressões Recomendadas" optional>
+                  <Textarea
+                    value={regressions}
+                    onChange={(e) => setRegressions(e.target.value)}
+                    placeholder="Ex: Executar com peso corporal no solo antes de usar o banco."
+                    rows={2}
+                    disabled={isPending || isViewOnly || isArchived}
+                    className="text-base sm:text-sm"
+                  />
+                </FormField>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ACCORDION 4: OUTROS NOMES / APELIDOS DE BUSCA */}
+        <div className="bg-white dark:bg-[#151619] border border-neutral-200/80 dark:border-[#303238] rounded-2xl overflow-hidden shadow-xs transition-all">
+          <button
+            type="button"
+            onClick={() => toggleSection("aliases")}
+            className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 text-left hover:bg-neutral-50/80 dark:hover:bg-[#1B1D21] transition-colors cursor-pointer"
+            aria-expanded={expandedSections.aliases}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 text-sm">
+                🏷️
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white truncate">
+                  Outros nomes (Apelidos de busca)
+                </h3>
+                <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-medium truncate">
+                  Sinônimos populares para encontrar o exercício facilmente (opcional)
+                </p>
+              </div>
+            </div>
+            <svg
+              className={`w-5 h-5 text-neutral-400 transition-transform duration-200 shrink-0 ${
+                expandedSections.aliases ? "rotate-180" : ""
+              }`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          {expandedSections.aliases && (
+            <div className="p-5 sm:p-6 border-t border-neutral-100 dark:border-[#252830] space-y-3 animate-in fade-in duration-150">
+              <FormField
+                label="Apelidos ou Nomes Populares"
+                optional
+                helperText="Separe os apelidos por vírgula. Ex: serrote, remada serrote, unilateral"
+              >
+                <Input
+                  value={aliasesText}
+                  onChange={(e) => setAliasesText(e.target.value)}
+                  placeholder="Ex: serrote, remada unilateral com halter"
+                  disabled={isPending || isViewOnly || isArchived}
+                  className="text-base sm:text-sm min-h-[44px]"
+                />
+              </FormField>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                Ao cadastrar esses termos, qualquer treinador que digitar esses apelidos na biblioteca ou no construtor de treinos encontrará este exercício imediatamente.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* =========================================================================
-            SECTION 2: EXECUÇÃO TÉCNICA E PRESCRIÇÃO
+            BARRA DE AÇÃO PRINCIPAL (RESPONSIVA E SEM COBRIR CONTEÚDO)
             ========================================================================= */}
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 sm:p-7 shadow-xs space-y-5">
-          <div className="border-b border-[var(--border-subtle)] pb-4">
-            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
-              Execução Técnica e Orientações
-            </h2>
-            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-              Instruções para o aluno seguir durante os treinos prescritos.
-            </p>
-          </div>
-
-          <div className="space-y-5">
-            <FormField label="Instruções Passo a Passo" optional>
-              <Textarea
-                value={instructions}
-                onChange={(e) => setInstructions(e.target.value)}
-                placeholder="1. Posicione o peito do pé no banco atrás de você...&#10;2. Mantenha o tronco levemente inclinado...&#10;3. Desça até a coxa paralela ao chão..."
-                rows={4}
-                disabled={isPending || isViewOnly || isArchived}
-              />
-            </FormField>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FormField label="Dicas de Execução (Cues)" optional>
-                <Textarea
-                  value={executionTips}
-                  onChange={(e) => setExecutionTips(e.target.value)}
-                  placeholder="Ex: Pense em descer o quadril reto; joelho alinhado com o 2º dedo do pé."
-                  rows={3}
-                  disabled={isPending || isViewOnly || isArchived}
-                />
-              </FormField>
-
-              <FormField label="Erros Comuns a Evitar" optional>
-                <Textarea
-                  value={commonMistakes}
-                  onChange={(e) => setCommonMistakes(e.target.value)}
-                  placeholder="Ex: Tirar o calcanhar da frente do chão; projetar o joelho excessivamente para dentro."
-                  rows={3}
-                  disabled={isPending || isViewOnly || isArchived}
-                />
-              </FormField>
-
-              <FormField label="Progressões Recomendadas" optional>
-                <Textarea
-                  value={progressions}
-                  onChange={(e) => setProgressions(e.target.value)}
-                  placeholder="Ex: Aumentar a carga dos halteres; adicionar pausa de 2 segundos no ponto mais baixo."
-                  rows={2}
-                  disabled={isPending || isViewOnly || isArchived}
-                />
-              </FormField>
-
-              <FormField label="Regressões Recomendadas" optional>
-                <Textarea
-                  value={regressions}
-                  onChange={(e) => setRegressions(e.target.value)}
-                  placeholder="Ex: Agachamento búlgaro com peso corporal ou agachamento split estático no chão."
-                  rows={2}
-                  disabled={isPending || isViewOnly || isArchived}
-                />
-              </FormField>
-            </div>
-          </div>
-        </div>
-
-        {/* =========================================================================
-            SECTION 3: VISIBILIDADE E COMPARTILHAMENTO
-            ========================================================================= */}
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 sm:p-7 shadow-xs space-y-4">
-          <div className="border-b border-[var(--border-subtle)] pb-4">
-            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
-              Visibilidade do Conteúdo
-            </h2>
-            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-              Defina quem pode visualizar e prescrever este exercício na consultoria.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label
-              className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
-                visibility === "CREATOR_ONLY"
-                  ? "border-[var(--brand)] bg-[var(--brand-soft)] shadow-2xs"
-                  : "border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)]"
-              } ${isViewOnly ? "cursor-not-allowed opacity-75" : ""}`}
-            >
-              <input
-                type="radio"
-                name="visibility"
-                value="CREATOR_ONLY"
-                checked={visibility === "CREATOR_ONLY"}
-                onChange={() => handleVisibilityToggle("CREATOR_ONLY")}
-                disabled={isPending || isViewOnly || isArchived}
-                className="mt-1 accent-[var(--brand)]"
-              />
-              <div>
-                <span className="block text-sm font-bold text-[var(--text-primary)]">
-                  Só para mim (Privado)
-                </span>
-                <span className="block text-xs text-[var(--text-secondary)] mt-0.5">
-                  Visível exclusivamente para você prescrever aos seus alunos (e para a coordenação da consultoria).
-                </span>
-              </div>
-            </label>
-
-            <label
-              className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
-                visibility === "CONSULTANCY"
-                  ? "border-[var(--brand)] bg-[var(--brand-soft)] shadow-2xs"
-                  : "border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)]"
-              } ${isViewOnly ? "cursor-not-allowed opacity-75" : ""}`}
-            >
-              <input
-                type="radio"
-                name="visibility"
-                value="CONSULTANCY"
-                checked={visibility === "CONSULTANCY"}
-                onChange={() => handleVisibilityToggle("CONSULTANCY")}
-                disabled={isPending || isViewOnly || isArchived}
-                className="mt-1 accent-[var(--brand)]"
-              />
-              <div>
-                <span className="block text-sm font-bold text-[var(--text-primary)]">
-                  Compartilhar com a consultoria
-                </span>
-                <span className="block text-xs text-[var(--text-secondary)] mt-0.5">
-                  Disponível para todos os personals da equipe visualizarem e utilizarem em suas prescrições.
-                </span>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
         {!isViewOnly && !isArchived && (
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={isPending}
-              className="font-bold min-w-[160px]"
-            >
-              {isPending
-                ? "Salvando..."
-                : mode === "create"
-                ? visibility === "CONSULTANCY"
-                  ? "Criar Exercício Compartilhado"
-                  : "Criar Exercício Privado"
-                : "Salvar Alterações"}
-            </Button>
+          <div className="pt-2">
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#151619] border border-neutral-200/80 dark:border-[#303238] shadow-xs flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isPending}
+                  className="font-bold min-h-[44px] px-6 bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer"
+                >
+                  {isPending ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Salvando exercício...</span>
+                    </span>
+                  ) : mode === "create" ? (
+                    "Salvar exercício"
+                  ) : (
+                    "Salvar alterações"
+                  )}
+                </Button>
 
-            {mode === "edit" && status === "DRAFT" && (
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={isPending}
-                onClick={handlePublish}
-                className="font-bold text-[var(--brand-foreground)] border-[var(--brand)]"
-              >
-                Publicar Exercício
-              </Button>
-            )}
+                <Link
+                  href={`/consultoria/${slug}/exercicios`}
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors"
+                >
+                  Cancelar
+                </Link>
+              </div>
 
-            {mode === "edit" && (
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={isPending || isDeleting}
-                onClick={handleDeleteClick}
-                className="text-xs text-[var(--danger)] hover:bg-[var(--danger-soft)] ml-auto font-medium"
-              >
-                Excluir exercício
-              </Button>
-            )}
+              {mode === "edit" && status === "DRAFT" && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={isPending}
+                  onClick={handlePublish}
+                  className="font-bold min-h-[44px] text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                >
+                  Publicar Exercício
+                </Button>
+              )}
+
+              {mode === "edit" && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  disabled={isPending}
+                  onClick={handleDeleteClick}
+                  className="font-semibold text-xs min-h-[44px]"
+                >
+                  Excluir Exercício
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </form>
 
-      {/* =========================================================================
-          SECTION 4: MEDIA MANAGER (Available in Edit & View Modes)
-          ========================================================================= */}
-      {mode !== "create" && initialData && (
-        <div className="pt-4">
-          <ConsultancyExerciseMediaManager
-            slug={slug}
-            consultancyPublicId={consultancyPublicId}
-            exercisePublicId={initialData.publicId}
-            exerciseVisibility={visibility}
-            mediaList={initialData.media || []}
-            readOnly={isViewOnly || isArchived}
-            onMediaChange={() => router.refresh()}
-          />
-        </div>
-      )}
-
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-dialog-title"
-            className="w-full max-w-md bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-6 shadow-xl space-y-4"
-          >
-            <div className="space-y-2">
-              <h3
-                id="delete-dialog-title"
-                className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight"
-              >
-                Excluir exercício?
-              </h3>
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                Ele deixará de aparecer na biblioteca e em novos treinos. Treinos já criados não serão alterados.
-              </p>
-            </div>
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-[#151619] border border-neutral-200 dark:border-[#303238] rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+              Excluir Exercício
+            </h3>
+            <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
+              Tem certeza de que deseja excluir este exercício? Treinos que já utilizam este exercício manterão seus dados preservados via snapshot histórico, mas ele não poderá mais ser prescrito em novas rotinas.
+            </p>
             {deleteError && (
-              <div className="p-3 text-xs rounded-xl bg-[var(--danger-soft)] border border-[var(--border-danger)] text-[var(--danger)]">
+              <Alert variant="danger" title="Erro">
                 {deleteError}
-              </div>
+              </Alert>
             )}
-
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2 pt-2">
               <Button
                 type="button"
-                variant="secondary"
+                variant="ghost"
                 size="sm"
                 disabled={isDeleting}
-                onClick={() => {
-                  if (!isDeleting) {
-                    setIsDeleteModalOpen(false);
-                    setDeleteError(null);
-                  }
-                }}
+                onClick={() => setIsDeleteModalOpen(false)}
               >
                 Cancelar
               </Button>
@@ -723,11 +937,11 @@ export function ConsultancyExerciseForm({
                 type="button"
                 variant="danger"
                 size="sm"
-                isLoading={isDeleting}
                 disabled={isDeleting}
                 onClick={handleConfirmDelete}
+                className="font-bold"
               >
-                {isDeleting ? "Excluindo..." : "Excluir exercício"}
+                {isDeleting ? "Excluindo..." : "Confirmar Exclusão"}
               </Button>
             </div>
           </div>

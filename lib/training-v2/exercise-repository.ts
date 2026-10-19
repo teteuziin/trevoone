@@ -28,6 +28,7 @@ import {
   rankExercises,
   tokenizeSearchText,
   normalizeSearchQuery,
+  getSearchExpansionTerms,
 } from "./exercise-search";
 
 export type ListExercisesFilter = {
@@ -64,6 +65,7 @@ export type CreateExerciseInput = {
   rightsNotes?: string | null;
   visibility?: ExerciseVisibility;
   status?: ExerciseStatus;
+  aliases?: string[] | null;
 };
 
 export type UpdateExerciseInput = Partial<CreateExerciseInput>;
@@ -163,6 +165,44 @@ async function loadAliasesForExerciseIds(
 }
 
 /**
+ * Synchronizes custom search aliases for an exercise in exercise_aliases table.
+ */
+export async function syncExerciseAliases(
+  connection: PoolConnection,
+  exerciseId: number,
+  aliases: string[],
+  scope: ExerciseScope,
+  consultancyId: number | null
+): Promise<void> {
+  try {
+    await connection.execute(`DELETE FROM exercise_aliases WHERE exercise_id = ?`, [exerciseId]);
+
+    const trimmed = Array.from(
+      new Set(
+        aliases
+          .map((a) => (typeof a === "string" ? a.trim() : ""))
+          .filter(Boolean)
+      )
+    );
+
+    for (const alias of trimmed) {
+      const norm = normalizeSearchQuery(alias);
+      if (norm) {
+        await connection.execute(
+          `INSERT INTO exercise_aliases (exercise_id, alias, normalized_alias, scope, consultancy_id)
+           VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE updated_at = NOW(3)`,
+          [exerciseId, alias, norm, scope, consultancyId]
+        );
+      }
+    }
+  } catch (err) {
+    // If table doesn't exist yet, gracefully catch without breaking primary exercise save
+    console.warn("syncExerciseAliases warning (table may not exist yet):", err);
+  }
+}
+
+/**
  * Lists exercises accessible to the professional within their trusted context.
  */
 export async function listExercisesForProfessional(
@@ -223,6 +263,7 @@ export async function listExercisesForProfessional(
     const rawQ = filter.query!.trim();
     const normQ = normalizeSearchQuery(rawQ);
     const tokens = tokenizeSearchText(normQ);
+    const expansions = getSearchExpansionTerms(rawQ);
 
     const orClauses: string[] = [
       "e.normalized_name LIKE ?",
@@ -243,12 +284,26 @@ export async function listExercisesForProfessional(
       }
     }
 
+    // Expand through popular fitness nicknames & canonical forms
+    for (const exp of expansions) {
+      orClauses.push("e.normalized_name LIKE ?");
+      params.push(`%${exp}%`);
+    }
+
     // Match exercise_aliases table via EXISTS
     orClauses.push(`EXISTS (
       SELECT 1 FROM exercise_aliases ea 
       WHERE ea.exercise_id = e.id AND (ea.normalized_alias LIKE ? OR ea.alias LIKE ?)
     )`);
     params.push(`%${normQ}%`, `%${rawQ}%`);
+
+    for (const exp of expansions) {
+      orClauses.push(`EXISTS (
+        SELECT 1 FROM exercise_aliases ea 
+        WHERE ea.exercise_id = e.id AND (ea.normalized_alias LIKE ? OR ea.alias LIKE ?)
+      )`);
+      params.push(`%${exp}%`, `%${exp}%`);
+    }
 
     conditions.push(`(${orClauses.join(" OR ")})`);
   }
@@ -614,6 +669,19 @@ export async function getExerciseByIdOrPublicId(
       },
     }));
 
+    let aliases: string[] = [];
+    try {
+      const [aliasRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT alias FROM exercise_aliases WHERE exercise_id = ? ORDER BY id ASC`,
+        [r.id]
+      );
+      if (Array.isArray(aliasRows)) {
+        aliases = aliasRows.map((a) => String(a.alias));
+      }
+    } catch {
+      // Table may not exist yet or no aliases
+    }
+
     return {
       publicId: String(r.public_id),
       scope: r.scope as ExerciseScope,
@@ -639,6 +707,7 @@ export async function getExerciseByIdOrPublicId(
       rightsNotes: r.rights_notes ? String(r.rights_notes) : null,
       status: r.status as ExerciseStatus,
       media,
+      aliases,
       createdAt: new Date(r.created_at),
       updatedAt: new Date(r.updated_at),
     };
@@ -769,7 +838,7 @@ export async function createConsultancyExercise(
   let connection;
   try {
     connection = await getDbConnection();
-    await connection.execute<ResultSetHeader>(
+    const [insertResult] = await connection.execute<ResultSetHeader>(
       `INSERT INTO exercises (
         public_id, scope, consultancy_id, visibility, created_by_user_id, created_by_membership_id,
         name, normalized_name, description, muscle_group_primary, muscle_groups_secondary,
@@ -799,6 +868,11 @@ export async function createConsultancyExercise(
         status,
       ]
     );
+
+    const exerciseId = insertResult.insertId;
+    if (input.aliases && Array.isArray(input.aliases)) {
+      await syncExerciseAliases(connection, exerciseId, input.aliases, "CONSULTANCY", ctx.consultancyId!);
+    }
 
     const created = await getExerciseByIdOrPublicId(ctx, { publicId });
     if (!created) throw new Error("Falha ao recuperar exercício de consultoria criado.");
@@ -907,16 +981,23 @@ export async function updateExercise(
       values.push(input.status);
     }
 
-    if (updates.length === 0) {
-      const current = await getExerciseByIdOrPublicId(ctx, { publicId });
-      return current!;
+    if (updates.length > 0) {
+      values.push(ex.id);
+      await connection.execute<ResultSetHeader>(
+        `UPDATE exercises SET ${updates.join(", ")}, updated_at = NOW(3) WHERE id = ?;`,
+        values
+      );
     }
 
-    values.push(ex.id);
-    await connection.execute<ResultSetHeader>(
-      `UPDATE exercises SET ${updates.join(", ")}, updated_at = NOW(3) WHERE id = ?;`,
-      values
-    );
+    if (input.aliases !== undefined && Array.isArray(input.aliases)) {
+      await syncExerciseAliases(
+        connection,
+        Number(ex.id),
+        input.aliases,
+        ex.scope as ExerciseScope,
+        ex.consultancy_id ? Number(ex.consultancy_id) : null
+      );
+    }
 
     const updated = await getExerciseByIdOrPublicId(ctx, { publicId });
     return updated!;

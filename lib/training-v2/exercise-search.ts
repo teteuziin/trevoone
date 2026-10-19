@@ -143,47 +143,137 @@ export function isFuzzyTokenMatch(tokenA: string, tokenB: string): { match: bool
  * Applied in memory as well as for DB search when aliases table is populated.
  */
 export const POPULAR_EXERCISE_ALIASES: Record<string, string[]> = {
-  "cadeira extensora": ["extensora", "extensora pernas", "extensao de pernas"],
-  "cadeira flexora": ["flexora", "flexora sentada", "flexao de pernas"],
-  "mesa flexora": ["flexora", "flexora deitada", "mesa de pernas"],
-  "leg press 45": ["leg", "leg 45", "leg press", "legpress"],
+  "cadeira extensora": ["extensora", "extensora pernas", "extensao de pernas", "extensao de joelho", "extensao perna"],
+  "cadeira flexora": ["flexora", "flexora sentada", "flexao de pernas", "flexao perna"],
+  "mesa flexora": ["flexora", "flexora deitada", "mesa de pernas", "flexao deitada"],
+  "leg press 45": ["leg", "leg 45", "leg press", "legpress", "leg 45 graus", "leg press 45 graus"],
   "leg press horizontal": ["leg horizontal", "leg reto", "leg sentado"],
-  "puxada frontal": ["puxada", "puxador costas", "lat pulldown", "pulley frente", "puxada aberta"],
-  "puxada alta": ["puxada", "puxador costas", "lat pulldown", "pulley costas"],
-  "remada curvada": ["remada", "barbell row", "remada barra", "remada curvada barra"],
-  "remada baixa": ["pulley baixo", "remada sentada", "remada cabo", "remada polia"],
-  "remada unilateral": ["remada serrote", "serrote", "remada halter"],
-  "desenvolvimento com halteres": ["desenvolvimento", "shoulder press", "desenvolvimento halteres", "desenvolvimento ombros"],
-  "desenvolvimento com barra": ["desenvolvimento militar", "ohp", "overhead press", "militar"],
-  "elevacao lateral": ["lateral", "abducao de ombros", "abducao lateral", "elevacao lateral halteres"],
-  "elevacao frontal": ["frontal", "elevacao frontal halteres"],
-  "crucifixo reto": ["crucifixo", "fly", "crucifixo halteres"],
-  "crucifixo invertido": ["crucifixo inverso", "peck deck reverso", "voador invertido"],
+  "supino reto com barra": ["supino reto", "supino barra", "supino", "supino reto na barra", "supino horizontal"],
+  "supino reto com halteres": ["supino reto", "supino halter", "supino halteres", "supino reto no halter", "supino com halteres"],
+  "supino inclinado com barra": ["inclinado", "supino inclinado", "supino inclinado barra", "supino inclinado na barra"],
+  "supino inclinado com halteres": ["inclinado", "supino inclinado", "supino inclinado halter", "supino inclinado halteres", "inclinado com halteres"],
+  "supino declinado com barra": ["declinado", "supino declinado", "supino declinado barra", "canadense"],
+  "supino declinado com halteres": ["declinado", "supino declinado", "supino declinado halter", "supino declinado halteres"],
+  "puxada frontal": ["puxada", "puxador costas", "lat pulldown", "pulley frente", "puxada aberta", "puxador aberto"],
+  "puxada alta": ["puxada", "puxador costas", "lat pulldown", "pulley costas", "puxada triangulo"],
+  "remada curvada": ["remada", "barbell row", "remada barra", "remada curvada barra", "remada livre"],
+  "remada baixa": ["pulley baixo", "remada sentada", "remada cabo", "remada polia", "remada no cabo"],
+  "remada unilateral": ["remada serrote", "serrote", "remada halter", "remada unilateral com halter"],
+  "desenvolvimento com halteres": ["desenvolvimento", "shoulder press", "desenvolvimento halteres", "desenvolvimento ombros", "press halteres"],
+  "desenvolvimento com barra": ["desenvolvimento militar", "ohp", "overhead press", "militar", "desenvolvimento barra"],
+  "elevacao lateral": ["lateral", "abducao de ombros", "abducao lateral", "elevacao lateral halteres", "abducao"],
+  "elevacao frontal": ["frontal", "elevacao frontal halteres", "flexao de ombros"],
+  "crucifixo reto": ["crucifixo", "fly", "crucifixo halteres", "crucifixo no banco"],
+  "crucifixo invertido": ["crucifixo inverso", "peck deck reverso", "voador invertido", "deltoide posterior"],
   "peck deck": ["voador", "borboleta", "voador peitoral", "crucifixo maquina"],
-  "voador": ["peck deck", "borboleta", "voador peitoral"],
-  "triceps corda": ["corda", "triceps polia corda", "corda pulley"],
-  "triceps testa": ["testa", "skull crusher", "triceps testa barra w", "testa halteres"],
-  "triceps frances": ["frances", "triceps frances halter"],
-  "triceps banco": ["mergulho banco", "triceps mergulho"],
-  "rosca direta": ["biceps barra", "biceps direto", "rosca barra"],
-  "rosca martelo": ["martelo", "hammer curl", "biceps martelo"],
-  "rosca scott": ["scott", "banco scott", "preacher curl"],
-  "rosca concentrada": ["concentrada", "concentrado", "biceps concentrado"],
-  "stiff": ["stiff com halteres", "stiff com barra", "levantamento stiff"],
-  "levantamento terra": ["terra", "deadlift"],
-  "agachamento livre": ["agacho", "squat", "agachamento com barra", "agachamento barra"],
+  "voador": ["peck deck", "borboleta", "voador peitoral", "crucifixo maquina"],
+  "triceps corda": ["corda", "triceps polia corda", "corda pulley", "triceps polia"],
+  "triceps testa": ["testa", "skull crusher", "triceps testa barra w", "testa halteres", "triceps frances barra"],
+  "triceps frances": ["frances", "triceps frances halter", "frances bilateral"],
+  "triceps banco": ["mergulho banco", "triceps mergulho", "banco triceps"],
+  "rosca direta": ["biceps barra", "biceps direto", "rosca barra", "rosca barra w", "rosca direta com barra"],
+  "rosca martelo": ["martelo", "hammer curl", "biceps martelo", "rosca martelo com halteres"],
+  "rosca scott": ["scott", "banco scott", "preacher curl", "rosca preacher"],
+  "rosca concentrada": ["concentrada", "concentrado", "biceps concentrado", "rosca concentrada com halter"],
+  "stiff": ["stiff com halteres", "stiff com barra", "levantamento stiff", "stiff barra"],
+  "levantamento terra": ["terra", "deadlift", "levantamento terra com barra"],
+  "agachamento livre": ["agacho", "squat", "agachamento com barra", "agachamento barra", "agachamento back squat"],
   "agachamento smith": ["agachamento guiado", "smith", "agacho smith"],
-  "agachamento sumô": ["sumo", "agacho sumo", "agachamento pernas abertas"],
-  "agachamento bulgaro": ["bulgaro", "bulgarian split squat"],
-  "afundo": ["lunge", "passada", "avanco"],
-  "passada": ["lunge", "afundo", "avanco"],
-  "elevacao pelvica": ["hip thrust", "elevacao de quadril", "ponte de gluteos"],
-  "abdominal infra": ["infra", "abdomen infra", "abdominal pernas", "infra solo"],
-  "abdominal supra": ["supra", "crunch", "abdomen supra", "abdominal tradicional"],
-  "abdominal prancha": ["prancha", "prancha ventral", "plank"],
-  "panturrilha sentado": ["panturrilha", "gemeos sentado", "panturrilha maquina", "soleo"],
+  "agachamento sumô": ["sumo", "agacho sumo", "agachamento pernas abertas", "agachamento sumo com halter"],
+  "agachamento bulgaro": ["bulgaro", "bulgarian split squat", "afundo bulgaro"],
+  "afundo": ["lunge", "passada", "avanco", "afundo com halteres"],
+  "passada": ["lunge", "afundo", "avanco", "passada caminhando"],
+  "elevacao pelvica": ["hip thrust", "elevacao de quadril", "ponte de gluteos", "pelvica"],
+  "abdominal infra": ["infra", "abdomen infra", "abdominal pernas", "infra solo", "elevacao de pernas"],
+  "abdominal supra": ["supra", "crunch", "abdomen supra", "abdominal tradicional", "abdominal reto"],
+  "abdominal prancha": ["prancha", "prancha ventral", "plank", "prancha isometrica"],
+  "abdominal hipopressivo": ["stomach vacuum", "hipopressivo", "vacuum"],
+  "panturrilha sentado": ["panturrilha", "gemeos sentado", "panturrilha maquina", "soleo", "panturrilha banco"],
   "panturrilha em pe": ["panturrilha", "gemeos em pe", "panturrilha no degrau", "panturrilha smith"],
 };
+
+/**
+ * Returns expanded canonical search terms and aliases for query expansion.
+ * Ensures SQL candidate queries in repository match pertinent rows.
+ */
+export function getSearchExpansionTerms(query: string): string[] {
+  const normQ = normalizeSearchQuery(query);
+  if (!normQ) return [];
+
+  const expansions = new Set<string>();
+  const tokens = tokenizeSearchText(normQ);
+
+  // Check direct alias match in knowledge base
+  for (const [canonical, aliases] of Object.entries(POPULAR_EXERCISE_ALIASES)) {
+    const normCanonical = normalizeSearchQuery(canonical);
+
+    // If query matches alias or canonical
+    if (normCanonical.includes(normQ) || normQ.includes(normCanonical)) {
+      expansions.add(normCanonical);
+    }
+
+    for (const alias of aliases) {
+      const normAlias = normalizeSearchQuery(alias);
+      if (normAlias === normQ || normQ === normAlias || normAlias.includes(normQ) || normQ.includes(normAlias)) {
+        expansions.add(normCanonical);
+        expansions.add(normAlias);
+      }
+    }
+
+    // Token-level check
+    for (const t of tokens) {
+      if (t.length >= 3) {
+        if (normCanonical.includes(t)) {
+          expansions.add(normCanonical);
+        }
+        for (const alias of aliases) {
+          const normAlias = normalizeSearchQuery(alias);
+          if (normAlias === t || normAlias.includes(t)) {
+            expansions.add(normCanonical);
+            expansions.add(normAlias);
+          }
+        }
+      }
+    }
+  }
+
+  // Common gym synonyms and typos
+  if (normQ.includes("abdom")) {
+    expansions.add("abdominal");
+    expansions.add("abdomen");
+  }
+  if (normQ.includes("supno") || normQ.includes("supin")) {
+    expansions.add("supino");
+  }
+  if (normQ.includes("extencora") || normQ.includes("extensora")) {
+    expansions.add("cadeira extensora");
+    expansions.add("extensao");
+  }
+  if (normQ.includes("flexora")) {
+    expansions.add("cadeira flexora");
+    expansions.add("mesa flexora");
+  }
+  if (normQ.includes("leg 45") || normQ.includes("leg45")) {
+    expansions.add("leg press");
+    expansions.add("leg press 45");
+  }
+  if (normQ.includes("voador") || normQ.includes("borboleta")) {
+    expansions.add("peck deck");
+    expansions.add("voador");
+  }
+  if (normQ.includes("serrote")) {
+    expansions.add("remada unilateral");
+    expansions.add("serrote");
+  }
+  if (normQ.includes("bulgaro")) {
+    expansions.add("agachamento bulgaro");
+  }
+  if (normQ.includes("sumo")) {
+    expansions.add("agachamento sumo");
+  }
+
+  return Array.from(expansions);
+}
 
 /**
  * Returns all potential aliases (official aliases + database aliases + knowledge base) for an exercise.
@@ -194,6 +284,13 @@ export function getExerciseAliases(exercise: ExerciseItemDto, dbAliases: string[
   // Add db aliases
   for (const a of dbAliases) {
     if (a && a.trim()) aliases.add(a.trim());
+  }
+
+  // Also include explicit exercise.aliases if loaded
+  if (Array.isArray(exercise.aliases)) {
+    for (const a of exercise.aliases) {
+      if (a && a.trim()) aliases.add(a.trim());
+    }
   }
 
   // Check knowledge base aliases
@@ -275,9 +372,21 @@ export function scoreExercise(
       // Bonus if words appear in consecutive order
       const consecutiveOrder = normExerciseName.includes(normQuery) ? 30 : 0;
       const extraTokensPenalty = Math.min(50, (exerciseTokens.length - queryTokens.length) * 5);
+
+      // Equipment agreement bonus: if query specifically asks for "halter" or "barra" and exercise equipment agrees
+      const normEq = normalizeSearchQuery(exercise.equipment || "");
+      let equipmentBonus = 0;
+      for (const qToken of queryTokens) {
+        const qStem = stemPortugueseWord(qToken);
+        if (qStem === "halter" && normEq.includes("halter")) equipmentBonus = 40;
+        if (qStem === "barr" && normEq.includes("barr")) equipmentBonus = 40;
+        if (qStem === "maquin" && normEq.includes("maquin")) equipmentBonus = 40;
+        if (qStem === "pol" && normEq.includes("pol")) equipmentBonus = 40;
+      }
+
       return {
         exercise,
-        relevanceScore: 780 + consecutiveOrder - extraTokensPenalty,
+        relevanceScore: 780 + consecutiveOrder + equipmentBonus - extraTokensPenalty,
         matchType: "STRONG_WORDS",
       };
     }
@@ -346,7 +455,7 @@ export function scoreExercise(
     }
   }
 
-  // 5. ATTRIBUTE MATCH (Equipment or Muscle Group) (Rank 5: 250 - 350)
+  // 5. ATTRIBUTE MATCH (Equipment or Muscle Group) (Rank 5: 250 - 370)
   const normEquipment = normalizeSearchQuery(exercise.equipment || "");
   const normMuscle = normalizeSearchQuery(exercise.muscleGroupPrimary || "");
 
@@ -355,10 +464,24 @@ export function scoreExercise(
     normQuery.includes(normEquipment) ||
     queryTokens.some((t) => normEquipment.includes(t));
 
+  const isAbdomenQuery = normQuery.includes("abdom") || queryTokens.some((t) => t.startsWith("abdom"));
+  const isAbdomenMuscle = normMuscle.includes("abdom") || normMuscle.includes("core");
+
   const matchesMuscle =
-    normMuscle.includes(normQuery) ||
-    normQuery.includes(normMuscle) ||
-    queryTokens.some((t) => normMuscle.includes(t));
+    isAbdomenQuery && isAbdomenMuscle
+      ? true
+      : normMuscle.includes(normQuery) ||
+        normQuery.includes(normMuscle) ||
+        queryTokens.some((t) => normMuscle.includes(t));
+
+  if (matchesMuscle) {
+    return {
+      exercise,
+      relevanceScore: isAbdomenQuery ? 350 : 280,
+      matchType: "ATTRIBUTE",
+      matchReason: `Grupo muscular: ${exercise.muscleGroupPrimary}`,
+    };
+  }
 
   if (matchesEquipment) {
     return {
@@ -366,15 +489,6 @@ export function scoreExercise(
       relevanceScore: 320,
       matchType: "ATTRIBUTE",
       matchReason: `Equipamento: ${exercise.equipment}`,
-    };
-  }
-
-  if (matchesMuscle) {
-    return {
-      exercise,
-      relevanceScore: 280,
-      matchType: "ATTRIBUTE",
-      matchReason: `Grupo muscular: ${exercise.muscleGroupPrimary}`,
     };
   }
 

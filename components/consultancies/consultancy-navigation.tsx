@@ -779,6 +779,18 @@ export function ConsultancyNavigation({
             </div>
           </Link>
 
+          {/* Mode Switcher for Multi-Role on Desktop Sidebar */}
+          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.some(o => o.mode === "PERSONAL" && o.isRealRole) && viewModeState.allowedOptions.some(o => o.mode === "ADMIN" && o.isRealRole) && (
+            <div className="mt-3">
+              <CockpitRoleModeSwitcher
+                consultancySlug={consultancySlug}
+                currentMode={viewModeState.effectiveMode}
+                compact={true}
+                className="w-full justify-center"
+              />
+            </div>
+          )}
+
           {/* View Mode Selector ONLY if explicitly in preview mode */}
           {viewModeState?.isPreview && (
             <div className="mt-3 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">

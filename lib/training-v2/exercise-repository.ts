@@ -4,7 +4,7 @@
  */
 
 import crypto from "node:crypto";
-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import {
   TrainingAuthorizationError,
@@ -24,6 +24,11 @@ import type {
   MediaType,
   StorageProvider,
 } from "./types";
+import {
+  rankExercises,
+  tokenizeSearchText,
+  normalizeSearchQuery,
+} from "./exercise-search";
 
 export type ListExercisesFilter = {
   query?: string;
@@ -69,6 +74,92 @@ function normalizeExerciseName(name: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+
+async function loadMediaForExerciseIds(
+  connection: PoolConnection,
+  exerciseIds: number[]
+): Promise<Map<number, ExerciseMediaDto[]>> {
+  const mediaByExerciseId = new Map<number, ExerciseMediaDto[]>();
+  if (exerciseIds.length === 0) return mediaByExerciseId;
+
+  const [mediaRows] = await connection.query<RowDataPacket[]>(
+    `SELECT
+      em.exercise_id,
+      em.role,
+      em.sort_order,
+      ma.public_id AS media_public_id,
+      ma.scope,
+      ma.visibility,
+      ma.media_type,
+      ma.storage_provider,
+      ma.mime_type,
+      ma.file_size_bytes,
+      ma.duration_seconds,
+      ma.width,
+      ma.height,
+      ma.created_at,
+      c.public_id AS consultancy_public_id
+    FROM exercise_media em
+    INNER JOIN media_assets ma ON ma.id = em.media_asset_id
+    LEFT JOIN consultancies c ON c.id = ma.consultancy_id
+    WHERE em.exercise_id IN (?) AND ma.deleted_at IS NULL
+    ORDER BY em.sort_order ASC;`,
+    [exerciseIds]
+  );
+
+  for (const m of mediaRows) {
+    const exId = Number(m.exercise_id);
+    const list = mediaByExerciseId.get(exId) || [];
+    list.push({
+      role: m.role as MediaRole,
+      sortOrder: Number(m.sort_order),
+      mediaAsset: {
+        publicId: String(m.media_public_id),
+        scope: m.scope,
+        visibility: m.visibility,
+        consultancyPublicId: m.consultancy_public_id ? String(m.consultancy_public_id) : null,
+        mediaType: m.media_type as MediaType,
+        storageProvider: m.storage_provider as StorageProvider,
+        mimeType: String(m.mime_type),
+        fileSizeBytes: Number(m.file_size_bytes),
+        durationSeconds: m.duration_seconds != null ? Number(m.duration_seconds) : null,
+        width: m.width != null ? Number(m.width) : null,
+        height: m.height != null ? Number(m.height) : null,
+        createdAt: new Date(m.created_at),
+      },
+    });
+    mediaByExerciseId.set(exId, list);
+  }
+
+  return mediaByExerciseId;
+}
+
+async function loadAliasesForExerciseIds(
+  connection: PoolConnection,
+  exerciseIds: number[]
+): Promise<Map<string, string[]>> {
+  const map = new Map<string, string[]>();
+  if (exerciseIds.length === 0) return map;
+  try {
+    const [rows] = await connection.query<RowDataPacket[]>(
+      `SELECT e.public_id, ea.alias
+       FROM exercise_aliases ea
+       INNER JOIN exercises e ON e.id = ea.exercise_id
+       WHERE ea.exercise_id IN (?)`,
+      [exerciseIds]
+    );
+    for (const r of rows) {
+      const pubId = String(r.public_id);
+      const list = map.get(pubId) || [];
+      list.push(String(r.alias));
+      map.set(pubId, list);
+    }
+  } catch {
+    // If table doesn't exist yet, gracefully return empty map
+  }
+  return map;
 }
 
 /**
@@ -126,20 +217,48 @@ export async function listExercisesForProfessional(
     return { items: [], total: 0, page, pageSize, totalPages: 0 };
   }
 
-  // Filters
-  if (filter.query && filter.query.trim()) {
-    conditions.push("(e.normalized_name LIKE ? OR e.name LIKE ?)");
-    const norm = `%${normalizeExerciseName(filter.query)}%`;
-    const raw = `%${filter.query.trim()}%`;
-    params.push(norm, raw);
+  const hasQuery = Boolean(filter.query && filter.query.trim());
+
+  if (hasQuery) {
+    const rawQ = filter.query!.trim();
+    const normQ = normalizeSearchQuery(rawQ);
+    const tokens = tokenizeSearchText(normQ);
+
+    const orClauses: string[] = [
+      "e.normalized_name LIKE ?",
+      "e.name LIKE ?",
+      "e.equipment LIKE ?",
+      "e.muscle_group_primary LIKE ?",
+    ];
+    params.push(`%${normQ}%`, `%${rawQ}%`, `%${rawQ}%`, `%${rawQ}%`);
+
+    for (const t of tokens) {
+      if (t.length >= 3) {
+        orClauses.push("e.normalized_name LIKE ?");
+        params.push(`%${t}%`);
+        if (t.length >= 4) {
+          orClauses.push("e.normalized_name LIKE ?");
+          params.push(`%${t.slice(0, 3)}%`);
+        }
+      }
+    }
+
+    // Match exercise_aliases table via EXISTS
+    orClauses.push(`EXISTS (
+      SELECT 1 FROM exercise_aliases ea 
+      WHERE ea.exercise_id = e.id AND (ea.normalized_alias LIKE ? OR ea.alias LIKE ?)
+    )`);
+    params.push(`%${normQ}%`, `%${rawQ}%`);
+
+    conditions.push(`(${orClauses.join(" OR ")})`);
   }
 
-  if (filter.muscleGroup && filter.muscleGroup.trim()) {
+  if (filter.muscleGroup && filter.muscleGroup.trim() && filter.muscleGroup !== "Todos os Músculos") {
     conditions.push("e.muscle_group_primary = ?");
     params.push(filter.muscleGroup.trim());
   }
 
-  if (filter.equipment && filter.equipment.trim()) {
+  if (filter.equipment && filter.equipment.trim() && filter.equipment !== "Todos os Equipamentos") {
     conditions.push("e.equipment = ?");
     params.push(filter.equipment.trim());
   }
@@ -150,7 +269,151 @@ export async function listExercisesForProfessional(
   try {
     connection = await getDbConnection();
 
-    // 1. Total count
+    if (hasQuery) {
+      // 1. Fetch candidate matches across entire authorized catalog
+      let candidateRows: RowDataPacket[] = [];
+      try {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+            e.id,
+            e.public_id,
+            e.scope,
+            e.visibility,
+            c.public_id AS consultancy_public_id,
+            e.name,
+            e.normalized_name,
+            e.description,
+            e.muscle_group_primary,
+            e.muscle_groups_secondary,
+            e.equipment,
+            e.movement_pattern,
+            e.difficulty_level,
+            e.instructions,
+            e.execution_tips,
+            e.common_mistakes,
+            e.progressions,
+            e.regressions,
+            e.rights_notes,
+            e.status,
+            e.created_at,
+            e.updated_at
+          FROM exercises e
+          LEFT JOIN consultancies c ON c.id = e.consultancy_id
+          ${whereClause}
+          ORDER BY e.scope ASC, e.name ASC
+          LIMIT 500;`,
+          params
+        );
+        candidateRows = rows;
+      } catch {
+        // Fallback without exercise_aliases table if not created yet
+        const fallbackConditions = conditions.filter((c) => !c.includes("EXISTS"));
+        const fallbackWhere = fallbackConditions.length > 0 ? `WHERE ${fallbackConditions.join(" AND ")}` : "";
+        const fallbackParams = params.slice(0, -2); // remove 2 params from EXISTS
+        const [fallbackRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+            e.id,
+            e.public_id,
+            e.scope,
+            e.visibility,
+            c.public_id AS consultancy_public_id,
+            e.name,
+            e.normalized_name,
+            e.description,
+            e.muscle_group_primary,
+            e.muscle_groups_secondary,
+            e.equipment,
+            e.movement_pattern,
+            e.difficulty_level,
+            e.instructions,
+            e.execution_tips,
+            e.common_mistakes,
+            e.progressions,
+            e.regressions,
+            e.rights_notes,
+            e.status,
+            e.created_at,
+            e.updated_at
+          FROM exercises e
+          LEFT JOIN consultancies c ON c.id = e.consultancy_id
+          ${fallbackWhere}
+          ORDER BY e.scope ASC, e.name ASC
+          LIMIT 500;`,
+          fallbackParams
+        );
+        candidateRows = fallbackRows;
+      }
+
+      if (candidateRows.length === 0) {
+        return { items: [], total: 0, page, pageSize, totalPages: 0 };
+      }
+
+      // Convert rows to Dto without media for quick ranking
+      const candidateDtos: ExerciseItemDto[] = candidateRows.map((r) => ({
+        publicId: String(r.public_id),
+        scope: r.scope as ExerciseScope,
+        visibility: r.visibility as ExerciseVisibility,
+        consultancyPublicId: r.consultancy_public_id ? String(r.consultancy_public_id) : null,
+        name: String(r.name),
+        normalizedName: String(r.normalized_name),
+        description: r.description ? String(r.description) : null,
+        muscleGroupPrimary: String(r.muscle_group_primary),
+        muscleGroupsSecondary: r.muscle_groups_secondary
+          ? typeof r.muscle_groups_secondary === "string"
+            ? JSON.parse(r.muscle_groups_secondary)
+            : r.muscle_groups_secondary
+          : null,
+        equipment: String(r.equipment),
+        movementPattern: r.movement_pattern ? String(r.movement_pattern) : null,
+        difficultyLevel: String(r.difficulty_level),
+        instructions: r.instructions ? String(r.instructions) : null,
+        executionTips: r.execution_tips ? String(r.execution_tips) : null,
+        commonMistakes: r.common_mistakes ? String(r.common_mistakes) : null,
+        progressions: r.progressions ? String(r.progressions) : null,
+        regressions: r.regressions ? String(r.regressions) : null,
+        rightsNotes: r.rights_notes ? String(r.rights_notes) : null,
+        status: r.status as ExerciseStatus,
+        media: [],
+        createdAt: new Date(r.created_at),
+        updatedAt: new Date(r.updated_at),
+      }));
+
+      // Load aliases for candidates
+      const candidateDbIds = candidateRows.map((r) => Number(r.id));
+      const aliasesMap = await loadAliasesForExerciseIds(connection, candidateDbIds);
+
+      // Score and rank using deterministic multi-tier ranking engine
+      const ranked = rankExercises(candidateDtos, filter.query!, aliasesMap);
+      const total = ranked.length;
+      const totalPages = Math.ceil(total / pageSize);
+
+      if (total === 0) {
+        return { items: [], total: 0, page, pageSize, totalPages: 0 };
+      }
+
+      const pagedRanked = ranked.slice(offset, offset + pageSize);
+      const idByPublicId = new Map(candidateRows.map((r) => [String(r.public_id), Number(r.id)]));
+      const pagedDbIds = pagedRanked
+        .map((r) => idByPublicId.get(r.exercise.publicId))
+        .filter((id): id is number => typeof id === "number");
+
+      // Batch load attached media for the paged results only
+      const mediaByExerciseId = await loadMediaForExerciseIds(connection, pagedDbIds);
+
+      const items: ExerciseItemDto[] = pagedRanked.map((r) => {
+        const dbId = idByPublicId.get(r.exercise.publicId);
+        return {
+          ...r.exercise,
+          media: (dbId ? mediaByExerciseId.get(dbId) : []) || [],
+          matchedAlias: r.matchedAlias,
+          matchReason: r.matchReason,
+        };
+      });
+
+      return { items, total, page, pageSize, totalPages };
+    }
+
+    // Standard Non-Query Flow: exact count and LIMIT/OFFSET
     const [countRows] = await connection.execute<RowDataPacket[]>(
       `SELECT COUNT(*) as total FROM exercises e ${whereClause};`,
       params
@@ -162,7 +425,6 @@ export async function listExercisesForProfessional(
       return { items: [], total: 0, page, pageSize, totalPages: 0 };
     }
 
-    // 2. Paginated rows
     const queryParams = [...params, pageSize, offset];
     const [rows] = await connection.execute<RowDataPacket[]>(
       `SELECT
@@ -196,60 +458,8 @@ export async function listExercisesForProfessional(
       queryParams
     );
 
-    // Batch load attached media for all retrieved exercises
-    const exerciseIds = rows.map((r) => r.id);
-    const mediaByExerciseId = new Map<number, ExerciseMediaDto[]>();
-
-    if (exerciseIds.length > 0) {
-      const [mediaRows] = await connection.query<RowDataPacket[]>(
-        `SELECT
-          em.exercise_id,
-          em.role,
-          em.sort_order,
-          ma.public_id AS media_public_id,
-          ma.scope,
-          ma.visibility,
-          ma.media_type,
-          ma.storage_provider,
-          ma.mime_type,
-          ma.file_size_bytes,
-          ma.duration_seconds,
-          ma.width,
-          ma.height,
-          ma.created_at,
-          c.public_id AS consultancy_public_id
-        FROM exercise_media em
-        INNER JOIN media_assets ma ON ma.id = em.media_asset_id
-        LEFT JOIN consultancies c ON c.id = ma.consultancy_id
-        WHERE em.exercise_id IN (?) AND ma.deleted_at IS NULL
-        ORDER BY em.sort_order ASC;`,
-        [exerciseIds]
-      );
-
-      for (const m of mediaRows) {
-        const exId = Number(m.exercise_id);
-        const list = mediaByExerciseId.get(exId) || [];
-        list.push({
-          role: m.role as MediaRole,
-          sortOrder: Number(m.sort_order),
-          mediaAsset: {
-            publicId: String(m.media_public_id),
-            scope: m.scope,
-            visibility: m.visibility,
-            consultancyPublicId: m.consultancy_public_id ? String(m.consultancy_public_id) : null,
-            mediaType: m.media_type as MediaType,
-            storageProvider: m.storage_provider as StorageProvider,
-            mimeType: String(m.mime_type),
-            fileSizeBytes: Number(m.file_size_bytes),
-            durationSeconds: m.duration_seconds != null ? Number(m.duration_seconds) : null,
-            width: m.width != null ? Number(m.width) : null,
-            height: m.height != null ? Number(m.height) : null,
-            createdAt: new Date(m.created_at),
-          },
-        });
-        mediaByExerciseId.set(exId, list);
-      }
-    }
+    const exerciseIds = rows.map((r) => Number(r.id));
+    const mediaByExerciseId = await loadMediaForExerciseIds(connection, exerciseIds);
 
     const items: ExerciseItemDto[] = rows.map((r) => ({
       publicId: String(r.public_id),

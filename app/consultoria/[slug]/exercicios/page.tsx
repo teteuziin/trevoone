@@ -1,9 +1,9 @@
 import React from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import {
   listExercisesForProfessional,
   listExerciseMuscleGroups,
@@ -11,10 +11,7 @@ import {
 } from "@/lib/training-v2/exercise-repository";
 import type { ExerciseStatus } from "@/lib/training-v2/types";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
-import { PageHeader } from "@/components/ui/page-header";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
+import { ExerciseLibraryView } from "@/components/consultancies/training-v2/exercise-library-view";
 
 type PageProps = {
   params: Promise<{
@@ -29,29 +26,6 @@ type PageProps = {
     page?: string;
   }>;
 };
-
-function getDifficultyBadge(diff: string) {
-  switch (diff) {
-    case "BEGINNER":
-      return <Badge variant="neutral" size="sm">Iniciante</Badge>;
-    case "INTERMEDIATE":
-      return <Badge variant="brand" size="sm">Intermediário</Badge>;
-    case "ADVANCED":
-      return <Badge variant="warning" size="sm">Avançado</Badge>;
-    default:
-      return <Badge variant="neutral" size="sm">{diff}</Badge>;
-  }
-}
-
-function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 4v16m8-8H4" />
-    </svg>
-  );
-}
-
-import { MobileExerciseCockpit } from "@/components/consultancies/training-v2/mobile-exercise-cockpit";
 
 export default async function ConsultancyExercisesPage({
   params,
@@ -80,6 +54,8 @@ export default async function ConsultancyExercisesPage({
   if (!ctx || !ctx.canAuthorTraining) {
     redirect(`/consultoria/${slug}`);
   }
+
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
 
   const validStatus: ExerciseStatus | undefined =
     status === "DRAFT" || status === "PUBLISHED" || status === "ARCHIVED"
@@ -114,9 +90,13 @@ export default async function ConsultancyExercisesPage({
   // Filter items specifically for the tab semantics if needed
   let displayItems = result.items;
   if (tab === "CONSULTORIA") {
-    displayItems = displayItems.filter((i) => i.scope === "CONSULTANCY" && i.visibility === "CONSULTANCY");
+    displayItems = displayItems.filter(
+      (i) => i.scope === "CONSULTANCY" && i.visibility === "CONSULTANCY"
+    );
   } else if (tab === "MEUS") {
-    displayItems = displayItems.filter((i) => i.scope === "CONSULTANCY" && i.visibility === "CREATOR_ONLY");
+    displayItems = displayItems.filter(
+      (i) => i.scope === "CONSULTANCY" && i.visibility === "CREATOR_ONLY"
+    );
   }
 
   return (
@@ -130,333 +110,26 @@ export default async function ConsultancyExercisesPage({
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      viewModeState={effectiveState}
+      themeVariant="dark-overview"
+      showDashboardWallpaper={true}
+      maxWidth="default"
     >
-      <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">
-        {/* MOBILE NATIVE COCKPIT (sm:hidden) */}
-        <div className="sm:hidden">
-          <MobileExerciseCockpit
-            slug={slug}
-            items={displayItems}
-            availableMuscles={availableMuscles}
-            availableEquipments={availableEquipments}
-            currentTab={tab}
-            currentQuery={q}
-            currentMuscle={muscle}
-            currentEquipment={equipment}
-            currentPage={currentPage}
-            totalPages={result.totalPages}
-            total={result.total}
-            canCreate={ctx.canAuthorTraining}
-            canManageConsultancy={ctx.canManageConsultancy}
-          />
-        </div>
-
-        {/* DESKTOP EXERCISE CATALOG VIEW (hidden sm:block) */}
-        <div className="hidden sm:block space-y-6">
-          <PageHeader
-            eyebrow="Módulo de Treinamento"
-            title="Biblioteca de Exercícios"
-            description="Consulte o acervo oficial Trevo One e gerencie os exercícios exclusivos da sua consultoria."
-            backHref={`/consultoria/${slug}`}
-            backLabel="Visão geral"
-            actions={
-              <Link href={`/consultoria/${slug}/exercicios/novo`}>
-                <Button variant="primary" size="md" className="font-bold min-h-[44px] flex items-center gap-1.5 shadow-sm">
-                  <PlusIcon className="w-4 h-4" />
-                  <span>Novo Exercício</span>
-                </Button>
-              </Link>
-            }
-          />
-
-          {/* Source Navigation Tabs */}
-          <div className="flex flex-wrap items-center gap-1 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-2xl w-fit shadow-inner">
-            {[
-              { id: "TODOS", label: "Todos" },
-              { id: "TREVO_ONE", label: "Trevo One" },
-              { id: "CONSULTORIA", label: "Minha Consultoria" },
-              {
-                id: "MEUS",
-                label: (
-                  <span className="flex items-center gap-1">
-                    <span>🔒</span>
-                    <span>Só para mim</span>
-                  </span>
-                ),
-              },
-            ].map((t) => {
-              const isActive = tab === t.id;
-              return (
-                <Link
-                  key={t.id}
-                  href={`/consultoria/${slug}/exercicios?tab=${t.id}${q ? `&q=${encodeURIComponent(q)}` : ""}${
-                    status ? `&status=${status}` : ""
-                  }${muscle ? `&muscle=${encodeURIComponent(muscle)}` : ""}${
-                    equipment ? `&equipment=${encodeURIComponent(equipment)}` : ""
-                  }`}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs select-none transition-all min-h-[36px] flex items-center justify-center depth-interactive ${
-                    isActive
-                      ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
-                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent font-medium"
-                  }`}
-                >
-                  {t.label}
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* Filters Bar */}
-          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-4 sm:p-5 shadow-xs space-y-4 depth-surface">
-            <form method="GET" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <input type="hidden" name="tab" value={tab} />
-
-              <div className="space-y-1">
-                <label htmlFor="search-input" className="block text-xs font-bold text-[var(--text-primary)]">
-                  Buscar por nome
-                </label>
-                <input
-                  id="search-input"
-                  name="q"
-                  defaultValue={q || ""}
-                  placeholder="Ex: Supino, Agachamento..."
-                  className="w-full h-10 px-3.5 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-xs sm:text-sm placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent transition-all"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label htmlFor="muscle-select" className="block text-xs font-bold text-[var(--text-primary)]">
-                  Grupo muscular
-                </label>
-                <select
-                  id="muscle-select"
-                  name="muscle"
-                  defaultValue={muscle || "Todos os Músculos"}
-                  className="w-full h-10 px-3.5 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-xs sm:text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent transition-all"
-                >
-                  <option value="Todos os Músculos">Todos os Músculos</option>
-                  {availableMuscles.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label htmlFor="equipment-select" className="block text-xs font-bold text-[var(--text-primary)]">
-                  Equipamento
-                </label>
-                <select
-                  id="equipment-select"
-                  name="equipment"
-                  defaultValue={equipment || "Todos os Equipamentos"}
-                  className="w-full h-10 px-3.5 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-xs sm:text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent transition-all"
-                >
-                  <option value="Todos os Equipamentos">Todos os Equipamentos</option>
-                  {availableEquipments.map((eq) => (
-                    <option key={eq} value={eq}>
-                      {eq}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="sm:col-span-2 lg:col-span-3 flex justify-end gap-2 pt-1">
-                <Link href={`/consultoria/${slug}/exercicios?tab=${tab}`}>
-                  <Button type="button" variant="ghost" size="sm" className="text-xs font-medium">
-                    Limpar filtros
-                  </Button>
-                </Link>
-                <Button type="submit" variant="secondary" size="sm" className="text-xs font-bold shadow-2xs">
-                  Aplicar filtros
-                </Button>
-              </div>
-            </form>
-          </div>
-
-          {/* Exercises List */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] px-1 font-medium">
-              <span>
-                Mostrando {displayItems.length} {displayItems.length === 1 ? "exercício" : "exercícios"}
-              </span>
-            </div>
-
-            {displayItems.length === 0 ? (
-              <EmptyState
-                title="Nenhum exercício encontrado"
-                description={
-                  q || muscle || equipment
-                    ? "Tente ajustar os filtros ou termos da sua busca."
-                    : tab === "MEUS"
-                    ? "Você ainda não criou nenhum exercício privado. Clique em '+ Novo Exercício' para cadastrar."
-                    : "Nenhum exercício disponível nesta seção."
-                }
-                action={
-                  <Link href={`/consultoria/${slug}/exercicios/novo`}>
-                    <Button variant="primary" size="sm" className="font-bold min-h-[44px]">
-                      Cadastrar exercício
-                    </Button>
-                  </Link>
-                }
-              />
-            ) : (
-              <div className="grid grid-cols-1 gap-3">
-                {displayItems.map((ex) => {
-                  const isGlobal = ex.scope === "GLOBAL";
-                  const isShared = ex.scope === "CONSULTANCY" && ex.visibility === "CONSULTANCY";
-                  const isPrivate = ex.scope === "CONSULTANCY" && ex.visibility === "CREATOR_ONLY";
-
-                  // Edit permissions: Global is never editable here. Consultancy is editable by creator or admin.
-                  const canEditThis = !isGlobal && (ctx.canManageConsultancy || isPrivate);
-
-                  const hasVideo = ex.media?.some((m) => m.role === "EXECUTION_VIDEO");
-                  const hasImage = ex.media?.some((m) => m.role === "START_IMAGE");
-
-                  return (
-                    <div
-                      key={ex.publicId}
-                      className="bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-strong)] rounded-xl p-4 sm:p-5 shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 depth-surface"
-                    >
-                      <div className="space-y-1.5 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Link
-                            href={`/consultoria/${slug}/exercicios/${ex.publicId}`}
-                            className="text-sm sm:text-base font-bold text-[var(--text-primary)] hover:text-[var(--brand)] transition-colors truncate"
-                          >
-                            {ex.name}
-                          </Link>
-
-                          {/* Source Badges */}
-                          {isGlobal && (
-                            <Badge variant="brand" size="sm">
-                              Trevo One
-                            </Badge>
-                          )}
-                          {isShared && (
-                            <Badge variant="brand" size="sm">
-                              Minha Consultoria
-                            </Badge>
-                          )}
-                          {isPrivate && (
-                            <Badge variant="neutral" size="sm">
-                              Só para mim
-                            </Badge>
-                          )}
-
-                          {getDifficultyBadge(ex.difficultyLevel)}
-
-                          {ex.status === "DRAFT" && (
-                            <Badge variant="warning" size="sm">
-                              Rascunho
-                            </Badge>
-                          )}
-                          {ex.status === "ARCHIVED" && (
-                            <Badge variant="neutral" size="sm">
-                              Arquivado
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2.5 text-xs text-[var(--text-secondary)] font-medium">
-                          <span className="font-bold text-[var(--text-primary)]">
-                            {ex.muscleGroupPrimary}
-                          </span>
-                          <span className="text-[var(--text-tertiary)]">•</span>
-                          <span>{ex.equipment}</span>
-                          {ex.movementPattern && (
-                            <>
-                              <span className="text-[var(--text-tertiary)]">•</span>
-                              <span className="text-[var(--text-tertiary)]">
-                                {ex.movementPattern}
-                              </span>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Media indicators */}
-                        <div className="flex items-center gap-3 pt-1 text-[11px] font-medium">
-                          <span className="flex items-center gap-1.5">
-                            <span
-                              className={`w-2 h-2 rounded-full ${
-                                hasImage ? "bg-[var(--brand)]" : "bg-[var(--border-strong)]"
-                              }`}
-                            />
-                            <span className={hasImage ? "text-[var(--text-primary)]" : "text-[var(--text-tertiary)]"}>
-                              {hasImage ? "Foto inicial" : "Sem foto"}
-                            </span>
-                          </span>
-
-                          <span className="flex items-center gap-1.5">
-                            <span
-                              className={`w-2 h-2 rounded-full ${
-                                hasVideo ? "bg-[var(--brand)]" : "bg-[var(--border-strong)]"
-                              }`}
-                            />
-                            <span className={hasVideo ? "text-[var(--text-primary)]" : "text-[var(--text-tertiary)]"}>
-                              {hasVideo ? "Vídeo anexado" : "Sem vídeo"}
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="shrink-0 flex items-center gap-2 self-end sm:self-center">
-                        <Link href={`/consultoria/${slug}/exercicios/${ex.publicId}`}>
-                          <Button
-                            variant={canEditThis ? "secondary" : "ghost"}
-                            size="sm"
-                            className="text-xs font-semibold min-h-[36px]"
-                          >
-                            {canEditThis ? "Editar e Mídias →" : "Visualizar →"}
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Pagination Controls */}
-            {result.totalPages > 1 && (
-              <div className="flex items-center justify-between pt-4 border-t border-[var(--border-default)] text-xs font-medium">
-                <span className="text-[var(--text-secondary)]">
-                  Página {currentPage} de {result.totalPages}
-                </span>
-                <div className="flex gap-2">
-                  {currentPage > 1 && (
-                    <Link
-                      href={`/consultoria/${slug}/exercicios?page=${currentPage - 1}&tab=${tab}${
-                        q ? `&q=${encodeURIComponent(q)}` : ""
-                      }${muscle ? `&muscle=${encodeURIComponent(muscle)}` : ""}${
-                        equipment ? `&equipment=${encodeURIComponent(equipment)}` : ""
-                      }`}
-                    >
-                      <Button variant="secondary" size="sm" className="text-xs min-h-[36px]">
-                        Anterior
-                      </Button>
-                    </Link>
-                  )}
-                  {currentPage < result.totalPages && (
-                    <Link
-                      href={`/consultoria/${slug}/exercicios?page=${currentPage + 1}&tab=${tab}${
-                        q ? `&q=${encodeURIComponent(q)}` : ""
-                      }${muscle ? `&muscle=${encodeURIComponent(muscle)}` : ""}${
-                        equipment ? `&equipment=${encodeURIComponent(equipment)}` : ""
-                      }`}
-                    >
-                      <Button variant="secondary" size="sm" className="text-xs min-h-[36px]">
-                        Próxima
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <ExerciseLibraryView
+        slug={slug}
+        initialItems={displayItems}
+        initialTotal={result.total}
+        initialPage={currentPage}
+        initialTotalPages={result.totalPages}
+        availableMuscles={availableMuscles}
+        availableEquipments={availableEquipments}
+        currentTab={tab}
+        currentQuery={q}
+        currentMuscle={muscle}
+        currentEquipment={equipment}
+        canCreate={ctx.canAuthorTraining}
+        canManageConsultancy={ctx.canManageConsultancy}
+      />
     </ConsultancyAppShell>
   );
 }

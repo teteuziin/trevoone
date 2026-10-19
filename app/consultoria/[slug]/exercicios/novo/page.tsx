@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { ConsultancyExerciseForm } from "@/components/consultancies/training-v2/consultancy-exercise-form";
@@ -30,6 +31,8 @@ export default async function NewConsultancyExercisePage({ params }: PageProps) 
     redirect(`/consultoria/${slug}`);
   }
 
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
+
   return (
     <ConsultancyAppShell
       consultancyName={context.consultancyName}
@@ -41,6 +44,10 @@ export default async function NewConsultancyExercisePage({ params }: PageProps) 
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      viewModeState={effectiveState}
+      themeVariant="dark-overview"
+      showDashboardWallpaper={true}
+      maxWidth="default"
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         <PageHeader

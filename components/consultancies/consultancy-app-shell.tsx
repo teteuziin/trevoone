@@ -271,8 +271,8 @@ export async function ConsultancyAppShell({
     });
   }
 
-  // 4. BIBLIOTECA (Exercícios para Personal, Alimentos para Nutri)
-  if (isPersonal) {
+  // 4. BIBLIOTECA (Exercícios para Personal e Admin, Alimentos para Nutri)
+  if (isPersonal || isAdmin) {
     rawItems.push({
       id: "personal-exercicios",
       label: "Biblioteca de Exercícios",
@@ -519,11 +519,11 @@ export async function ConsultancyAppShell({
   let activeContextRole: ConsultancyRole;
   if (activeRole) {
     activeContextRole = activeRole;
-  } else if (viewModeState) {
+  } else if (resolvedViewModeState) {
     activeContextRole =
-      viewModeState.effectiveMode === "ADMIN"
+      resolvedViewModeState.effectiveMode === "ADMIN"
         ? "CONSULTANCY_ADMIN"
-        : (viewModeState.effectiveMode as ConsultancyRole);
+        : (resolvedViewModeState.effectiveMode as ConsultancyRole);
   } else if (safeRoles.length === 1 && safeRoles[0] === "STUDENT") {
     activeContextRole = "STUDENT";
   } else {
@@ -540,8 +540,8 @@ export async function ConsultancyAppShell({
     return 0;
   });
   const roleLabels: string[] = [];
-  if (isMultiRolePersonalAdmin && viewModeState?.effectiveMode) {
-    roleLabels.push(viewModeState.effectiveMode === "ADMIN" ? "Administrador da Consultoria" : "Personal Trainer");
+  if (isMultiRolePersonalAdmin && resolvedViewModeState?.effectiveMode) {
+    roleLabels.push(resolvedViewModeState.effectiveMode === "ADMIN" ? "Administrador da Consultoria" : "Personal Trainer");
   } else {
     for (const r of sortedRolesForLabels) {
       if (r === "INFLUENCER") {

@@ -191,6 +191,8 @@ export type ExerciseItemDto = {
   rightsNotes: string | null;
   status: ExerciseStatus;
   media: ExerciseMediaDto[];
+  matchedAlias?: string;
+  matchReason?: string;
   createdAt: Date;
   updatedAt: Date;
 };

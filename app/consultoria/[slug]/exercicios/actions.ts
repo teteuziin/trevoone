@@ -424,3 +424,80 @@ export async function getExerciseTaxonomyAction(
     };
   }
 }
+
+export type SearchLibraryExercisesOptions = {
+  tab?: "TODOS" | "TREVO_ONE" | "CONSULTORIA" | "MEUS";
+  query?: string;
+  muscle?: string;
+  equipment?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export async function searchLibraryExercisesAction(
+  slug: string,
+  options: SearchLibraryExercisesOptions = {}
+): Promise<
+  ActionResponse<{
+    items: ExerciseItemDto[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>
+> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const { listExercisesForProfessional } = await import("@/lib/training-v2/exercise-repository");
+
+    let repoScope: "ALL" | "GLOBAL" | "CONSULTANCY" = "ALL";
+    const tab = options.tab || "TODOS";
+    if (tab === "TREVO_ONE") {
+      repoScope = "GLOBAL";
+    } else if (tab === "CONSULTORIA" || tab === "MEUS") {
+      repoScope = "CONSULTANCY";
+    }
+
+    const res = await listExercisesForProfessional(ctx, {
+      scope: repoScope,
+      query: options.query?.trim() || undefined,
+      muscleGroup:
+        options.muscle && options.muscle !== "Todos os Músculos"
+          ? options.muscle.trim()
+          : undefined,
+      equipment:
+        options.equipment && options.equipment !== "Todos os Equipamentos"
+          ? options.equipment.trim()
+          : undefined,
+      page: options.page || 1,
+      pageSize: options.pageSize || 25,
+    });
+
+    let displayItems = res.items;
+    if (tab === "CONSULTORIA") {
+      displayItems = displayItems.filter(
+        (i) => i.scope === "CONSULTANCY" && i.visibility === "CONSULTANCY"
+      );
+    } else if (tab === "MEUS") {
+      displayItems = displayItems.filter(
+        (i) => i.scope === "CONSULTANCY" && i.visibility === "CREATOR_ONLY"
+      );
+    }
+
+    return {
+      ok: true,
+      data: {
+        items: displayItems,
+        total: res.total,
+        page: res.page,
+        pageSize: res.pageSize,
+        totalPages: res.totalPages,
+      },
+    };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao pesquisar exercícios.",
+    };
+  }
+}

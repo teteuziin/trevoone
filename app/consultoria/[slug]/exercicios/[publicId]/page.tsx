@@ -4,6 +4,7 @@ import { getDbConnection } from "@/lib/db/mysql";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getExerciseByIdOrPublicId } from "@/lib/training-v2/exercise-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
@@ -75,6 +76,8 @@ export default async function ConsultancyExerciseDetailPage({ params }: PageProp
   const mode = isGlobal || !isTenantOwner ? "view" : "edit";
   const canEdit = isTenantOwner;
 
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
+
   return (
     <ConsultancyAppShell
       consultancyName={context.consultancyName}
@@ -86,6 +89,10 @@ export default async function ConsultancyExerciseDetailPage({ params }: PageProp
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      viewModeState={effectiveState}
+      themeVariant="dark-overview"
+      showDashboardWallpaper={true}
+      maxWidth="default"
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         <PageHeader

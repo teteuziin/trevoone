@@ -200,8 +200,8 @@ runTest("7. Ação principal '+ Adicionar exercício' com opções de Biblioteca
     "Option 2: Create custom exercise"
   );
   assert.ok(
-    categoryCode.includes("Combinar Exercícios (Bi-set / Tri-set)"),
-    "Option 3: Combine exercises without competing for attention"
+    categoryCode.includes("Criar combinação"),
+    "Option 3: Criar combinação standardized without competing for attention"
   );
 });
 

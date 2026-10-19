@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useTransition } from "react";
+import React, { useState, useEffect, useRef, useTransition, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+
+const emptySubscribe = () => () => {};
 import { setConsultancyViewModeAction } from "@/app/consultoria/[slug]/view-mode/actions";
 import type {
   ConsultancyPresentationMode,
@@ -86,7 +89,9 @@ export function CockpitRoleModeSwitcher({
   const [optimisticTarget, setOptimisticTarget] = useState<ConsultancyPresentationMode | null>(null);
   const [prevMode, setPrevMode] = useState(currentMode);
   const [isOpen, setIsOpen] = useState(false);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   if (prevMode !== currentMode) {
     setPrevMode(currentMode);
@@ -108,16 +113,34 @@ export function CockpitRoleModeSwitcher({
     };
   }, [isOpen]);
 
-  // Close on Escape
+  const handleClose = () => {
+    setIsOpen(false);
+    setTimeout(() => {
+      triggerRef.current?.focus();
+    }, 50);
+  };
+
+  // Close on Escape & handle focus return
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape" && isOpen) {
-        setIsOpen(false);
+        handleClose();
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
+
+  // Lock body scroll on mobile when sheet is open
+  useEffect(() => {
+    if (isOpen && (variant === "mobile" || (variant === "auto" && compact))) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isOpen, variant, compact]);
 
   // Filter allowed options to only real authorized roles
   const authorizedOptions = (
@@ -141,7 +164,7 @@ export function CockpitRoleModeSwitcher({
   const isMobileLayout = variant === "mobile" || (variant === "auto" && compact);
 
   const handleSwitch = (targetMode: ConsultancyPresentationMode) => {
-    setIsOpen(false);
+    handleClose();
     if (isPending || targetMode === activeMode) return;
 
     setOptimisticTarget(targetMode);
@@ -169,12 +192,13 @@ export function CockpitRoleModeSwitcher({
   };
 
   // =========================================================================
-  // MOBILE / COMPACT VARIANT: Trigger button + Accessible Bottom Sheet
+  // MOBILE / COMPACT VARIANT: Trigger button + Accessible Portal Bottom Sheet
   // =========================================================================
   if (isMobileLayout) {
     return (
       <div className={`relative inline-flex items-center ${className}`}>
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setIsOpen(true)}
           disabled={isPending}
@@ -200,41 +224,49 @@ export function CockpitRoleModeSwitcher({
           )}
         </button>
 
-        {/* Mobile Accessible Bottom Sheet */}
-        {isOpen && (
+        {/* Mobile Accessible Bottom Sheet rendered into document.body to escape header/nav stacking contexts */}
+        {mounted && isOpen && createPortal(
           <div
-            className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+            className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
             role="dialog"
             aria-modal="true"
             aria-labelledby="mode-sheet-title"
-            onClick={() => setIsOpen(false)}
+            onClick={handleClose}
           >
             <div
-              className="w-full bg-white dark:bg-[#151619] border-t border-neutral-200 dark:border-[#303238] rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl"
+              className="w-full max-w-lg mx-auto bg-white dark:bg-[#151619] border-t border-neutral-200 dark:border-[#303238] rounded-t-3xl shadow-2xl flex flex-col max-h-[min(88dvh,680px)] overflow-hidden animate-in slide-in-from-bottom-6 duration-200"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-[#252830]">
-                <div>
-                  <h3 id="mode-sheet-title" className="text-base font-bold text-neutral-900 dark:text-white">
+              {/* Handle Indicator */}
+              <div className="pt-3 pb-1 flex justify-center shrink-0">
+                <div className="w-10 h-1 rounded-full bg-neutral-300 dark:bg-[#303238]" />
+              </div>
+
+              {/* Header - Fixed & Always Visible */}
+              <div className="p-5 pt-1 pb-3.5 border-b border-neutral-100 dark:border-[#252830] flex items-center justify-between shrink-0">
+                <div className="min-w-0 pr-2">
+                  <h3 id="mode-sheet-title" className="text-base font-bold text-neutral-900 dark:text-white truncate">
                     Modo de acesso
                   </h3>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 truncate">
                     Selecione o modo de navegação na consultoria
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="w-8 h-8 rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center transition-colors text-sm font-bold"
+                  onClick={handleClose}
+                  className="w-9 h-9 rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center transition-colors text-sm font-bold shrink-0 cursor-pointer min-h-[36px] min-w-[36px]"
                   aria-label="Fechar seletor de modo"
                 >
                   ✕
                 </button>
               </div>
 
-              {/* Options list */}
-              <div className="space-y-2 pt-1" role="listbox">
+              {/* Options list - Internal Scrollable Container with Bottom Safe Area */}
+              <div
+                className="flex-1 overflow-y-auto overflow-x-hidden p-5 pt-3 space-y-2.5 pb-[calc(2rem+env(safe-area-inset-bottom,16px))]"
+                role="listbox"
+              >
                 {authorizedOptions.map((opt) => {
                   const cfg = MODE_CONFIG[opt.mode] || MODE_CONFIG.PERSONAL;
                   const Icon = cfg.icon;
@@ -247,7 +279,7 @@ export function CockpitRoleModeSwitcher({
                       role="option"
                       aria-selected={isSelected}
                       onClick={() => handleSwitch(opt.mode)}
-                      className={`w-full min-h-[50px] p-3.5 rounded-2xl border text-left flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                      className={`w-full min-h-[54px] p-3.5 rounded-2xl border text-left flex items-center justify-between gap-3 transition-all cursor-pointer ${
                         isSelected
                           ? "bg-neutral-100 dark:bg-[#252830] border-neutral-300 dark:border-neutral-600 shadow-xs"
                           : "border-neutral-200/80 dark:border-[#252830] hover:bg-neutral-50 dark:hover:bg-[#1B1D21]"
@@ -287,7 +319,8 @@ export function CockpitRoleModeSwitcher({
                 })}
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, useMemo, useSyncExternalStore } from "react";
+import { useState, useEffect, useRef, useTransition, useMemo, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type {
   WorkoutBlockItemDto,
@@ -196,6 +196,29 @@ export function GuidedCombinationModal({
     };
   }, [activeTab, searchQuery, consultancySlug, isOpen]);
 
+  const handleCloseRef = useRef(handleCloseAndCleanup);
+  useEffect(() => {
+    handleCloseRef.current = handleCloseAndCleanup;
+  });
+
+  // Lock body scroll and handle Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && isOpen) {
+        handleCloseRef.current();
+      }
+    }
+    if (isOpen) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen || !isMounted) return null;
 
   const currentStep = selectedItems.length;
@@ -349,7 +372,7 @@ export function GuidedCombinationModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="guided-combination-title"
-      className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
     >
       <div
         className="w-full max-w-lg rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] text-[var(--text-primary)] animate-in zoom-in-95 duration-150"

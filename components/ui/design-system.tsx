@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+
+const emptySubscribe = () => () => {};
 import { PageHeader, type PageHeaderProps } from "./page-header";
 import { Surface, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, type SurfaceProps } from "./surface";
 import { Badge, type BadgeProps, type BadgeVariant } from "./badge";
@@ -471,48 +474,61 @@ export function BottomSheet({
   children,
   footer,
 }: BottomSheetProps) {
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
+    if (isOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = prev;
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-lg bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-6 duration-200"
+        className="w-full sm:max-w-lg bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[min(88dvh,680px)] flex flex-col animate-in slide-in-from-bottom-6 duration-200 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="pt-2 pb-1 flex justify-center sm:hidden">
+        <div className="pt-3 pb-1 flex justify-center sm:hidden shrink-0">
           <div className="w-10 h-1 rounded-full bg-[var(--border-strong)]" />
         </div>
-        <div className="px-5 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between">
-          <h3 className="text-sm font-bold text-[var(--text-primary)]">{title}</h3>
+        <div className="px-5 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between shrink-0">
+          <h3 className="text-sm font-bold text-[var(--text-primary)] truncate pr-2">{title}</h3>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fechar painel"
-            className="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] min-h-[36px] min-w-[36px] flex items-center justify-center"
+            className="p-1 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer transition-colors"
           >
             ✕
           </button>
         </div>
         <div className="p-4 sm:p-5 flex-1 overflow-y-auto">{children}</div>
         {footer && (
-          <div className="p-4 border-t border-[var(--border-subtle)] bg-[var(--surface-subtle)]/50">
+          <div className="p-4 border-t border-[var(--border-subtle)] bg-[var(--surface-subtle)]/50 shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
             {footer}
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

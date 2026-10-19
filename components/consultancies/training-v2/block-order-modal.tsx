@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import type { WorkoutBlockItemDto, WorkoutItemCombinationDto } from "@/lib/training-v2/types";
+
+const emptySubscribe = () => () => {};
 
 export type ReorderEntry =
   | { type: "item"; item: WorkoutBlockItemDto; sortOrder: number }
@@ -26,6 +29,7 @@ export function BlockOrderModal({
   const [prevEntries, setPrevEntries] = useState(entries);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   // Sync when entries change
   if (entries !== prevEntries) {
@@ -33,7 +37,25 @@ export function BlockOrderModal({
     setList(entries);
   }
 
-  if (!isOpen) return null;
+  // Lock body scroll and handle Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && isOpen && !isSaving) {
+        onClose();
+      }
+    }
+    if (isOpen) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [isOpen, isSaving, onClose]);
+
+  if (!isOpen || !mounted) return null;
 
   const moveItem = (fromIdx: number, toIdx: number) => {
     if (toIdx < 0 || toIdx >= list.length || fromIdx === toIdx) return;
@@ -83,11 +105,11 @@ export function BlockOrderModal({
     }
   };
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150"
     >
       <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Header */}
@@ -328,6 +350,7 @@ export function BlockOrderModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

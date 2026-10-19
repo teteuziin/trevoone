@@ -963,21 +963,6 @@ export function WorkoutCategoryCard({
               <span>Assistente</span>
             </button>
 
-            {isDraft && (
-              <button
-                type="button"
-                data-testid="category-organize-order-header-btn"
-                onClick={() => setIsOrganizeOrderModalOpen(true)}
-                title="Organizar ordem de execução deste treino"
-                aria-label="Organizar ordem deste treino"
-                className="px-3 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer min-h-[40px] shadow-xs active:scale-95"
-              >
-                <ArrowUpDown className="w-4 h-4 text-amber-500 shrink-0" />
-                <span className="inline sm:hidden font-bold">Organizar</span>
-                <span className="hidden sm:inline font-bold">Organizar ordem</span>
-              </button>
-            )}
-
             <div className="relative">
               <button
                 type="button"
@@ -1173,7 +1158,13 @@ export function WorkoutCategoryCard({
             <button
               type="button"
               data-testid="category-add-exercise-btn"
-              onClick={() => onOpenExercisePicker(category.publicId)}
+              onClick={() => {
+                if (typeof window !== "undefined" && window.innerWidth < 768) {
+                  setMobileAddSheetTarget({ isOpen: true });
+                } else {
+                  onOpenExercisePicker(category.publicId);
+                }
+              }}
               aria-label="Adicionar exercício"
               className="flex-1 min-h-[44px] px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all cursor-pointer"
               title="Adicionar exercício a este treino"
@@ -2061,12 +2052,14 @@ export function WorkoutCategoryCard({
             onOpenCreateCustomExercise?.(category.publicId, subId);
           }}
           onSelectCombine={
-            onCreateCombination && items.length >= 2
+            onCreateCombination
               ? () => {
-                  const subId = mobileAddSheetTarget.subBlockPublicId ?? "root";
                   setMobileAddSheetTarget({ isOpen: false });
-                  setCombiningSubBlockId(subId);
-                  setSelectedExerciseIds([]);
+                  setGuidedModalState({
+                    isOpen: true,
+                    type: "BI_SET",
+                    initialItem: null,
+                  });
                 }
               : undefined
           }
@@ -5615,7 +5608,7 @@ export function AddExerciseActionSheet({
               Buscar na Biblioteca
             </h4>
             <p className="text-xs text-[var(--text-secondary)]">
-              Mais de 1.000 exercícios catalogados com vídeos e orientações
+              Busque exercícios por nome, equipamento ou grupo muscular
             </p>
           </div>
         </button>
@@ -5642,17 +5635,17 @@ export function AddExerciseActionSheet({
           <button
             type="button"
             onClick={onSelectCombine}
-            className="w-full p-4 rounded-2xl border border-[var(--border-default)] hover:border-emerald-500/50 bg-[var(--surface-subtle)] hover:bg-emerald-500/5 transition-all text-left flex items-center gap-3.5 min-h-[64px] cursor-pointer"
+            className="w-full p-4 rounded-2xl border border-[var(--border-default)] hover:border-amber-500/50 bg-[var(--surface-subtle)] hover:bg-amber-500/5 transition-all text-left flex items-center gap-3.5 min-h-[64px] cursor-pointer"
           >
-            <div className="w-12 h-12 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <ZapIcon className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <ZapIcon className="w-6 h-6 text-white" />
             </div>
             <div className="min-w-0 flex-1">
               <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                Combinar Exercícios (Bi-set / Tri-set)
+                Criar combinação
               </h4>
               <p className="text-xs text-[var(--text-secondary)]">
-                Agrupe 2 ou mais exercícios em sequência contínua
+                Bi-set, Tri-set, Circuito ou Super-série
               </p>
             </div>
           </button>

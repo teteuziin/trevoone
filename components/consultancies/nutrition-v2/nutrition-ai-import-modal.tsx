@@ -1,9 +1,15 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+
+const emptySubscribe = () => () => {};
+function useIsMounted() {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
 
 interface MatchedFoodCandidate {
   foodPublicId: string;
@@ -143,6 +149,17 @@ export function NutritionAiImportModal({
   const [isSearching, setIsSearching] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const mounted = useIsMounted();
+
+  useEffect(() => {
+    if (!showModal) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [showModal]);
 
   React.useEffect(() => {
     if (isControlled && isOpenControlled) {
@@ -526,68 +543,70 @@ export function NutritionAiImportModal({
         </Button>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-          <div className="bg-[var(--surface)] border-t sm:border border-[var(--border-strong)] rounded-t-3xl sm:rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-0 sm:my-auto">
+      {mounted && showModal && createPortal(
+        <div
+          data-testid="nutrition-ai-import-modal-overlay"
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto"
+          onClick={handleClose}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ai-import-title"
+            aria-describedby="ai-import-description"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[var(--surface)] border-t sm:border border-[var(--border-strong)] rounded-t-3xl sm:rounded-2xl w-full max-w-4xl max-h-[88dvh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-0 sm:my-auto animate-in slide-in-from-bottom-8 duration-200"
+          >
             {/* Mobile Drag Handle */}
-            <div className="pt-2.5 pb-1 flex justify-center sm:hidden bg-[var(--surface-subtle)]/50">
+            <div className="pt-3 pb-1 flex justify-center sm:hidden shrink-0" aria-hidden="true">
               <div className="w-10 h-1.5 rounded-full bg-[var(--border-strong)]" />
             </div>
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--surface-subtle)]/50 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[var(--brand)]/10 border border-[var(--brand)]/20 flex items-center justify-center text-[var(--brand)]">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-extrabold text-[var(--text-primary)]">
-                    Importação com IA — Nutrição V2
-                  </h2>
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    Extração estruturada de planos alimentares via PDF ou texto
-                  </p>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-3">
-                {quota && (
-                  <div className="hidden sm:flex flex-col items-end text-xs">
-                    <span className="text-[var(--text-muted)] font-medium">
-                      Importações com IA hoje:
-                    </span>
-                    <span className="font-bold text-[var(--text-primary)]">
-                      {quota.usedToday} de {quota.dailyLimit} utilizadas{' '}
-                      <span className="text-[var(--brand)] font-extrabold">(Restam: {quota.remainingToday})</span>
-                    </span>
+            {/* Header: Title + Close Button on top, Description underneath spanning full width */}
+            <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[var(--border-subtle)] bg-[var(--surface-subtle)]/50 shrink-0">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-[var(--brand)]/10 border border-[var(--brand)]/20 flex items-center justify-center text-[var(--brand)] shrink-0">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                    </svg>
                   </div>
-                )}
+                  <div className="min-w-0">
+                    <h2 id="ai-import-title" className="text-base sm:text-lg font-extrabold text-[var(--text-primary)] leading-tight">
+                      Importar plano com IA
+                    </h2>
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1 rounded-lg transition-colors"
-                  aria-label="Fechar modal"
+                  className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                  aria-label="Fechar"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
+              <p id="ai-import-description" className="text-sm text-[var(--text-secondary)] mt-1.5 leading-snug">
+                Envie um arquivo ou cole o texto.
+              </p>
             </div>
 
-            {/* Quota Banner Mobile */}
+            {/* Quota Banner: clean standalone line with wrap safety */}
             {quota && (
-              <div className="sm:hidden px-4 py-2 bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] text-xs flex justify-between items-center">
-                <span className="text-[var(--text-muted)]">Uso de IA hoje:</span>
+              <div className="px-4 sm:px-6 py-2.5 bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] flex flex-wrap items-center justify-between gap-1.5 shrink-0">
+                <span>Uso de IA hoje:</span>
                 <span className="font-bold text-[var(--text-primary)]">
-                  {quota.usedToday}/{quota.dailyLimit} (Restam: {quota.remainingToday})
+                  {quota.usedToday} de {quota.dailyLimit} utilizadas{" "}
+                  <span className="text-emerald-500 font-extrabold">(Restam: {quota.remainingToday})</span>
                 </span>
               </div>
             )}
 
             {/* Body */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5 sm:space-y-6">
               {errorMessage && (
                 <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs sm:text-sm font-medium flex items-start gap-2">
                   <svg className="w-5 h-5 shrink-0 text-red-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -600,7 +619,7 @@ export function NutritionAiImportModal({
                     <button
                       type="button"
                       onClick={() => setErrorMessage(null)}
-                      className="mt-1 text-xs underline font-bold hover:text-red-300"
+                      className="mt-1 text-xs underline font-bold hover:text-red-300 cursor-pointer"
                     >
                       Tentar novamente
                     </button>
@@ -610,45 +629,47 @@ export function NutritionAiImportModal({
 
               {/* STEP 1: UPLOAD / PASTE TEXT (if no proposal yet) */}
               {!proposal && !isLoading && (
-                <form onSubmit={handleSubmitImport} className="space-y-5">
+                <form onSubmit={handleSubmitImport} className="space-y-5 sm:space-y-6">
                   {quota && !quota.canUseAi && (
                     <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm">
                       <strong>Você atingiu o limite de importações com IA de hoje.</strong> Fale com o administrador da sua consultoria.
                     </div>
                   )}
 
-                  {/* Tab Selector */}
-                  <div className="flex rounded-xl bg-[var(--surface-subtle)] p-1 border border-[var(--border-subtle)] w-fit">
+                  {/* Tab Selector: Short Labels */}
+                  <div className="flex rounded-xl bg-[var(--surface-subtle)] p-1 border border-[var(--border-subtle)] w-full sm:w-fit">
                     <button
                       type="button"
                       onClick={() => setActiveTab('file')}
-                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'file'
+                      className={`flex-1 sm:flex-none px-4 py-2.5 min-h-[44px] text-sm font-bold rounded-lg transition-all ${
+                        activeTab === 'file'
                           ? 'bg-[var(--surface)] text-[var(--text-primary)] shadow-sm'
                           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                        }`}
+                      }`}
                     >
-                      Arquivo (.pdf, .txt, .docx)
+                      Arquivo
                     </button>
                     <button
                       type="button"
                       onClick={() => setActiveTab('text')}
-                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'text'
+                      className={`flex-1 sm:flex-none px-4 py-2.5 min-h-[44px] text-sm font-bold rounded-lg transition-all ${
+                        activeTab === 'text'
                           ? 'bg-[var(--surface)] text-[var(--text-primary)] shadow-sm'
                           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                        }`}
+                      }`}
                     >
-                      Colar Texto
+                      Colar texto
                     </button>
                   </div>
 
                   {activeTab === 'file' ? (
                     <div>
                       <label className="block text-xs font-bold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
-                        Documento do Plano Alimentar
+                        Documento do plano alimentar
                       </label>
                       <div
                         onClick={() => fileInputRef.current?.click()}
-                        className="border-2 border-dashed border-[var(--border-strong)] hover:border-[var(--brand)] rounded-2xl p-8 text-center cursor-pointer transition-colors bg-[var(--surface-subtle)]/30 hover:bg-[var(--surface-subtle)]/70 flex flex-col items-center justify-center gap-3"
+                        className="border-2 border-dashed border-[var(--border-strong)] hover:border-[var(--brand)] rounded-2xl p-5 sm:p-6 text-center cursor-pointer transition-colors bg-[var(--surface-subtle)]/30 hover:bg-[var(--surface-subtle)]/70 flex flex-col items-center justify-center gap-2.5 w-full"
                       >
                         <input
                           ref={fileInputRef}
@@ -659,61 +680,82 @@ export function NutritionAiImportModal({
                             if (e.target.files?.[0]) setFile(e.target.files[0]);
                           }}
                         />
-                        <div className="w-12 h-12 rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center">
-                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <div className="w-10 h-10 rounded-xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center shrink-0">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                           </svg>
                         </div>
                         {file ? (
-                          <div>
-                            <p className="text-sm font-bold text-[var(--text-primary)]">
+                          <div className="max-w-full min-w-0">
+                            <p className="text-sm font-bold text-[var(--text-primary)] truncate">
                               {file.name}
                             </p>
-                            <p className="text-xs text-[var(--text-muted)]">
-                              {(file.size / 1024).toFixed(1)} KB — Clique para trocar
+                            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                              {(file.size / 1024).toFixed(1)} KB
                             </p>
+                            <div className="flex items-center justify-center gap-3 mt-2">
+                              <span className="text-xs font-semibold text-emerald-500 hover:underline">
+                                Trocar arquivo
+                              </span>
+                              <span className="text-xs text-[var(--border-strong)]">•</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFile(null);
+                                  if (fileInputRef.current) fileInputRef.current.value = "";
+                                }}
+                                className="text-xs font-semibold text-red-400 hover:underline cursor-pointer"
+                              >
+                                Remover
+                              </button>
+                            </div>
                           </div>
                         ) : (
                           <div>
                             <p className="text-sm font-bold text-[var(--text-primary)]">
-                              Clique para selecionar ou arraste o arquivo
+                              Selecionar arquivo
                             </p>
                             <p className="text-xs text-[var(--text-muted)] mt-1">
-                              PDF, DOCX, TXT ou MD (máx 15MB)
+                              Clique ou arraste um arquivo aqui
                             </p>
                           </div>
                         )}
                       </div>
+                      <p className="text-xs text-[var(--text-muted)] mt-2">
+                        Formatos aceitos: PDF, DOCX, TXT ou MD (máx 15MB)
+                      </p>
                     </div>
                   ) : (
                     <div>
                       <label className="block text-xs font-bold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
-                        Conteúdo do Cardápio
+                        Conteúdo do cardápio
                       </label>
                       <textarea
                         rows={8}
                         value={pastedText}
                         onChange={(e) => setPastedText(e.target.value)}
                         placeholder="Cole aqui o plano alimentar completo com refeições, horários e alimentos..."
-                        className="w-full rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] p-3 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] font-mono resize-y"
+                        className="w-full min-h-[180px] rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] p-3.5 text-base text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] font-sans resize-y"
                       />
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Form fields: Single column on mobile, 8px gap between label and field, 20-24px between groups */}
+                  <div className="grid grid-cols-1 gap-5 sm:gap-6 pt-1">
                     <div>
-                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">
-                        Aluno / Paciente da Consultoria (Opcional)
+                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
+                        Paciente (opcional)
                       </label>
                       {defaultPatientMembershipId ? (
-                        <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+                        <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-sm text-[var(--text-secondary)] min-h-[44px] flex items-center">
                           Paciente contextualizado pelo aluno.
                         </div>
                       ) : (
                         <select
                           value={selectedPatientId || ''}
                           onChange={(e) => setSelectedPatientId(e.target.value ? Number(e.target.value) : null)}
-                          className="w-full rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                          className="w-full rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] px-3 py-2.5 text-base text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] min-h-[44px]"
                         >
                           <option value="">[ Nenhum — salvar como rascunho ]</option>
                           {students.map((s) => (
@@ -724,34 +766,36 @@ export function NutritionAiImportModal({
                         </select>
                       )}
                     </div>
+
                     <div>
-                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">
-                        Objetivo do Plano (opcional)
+                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
+                        Objetivo do plano (opcional)
                       </label>
                       <input
                         type="text"
                         value={objective}
                         onChange={(e) => setObjective(e.target.value)}
                         placeholder="Ex: Emagrecimento, Hipertrofia..."
-                        className="w-full rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                        className="w-full rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] px-3 py-2.5 text-base text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] min-h-[44px]"
                       />
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-[var(--border-subtle)] flex items-center justify-end gap-3">
-                    <Button type="button" variant="ghost" onClick={handleClose}>
+                  {/* Action Buttons */}
+                  <div className="pt-4 border-t border-[var(--border-subtle)] flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
+                    <Button type="button" variant="ghost" onClick={handleClose} className="min-h-[44px] w-full sm:w-auto">
                       Cancelar
                     </Button>
                     <Button
                       type="submit"
                       variant="primary"
                       disabled={quota?.canUseAi === false || (activeTab === 'file' ? !file : !pastedText.trim())}
-                      className="font-bold min-h-[44px] shadow-sm flex items-center gap-2"
+                      className="font-bold min-h-[48px] w-full sm:w-auto shadow-sm flex items-center justify-center gap-2"
                     >
                       <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
                       </svg>
-                      <span>Analisar plano...</span>
+                      <span>Analisar plano com IA</span>
                     </Button>
                   </div>
                 </form>
@@ -1110,7 +1154,8 @@ export function NutritionAiImportModal({
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

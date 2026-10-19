@@ -128,7 +128,7 @@ export function NutritionPlanChoiceModal({
         aria-labelledby="choice-modal-title"
         aria-describedby="choice-modal-description"
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-full sm:max-w-2xl bg-white dark:bg-[#151619] border-t sm:border border-[#E5E7EB] dark:border-[#303238] rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[85dvh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-8 duration-200 overflow-hidden"
+        className="w-full max-w-full sm:max-w-2xl bg-white dark:bg-[#151619] border-t sm:border border-[#E5E7EB] dark:border-[#303238] rounded-t-3xl sm:rounded-2xl shadow-2xl h-auto max-h-[85dvh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-8 duration-200 overflow-hidden"
       >
         {/* Mobile Drag Indicator */}
         <div className="pt-3 pb-1 flex justify-center sm:hidden shrink-0" aria-hidden="true">
@@ -136,8 +136,8 @@ export function NutritionPlanChoiceModal({
         </div>
 
         {/* Header: Title ~20px + Subtitle 14px + Close Button >= 44x44px */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#E5E7EB] dark:border-[#303238] flex items-center justify-between gap-3 shrink-0">
-          <div className="min-w-0">
+        <div className="px-4 sm:px-6 py-4 border-b border-[#E5E7EB] dark:border-[#303238] flex items-center justify-between gap-3 shrink-0">
+          <div className="min-w-0 flex-1 pr-2">
             <h2
               id="choice-modal-title"
               className="text-lg sm:text-xl font-bold sm:font-black text-[#17191D] dark:text-white leading-tight tracking-tight"
@@ -146,7 +146,7 @@ export function NutritionPlanChoiceModal({
             </h2>
             <p
               id="choice-modal-description"
-              className="text-sm text-[#6B7280] dark:text-[#8E95A2] mt-0.5 leading-snug"
+              className="text-sm text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-snug"
             >
               Como deseja começar?
             </p>
@@ -164,13 +164,13 @@ export function NutritionPlanChoiceModal({
         </div>
 
         {/* Options: 1 column on mobile with 12px gap, 2 columns on desktop with 16px gap */}
-        <div className="p-4 sm:p-6 flex-1 overflow-y-auto pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6">
+        <div className="px-4 sm:px-6 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] sm:pb-6 flex-1 overflow-y-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* 1. CRIAR MANUALMENTE */}
             <button
               type="button"
               onClick={() => onSelectOption("manual")}
-              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
+              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
             >
               <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200/60 dark:border-emerald-800/40 group-hover:scale-105 transition-transform mt-0.5">
                 <PencilSquareIcon className="w-5 h-5" />
@@ -189,7 +189,7 @@ export function NutritionPlanChoiceModal({
             <button
               type="button"
               onClick={() => onSelectOption("ai-scratch")}
-              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
+              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
             >
               <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/25 group-hover:scale-105 transition-transform mt-0.5">
                 <SparklesIcon className="w-5 h-5" />
@@ -208,7 +208,7 @@ export function NutritionPlanChoiceModal({
             <button
               type="button"
               onClick={() => onSelectOption("ai-import")}
-              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-purple-500/50 dark:hover:border-purple-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
+              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-purple-500/50 dark:hover:border-purple-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
             >
               <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/25 group-hover:scale-105 transition-transform mt-0.5">
                 <ArrowUpTrayIcon className="w-5 h-5" />
@@ -227,7 +227,7 @@ export function NutritionPlanChoiceModal({
             <button
               type="button"
               onClick={() => onSelectOption("template")}
-              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-blue-500/50 dark:hover:border-blue-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
+              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-blue-500/50 dark:hover:border-blue-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
             >
               <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/25 group-hover:scale-105 transition-transform mt-0.5">
                 <Squares2x2Icon className="w-5 h-5" />

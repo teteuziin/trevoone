@@ -76,6 +76,27 @@ function CheckIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function DocumentIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
+    </svg>
+  );
+}
+
 function getInitials(name: string): string {
   const clean = name.trim();
   if (!clean) return "PL";
@@ -148,8 +169,9 @@ export function NutritionAttentionSection({
 
   return (
     <section aria-label="Precisa de atenção" className="w-full space-y-3">
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
+      {/* Header: 2 lines on small screens if needed, 1 line on desktop */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 px-1">
+        <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight">
             Precisa de atenção
           </h2>
@@ -163,7 +185,7 @@ export function NutritionAttentionSection({
         <Link
           href={`/consultoria/${consultancySlug}/planos-v2`}
           prefetch={false}
-          className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 dark:text-[#10B981] dark:hover:text-emerald-300 hover:underline transition-colors shrink-0"
+          className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 dark:text-[#10B981] dark:hover:text-emerald-300 hover:underline transition-colors shrink-0 self-start sm:self-auto"
         >
           Ver todos os planos →
         </Link>
@@ -186,46 +208,73 @@ export function NutritionAttentionSection({
       ) : (
         <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl divide-y divide-[#E5E7EB] dark:divide-[#303238] overflow-hidden shadow-xs">
           {visibleItems.map((item) => {
-            const displayName =
-              item.patientName && item.patientName !== "Plano individual"
-                ? item.patientName
-                : item.isTemplate
-                ? "Modelo de plano"
-                : "Plano sem paciente";
+            const hasPatient = Boolean(
+              item.patientName &&
+                item.patientName !== "Plano sem paciente" &&
+                item.patientName !== "Plano individual" &&
+                item.patientName !== "Modelo de plano" &&
+                !item.isTemplate
+            );
+
+            const primaryTitle = hasPatient
+              ? item.patientName
+              : item.planTitle && item.planTitle !== "Plano sem paciente"
+              ? item.planTitle
+              : item.isTemplate
+              ? "Modelo de plano"
+              : "Plano alimentar";
+
+            const secondaryInfo = hasPatient
+              ? item.planTitle && item.planTitle !== item.patientName
+                ? item.planTitle
+                : null
+              : item.isTemplate
+              ? "Modelo de plano"
+              : "Sem paciente vinculado";
 
             return (
               <div
                 key={item.id}
-                className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-[#F9FAFB] dark:hover:bg-[#1B1D21] transition-colors"
+                className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 hover:bg-[#F9FAFB] dark:hover:bg-[#1B1D21] transition-colors"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-[#1B1D21] border border-slate-200 dark:border-[#303238] flex items-center justify-center text-xs font-bold text-slate-800 dark:text-white shrink-0">
-                    {getInitials(displayName)}
-                  </div>
+                <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                  {hasPatient ? (
+                    <div
+                      className="w-10 h-10 rounded-full bg-slate-100 dark:bg-[#1B1D21] border border-slate-200 dark:border-[#303238] flex items-center justify-center text-xs font-bold text-slate-800 dark:text-white shrink-0 shadow-2xs"
+                      aria-hidden="true"
+                    >
+                      {getInitials(item.patientName)}
+                    </div>
+                  ) : (
+                    <div
+                      className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-[#1B1D21] border border-slate-200 dark:border-[#303238] flex items-center justify-center text-slate-600 dark:text-slate-300 shrink-0 shadow-2xs"
+                      aria-hidden="true"
+                    >
+                      <DocumentIcon className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                    </div>
+                  )}
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <p className="text-sm font-bold text-[#17191D] dark:text-white truncate">
-                        {displayName}
+                    <p className="text-sm font-bold text-[#17191D] dark:text-white truncate leading-snug">
+                      {primaryTitle}
+                    </p>
+                    {secondaryInfo && (
+                      <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] font-normal truncate mt-0.5 leading-snug">
+                        {secondaryInfo}
                       </p>
-                      {item.planTitle && item.planTitle !== displayName && (
-                        <span className="text-xs text-[#6B7280] dark:text-[#8E95A2] font-normal truncate">
-                          • {item.planTitle}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1.5 mt-0.5">
+                    )}
+                    <p className="text-xs text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1.5 mt-1 leading-snug">
                       <AlertTriangleIcon className="w-3.5 h-3.5 shrink-0" />
                       <span>{item.reason}</span>
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end sm:shrink-0 pt-1 sm:pt-0">
-                  <Link href={item.actionHref} prefetch={false}>
+                <div className="w-full sm:w-auto sm:shrink-0 pt-1 sm:pt-0">
+                  <Link href={item.actionHref} prefetch={false} className="w-full sm:w-auto block">
                     <button
                       type="button"
-                      className="px-3.5 min-h-[44px] rounded-xl font-bold text-xs bg-[#F3F4F6] hover:bg-[#E5E7EB] dark:bg-[#1B1D21] dark:hover:bg-[#252830] border border-[#E5E7EB] dark:border-[#303238] text-[#17191D] dark:text-white flex items-center gap-1.5 cursor-pointer active:translate-y-[1px] transition-colors shadow-2xs"
+                      className="w-full sm:w-auto px-4 min-h-[44px] rounded-xl font-bold text-xs bg-[#F3F4F6] hover:bg-[#E5E7EB] dark:bg-[#1B1D21] dark:hover:bg-[#252830] border border-[#E5E7EB] dark:border-[#303238] text-[#17191D] dark:text-white flex items-center justify-center gap-2 cursor-pointer active:translate-y-[1px] transition-colors shadow-2xs"
                     >
                       <span>{item.actionLabel}</span>
                       <ArrowRightIcon className="w-3.5 h-3.5 text-[#6B7280] dark:text-[#8E95A2]" />

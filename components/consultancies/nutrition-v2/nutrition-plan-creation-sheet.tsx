@@ -13,6 +13,8 @@ import { NutritionTemplatePickerModal } from "./nutrition-template-picker-modal"
 
 interface NutritionPlanCreationSheetProps {
   consultancySlug: string;
+  isTemplatesTab?: boolean;
+  isFloating?: boolean;
 }
 
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -32,7 +34,11 @@ function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-export function NutritionPlanCreationSheet({ consultancySlug }: NutritionPlanCreationSheetProps) {
+export function NutritionPlanCreationSheet({
+  consultancySlug,
+  isTemplatesTab = false,
+  isFloating = false,
+}: NutritionPlanCreationSheetProps) {
   const router = useRouter();
 
   const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
@@ -43,7 +49,7 @@ export function NutritionPlanCreationSheet({ consultancySlug }: NutritionPlanCre
   const handleSelectChoice = (choice: NutritionPlanCreationChoice) => {
     setIsChoiceModalOpen(false);
     if (choice === "manual") {
-      router.push(`/consultoria/${consultancySlug}/planos-v2/novo`);
+      router.push(`/consultoria/${consultancySlug}/planos-v2/novo${isTemplatesTab ? "?isTemplate=true" : ""}`);
     } else if (choice === "ai-scratch") {
       setIsGenerateAiOpen(true);
     } else if (choice === "ai-import") {
@@ -53,34 +59,50 @@ export function NutritionPlanCreationSheet({ consultancySlug }: NutritionPlanCre
     }
   };
 
+  const actionLabel = isTemplatesTab ? "Novo modelo" : "Novo plano";
+
   return (
     <>
-      {/* Desktop view: Importar plano (atalho) + Novo plano (abre seletor de 4 opções) */}
-      <div className="hidden sm:flex items-center gap-2.5 shrink-0">
-        <NutritionAiImportModal consultancySlug={consultancySlug} />
+      {isFloating ? (
         <Button
           variant="primary"
           size="md"
           onClick={() => setIsChoiceModalOpen(true)}
-          className="font-bold min-h-[44px] shadow-sm cursor-pointer"
+          className="w-14 h-14 rounded-full shadow-xl flex items-center justify-center p-0 cursor-pointer"
+          aria-label={actionLabel}
         >
-          <PlusIcon className="w-4 h-4 mr-1.5" />
-          <span>Novo plano</span>
+          <PlusIcon className="w-6 h-6" />
         </Button>
-      </div>
+      ) : (
+        <>
+          {/* Desktop view: Importar plano (atalho) + Novo plano (abre seletor de 4 opções) */}
+          <div className="hidden sm:flex items-center gap-2.5 shrink-0">
+            <NutritionAiImportModal consultancySlug={consultancySlug} />
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => setIsChoiceModalOpen(true)}
+              className="font-bold min-h-[44px] shadow-sm cursor-pointer"
+            >
+              <PlusIcon className="w-4 h-4 mr-1.5" />
+              <span>{actionLabel}</span>
+            </Button>
+          </div>
 
-      {/* Mobile view: single prominent CTA opening unified 4-options modal */}
-      <div className="sm:hidden w-full">
-        <Button
-          variant="primary"
-          size="md"
-          onClick={() => setIsChoiceModalOpen(true)}
-          className="font-bold min-h-[48px] w-full shadow-sm flex items-center justify-center gap-2 text-sm cursor-pointer"
-        >
-          <PlusIcon className="w-4 h-4" />
-          <span>Novo plano</span>
-        </Button>
-      </div>
+          {/* Mobile view: single prominent CTA opening unified 4-options modal */}
+          <div className="sm:hidden w-full">
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => setIsChoiceModalOpen(true)}
+              className="font-bold min-h-[48px] w-full shadow-sm flex items-center justify-center gap-2 text-sm cursor-pointer"
+            >
+              <PlusIcon className="w-4 h-4" />
+              <span>{actionLabel}</span>
+            </Button>
+          </div>
+        </>
+      )}
 
       {/* 1. Modal Seletor de Opções (Como deseja criar o plano?) */}
       <NutritionPlanChoiceModal

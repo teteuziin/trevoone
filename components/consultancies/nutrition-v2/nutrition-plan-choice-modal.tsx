@@ -136,7 +136,7 @@ export function NutritionPlanChoiceModal({
         </div>
 
         {/* Header: Title ~20px + Subtitle 14px + Close Button >= 44x44px */}
-        <div className="px-4 sm:px-6 py-4 border-b border-[#E5E7EB] dark:border-[#303238] flex items-center justify-between gap-3 shrink-0">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-[#E5E7EB] dark:border-[#303238] flex items-center justify-between gap-3 shrink-0">
           <div className="min-w-0 flex-1 pr-2">
             <h2
               id="choice-modal-title"
@@ -146,7 +146,7 @@ export function NutritionPlanChoiceModal({
             </h2>
             <p
               id="choice-modal-description"
-              className="text-sm text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-snug"
+              className="text-sm text-[#6B7280] dark:text-[#8E95A2] mt-0.5 sm:mt-1 leading-snug"
             >
               Como deseja começar?
             </p>
@@ -163,24 +163,24 @@ export function NutritionPlanChoiceModal({
           </button>
         </div>
 
-        {/* Options: 1 column on mobile with 12px gap, 2 columns on desktop with 16px gap */}
-        <div className="px-4 sm:px-6 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] sm:pb-6 flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        {/* Options: 1 column on mobile with 8px gap, 2 columns on desktop with 16px gap */}
+        <div className="px-4 sm:px-6 pt-3 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] sm:pb-6 flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
             {/* 1. CRIAR MANUALMENTE */}
             <button
               type="button"
               onClick={() => onSelectOption("manual")}
-              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
+              className="w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
             >
-              <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200/60 dark:border-emerald-800/40 group-hover:scale-105 transition-transform mt-0.5">
-                <PencilSquareIcon className="w-5 h-5" />
+              <div className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200/60 dark:border-emerald-800/40 group-hover:scale-105 transition-transform mt-0.5">
+                <PencilSquareIcon className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-base text-[#17191D] dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-snug">
                   Criar manualmente
                 </h3>
                 <p className="text-sm text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
-                  Escolha alimentos e monte as refeições.
+                  Monte as refeições e porções.
                 </p>
               </div>
             </button>
@@ -189,10 +189,10 @@ export function NutritionPlanChoiceModal({
             <button
               type="button"
               onClick={() => onSelectOption("ai-scratch")}
-              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
+              className="w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
             >
-              <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/25 group-hover:scale-105 transition-transform mt-0.5">
-                <SparklesIcon className="w-5 h-5" />
+              <div className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/25 group-hover:scale-105 transition-transform mt-0.5">
+                <SparklesIcon className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-base text-[#17191D] dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-snug">
@@ -208,17 +208,17 @@ export function NutritionPlanChoiceModal({
             <button
               type="button"
               onClick={() => onSelectOption("ai-import")}
-              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-purple-500/50 dark:hover:border-purple-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
+              className="w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-purple-500/50 dark:hover:border-purple-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
             >
-              <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/25 group-hover:scale-105 transition-transform mt-0.5">
-                <ArrowUpTrayIcon className="w-5 h-5" />
+              <div className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/25 group-hover:scale-105 transition-transform mt-0.5">
+                <ArrowUpTrayIcon className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-base text-[#17191D] dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors leading-snug">
                   Importar com IA
                 </h3>
                 <p className="text-sm text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
-                  Importe um plano para revisar e editar.
+                  Importe um plano para revisar.
                 </p>
               </div>
             </button>
@@ -227,10 +227,10 @@ export function NutritionPlanChoiceModal({
             <button
               type="button"
               onClick={() => onSelectOption("template")}
-              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-blue-500/50 dark:hover:border-blue-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
+              className="w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-blue-500/50 dark:hover:border-blue-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
             >
-              <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/25 group-hover:scale-105 transition-transform mt-0.5">
-                <Squares2x2Icon className="w-5 h-5" />
+              <div className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/25 group-hover:scale-105 transition-transform mt-0.5">
+                <Squares2x2Icon className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-base text-[#17191D] dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">

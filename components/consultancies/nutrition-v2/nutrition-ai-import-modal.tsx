@@ -664,12 +664,12 @@ export function NutritionAiImportModal({
 
                   {activeTab === 'file' ? (
                     <div>
-                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
+                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1.5 uppercase tracking-wider">
                         Documento do plano alimentar
                       </label>
                       <div
                         onClick={() => fileInputRef.current?.click()}
-                        className="border-2 border-dashed border-[var(--border-strong)] hover:border-[var(--brand)] rounded-2xl p-5 sm:p-6 text-center cursor-pointer transition-colors bg-[var(--surface-subtle)]/30 hover:bg-[var(--surface-subtle)]/70 flex flex-col items-center justify-center gap-2.5 w-full"
+                        className="border-2 border-dashed border-[var(--border-strong)] hover:border-[var(--brand)] rounded-2xl p-3.5 sm:p-5 min-h-[100px] sm:min-h-[120px] text-center cursor-pointer transition-colors bg-[var(--surface-subtle)]/30 hover:bg-[var(--surface-subtle)]/70 flex flex-col items-center justify-center gap-2 w-full"
                       >
                         <input
                           ref={fileInputRef}
@@ -680,24 +680,23 @@ export function NutritionAiImportModal({
                             if (e.target.files?.[0]) setFile(e.target.files[0]);
                           }}
                         />
-                        <div className="w-10 h-10 rounded-xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center shrink-0">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <div className="w-8 h-8 rounded-lg bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center shrink-0">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                           </svg>
                         </div>
                         {file ? (
-                          <div className="max-w-full min-w-0">
+                          <div className="max-w-full min-w-0 px-2">
                             <p className="text-sm font-bold text-[var(--text-primary)] truncate">
                               {file.name}
                             </p>
-                            <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                              {(file.size / 1024).toFixed(1)} KB
-                            </p>
-                            <div className="flex items-center justify-center gap-3 mt-2">
-                              <span className="text-xs font-semibold text-emerald-500 hover:underline">
+                            <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-muted)] mt-0.5 flex-wrap">
+                              <span>{(file.size / 1024).toFixed(1)} KB</span>
+                              <span>•</span>
+                              <span className="font-semibold text-emerald-500 hover:underline">
                                 Trocar arquivo
                               </span>
-                              <span className="text-xs text-[var(--border-strong)]">•</span>
+                              <span>•</span>
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -705,7 +704,7 @@ export function NutritionAiImportModal({
                                   setFile(null);
                                   if (fileInputRef.current) fileInputRef.current.value = "";
                                 }}
-                                className="text-xs font-semibold text-red-400 hover:underline cursor-pointer"
+                                className="font-semibold text-red-400 hover:underline cursor-pointer"
                               >
                                 Remover
                               </button>
@@ -716,19 +715,22 @@ export function NutritionAiImportModal({
                             <p className="text-sm font-bold text-[var(--text-primary)]">
                               Selecionar arquivo
                             </p>
-                            <p className="text-xs text-[var(--text-muted)] mt-1">
+                            <p className="text-xs text-[var(--text-muted)] mt-0.5 sm:hidden">
+                              Toque para selecionar
+                            </p>
+                            <p className="text-xs text-[var(--text-muted)] mt-0.5 hidden sm:block">
                               Clique ou arraste um arquivo aqui
                             </p>
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-[var(--text-muted)] mt-2">
+                      <p className="text-xs text-[var(--text-muted)] mt-1.5">
                         Formatos aceitos: PDF, DOCX, TXT ou MD (máx 15MB)
                       </p>
                     </div>
                   ) : (
                     <div>
-                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
+                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1.5 uppercase tracking-wider">
                         Conteúdo do cardápio
                       </label>
                       <textarea
@@ -736,15 +738,15 @@ export function NutritionAiImportModal({
                         value={pastedText}
                         onChange={(e) => setPastedText(e.target.value)}
                         placeholder="Cole aqui o plano alimentar completo com refeições, horários e alimentos..."
-                        className="w-full min-h-[180px] rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] p-3.5 text-base text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] font-sans resize-y"
+                        className="w-full min-h-[160px] sm:min-h-[180px] rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] p-3.5 text-base text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] font-sans resize-y"
                       />
                     </div>
                   )}
 
-                  {/* Form fields: Single column on mobile, 8px gap between label and field, 20-24px between groups */}
-                  <div className="grid grid-cols-1 gap-5 sm:gap-6 pt-1">
+                  {/* Form fields: Single column on mobile, 6-8px gap between label and field, 16px between groups */}
+                  <div className="grid grid-cols-1 gap-4 pt-1">
                     <div>
-                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
+                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1.5 uppercase tracking-wider">
                         Paciente (opcional)
                       </label>
                       {defaultPatientMembershipId ? (
@@ -768,8 +770,8 @@ export function NutritionAiImportModal({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-2 uppercase tracking-wider">
-                        Objetivo do plano (opcional)
+                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1.5 uppercase tracking-wider">
+                        Objetivo (opcional)
                       </label>
                       <input
                         type="text"

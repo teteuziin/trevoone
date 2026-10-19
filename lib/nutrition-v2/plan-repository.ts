@@ -93,12 +93,15 @@ export interface PlanListItemDto {
   mealsCount?: number;
   publishedVersionPublicId?: string | null;
   publishedVersionNumber?: number | null;
+  draftVersionNumber?: number | null;
+  hasDraftRevision?: boolean;
   currentVersion: {
     publicId: string;
     versionNumber: number;
     status: string;
     title: string;
     subtitle: string | null;
+    objective?: string | null;
     updatedAt: string;
   } | null;
 }
@@ -559,12 +562,20 @@ export async function createPlanWithDraftVersion(
 
 export async function listPlansForConsultancy(
   ctx: NutritionAccessContext,
-  options: { page?: number; pageSize?: number; query?: string } = {}
+  options: {
+    page?: number;
+    pageSize?: number;
+    limit?: number;
+    query?: string;
+    isTemplate?: boolean;
+    status?: "ALL" | "DRAFT" | "PUBLISHED" | "ARCHIVED" | string;
+    sort?: "recent" | "oldest" | "title_asc" | string;
+  } = {}
 ): Promise<{ items: PlanListItemDto[]; total: number; page: number; pageSize: number; totalPages: number }> {
   assertCanAuthorNutrition(ctx);
 
   const page = Math.max(1, Number(options.page) || 1);
-  const pageSize = Math.min(50, Math.max(1, Number(options.pageSize) || 20));
+  const pageSize = Math.min(50, Math.max(1, Number(options.limit || options.pageSize) || 20));
   const offset = (page - 1) * pageSize;
 
   let connection;
@@ -573,14 +584,42 @@ export async function listPlansForConsultancy(
 
     const conditions: string[] = [
       "p.consultancy_id = ?",
-      "p.is_template = 0",
       "p.deleted_at IS NULL",
     ];
     const params: (string | number)[] = [ctx.consultancyId!];
 
+    if (options.isTemplate !== undefined) {
+      conditions.push("p.is_template = ?");
+      params.push(options.isTemplate ? 1 : 0);
+    } else {
+      conditions.push("p.is_template = 0");
+    }
+
     if (options.query && options.query.trim()) {
-      conditions.push("EXISTS (SELECT 1 FROM nutrition_v2_plan_versions pv WHERE pv.nutrition_plan_id = p.id AND pv.deleted_at IS NULL AND pv.title LIKE ?)");
-      params.push(`%${options.query.trim()}%`);
+      conditions.push(
+        `(EXISTS (
+           SELECT 1 FROM nutrition_v2_plan_versions pv_q
+           WHERE pv_q.nutrition_plan_id = p.id AND pv_q.deleted_at IS NULL AND pv_q.title LIKE ?
+         ) OR EXISTS (
+           SELECT 1 FROM nutrition_v2_assignments na_q
+           JOIN consultancy_members cm_q ON cm_q.id = na_q.student_membership_id
+           JOIN users u_q ON u_q.id = cm_q.user_id
+           JOIN nutrition_v2_plan_versions nv_q ON nv_q.id = na_q.nutrition_plan_version_id
+           WHERE nv_q.nutrition_plan_id = p.id AND na_q.status = 'ACTIVE' AND na_q.deleted_at IS NULL AND u_q.full_name LIKE ?
+         ))`
+      );
+      const q = `%${options.query.trim()}%`;
+      params.push(q, q);
+    }
+
+    if (options.status && options.status !== "ALL") {
+      if (options.status === "DRAFT") {
+        conditions.push("EXISTS (SELECT 1 FROM nutrition_v2_plan_versions pv_s WHERE pv_s.nutrition_plan_id = p.id AND pv_s.status = 'DRAFT' AND pv_s.deleted_at IS NULL)");
+      } else if (options.status === "PUBLISHED") {
+        conditions.push("EXISTS (SELECT 1 FROM nutrition_v2_plan_versions pv_s WHERE pv_s.nutrition_plan_id = p.id AND pv_s.status = 'PUBLISHED' AND pv_s.deleted_at IS NULL)");
+      } else if (options.status === "ARCHIVED") {
+        conditions.push("p.status = 'ARCHIVED'");
+      }
     }
 
     const whereClause = conditions.join(" AND ");
@@ -591,6 +630,13 @@ export async function listPlansForConsultancy(
     );
     const total = Number(countRows[0].total || 0);
     const totalPages = Math.ceil(total / pageSize) || 1;
+
+    let orderBy = "ORDER BY COALESCE(v.updated_at, p.updated_at) DESC";
+    if (options.sort === "oldest") {
+      orderBy = "ORDER BY COALESCE(v.updated_at, p.updated_at) ASC";
+    } else if (options.sort === "title_asc") {
+      orderBy = "ORDER BY COALESCE(v.title, 'zzz') ASC";
+    }
 
     const selectParams = [...params, pageSize, offset];
     const [rows] = await connection.query<RowDataPacket[]>(
@@ -607,12 +653,14 @@ export async function listPlansForConsultancy(
         v.status AS current_version_status,
         v.title AS current_version_title,
         v.subtitle AS current_version_subtitle,
+        v.objective AS current_version_objective,
         v.updated_at AS current_version_updated_at,
         (SELECT COUNT(*) FROM nutrition_v2_assignments na JOIN nutrition_v2_plan_versions nv ON nv.id = na.nutrition_plan_version_id WHERE nv.nutrition_plan_id = p.id AND na.status = 'ACTIVE' AND na.deleted_at IS NULL) AS active_assignments_count,
         (SELECT u.full_name FROM nutrition_v2_assignments na JOIN nutrition_v2_plan_versions nv ON nv.id = na.nutrition_plan_version_id JOIN consultancy_members cm ON cm.id = na.student_membership_id JOIN users u ON u.id = cm.user_id WHERE nv.nutrition_plan_id = p.id AND na.status = 'ACTIVE' AND na.deleted_at IS NULL ORDER BY na.id DESC LIMIT 1) AS assigned_student_name,
         (SELECT COUNT(*) FROM nutrition_v2_meals nm WHERE nm.nutrition_plan_version_id = v.id AND nm.deleted_at IS NULL) AS meals_count,
         (SELECT pv.public_id FROM nutrition_v2_plan_versions pv WHERE pv.nutrition_plan_id = p.id AND pv.status = 'PUBLISHED' AND pv.deleted_at IS NULL ORDER BY pv.version_number DESC LIMIT 1) AS published_version_public_id,
-        (SELECT pv.version_number FROM nutrition_v2_plan_versions pv WHERE pv.nutrition_plan_id = p.id AND pv.status = 'PUBLISHED' AND pv.deleted_at IS NULL ORDER BY pv.version_number DESC LIMIT 1) AS published_version_number
+        (SELECT pv.version_number FROM nutrition_v2_plan_versions pv WHERE pv.nutrition_plan_id = p.id AND pv.status = 'PUBLISHED' AND pv.deleted_at IS NULL ORDER BY pv.version_number DESC LIMIT 1) AS published_version_number,
+        (SELECT pv.version_number FROM nutrition_v2_plan_versions pv WHERE pv.nutrition_plan_id = p.id AND pv.status = 'DRAFT' AND pv.deleted_at IS NULL ORDER BY pv.version_number DESC LIMIT 1) AS draft_version_number
       FROM nutrition_v2_plans p
       LEFT JOIN nutrition_v2_plan_versions v ON v.id = (
         SELECT pv.id FROM nutrition_v2_plan_versions pv
@@ -620,7 +668,7 @@ export async function listPlansForConsultancy(
         ORDER BY pv.version_number DESC LIMIT 1
       )
       WHERE ${whereClause}
-      ORDER BY p.updated_at DESC
+      ${orderBy}
       LIMIT ? OFFSET ?`,
       selectParams
     );
@@ -638,6 +686,8 @@ export async function listPlansForConsultancy(
       mealsCount: Number(r.meals_count || 0),
       publishedVersionPublicId: r.published_version_public_id ? String(r.published_version_public_id) : null,
       publishedVersionNumber: r.published_version_number != null ? Number(r.published_version_number) : null,
+      draftVersionNumber: r.draft_version_number != null ? Number(r.draft_version_number) : null,
+      hasDraftRevision: Boolean(r.draft_version_number != null),
       currentVersion: r.current_version_publicId || r.current_version_public_id
         ? {
             publicId: String(r.current_version_public_id),
@@ -645,6 +695,7 @@ export async function listPlansForConsultancy(
             status: String(r.current_version_status),
             title: String(r.current_version_title),
             subtitle: r.current_version_subtitle ? String(r.current_version_subtitle) : null,
+            objective: r.current_version_objective ? String(r.current_version_objective) : null,
             updatedAt: new Date(r.current_version_updated_at).toISOString(),
           }
         : null,

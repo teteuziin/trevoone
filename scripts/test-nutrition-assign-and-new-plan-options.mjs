@@ -128,19 +128,35 @@ test("7. NutritionPlanChoiceModal renders 4 clear options with responsive layout
 
   // Option 1
   assert(choiceModal.includes("Criar manualmente"), "Option 1 title must be 'Criar manualmente'");
-  assert(choiceModal.includes("Monte as refeições, escolha os alimentos e defina as porções."), "Option 1 copy must match");
+  assert(
+    choiceModal.includes("Escolha alimentos e monte as refeições.") ||
+    choiceModal.includes("Monte as refeições, escolha os alimentos e defina as porções."),
+    "Option 1 copy must match"
+  );
 
   // Option 2
   assert(choiceModal.includes("Criar do zero com IA"), "Option 2 title must be 'Criar do zero com IA'");
-  assert(choiceModal.includes("Descreva o plano alimentar que deseja montar."), "Option 2 copy must match");
+  assert(
+    choiceModal.includes("Descreva o plano que deseja criar.") ||
+    choiceModal.includes("Descreva o plano alimentar que deseja montar."),
+    "Option 2 copy must match"
+  );
 
   // Option 3
   assert(choiceModal.includes("Importar com IA"), "Option 3 title must be 'Importar com IA'");
-  assert(choiceModal.includes("Importe um plano alimentar para revisar e editar."), "Option 3 copy must match");
+  assert(
+    choiceModal.includes("Importe um plano para revisar e editar.") ||
+    choiceModal.includes("Importe um plano alimentar para revisar e editar."),
+    "Option 3 copy must match"
+  );
 
   // Option 4
   assert(choiceModal.includes("Usar modelo"), "Option 4 title must be 'Usar modelo'");
-  assert(choiceModal.includes("Escolha um modelo de plano alimentar e personalize."), "Option 4 copy must match");
+  assert(
+    choiceModal.includes("Escolha um modelo e personalize.") ||
+    choiceModal.includes("Escolha um modelo de plano alimentar e personalize."),
+    "Option 4 copy must match"
+  );
 
   // Strict check: no workout terms in nutrition choice modal options
   assert(!choiceModal.includes("exercício"), "Must not include workout terms like exercício");

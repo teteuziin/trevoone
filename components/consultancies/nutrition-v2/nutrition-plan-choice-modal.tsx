@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+
+const emptySubscribe = () => () => {};
+function useIsMounted() {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
 
 export type NutritionPlanCreationChoice = "manual" | "ai-scratch" | "ai-import" | "template";
 
@@ -71,10 +77,23 @@ export function NutritionPlanChoiceModal({
   onClose,
   onSelectOption,
 }: NutritionPlanChoiceModalProps) {
+  const mounted = useIsMounted();
   const containerRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
+
+    previousActiveElementRef.current = document.activeElement as HTMLElement | null;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // Focus close button initially for fast keyboard accessibility
+    const timer = setTimeout(() => {
+      closeButtonRef.current?.focus();
+    }, 40);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -84,71 +103,84 @@ export function NutritionPlanChoiceModal({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      clearTimeout(timer);
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+      if (previousActiveElementRef.current && typeof previousActiveElementRef.current.focus === "function") {
+        previousActiveElementRef.current.focus();
+      }
+    };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!mounted || !isOpen) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="choice-modal-title"
+      data-testid="nutrition-plan-choice-modal-overlay"
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={onClose}
     >
       <div
         ref={containerRef}
-        className="relative w-full sm:max-w-2xl bg-white dark:bg-[#151619] rounded-t-3xl sm:rounded-2xl shadow-2xl border-t sm:border border-[#E5E7EB] dark:border-[#303238] overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in slide-in-from-bottom-4 duration-200"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="choice-modal-title"
+        aria-describedby="choice-modal-description"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-full sm:max-w-2xl bg-white dark:bg-[#151619] border-t sm:border border-[#E5E7EB] dark:border-[#303238] rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[85dvh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-8 duration-200 overflow-hidden"
       >
         {/* Mobile Drag Indicator */}
-        <div className="pt-2.5 pb-1 flex justify-center sm:hidden bg-slate-50/70 dark:bg-[#1B1D21]/70">
-          <div className="w-10 h-1.5 rounded-full bg-slate-300 dark:bg-[#303238]" />
+        <div className="pt-3 pb-1 flex justify-center sm:hidden shrink-0" aria-hidden="true">
+          <div className="w-10 h-1.5 rounded-full bg-zinc-300 dark:bg-[#303238]" />
         </div>
 
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-[#E5E7EB] dark:border-[#303238] flex items-center justify-between bg-slate-50/70 dark:bg-[#1B1D21]/70">
-          <div>
-            <h2 id="choice-modal-title" className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight">
+        {/* Header: Title ~20px + Subtitle 14px + Close Button >= 44x44px */}
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#E5E7EB] dark:border-[#303238] flex items-center justify-between gap-3 shrink-0">
+          <div className="min-w-0">
+            <h2
+              id="choice-modal-title"
+              className="text-lg sm:text-xl font-bold sm:font-black text-[#17191D] dark:text-white leading-tight tracking-tight"
+            >
               Novo plano alimentar
             </h2>
-            <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-0.5">
-              Escolha a melhor forma de iniciar a prescrição nutricional
+            <p
+              id="choice-modal-description"
+              className="text-sm text-[#6B7280] dark:text-[#8E95A2] mt-0.5 leading-snug"
+            >
+              Como deseja começar?
             </p>
           </div>
 
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="p-1.5 rounded-lg text-[#6B7280] dark:text-[#8E95A2] hover:text-[#17191D] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-xl text-[#6B7280] dark:text-[#8E95A2] hover:text-[#17191D] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 flex items-center justify-center transition-colors cursor-pointer shrink-0"
           >
             <CloseIcon className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Options Grid: Desktop 2 cols / Mobile 1 col */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+        {/* Options: 1 column on mobile with 12px gap, 2 columns on desktop with 16px gap */}
+        <div className="p-4 sm:p-6 flex-1 overflow-y-auto pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* 1. CRIAR MANUALMENTE */}
             <button
               type="button"
               onClick={() => onSelectOption("manual")}
-              className="p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
             >
-              <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200 dark:border-emerald-800/50 group-hover:scale-105 transition-transform mt-0.5">
+              <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200/60 dark:border-emerald-800/40 group-hover:scale-105 transition-transform mt-0.5">
                 <PencilSquareIcon className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-1">
-                  <h3 className="font-bold text-sm text-[#17191D] dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                    Criar manualmente
-                  </h3>
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-[#282B32] text-slate-600 dark:text-slate-300">
-                    Controle total
-                  </span>
-                </div>
-                <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
-                  Monte as refeições, escolha os alimentos e defina as porções.
+                <h3 className="font-bold text-base text-[#17191D] dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-snug">
+                  Criar manualmente
+                </h3>
+                <p className="text-sm text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
+                  Escolha alimentos e monte as refeições.
                 </p>
               </div>
             </button>
@@ -157,22 +189,17 @@ export function NutritionPlanChoiceModal({
             <button
               type="button"
               onClick={() => onSelectOption("ai-scratch")}
-              className="p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-emerald-500/50 dark:hover:border-emerald-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
             >
-              <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/25 group-hover:scale-105 transition-transform mt-0.5">
+              <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/25 group-hover:scale-105 transition-transform mt-0.5">
                 <SparklesIcon className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-1">
-                  <h3 className="font-bold text-sm text-[#17191D] dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                    Criar do zero com IA
-                  </h3>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                    IA Avançada
-                  </span>
-                </div>
-                <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
-                  Descreva o plano alimentar que deseja montar.
+                <h3 className="font-bold text-base text-[#17191D] dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-snug">
+                  Criar do zero com IA
+                </h3>
+                <p className="text-sm text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
+                  Descreva o plano que deseja criar.
                 </p>
               </div>
             </button>
@@ -181,22 +208,17 @@ export function NutritionPlanChoiceModal({
             <button
               type="button"
               onClick={() => onSelectOption("ai-import")}
-              className="p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-purple-500/50 dark:hover:border-purple-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-purple-500/50 dark:hover:border-purple-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
             >
-              <div className="w-11 h-11 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/25 group-hover:scale-105 transition-transform mt-0.5">
+              <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/25 group-hover:scale-105 transition-transform mt-0.5">
                 <ArrowUpTrayIcon className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-1">
-                  <h3 className="font-bold text-sm text-[#17191D] dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                    Importar com IA
-                  </h3>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/20">
-                    PDF / Texto
-                  </span>
-                </div>
-                <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
-                  Importe um plano alimentar para revisar e editar.
+                <h3 className="font-bold text-base text-[#17191D] dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors leading-snug">
+                  Importar com IA
+                </h3>
+                <p className="text-sm text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
+                  Importe um plano para revisar e editar.
                 </p>
               </div>
             </button>
@@ -205,39 +227,24 @@ export function NutritionPlanChoiceModal({
             <button
               type="button"
               onClick={() => onSelectOption("template")}
-              className="p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-blue-500/50 dark:hover:border-blue-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-4 rounded-2xl border border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F9FAFB] dark:hover:bg-[#22242A] hover:border-blue-500/50 dark:hover:border-blue-500/50 active:scale-[0.99] transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#151619]"
             >
-              <div className="w-11 h-11 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/25 group-hover:scale-105 transition-transform mt-0.5">
+              <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/25 group-hover:scale-105 transition-transform mt-0.5">
                 <Squares2x2Icon className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-1">
-                  <h3 className="font-bold text-sm text-[#17191D] dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    Usar modelo
-                  </h3>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/20">
-                    Base pronta
-                  </span>
-                </div>
-                <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
-                  Escolha um modelo de plano alimentar e personalize.
+                <h3 className="font-bold text-base text-[#17191D] dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
+                  Usar modelo
+                </h3>
+                <p className="text-sm text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-relaxed">
+                  Escolha um modelo e personalize.
                 </p>
               </div>
             </button>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="px-5 py-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))] border-t border-[#E5E7EB] dark:border-[#303238] flex items-center justify-end bg-slate-50/70 dark:bg-[#1B1D21]/70">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full sm:w-auto min-h-[44px] px-5 py-2 text-xs font-semibold text-[#4B5563] dark:text-[#C2C8CF] hover:text-[#17191D] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors text-center cursor-pointer"
-          >
-            Cancelar
-          </button>
-        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

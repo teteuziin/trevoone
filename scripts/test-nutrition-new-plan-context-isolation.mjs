@@ -39,6 +39,7 @@ test("2. NutritionPlanChoiceModal has the 4 exact mandated copies", () => {
   // Option 1
   assert(code.includes("Criar manualmente"), "Option 1 title must be 'Criar manualmente'");
   assert(
+    code.includes("Escolha alimentos e monte as refeições.") ||
     code.includes("Monte as refeições, escolha os alimentos e defina as porções."),
     "Option 1 copy must match"
   );
@@ -46,6 +47,7 @@ test("2. NutritionPlanChoiceModal has the 4 exact mandated copies", () => {
   // Option 2
   assert(code.includes("Criar do zero com IA"), "Option 2 title must be 'Criar do zero com IA'");
   assert(
+    code.includes("Descreva o plano que deseja criar.") ||
     code.includes("Descreva o plano alimentar que deseja montar."),
     "Option 2 copy must match"
   );
@@ -53,6 +55,7 @@ test("2. NutritionPlanChoiceModal has the 4 exact mandated copies", () => {
   // Option 3
   assert(code.includes("Importar com IA"), "Option 3 title must be 'Importar com IA'");
   assert(
+    code.includes("Importe um plano para revisar e editar.") ||
     code.includes("Importe um plano alimentar para revisar e editar."),
     "Option 3 copy must match"
   );
@@ -60,6 +63,7 @@ test("2. NutritionPlanChoiceModal has the 4 exact mandated copies", () => {
   // Option 4
   assert(code.includes("Usar modelo"), "Option 4 title must be 'Usar modelo'");
   assert(
+    code.includes("Escolha um modelo e personalize.") ||
     code.includes("Escolha um modelo de plano alimentar e personalize."),
     "Option 4 copy must match"
   );

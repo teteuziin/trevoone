@@ -12,29 +12,30 @@ import { formatDurationNatural } from "./reps-normalizer";
 const styles = StyleSheet.create({
   page: {
     size: "A4",
-    paddingTop: 36,
-    paddingBottom: 48,
-    paddingLeft: 36,
-    paddingRight: 36,
+    orientation: "landscape",
+    paddingTop: 18,
+    paddingBottom: 28,
+    paddingLeft: 20,
+    paddingRight: 20,
     fontFamily: "Helvetica",
-    fontSize: 9,
+    fontSize: 8,
     color: "#1e293b", // slate-800
     backgroundColor: "#ffffff",
   },
   headerBar: {
     borderBottomWidth: 1.5,
     borderBottomColor: "#10b981", // Emerald accent
-    paddingBottom: 10,
-    marginBottom: 12,
+    paddingBottom: 6,
+    marginBottom: 8,
   },
   brandRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 3,
   },
   brandLogo: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: "Helvetica-Bold",
     color: "#0f172a",
     letterSpacing: 0.5,
@@ -48,168 +49,186 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   draftBadge: {
-    fontSize: 8,
+    fontSize: 7,
     fontFamily: "Helvetica-Bold",
     color: "#d97706", // amber-600
     backgroundColor: "#fef3c7", // amber-100
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 3,
     borderWidth: 0.5,
     borderColor: "#fcd34d",
     textTransform: "uppercase",
   },
   consultancyName: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontFamily: "Helvetica-Bold",
     color: "#059669",
     textTransform: "uppercase",
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   workoutTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontFamily: "Helvetica-Bold",
     color: "#0f172a",
-    marginBottom: 2,
+    marginBottom: 1,
   },
   workoutSubtitle: {
-    fontSize: 9,
+    fontSize: 8,
     color: "#64748b",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   metadataGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "center",
     backgroundColor: "#f8fafc",
-    borderRadius: 6,
-    padding: 8,
-    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderWidth: 0.75,
     borderColor: "#e2e8f0",
-    marginTop: 4,
+    marginTop: 2,
   },
   metadataCol: {
-    width: "50%",
-    paddingVertical: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   metadataLabel: {
-    fontSize: 7.5,
+    fontSize: 7,
     fontFamily: "Helvetica-Bold",
     color: "#64748b",
     textTransform: "uppercase",
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   metadataValue: {
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: "Helvetica-Bold",
     color: "#1e293b",
   },
   notesBox: {
     backgroundColor: "#f8fafc",
-    borderLeftWidth: 3,
+    borderLeftWidth: 2.5,
     borderLeftColor: "#10b981",
-    padding: 8,
-    borderRadius: 4,
-    marginVertical: 8,
+    padding: 4.5,
+    borderRadius: 3,
+    marginVertical: 4,
   },
   notesTitle: {
-    fontSize: 8,
+    fontSize: 7,
     fontFamily: "Helvetica-Bold",
     color: "#0f172a",
-    marginBottom: 2,
+    marginBottom: 1,
   },
   notesText: {
-    fontSize: 8.5,
+    fontSize: 7.5,
     color: "#334155",
-    lineHeight: 1.35,
+    lineHeight: 1.25,
   },
-  categoryBlock: {
-    marginBottom: 12,
+  daysRow: {
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "flex-start",
+    flexWrap: "nowrap",
+  },
+  dayColumn: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: "#ffffff",
+    borderWidth: 0.75,
+    borderColor: "#cbd5e1",
+    borderRadius: 4,
+    padding: 5,
+  },
+  dayColumnSingle: {
+    maxWidth: 480,
+    marginHorizontal: "auto",
   },
   categoryHeader: {
-    backgroundColor: "#f1f5f9", // slate-100
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderLeftWidth: 3,
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 6,
+    paddingVertical: 3.5,
+    borderLeftWidth: 2.5,
     borderLeftColor: "#10b981",
-    marginBottom: 6,
+    marginBottom: 4,
     borderRadius: 2,
   },
   categoryTitle: {
-    fontSize: 11,
+    fontSize: 8.5,
     fontFamily: "Helvetica-Bold",
     color: "#0f172a",
     textTransform: "uppercase",
-    letterSpacing: 0.6,
+    letterSpacing: 0.4,
   },
   categoryInstructions: {
-    fontSize: 8,
+    fontSize: 6.5,
     color: "#64748b",
-    marginTop: 2,
+    marginTop: 1,
     fontStyle: "italic",
   },
   exerciseCard: {
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
+    backgroundColor: "#f8fafc",
+    borderWidth: 0.5,
     borderColor: "#e2e8f0",
-    borderRadius: 6,
-    padding: 8,
-    marginBottom: 6,
+    borderRadius: 3,
+    padding: 4,
+    marginBottom: 3.5,
   },
   exerciseHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   exerciseName: {
-    fontSize: 10,
+    fontSize: 7.5,
     fontFamily: "Helvetica-Bold",
     color: "#0f172a",
     flex: 1,
   },
   exerciseMetaBadge: {
-    fontSize: 7.5,
+    fontSize: 6,
     color: "#64748b",
     backgroundColor: "#f1f5f9",
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 3,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+    borderRadius: 2,
   },
   combBadge: {
-    fontSize: 7.5,
+    fontSize: 6,
     fontFamily: "Helvetica-Bold",
     color: "#059669",
     backgroundColor: "#ecfdf5",
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 2,
     borderWidth: 0.5,
     borderColor: "#a7f3d0",
     textTransform: "uppercase",
   },
   customBadge: {
-    fontSize: 7.5,
+    fontSize: 6,
     fontFamily: "Helvetica-Bold",
     color: "#7c3aed",
     backgroundColor: "#f5f3ff",
-    paddingHorizontal: 4,
-    paddingVertical: 1.5,
-    borderRadius: 3,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+    borderRadius: 2,
     borderWidth: 0.5,
     borderColor: "#ddd6fe",
     textTransform: "uppercase",
   },
   setRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    backgroundColor: "#f8fafc",
-    padding: 5,
-    borderRadius: 4,
-    marginTop: 3,
+    backgroundColor: "#ffffff",
+    borderWidth: 0.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 2,
+    padding: 3,
+    marginTop: 2,
   },
   setItem: {
-    fontSize: 8.5,
+    fontSize: 7,
     color: "#334155",
     fontFamily: "Helvetica",
   },
@@ -218,13 +237,13 @@ const styles = StyleSheet.create({
     color: "#0f172a",
   },
   exerciseNotes: {
-    fontSize: 8,
+    fontSize: 6.5,
     color: "#475569",
     fontStyle: "italic",
-    marginTop: 4,
+    marginTop: 2,
     borderTopWidth: 0.5,
     borderTopColor: "#f1f5f9",
-    paddingTop: 3,
+    paddingTop: 2,
   },
   methodBadge: {
     flexDirection: "row",
@@ -232,68 +251,66 @@ const styles = StyleSheet.create({
     backgroundColor: "#fef3c7",
     borderWidth: 0.5,
     borderColor: "#fde68a",
-    borderRadius: 3,
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
+    borderRadius: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
     marginTop: 2,
-    marginBottom: 3,
+    marginBottom: 2,
     alignSelf: "flex-start",
   },
   methodBadgeText: {
-    fontSize: 7.5,
+    fontSize: 6,
     fontFamily: "Helvetica-Bold",
     color: "#92400e",
   },
   sequenceMovementsBox: {
     backgroundColor: "#faf5ff",
-    borderWidth: 0.75,
+    borderWidth: 0.5,
     borderColor: "#e9d5ff",
-    borderRadius: 3,
-    padding: 4,
+    borderRadius: 2,
+    padding: 3,
     marginTop: 2,
-    marginBottom: 3,
+    marginBottom: 2,
   },
   sequenceMovementsTitle: {
-    fontSize: 7,
+    fontSize: 6,
     fontFamily: "Helvetica-Bold",
     color: "#7e22ce",
-    marginBottom: 1.5,
+    marginBottom: 1,
   },
   sequenceMovementItem: {
-    fontSize: 7,
+    fontSize: 6,
     fontFamily: "Helvetica",
     color: "#334155",
   },
   footer: {
     position: "absolute",
-    bottom: 18,
-    left: 36,
-    right: 36,
+    bottom: 8,
+    left: 20,
+    right: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderTopWidth: 0.75,
+    borderTopWidth: 0.5,
     borderTopColor: "#cbd5e1",
-    paddingTop: 6,
-    fontSize: 8,
-    color: "#64748b",
+    paddingTop: 3,
   },
   footerLeft: {
-    fontSize: 8,
+    fontSize: 7,
     color: "#64748b",
   },
   footerRight: {
-    fontSize: 8,
+    fontSize: 7,
     fontFamily: "Helvetica-Bold",
     color: "#059669",
   },
   pdfCombinationCard: {
     backgroundColor: "#f8fafc",
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: "#10b981",
-    borderRadius: 6,
-    padding: 8,
-    marginBottom: 6,
+    borderRadius: 3.5,
+    padding: 4,
+    marginBottom: 3.5,
   },
   pdfCombHeader: {
     flexDirection: "row",
@@ -301,47 +318,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderBottomWidth: 0.5,
     borderBottomColor: "#cbd5e1",
-    paddingBottom: 4,
-    marginBottom: 5,
+    paddingBottom: 2.5,
+    marginBottom: 3,
   },
   pdfCombTitle: {
-    fontSize: 8.5,
+    fontSize: 7,
     fontFamily: "Helvetica-Bold",
     color: "#0f172a",
   },
   pdfCombRest: {
-    fontSize: 7.5,
+    fontSize: 6,
     color: "#059669",
     fontFamily: "Helvetica-Bold",
   },
   pdfCombRow: {
-    paddingVertical: 3,
+    paddingVertical: 2,
   },
   pdfCombDivider: {
     borderTopWidth: 0.5,
     borderTopColor: "#e2e8f0",
-    marginTop: 3,
-    paddingTop: 4,
+    marginTop: 2,
+    paddingTop: 2.5,
   },
   pdfCombLetter: {
-    fontSize: 8.5,
+    fontSize: 6.5,
     fontFamily: "Helvetica-Bold",
     color: "#ffffff",
     backgroundColor: "#059669",
-    width: 14,
-    height: 14,
+    width: 11,
+    height: 11,
     textAlign: "center",
-    borderRadius: 7,
-    marginRight: 6,
+    borderRadius: 5.5,
+    marginRight: 4,
   },
   pdfTransitionText: {
-    fontSize: 7,
+    fontSize: 5.5,
     fontFamily: "Helvetica",
     color: "#059669",
     fontStyle: "italic",
     textAlign: "center",
-    marginTop: 2,
-    marginBottom: 2,
+    marginVertical: 1,
   },
 });
 
@@ -465,7 +481,7 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
       subject="Ficha de Treino Oficial"
       creator="TREVO ONE"
     >
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" orientation="landscape" style={styles.page}>
         {/* Header Bar */}
         <View style={styles.headerBar}>
           <View style={styles.brandRow}>
@@ -521,42 +537,67 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
           </View>
         )}
 
-        {/* Categories and Exercises (wrap=false removed from block level to allow multi-page flow) */}
-        {plan.blocks.map((block, bIdx) => (
-          <View key={`b-${bIdx}`} style={styles.categoryBlock}>
-            <View style={styles.categoryHeader} wrap={false}>
-              <Text style={styles.categoryTitle}>{block.name}</Text>
-              {block.instructions && block.instructions.trim().length > 0 && (
-                <Text style={styles.categoryInstructions}>{block.instructions.trim()}</Text>
-              )}
-            </View>
+        {/* Categories / Days Side-by-Side Row */}
+        <View style={styles.daysRow}>
+          {plan.blocks.map((block, bIdx) => (
+            <View
+              key={`b-${bIdx}`}
+              style={[
+                styles.dayColumn,
+                plan.blocks.length === 1 ? styles.dayColumnSingle : {},
+              ]}
+            >
+              <View style={styles.categoryHeader} wrap={false}>
+                <Text style={styles.categoryTitle}>{block.name}</Text>
+                {block.instructions && block.instructions.trim().length > 0 && (
+                  <Text style={styles.categoryInstructions}>{block.instructions.trim()}</Text>
+                )}
+              </View>
 
-            {(() => {
-              type PdfUnit =
-                | { type: "single"; ex: (typeof block.exercises)[0]; idx: number }
-                | {
-                    type: "combination";
-                    combType: string;
-                    combTitle?: string | null;
-                    restSeconds?: number | null;
-                    items: Array<(typeof block.exercises)[0]>;
-                  };
+              {(() => {
+                type PdfUnit =
+                  | { type: "single"; ex: (typeof block.exercises)[0]; idx: number }
+                  | {
+                      type: "combination";
+                      combType: string;
+                      combTitle?: string | null;
+                      restSeconds?: number | null;
+                      items: Array<(typeof block.exercises)[0]>;
+                    };
 
-              const units: PdfUnit[] = [];
-              let currentComb: {
-                combType: string;
-                combTitle?: string | null;
-                restSeconds?: number | null;
-                combId?: string | null;
-                items: Array<(typeof block.exercises)[0]>;
-              } | null = null;
+                const units: PdfUnit[] = [];
+                let currentComb: {
+                  combType: string;
+                  combTitle?: string | null;
+                  restSeconds?: number | null;
+                  combId?: string | null;
+                  items: Array<(typeof block.exercises)[0]>;
+                } | null = null;
 
-              for (let idx = 0; idx < block.exercises.length; idx++) {
-                const ex = block.exercises[idx];
-                if (ex.combinationType) {
-                  const key = ex.combinationId || ex.combinationType;
-                  if (currentComb && currentComb.combId === key) {
-                    currentComb.items.push(ex);
+                for (let idx = 0; idx < block.exercises.length; idx++) {
+                  const ex = block.exercises[idx];
+                  if (ex.combinationType) {
+                    const key = ex.combinationId || ex.combinationType;
+                    if (currentComb && currentComb.combId === key) {
+                      currentComb.items.push(ex);
+                    } else {
+                      if (currentComb) {
+                        units.push({
+                          type: "combination",
+                          combType: currentComb.combType,
+                          combTitle: currentComb.combTitle,
+                          restSeconds: currentComb.restSeconds,
+                          items: currentComb.items,
+                        });
+                      }
+                      currentComb = {
+                        combType: ex.combinationType,
+                        combTitle: ex.combinationTitle,
+                        restSeconds: ex.combinationRestSeconds ?? 60,
+                        combId: key,
+                        items: [ex],
+                      };
+                    }
                   } else {
                     if (currentComb) {
                       units.push({
@@ -566,152 +607,135 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
                         restSeconds: currentComb.restSeconds,
                         items: currentComb.items,
                       });
+                      currentComb = null;
                     }
-                    currentComb = {
-                      combType: ex.combinationType,
-                      combTitle: ex.combinationTitle,
-                      restSeconds: ex.combinationRestSeconds ?? 60,
-                      combId: key,
-                      items: [ex],
-                    };
+                    units.push({ type: "single", ex, idx });
                   }
-                } else {
-                  if (currentComb) {
-                    units.push({
-                      type: "combination",
-                      combType: currentComb.combType,
-                      combTitle: currentComb.combTitle,
-                      restSeconds: currentComb.restSeconds,
-                      items: currentComb.items,
-                    });
-                    currentComb = null;
-                  }
-                  units.push({ type: "single", ex, idx });
                 }
-              }
-              if (currentComb) {
-                units.push({
-                  type: "combination",
-                  combType: currentComb.combType,
-                  combTitle: currentComb.combTitle,
-                  restSeconds: currentComb.restSeconds,
-                  items: currentComb.items,
-                });
-              }
+                if (currentComb) {
+                  units.push({
+                    type: "combination",
+                    combType: currentComb.combType,
+                    combTitle: currentComb.combTitle,
+                    restSeconds: currentComb.restSeconds,
+                    items: currentComb.items,
+                  });
+                }
 
-              const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+                const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
-              return units.map((u, uIdx) => {
-                if (u.type === "single") {
-                  const ex = u.ex;
-                  return (
-                    <View key={`e-${uIdx}`} style={styles.exerciseCard} wrap={false}>
-                      <View style={styles.exerciseHeader}>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
-                          {ex.isCustomExercise && (
-                            <Text style={styles.customBadge}>Personalizado</Text>
-                          )}
-                          <Text style={styles.exerciseName}>{ex.name}</Text>
-                        </View>
-                        {(ex.muscleGroup || ex.equipment) && (
-                          <Text style={styles.exerciseMetaBadge}>
-                            {[ex.muscleGroup, ex.equipment].filter(Boolean).join(" • ")}
-                          </Text>
-                        )}
-                      </View>
-
-                      {/* Method / Observation (displayed prominently ABOVE prescription) */}
-                      {ex.notes && ex.notes.trim().length > 0 && (
-                        <View style={styles.methodBadge}>
-                          <Text style={styles.methodBadgeText}>Método / Obs: {ex.notes.trim()}</Text>
-                        </View>
-                      )}
-
-                      {/* Sequence movements list */}
-                      {ex.isSequence && ex.sequenceMovements && ex.sequenceMovements.length > 0 && (
-                        <View style={styles.sequenceMovementsBox}>
-                          <Text style={styles.sequenceMovementsTitle}>Movimentos da Sequência:</Text>
-                          {ex.sequenceMovements.map((mov, mIdx) => (
-                            <Text key={mIdx} style={styles.sequenceMovementItem}>
-                              {mIdx + 1}. {mov}
+                return units.map((u, uIdx) => {
+                  if (u.type === "single") {
+                    const ex = u.ex;
+                    return (
+                      <View key={`e-${uIdx}`} style={styles.exerciseCard} wrap={false}>
+                        <View style={styles.exerciseHeader}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 3, flex: 1 }}>
+                            {ex.isCustomExercise && (
+                              <Text style={styles.customBadge}>Personalizado</Text>
+                            )}
+                            <Text style={styles.exerciseName}>{ex.name}</Text>
+                          </View>
+                          {(ex.muscleGroup || ex.equipment) && (
+                            <Text style={styles.exerciseMetaBadge}>
+                              {[ex.muscleGroup, ex.equipment].filter(Boolean).join(" • ")}
                             </Text>
-                          ))}
+                          )}
                         </View>
-                      )}
 
-                      {/* Sets Summary */}
-                      <View style={styles.setRow}>
-                        <Text style={styles.setItem}>
-                          <Text style={styles.setItemBold}>{ex.summaryString}</Text>
-                        </Text>
+                        {/* Method / Observation */}
+                        {ex.notes && ex.notes.trim().length > 0 && (
+                          <View style={styles.methodBadge}>
+                            <Text style={styles.methodBadgeText}>Método / Obs: {ex.notes.trim()}</Text>
+                          </View>
+                        )}
+
+                        {/* Sequence movements list */}
+                        {ex.isSequence && ex.sequenceMovements && ex.sequenceMovements.length > 0 && (
+                          <View style={styles.sequenceMovementsBox}>
+                            <Text style={styles.sequenceMovementsTitle}>Movimentos da Sequência:</Text>
+                            {ex.sequenceMovements.map((mov, mIdx) => (
+                              <Text key={mIdx} style={styles.sequenceMovementItem}>
+                                {mIdx + 1}. {mov}
+                              </Text>
+                            ))}
+                          </View>
+                        )}
+
+                        {/* Sets Summary */}
+                        <View style={styles.setRow}>
+                          <Text style={styles.setItem}>
+                            <Text style={styles.setItemBold}>{ex.summaryString}</Text>
+                          </Text>
+                        </View>
                       </View>
+                    );
+                  }
+
+                  // Combination Group Block
+                  const label = u.combType.replace("_", "-");
+                  return (
+                    <View key={`comb-${uIdx}`} style={styles.pdfCombinationCard} wrap={false}>
+                      <View style={styles.pdfCombHeader}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                          <Text style={styles.combBadge}>{label}</Text>
+                          {u.combTitle && <Text style={styles.pdfCombTitle}>{u.combTitle}</Text>}
+                        </View>
+                        <Text style={styles.pdfCombRest}>Pós-rodada: {u.restSeconds ?? 60}s</Text>
+                      </View>
+
+                      {u.items.map((it, itIdx) => (
+                        <View
+                          key={`c-item-${itIdx}`}
+                          style={[styles.pdfCombRow, itIdx > 0 ? styles.pdfCombDivider : {}]}
+                        >
+                          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 4 }}>
+                            <Text style={styles.pdfCombLetter}>{LETTERS[itIdx] || `${itIdx + 1}`}</Text>
+                            <View style={{ flex: 1 }}>
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginBottom: 1 }}>
+                                {it.isCustomExercise && <Text style={styles.customBadge}>Personalizado</Text>}
+                                <Text style={styles.exerciseName}>{it.name}</Text>
+                                {(it.muscleGroup || it.equipment) && (
+                                  <Text style={styles.exerciseMetaBadge}>
+                                    {[it.muscleGroup, it.equipment].filter(Boolean).join(" • ")}
+                                  </Text>
+                                )}
+                              </View>
+
+                              {/* Method / Observation */}
+                              {it.notes && it.notes.trim().length > 0 && (
+                                <View style={styles.methodBadge}>
+                                  <Text style={styles.methodBadgeText}>Método / Obs: {it.notes.trim()}</Text>
+                                </View>
+                              )}
+
+                              {/* Sequence movements list */}
+                              {it.isSequence && it.sequenceMovements && it.sequenceMovements.length > 0 && (
+                                <View style={styles.sequenceMovementsBox}>
+                                  <Text style={styles.sequenceMovementsTitle}>Movimentos da Sequência:</Text>
+                                  {it.sequenceMovements.map((mov, mIdx) => (
+                                    <Text key={mIdx} style={styles.sequenceMovementItem}>
+                                      {mIdx + 1}. {mov}
+                                    </Text>
+                                  ))}
+                                </View>
+                              )}
+
+                              <Text style={styles.setItemBold}>{it.summaryString}</Text>
+                            </View>
+                          </View>
+                          {itIdx < u.items.length - 1 && (
+                            <Text style={styles.pdfTransitionText}>↓ Transição direta (sem descanso)</Text>
+                          )}
+                        </View>
+                      ))}
                     </View>
                   );
-                }
-
-                // Combination Group Block
-                const label = u.combType.replace("_", "-");
-                return (
-                  <View key={`comb-${uIdx}`} style={styles.pdfCombinationCard} wrap={false}>
-                    <View style={styles.pdfCombHeader}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                        <Text style={styles.combBadge}>{label}</Text>
-                        {u.combTitle && <Text style={styles.pdfCombTitle}>{u.combTitle}</Text>}
-                      </View>
-                      <Text style={styles.pdfCombRest}>Descanso pós-rodada: {u.restSeconds ?? 60}s</Text>
-                    </View>
-
-                    {u.items.map((it, itIdx) => (
-                      <View
-                        key={`c-item-${itIdx}`}
-                        style={[styles.pdfCombRow, itIdx > 0 ? styles.pdfCombDivider : {}]}
-                      >
-                        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
-                          <Text style={styles.pdfCombLetter}>{LETTERS[itIdx] || `${itIdx + 1}`}</Text>
-                          <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 2 }}>
-                              {it.isCustomExercise && <Text style={styles.customBadge}>Personalizado</Text>}
-                              <Text style={styles.exerciseName}>{it.name}</Text>
-                              {(it.muscleGroup || it.equipment) && (
-                                <Text style={styles.exerciseMetaBadge}>
-                                  {[it.muscleGroup, it.equipment].filter(Boolean).join(" • ")}
-                                </Text>
-                              )}
-                            </View>
-
-                            {/* Method / Observation */}
-                            {it.notes && it.notes.trim().length > 0 && (
-                              <View style={styles.methodBadge}>
-                                <Text style={styles.methodBadgeText}>Método / Obs: {it.notes.trim()}</Text>
-                              </View>
-                            )}
-
-                            {/* Sequence movements list */}
-                            {it.isSequence && it.sequenceMovements && it.sequenceMovements.length > 0 && (
-                              <View style={styles.sequenceMovementsBox}>
-                                <Text style={styles.sequenceMovementsTitle}>Movimentos da Sequência:</Text>
-                                {it.sequenceMovements.map((mov, mIdx) => (
-                                  <Text key={mIdx} style={styles.sequenceMovementItem}>
-                                    {mIdx + 1}. {mov}
-                                  </Text>
-                                ))}
-                              </View>
-                            )}
-
-                            <Text style={styles.setItemBold}>{it.summaryString}</Text>
-                          </View>
-                        </View>
-                        {itIdx < u.items.length - 1 && (
-                          <Text style={styles.pdfTransitionText}>↓ Transição direta (sem descanso)</Text>
-                        )}
-                      </View>
-                    ))}
-                  </View>
-                );
-              });
-            })()}
-          </View>
-        ))}
+                });
+              })()}
+            </View>
+          ))}
+        </View>
 
         {/* Fixed Footer with dynamic page numbering (Página X de Y) */}
         <View style={styles.footer} fixed>

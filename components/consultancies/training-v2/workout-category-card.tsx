@@ -172,17 +172,16 @@ function Trash2({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function MoveIcon({ className = "w-4 h-4" }: { className?: string }) {
+function ArrowUpDown({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <polyline points="5 9 2 12 5 15" />
-      <polyline points="9 5 12 2 15 5" />
-      <polyline points="15 19 12 22 9 19" />
-      <polyline points="19 9 22 12 19 15" />
-      <line x1="2" y1="12" x2="22" y2="12" />
-      <line x1="12" y1="2" x2="12" y2="22" />
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m10 4v12m0 0l4-4m-4 4l-4-4" />
     </svg>
   );
+}
+
+function MoveIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return <ArrowUpDown className={className} />;
 }
 
 function Check({ className = "w-4 h-4" }: { className?: string }) {
@@ -967,13 +966,15 @@ export function WorkoutCategoryCard({
             {isDraft && (
               <button
                 type="button"
+                data-testid="category-organize-order-header-btn"
                 onClick={() => setIsOrganizeOrderModalOpen(true)}
                 title="Organizar ordem de execução deste treino"
                 aria-label="Organizar ordem deste treino"
-                className="px-2.5 py-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer min-h-[38px] shadow-xs"
+                className="px-3 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer min-h-[40px] shadow-xs active:scale-95"
               >
-                <MoveIcon className="w-3.5 h-3.5 text-amber-500" />
-                <span className="hidden sm:inline">Organizar ordem</span>
+                <ArrowUpDown className="w-4 h-4 text-amber-500 shrink-0" />
+                <span className="inline sm:hidden font-bold">Organizar</span>
+                <span className="hidden sm:inline font-bold">Organizar ordem</span>
               </button>
             )}
 
@@ -1166,15 +1167,15 @@ export function WorkoutCategoryCard({
           </div>
         </div>
 
-        {/* Visible Assembly Bar: + Adicionar exercício & ⚡ Criar combinação */}
+        {/* Visible Assembly Bar: + Adicionar exercício & ⚡ Criar combinação & ↕ Organizar ordem */}
         {isDraft && (
-          <div className="flex flex-col min-[360px]:flex-row items-stretch sm:items-center gap-2.5 w-full pt-1">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full pt-1">
             <button
               type="button"
               data-testid="category-add-exercise-btn"
               onClick={() => onOpenExercisePicker(category.publicId)}
               aria-label="Adicionar exercício"
-              className="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all cursor-pointer"
+              className="flex-1 min-h-[44px] px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all cursor-pointer"
               title="Adicionar exercício a este treino"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -1193,13 +1194,25 @@ export function WorkoutCategoryCard({
                   });
                 }}
                 aria-label="Criar combinação"
-                className="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-white/[0.12] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all cursor-pointer"
+                className="flex-1 min-h-[44px] px-3.5 py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-white/[0.12] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all cursor-pointer"
                 title="Criar combinação (Bi-set, Tri-set, Circuito ou Super-série)"
               >
                 <ZapIcon className="w-4 h-4 text-amber-500 shrink-0" />
                 <span>Criar combinação</span>
               </button>
             )}
+
+            <button
+              type="button"
+              data-testid="category-organize-order-bar-btn"
+              onClick={() => setIsOrganizeOrderModalOpen(true)}
+              aria-label="Organizar ordem deste treino"
+              className="flex-1 sm:flex-initial min-h-[44px] px-3.5 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all cursor-pointer"
+              title="Organizar ordem de execução deste treino"
+            >
+              <ArrowUpDown className="w-4 h-4 text-amber-500 shrink-0" />
+              <span>Organizar ordem</span>
+            </button>
           </div>
         )}
       </div>

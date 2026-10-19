@@ -160,13 +160,27 @@ export function BlockOrderModal({
                     </div>
 
                     {/* Stepper & Position Controls */}
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <select
+                        aria-label="Posição da combinação"
+                        value={idx + 1}
+                        onChange={(e) => moveItem(idx, Number(e.target.value) - 1)}
+                        className="px-2 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[11px] font-bold text-[var(--text-primary)] cursor-pointer"
+                        title="Mover direto para a posição escolhida"
+                      >
+                        {list.map((_, pIdx) => (
+                          <option key={pIdx + 1} value={pIdx + 1}>
+                            {pIdx + 1}º
+                          </option>
+                        ))}
+                      </select>
+
                       <button
                         type="button"
                         disabled={isFirst}
                         onClick={() => moveItem(idx, idx - 1)}
-                        title="Subir"
-                        className="w-8 h-8 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-active)] disabled:opacity-30 flex items-center justify-center cursor-pointer text-xs"
+                        title="Subir 1 posição"
+                        className="min-w-[34px] min-h-[34px] rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-active)] disabled:opacity-30 flex items-center justify-center cursor-pointer text-xs font-bold"
                       >
                         ▲
                       </button>
@@ -174,8 +188,8 @@ export function BlockOrderModal({
                         type="button"
                         disabled={isLast}
                         onClick={() => moveItem(idx, idx + 1)}
-                        title="Descer"
-                        className="w-8 h-8 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-active)] disabled:opacity-30 flex items-center justify-center cursor-pointer text-xs"
+                        title="Descer 1 posição"
+                        className="min-w-[34px] min-h-[34px] rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-active)] disabled:opacity-30 flex items-center justify-center cursor-pointer text-xs font-bold"
                       >
                         ▼
                       </button>
@@ -184,7 +198,7 @@ export function BlockOrderModal({
                         disabled={isFirst}
                         onClick={() => moveItem(idx, 0)}
                         title="Mover para o Início"
-                        className="hidden sm:flex px-2 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
+                        className="px-2 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
                       >
                         Topo
                       </button>
@@ -193,7 +207,7 @@ export function BlockOrderModal({
                         disabled={isLast}
                         onClick={() => moveItem(idx, list.length - 1)}
                         title="Mover para o Final"
-                        className="hidden sm:flex px-2 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
+                        className="px-2 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
                       >
                         Fim
                       </button>
@@ -234,13 +248,27 @@ export function BlockOrderModal({
                   </div>
 
                   {/* Stepper & Position Controls */}
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <select
+                      aria-label="Posição do exercício"
+                      value={idx + 1}
+                      onChange={(e) => moveItem(idx, Number(e.target.value) - 1)}
+                      className="px-2 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px] font-bold text-[var(--text-primary)] cursor-pointer"
+                      title="Mover direto para a posição escolhida"
+                    >
+                      {list.map((_, pIdx) => (
+                        <option key={pIdx + 1} value={pIdx + 1}>
+                          {pIdx + 1}º
+                        </option>
+                      ))}
+                    </select>
+
                     <button
                       type="button"
                       disabled={isFirst}
                       onClick={() => moveItem(idx, idx - 1)}
-                      title="Subir"
-                      className="w-8 h-8 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-active)] disabled:opacity-30 flex items-center justify-center cursor-pointer text-xs"
+                      title="Subir 1 posição"
+                      className="min-w-[34px] min-h-[34px] rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-active)] disabled:opacity-30 flex items-center justify-center cursor-pointer text-xs font-bold"
                     >
                       ▲
                     </button>
@@ -248,8 +276,8 @@ export function BlockOrderModal({
                       type="button"
                       disabled={isLast}
                       onClick={() => moveItem(idx, idx + 1)}
-                      title="Descer"
-                      className="w-8 h-8 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-active)] disabled:opacity-30 flex items-center justify-center cursor-pointer text-xs"
+                      title="Descer 1 posição"
+                      className="min-w-[34px] min-h-[34px] rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-active)] disabled:opacity-30 flex items-center justify-center cursor-pointer text-xs font-bold"
                     >
                       ▼
                     </button>
@@ -258,7 +286,7 @@ export function BlockOrderModal({
                       disabled={isFirst}
                       onClick={() => moveItem(idx, 0)}
                       title="Mover para o Início"
-                      className="hidden sm:flex px-2 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
+                      className="px-2 py-1.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
                     >
                       Topo
                     </button>
@@ -267,7 +295,7 @@ export function BlockOrderModal({
                       disabled={isLast}
                       onClick={() => moveItem(idx, list.length - 1)}
                       title="Mover para o Final"
-                      className="hidden sm:flex px-2 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
+                      className="px-2 py-1.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
                     >
                       Fim
                     </button>

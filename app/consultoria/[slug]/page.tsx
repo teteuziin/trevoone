@@ -37,7 +37,7 @@ import { DashboardPersonalView } from "@/components/dashboard/dashboard-personal
 import { DashboardNutritionistView } from "@/components/dashboard/dashboard-nutritionist-view";
 import {
   isPlanActive,
-  isPlanDraft,
+  hasPlanDraftOrRevision,
   getPlanCanonicalStatus,
 } from "@/lib/nutrition-v2/plan-classification";
 import { DashboardInfluencerView } from "@/components/dashboard/dashboard-influencer-view";
@@ -266,6 +266,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
               versionNumber: p.currentVersion?.versionNumber,
               updatedAt: p.updatedAt,
               mealsCount: p.mealsCount,
+              isTemplate: Boolean(p.isTemplate),
             })),
           };
         } catch {
@@ -447,32 +448,27 @@ export default async function ConsultancyPage({ params }: PageProps) {
     ? (nutritionPlansResult?.items || []).filter(isPlanActive).length
     : null;
 
-  // Em "Rascunhos" só conta plano novo nunca publicado (excluindo ativos e encerrados/arquivados)
+  // Em "Planos com rascunho", contabiliza qualquer plano que tenha rascunho (rascunho inicial não publicado OU plano ativo com revisão em rascunho)
   const nutritionistDraftPlansCount = isPlansFullyLoaded
-    ? (nutritionPlansResult?.items || []).filter(isPlanDraft).length
+    ? (nutritionPlansResult?.items || []).filter(hasPlanDraftOrRevision).length
     : null;
 
-  const nutritionistDraftPlans = (nutritionPlansResult?.items || []).filter((p) => {
-    const lc = p.planLifecycleStatus || p.status;
-    if (lc === "ENDED" || lc === "ARCHIVED") return false;
-    return (
-      isPlanDraft(p) ||
-      p.hasDraftRevision ||
-      (isPlanActive(p) && p.currentVersionStatus === "DRAFT")
-    );
-  });
+  const nutritionistDraftPlans = (nutritionPlansResult?.items || []).filter(hasPlanDraftOrRevision);
   const nutritionistDraftAttentionItems = nutritionistDraftPlans.slice(0, 5).map((p) => {
     const canonical = getPlanCanonicalStatus(p);
     const reason = isPlanActive(p)
       ? canonical.subLabel || `Nova versão em rascunho (V${p.versionNumber || 2})`
       : `Rascunho não publicado${p.versionNumber ? ` (V${p.versionNumber})` : ""}`;
+    const patientName = p.studentName || (p.isTemplate ? "Modelo de plano" : "Plano sem paciente");
     return {
       id: `draft-${p.publicId}`,
-      patientName: p.studentName || "Plano individual",
+      patientName,
+      planTitle: p.title,
       reason,
       actionLabel: "Continuar edição",
       actionHref: `/consultoria/${slug}/planos-v2/${p.publicId}`,
       severity: "warning" as const,
+      isTemplate: p.isTemplate,
     };
   });
   const nutritionistAttentionItems =
@@ -542,6 +538,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     isPurePersonal ||
       isCombinedPersonalAdmin ||
       isCombinedNutritionistAdmin ||
+      isPureNutritionist ||
       (effectiveMode === "ADMIN" && !isPersonal && !isNutritionist) ||
       (effectiveState.isPreview && (effectiveMode === "PERSONAL" || effectiveMode === "ADMIN" || effectiveMode === "NUTRITIONIST"))
   );
@@ -549,8 +546,10 @@ export default async function ConsultancyPage({ params }: PageProps) {
   const isTrainerOrAdminScreen = Boolean(
     isPurePersonal ||
       isCombinedPersonalAdmin ||
+      isPureNutritionist ||
+      isCombinedNutritionistAdmin ||
       (effectiveMode === "ADMIN" && !isPersonal && !isNutritionist) ||
-      (effectiveState.isPreview && (effectiveMode === "PERSONAL" || effectiveMode === "ADMIN"))
+      (effectiveState.isPreview && (effectiveMode === "PERSONAL" || effectiveMode === "ADMIN" || effectiveMode === "NUTRITIONIST"))
   );
 
   return (

@@ -62,3 +62,14 @@ export function getPlanCanonicalStatus(plan: PlanClassificationInput): {
   }
   return { label: "—", isDraft: false };
 }
+
+export function hasPlanDraftOrRevision(plan: PlanClassificationInput): boolean {
+  const lifecycle = plan.planLifecycleStatus || plan.status;
+  if (lifecycle === "ENDED" || lifecycle === "ARCHIVED") return false;
+  return (
+    isPlanDraft(plan) ||
+    Boolean(plan.hasDraftRevision) ||
+    (isPlanActive(plan) && plan.currentVersionStatus === "DRAFT")
+  );
+}
+

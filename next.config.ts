@@ -75,6 +75,10 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: deploymentId || "0.1.0",
   },
+  experimental: {
+    // Reduz o paralelismo do build para compatibilidade com o ambiente e limite de threads da Hostinger
+    cpus: 2,
+  },
   async headers() {
     return [
       {

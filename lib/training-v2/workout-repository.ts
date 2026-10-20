@@ -316,7 +316,7 @@ export async function getWorkoutVersionTree(
               wbi.prescription_mode, wbi.target_cadence, wbi.target_rpe,
               wbi.target_rir, wbi.duration_unit, wbi.method_config_json, wbi.custom_video_url,
               wbi.notes, wbi.exercise_id, wbi.custom_exercise_id,
-              e.public_id AS exercise_public_id, e.scope AS exercise_scope,
+              e.public_id AS exercise_public_id, e.name AS original_exercise_name, e.scope AS exercise_scope,
               ce.public_id AS custom_exercise_public_id,
               wsb.public_id AS sub_block_public_id, wsb.title AS sub_block_title,
               wic.public_id AS combination_public_id, wic.combination_type
@@ -505,6 +505,7 @@ export async function getWorkoutVersionTree(
           subBlockTitle: item.sub_block_title ? String(item.sub_block_title) : null,
           sortOrder: Number(item.sort_order),
           exerciseNameSnapshot: String(item.exercise_name_snapshot),
+          originalExerciseName: item.original_exercise_name ? String(item.original_exercise_name) : null,
           muscleGroupSnapshot: item.muscle_group_snapshot ? String(item.muscle_group_snapshot) : null,
           equipmentSnapshot: item.equipment_snapshot ? String(item.equipment_snapshot) : null,
           instructionsSnapshot: item.instructions_snapshot ? String(item.instructions_snapshot) : null,
@@ -5031,6 +5032,88 @@ export async function updateItemQuickConfigInDraft(
 }
 
 // ============================================================================
+/**
+ * Renames a single exercise occurrence snapshot within a draft workout.
+ * Preserves linked media, sets, reps, load, rest, instructions, and catalog reference intact.
+ */
+export async function renameWorkoutItemInDraft(
+  ctx: TrainingAccessContext,
+  itemPublicId: string,
+  newName: string
+): Promise<{ publicId: string; exerciseNameSnapshot: string }> {
+  assertCanAuthorTraining(ctx);
+
+  const cleanName = (newName || "").trim();
+  if (!cleanName || cleanName.length < 2) {
+    throw new TrainingAuthorizationError(
+      "O nome do exercício deve ter pelo menos 2 caracteres.",
+      "VALIDATION_ERROR",
+      400
+    );
+  }
+  if (cleanName.length > 255) {
+    throw new TrainingAuthorizationError(
+      "O nome do exercício não pode exceder 255 caracteres.",
+      "VALIDATION_ERROR",
+      400
+    );
+  }
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    const [iRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wbi.id, wbi.exercise_name_snapshot, wv.status, w.consultancy_id, w.created_by_membership_id
+       FROM workout_block_items wbi
+       INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wbi.public_id = ?
+       LIMIT 1;`,
+      [itemPublicId]
+    );
+
+    if (!iRows || iRows.length === 0) {
+      throw new TrainingAuthorizationError("Exercício não encontrado.", "NOT_FOUND", 404);
+    }
+    const item = iRows[0];
+
+    if (Number(item.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    const isCreator = ctx.membershipId && Number(item.created_by_membership_id) === ctx.membershipId;
+    if (!isCreator && !ctx.canManageConsultancy) {
+      throw new TrainingAuthorizationError(
+        "Apenas o autor ou administrador podem editar exercícios.",
+        "FORBIDDEN",
+        403
+      );
+    }
+    if (String(item.status).toUpperCase() !== "DRAFT") {
+      throw new TrainingAuthorizationError(
+        "Apenas treinos em rascunho podem ter exercícios renomeados.",
+        "INVALID_STATE",
+        400
+      );
+    }
+
+    await connection.execute(
+      `UPDATE workout_block_items
+       SET exercise_name_snapshot = ?, updated_at = NOW()
+       WHERE id = ?;`,
+      [cleanName, item.id]
+    );
+
+    return {
+      publicId: itemPublicId,
+      exerciseNameSnapshot: cleanName,
+    };
+  } finally {
+    connection.release();
+  }
+}
+
 // TRAINING BUILDER V3: SUB-BLOCKS, EXERCISE RESOLUTION & WORKOUT DELETION
 // ============================================================================
 

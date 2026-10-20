@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { listPatientsForConsultancy } from "@/lib/nutrition-v2/patient-record-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { Badge } from "@/components/ui/badge";
@@ -86,6 +87,7 @@ export default async function ProntuarioIndexPage({
     notFound();
   }
 
+  const effectiveState = await resolveEffectiveViewMode(slug, context?.roles || ctx.roles);
   const patients = await listPatientsForConsultancy(ctx.consultancyId, query);
 
   return (
@@ -98,6 +100,8 @@ export default async function ProntuarioIndexPage({
       userEmail={session.email}
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
+      consultancyPublicId={context?.consultancyPublicId}
+      viewModeState={effectiveState}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
       <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">

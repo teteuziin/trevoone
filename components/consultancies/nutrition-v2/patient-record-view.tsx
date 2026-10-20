@@ -3,26 +3,22 @@
 import React, { useState, useTransition, useMemo, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import type {
   PatientRecordDetail,
   UpdatePatientRecordInput,
   AddAnthropometricEntryInput,
-  UpdatePregnancyInput,
-  PregnancyStatus,
 } from "@/lib/nutrition-v2/patient-record-types";
-import { deriveTrimester } from "@/lib/nutrition-v2/patient-record-validation";
-import { calculatePatientBMI } from "@/lib/nutrition-v2/clinical-calculations";
+import {
+  calculateAgeFromBirthDate,
+  classifyBMI,
+  normalizeBiologicalSex,
+} from "@/lib/nutrition-v2/clinical-calculations";
 import {
   updatePatientRecordAction,
   addAnthropometricEntryAction,
-  deleteAnthropometricEntryAction,
-  updatePregnancyAction,
 } from "@/app/consultoria/[slug]/planos-v2/patient-actions";
 import {
   startPatientPlanEditAction,
-  discardPatientPlanDraftAction,
   createPatientPlanFromScratchAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
 import type { PatientPlanDraftSummary } from "@/lib/nutrition-v2/patient-plan-lifecycle";
@@ -31,27 +27,120 @@ import type {
   EvolutionHubDataDto,
   EvolutionComparisonDataDto,
 } from "@/types/evolution";
-import { MobilePatientHub } from "./mobile-patient-hub";
 import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
 import type {
   PatientPlanning,
   PatientPlanningStaleStatus,
 } from "@/lib/nutrition-v2/patient-planning-types";
-import { PatientPlanningTab } from "./patient-planning-tab";
 import { NutritionTemplatesModal } from "./nutrition-templates-modal";
 import { NutritionCopyPlanDialog } from "./nutrition-copy-plan-dialog";
 import { NutritionSaveTemplateDialog } from "./nutrition-save-template-dialog";
-import { ClinicalConsultationTab } from "./clinical-consultation-tab";
+import { NutritionAiGenerateModal } from "./nutrition-ai-generate-modal";
+import { NutritionAiImportModal } from "./nutrition-ai-import-modal";
+import { NutritionPlanChoiceModal, type NutritionPlanCreationChoice } from "./nutrition-plan-choice-modal";
+import { PatientAnamneseDrawer } from "./patient-anamnese-drawer";
+import { PatientCadastralModal } from "./patient-cadastral-modal";
+import { NutritionWorkspaceNav } from "./nutrition-workspace-nav";
 import type { PatientConsultationHubSummaryDto } from "@/lib/nutrition-v2/clinical-consultation-types";
-import { PatientCheckinsTab } from "./patient-checkins-tab";
 import type { PatientCheckinsHubSummaryDto } from "@/lib/nutrition-v2/checkin-types";
-import { PatientGeneralSummaryTab } from "./patient-general-summary-tab";
 import type { PatientFollowupHubSummaryDto } from "@/lib/nutrition-v2/followup-types";
-import {
-  BMR_FORMULA_METADATA,
-  ACTIVITY_LEVEL_DEFINITIONS,
-  GOAL_TYPE_DEFINITIONS,
-} from "@/lib/nutrition-v2/patient-planning-types";
+
+// ============================================================================
+// ALLERGY STATUS RESOLVER (STRICT TRI-STATE IMPLEMENTATION)
+// ============================================================================
+export function resolvePatientAllergyStatus(
+  allergiesText?: string | null,
+  intolerancesText?: string | null,
+  hasOnboarding?: boolean
+): {
+  status: "HAS_ALLERGIES" | "EXPLICITLY_NONE" | "NOT_INFORMED";
+  label: string;
+  subtext?: string;
+  items: string[];
+} {
+  const rawAllergies = (allergiesText || "").trim();
+  const rawIntolerances = (intolerancesText || "").trim();
+
+  const isNeg = (txt: string) => {
+    const l = txt.toLowerCase().trim();
+    return (
+      l === "não" ||
+      l === "nao" ||
+      l === "nenhuma" ||
+      l === "nenhum" ||
+      l === "não possui" ||
+      l === "nao possui" ||
+      l === "não possuo" ||
+      l === "nao possuo" ||
+      l === "sem alergias" ||
+      l === "sem restrições" ||
+      l === "sem restricoes" ||
+      l === "nada" ||
+      l === "negativo" ||
+      l === "nega"
+    );
+  };
+
+  const hasAllergyContent = rawAllergies.length > 0;
+  const hasIntolContent = rawIntolerances.length > 0;
+
+  if (hasAllergyContent || hasIntolContent) {
+    const allergyIsNeg = !hasAllergyContent || isNeg(rawAllergies);
+    const intolIsNeg = !hasIntolContent || isNeg(rawIntolerances);
+
+    if (allergyIsNeg && intolIsNeg) {
+      return {
+        status: "EXPLICITLY_NONE",
+        label: "Paciente declarou não possuir alergias",
+        items: [],
+      };
+    }
+
+    const items: string[] = [];
+    if (hasAllergyContent && !allergyIsNeg) {
+      items.push(...rawAllergies.split(/[,;\n•]+/).map((s) => s.trim()).filter(Boolean));
+    }
+    if (hasIntolContent && !intolIsNeg) {
+      items.push(...rawIntolerances.split(/[,;\n•]+/).map((s) => `Intolerância: ${s.trim()}`).filter(Boolean));
+    }
+
+    if (items.length > 0) {
+      return {
+        status: "HAS_ALLERGIES",
+        label: "Alergias e restrições relatadas",
+        items,
+      };
+    }
+
+    return {
+      status: "EXPLICITLY_NONE",
+      label: "Paciente declarou não possuir alergias",
+      items: [],
+    };
+  }
+
+  return {
+    status: "NOT_INFORMED",
+    label: "Alergias não informadas",
+    subtext: hasOnboarding ? "Não informado na anamnese" : "Aguardando preenchimento da anamnese",
+    items: [],
+  };
+}
+
+function formatDate(isoStr?: string | null): string {
+  if (!isoStr) return "—";
+  try {
+    const d = new Date(isoStr.includes("T") ? isoStr : `${isoStr}T12:00:00`);
+    if (isNaN(d.getTime())) return isoStr;
+    return d.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  } catch {
+    return isoStr;
+  }
+}
 
 interface PatientRecordViewProps {
   slug: string;
@@ -70,157 +159,35 @@ interface PatientRecordViewProps {
   canAuthorNutrition?: boolean;
 }
 
-type TabType =
-  | "resumo"
-  | "consultas"
-  | "checkins"
-  | "planejamento"
-  | "plano"
-  | "clinico"
-  | "alimentar"
-  | "estilo_vida"
-  | "antropometria"
-  | "gestacao"
-  | "calculos";
-
 export function PatientRecordView({
   slug,
   initialDetail,
   activePlan,
   draftPlan,
-  evolutionHubData,
-  evolutionComparisonData,
   initialTab,
-  initialPlanning,
-  initialStaleStatus,
   initialConsultationsSummary = null,
   initialCheckinsSummary = null,
-  initialFollowupSummary = null,
-  initialAppointmentPublicId,
   canAuthorNutrition = true,
 }: PatientRecordViewProps) {
   const router = useRouter();
   const [detail, setDetail] = useState<PatientRecordDetail>(initialDetail);
-  const [activeTab, setActiveTab] = useState<TabType>(() => {
-    if (initialTab === "consultas") return "consultas";
-    if (initialTab === "checkins" || initialTab === "acompanhamento") return "checkins";
-    if (initialTab === "planejamento") return "planejamento";
-    if (initialTab === "plano") return "plano";
-    if (initialTab === "antropometria") return "antropometria";
-    if (initialTab === "gestacao") return "gestacao";
-    if (initialTab === "calculos") return "calculos";
-    return "resumo";
-  });
-
   const [isPending, startTransition] = useTransition();
   const [isStartingEdit, setIsStartingEdit] = useState(false);
-  const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
   const [isCreatingScratch, setIsCreatingScratch] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Dialog states for templates and plan copy
+  // Modals & Drawers state
+  const [isPlanChoiceModalOpen, setIsPlanChoiceModalOpen] = useState(false);
+  const [isAiGenerateModalOpen, setIsAiGenerateModalOpen] = useState(false);
+  const [isAiImportModalOpen, setIsAiImportModalOpen] = useState(false);
+  const [isAnamneseDrawerOpen, setIsAnamneseDrawerOpen] = useState(false);
+  const [isCadastralModalOpen, setIsCadastralModalOpen] = useState(false);
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [isCopyPlanDialogOpen, setIsCopyPlanDialogOpen] = useState(false);
   const [isSaveTemplateDialogOpen, setIsSaveTemplateDialogOpen] = useState(false);
-
-  const flushPendingSaveRef = useRef<(() => void) | null>(null);
-
-  const handleCreatePlanFromScratch = async () => {
-    flushPendingSaveRef.current?.();
-    setIsCreatingScratch(true);
-    const res = await createPatientPlanFromScratchAction(slug, detail.student.membershipPublicId);
-    if (res.success && res.data) {
-      router.push(
-        `/consultoria/${slug}/planos-v2/${res.data.planPublicId}?v=${res.data.versionPublicId}&studentId=${detail.student.membershipPublicId}`
-      );
-    } else {
-      setIsCreatingScratch(false);
-      setMessage({ type: "error", text: res.error || "Erro ao criar plano para o paciente." });
-    }
-  };
-
-  const handleStartEditPlan = async () => {
-    flushPendingSaveRef.current?.();
-    setIsStartingEdit(true);
-    const res = await startPatientPlanEditAction(slug, detail.student.membershipPublicId);
-    if (res.success && res.data) {
-      router.push(
-        `/consultoria/${slug}/planos-v2/${res.data.planPublicId}?v=${res.data.versionPublicId}&studentId=${detail.student.membershipPublicId}`
-      );
-    } else {
-      setIsStartingEdit(false);
-      setMessage({ type: "error", text: res.error || "Erro ao iniciar edição do plano." });
-    }
-  };
-
-  const handleDiscardDraft = async () => {
-    const ok = window.confirm(
-      "Deseja realmente descartar as alterações deste rascunho? Esta ação não pode ser desfeita."
-    );
-    if (!ok) return;
-
-    setIsDiscardingDraft(true);
-    const res = await discardPatientPlanDraftAction(slug, detail.student.membershipPublicId);
-    if (res.success) {
-      router.refresh();
-    } else {
-      setIsDiscardingDraft(false);
-      setMessage({ type: "error", text: res.error || "Erro ao descartar alterações." });
-    }
-  };
-
-  // Calculation manual overrides state (ephemeral client simulation only)
-  const [calcWeightOverride, setCalcWeightOverride] = useState<string>("");
-  const [calcHeightOverride, setCalcHeightOverride] = useState<string>("");
-
-  const latestAnthro = detail.anthropometrics.length > 0 ? detail.anthropometrics[0] : null;
-
-  const patientCalcContext = useMemo(() => {
-    return {
-      consultancyId: detail.record.consultancyId,
-      studentMembershipId: detail.record.studentMembershipId,
-      patientRecordPublicId: detail.record.publicId,
-      latestAnthropometrics: latestAnthro
-        ? {
-            publicId: latestAnthro.publicId,
-            measurementDate: latestAnthro.measurementDate,
-            weightKg: latestAnthro.weightKg,
-            heightCm: latestAnthro.heightCm,
-            waistCm: latestAnthro.waistCm,
-            hipCm: latestAnthro.hipCm,
-          }
-        : null,
-      onboardingReference: detail.onboardingReference
-        ? {
-            reportedWeightKg: detail.onboardingReference.reportedWeightKg,
-            reportedHeightCm: detail.onboardingReference.reportedHeightCm,
-            sex: detail.onboardingReference.sex,
-            birthDate: detail.onboardingReference.birthDate,
-            mainObjective: detail.onboardingReference.mainObjective,
-          }
-        : null,
-      pregnancy: detail.pregnancy
-        ? {
-            pregnancyStatus: detail.pregnancy.pregnancyStatus,
-            gestationalWeeks: detail.pregnancy.gestationalWeeks,
-            deliveryDate: detail.pregnancy.deliveryDate,
-          }
-        : null,
-    };
-  }, [detail, latestAnthro]);
-
-  const bmiOverrides = useMemo(() => {
-    const ov: Record<string, number> = {};
-    const w = parseFloat(calcWeightOverride);
-    if (!isNaN(w) && w > 0) ov.weightKg = w;
-    const h = parseFloat(calcHeightOverride);
-    if (!isNaN(h) && h > 0) ov.heightCm = h;
-    return ov;
-  }, [calcWeightOverride, calcHeightOverride]);
-
-  const bmiResult = useMemo(() => {
-    return calculatePatientBMI(patientCalcContext, bmiOverrides);
-  }, [patientCalcContext, bmiOverrides]);
+  const [showAddAnthro, setShowAddAnthro] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [expandedMealIdx, setExpandedMealIdx] = useState<number | null>(null);
 
   // Form states for clinical fields
   const [clinicalForm, setClinicalForm] = useState<UpdatePatientRecordInput>({
@@ -255,25 +222,6 @@ export function PatientRecordView({
     workStudyRoutine: detail.record.workStudyRoutine,
   });
 
-  // Form states for pregnancy
-  const [pregnancyForm, setPregnancyForm] = useState<UpdatePregnancyInput>({
-    pregnancyStatus: (detail.pregnancy?.pregnancyStatus || "NOT_APPLICABLE") as PregnancyStatus,
-    estimatedDueDate: detail.pregnancy?.estimatedDueDate || null,
-    gestationalWeeks: detail.pregnancy?.gestationalWeeks || null,
-    lastMenstrualPeriodDate: detail.pregnancy?.lastMenstrualPeriodDate || null,
-    prePregnancyWeightKg: detail.pregnancy?.prePregnancyWeightKg || null,
-    currentPregnancyWeightKg: detail.pregnancy?.currentPregnancyWeightKg || null,
-    pregnancyType: detail.pregnancy?.pregnancyType || null,
-    pregnancyNotes: detail.pregnancy?.pregnancyNotes || null,
-    obstetricNotes: detail.pregnancy?.obstetricNotes || null,
-    supplementationNotes: detail.pregnancy?.supplementationNotes || null,
-    deliveryDate: detail.pregnancy?.deliveryDate || null,
-    breastfeedingStatus: detail.pregnancy?.breastfeedingStatus || null,
-    postpartumNotes: detail.pregnancy?.postpartumNotes || null,
-  });
-
-  // State for new anthropometric entry modal
-  const [showAddAnthro, setShowAddAnthro] = useState(false);
   const [newAnthro, setNewAnthro] = useState<AddAnthropometricEntryInput>({
     measurementDate: new Date().toISOString().slice(0, 10),
     weightKg: null,
@@ -287,17 +235,15 @@ export function PatientRecordView({
     notes: null,
   });
 
-  // Autosave states & refs for clinical record with SERIALIZED SERVER WRITES
+  // Autosave states & refs with SERIALIZED SERVER WRITES
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
   const [autosaveError, setAutosaveError] = useState<string | null>(null);
-
   const lastSavedSnapshotRef = useRef<string>(JSON.stringify(clinicalForm));
   const pendingSaveRef = useRef<UpdatePatientRecordInput | null>(null);
   const isSavingRef = useRef<boolean>(false);
   const saveSequenceRef = useRef<number>(0);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const latestFormRef = useRef<UpdatePatientRecordInput>(clinicalForm);
-  const isMountedRef = useRef<boolean>(false);
   const isUnmountedRef = useRef<boolean>(false);
 
   useEffect(() => {
@@ -308,7 +254,6 @@ export function PatientRecordView({
     if (!canAuthorNutrition) return;
 
     // SERIALIZED SERVER WRITES: at most 1 active save request in flight
-    // If a request is already executing, the active loop will drain pendingSaveRef upon completion.
     if (isSavingRef.current) {
       return;
     }
@@ -324,7 +269,7 @@ export function PatientRecordView({
     }
 
     while (pendingSaveRef.current) {
-      const formToSave = pendingSaveRef.current;
+      const formToSave: UpdatePatientRecordInput = pendingSaveRef.current;
       pendingSaveRef.current = null;
 
       // Skip redundant write if snapshot already matches persisted record
@@ -346,106 +291,82 @@ export function PatientRecordView({
 
         if (res.success) {
           lastSavedSnapshotRef.current = JSON.stringify(formToSave);
-          // If a new change arrived while saving, the while loop will proceed with it.
+          setDetail((prev) => ({
+            ...prev,
+            record: {
+              ...prev.record,
+              ...formToSave,
+            },
+          }));
         } else {
-          // If write failed and no newer change arrived, preserve pendingSaveRef for retry
           if (!pendingSaveRef.current) {
             pendingSaveRef.current = formToSave;
           }
           isSavingRef.current = false;
           if (!isUnmountedRef.current) {
             setAutosaveStatus("error");
-            setAutosaveError(res.error || "Não foi possível salvar");
+            setAutosaveError(res.error || "Erro ao salvar alterações.");
           }
           return;
         }
-      } catch (err: unknown) {
+      } catch {
+        if (currentSeq !== saveSequenceRef.current) {
+          continue;
+        }
         if (!pendingSaveRef.current) {
           pendingSaveRef.current = formToSave;
         }
         isSavingRef.current = false;
         if (!isUnmountedRef.current) {
           setAutosaveStatus("error");
-          setAutosaveError(
-            err instanceof Error ? err.message : "Não foi possível salvar"
-          );
+          setAutosaveError("Erro de conexão ao salvar alterações.");
         }
         return;
       }
     }
 
     isSavingRef.current = false;
-    // Only mark "saved" when all pending writes have finished persisting
     if (!isUnmountedRef.current) {
       setAutosaveStatus("saved");
-      setAutosaveError(null);
     }
-  }, [canAuthorNutrition, detail.student.membershipPublicId, slug]);
+  }, [canAuthorNutrition, slug, detail.student.membershipPublicId]);
 
   const executeAutosave = useCallback(
-    async (formToSave: UpdatePatientRecordInput) => {
-      pendingSaveRef.current = formToSave;
-      await processSaveQueue();
-    },
-    [processSaveQueue]
-  );
+    (nextForm: UpdatePatientRecordInput) => {
+      if (!canAuthorNutrition) return;
 
-  // Debounce (650ms) autosave trigger on clinicalForm changes
-  useEffect(() => {
-    if (!isMountedRef.current) {
-      isMountedRef.current = true;
-      return;
-    }
+      const snapshot = JSON.stringify(nextForm);
+      if (snapshot === lastSavedSnapshotRef.current) {
+        return;
+      }
 
-    if (!canAuthorNutrition) return;
+      pendingSaveRef.current = nextForm;
+      if (!isUnmountedRef.current) {
+        setAutosaveStatus("saving");
+      }
 
-    const currentSnapshot = JSON.stringify(clinicalForm);
-    if (currentSnapshot === lastSavedSnapshotRef.current) {
-      return;
-    }
-
-    // Enqueue newest change and mark UI as saving immediately
-    pendingSaveRef.current = clinicalForm;
-    setAutosaveStatus("saving");
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      debounceTimerRef.current = null;
-      processSaveQueue();
-    }, 650);
-
-    return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
-    };
-  }, [clinicalForm, canAuthorNutrition, processSaveQueue]);
 
-  // Flush pending save immediately (blur, tab switch, navigation, unmount)
+      debounceTimerRef.current = setTimeout(() => {
+        debounceTimerRef.current = null;
+        processSaveQueue();
+      }, 600);
+    },
+    [canAuthorNutrition, processSaveQueue]
+  );
+
   const flushPendingSave = useCallback(() => {
-    if (!canAuthorNutrition) return;
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
     }
-    const currentSnapshot = JSON.stringify(latestFormRef.current);
-    if (currentSnapshot !== lastSavedSnapshotRef.current) {
-      pendingSaveRef.current = latestFormRef.current;
-    }
-    if (pendingSaveRef.current || isSavingRef.current) {
+    if (pendingSaveRef.current) {
       processSaveQueue();
     }
-  }, [canAuthorNutrition, processSaveQueue]);
+  }, [processSaveQueue]);
 
-  // Keep ref updated for handlers defined earlier
-  useEffect(() => {
-    flushPendingSaveRef.current = flushPendingSave;
-  }, [flushPendingSave]);
-
-  // Immediate blur flush when user leaves a modified field
   const handleFieldBlur = useCallback(() => {
     if (!canAuthorNutrition) return;
     const currentSnapshot = JSON.stringify(latestFormRef.current);
@@ -454,16 +375,17 @@ export function PatientRecordView({
     }
   }, [canAuthorNutrition, flushPendingSave]);
 
-  // Tab switch handler with instant flush
-  const handleTabChange = useCallback(
-    (newTab: TabType) => {
-      flushPendingSave();
-      setActiveTab(newTab);
-    },
-    [flushPendingSave]
-  );
+  const [, setActiveTab] = useState(initialTab || "visao-geral");
 
-  // Flush on unmount
+  const handleTabChange = (newTab: string) => {
+    flushPendingSave();
+    setActiveTab(newTab);
+  };
+
+  const handleRetryAutosave = useCallback(() => {
+    executeAutosave(latestFormRef.current);
+  }, [executeAutosave]);
+
   useEffect(() => {
     return () => {
       isUnmountedRef.current = true;
@@ -471,28 +393,45 @@ export function PatientRecordView({
     };
   }, [flushPendingSave]);
 
-  const handleRetryAutosave = useCallback(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
+  const handleCreatePlanFromScratch = async () => {
+    flushPendingSave();
+    setIsCreatingScratch(true);
+    const res = await createPatientPlanFromScratchAction(slug, detail.student.membershipPublicId);
+    if (res.success && res.data) {
+      router.push(
+        `/consultoria/${slug}/planos-v2/${res.data.planPublicId}?v=${res.data.versionPublicId}&studentId=${detail.student.membershipPublicId}`
+      );
+    } else {
+      setIsCreatingScratch(false);
+      setMessage({ type: "error", text: res.error || "Erro ao criar plano para o paciente." });
     }
-    executeAutosave(latestFormRef.current);
-  }, [executeAutosave]);
-
-  const handleSaveClinicalRecord = () => {
-    handleRetryAutosave();
   };
 
-  const handleSavePregnancy = () => {
-    setMessage(null);
-    startTransition(async () => {
-      const res = await updatePregnancyAction(slug, detail.student.membershipPublicId, pregnancyForm);
-      if (res.success) {
-        setMessage({ type: "success", text: "Dados gestacionais atualizados com sucesso!" });
-      } else {
-        setMessage({ type: "error", text: res.error || "Erro ao salvar gestação." });
-      }
-    });
+  const handleStartEditPlan = async () => {
+    flushPendingSave();
+    setIsStartingEdit(true);
+    const res = await startPatientPlanEditAction(slug, detail.student.membershipPublicId);
+    if (res.success && res.data) {
+      router.push(
+        `/consultoria/${slug}/planos-v2/${res.data.planPublicId}?v=${res.data.versionPublicId}&studentId=${detail.student.membershipPublicId}`
+      );
+    } else {
+      setIsStartingEdit(false);
+      setMessage({ type: "error", text: res.error || "Erro ao iniciar edição do plano." });
+    }
+  };
+
+  const handleSelectChoiceOption = (choice: NutritionPlanCreationChoice) => {
+    setIsPlanChoiceModalOpen(false);
+    if (choice === "manual") {
+      handleCreatePlanFromScratch();
+    } else if (choice === "template") {
+      setIsTemplatesModalOpen(true);
+    } else if (choice === "ai-scratch") {
+      setIsAiGenerateModalOpen(true);
+    } else if (choice === "ai-import") {
+      setIsAiImportModalOpen(true);
+    }
   };
 
   const handleAddAnthropometric = (e: React.FormEvent) => {
@@ -510,1689 +449,1039 @@ export function PatientRecordView({
     });
   };
 
-  const handleDeleteAnthropometric = (publicId: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta medição?")) return;
-    setMessage(null);
-    startTransition(async () => {
-      const res = await deleteAnthropometricEntryAction(slug, detail.student.membershipPublicId, publicId);
-      if (res.success) {
-        setMessage({ type: "success", text: "Medição excluída." });
-        setDetail((prev) => ({
-          ...prev,
-          anthropometrics: prev.anthropometrics.filter((a) => a.publicId !== publicId),
-        }));
-      } else {
-        setMessage({ type: "error", text: res.error || "Erro ao excluir medição." });
-      }
-    });
-  };
+  // Anthropometrics & physiological calculations
+  const sortedAnthros = useMemo(() => {
+    if (!detail.anthropometrics || detail.anthropometrics.length === 0) return [];
+    return [...detail.anthropometrics].sort(
+      (a, b) => new Date(b.measurementDate).getTime() - new Date(a.measurementDate).getTime()
+    );
+  }, [detail.anthropometrics]);
 
-  const handleCopyFromOnboarding = () => {
-    const ob = detail.onboardingReference;
-    if (!ob.hasOnboardingData) return;
+  const latestAnthro = sortedAnthros[0] || null;
+  const previousAnthro = sortedAnthros[1] || null;
 
-    setClinicalForm((prev) => ({
-      ...prev,
-      occupation: prev.occupation || ob.occupation,
-      mainObjective: prev.mainObjective || ob.mainObjective,
-      foodAllergiesIntolerances: prev.foodAllergiesIntolerances || ob.foodAllergies,
-      dietaryRestrictions: prev.dietaryRestrictions || ob.dietaryRestrictions,
-      currentMedications: prev.currentMedications || ob.medications,
-      diagnosedConditions: prev.diagnosedConditions || ob.healthConditions,
-      previousSurgeries: prev.previousSurgeries || ob.surgeries,
-      bowelHabit: prev.bowelHabit || ob.bowelHabit,
-      hydrationNotes: prev.hydrationNotes || ob.waterIntake,
-      foodPreferences: prev.foodPreferences || ob.preferredFoods,
-      dislikedFoods: prev.dislikedFoods || ob.dislikedFoods,
-      physicalActivityNotes: prev.physicalActivityNotes || ob.physicalActivity,
-      smokingStatus: prev.smokingStatus || ob.smoking,
-      alcoholNotes: prev.alcoholNotes || ob.alcoholFrequency,
-    }));
-    setMessage({ type: "success", text: "Dados do onboarding copiados para os campos de edição!" });
-  };
+  const currentWeightKg =
+    latestAnthro?.weightKg ?? detail.onboardingReference?.reportedWeightKg ?? null;
+  const currentHeightCm =
+    latestAnthro?.heightCm ?? detail.onboardingReference?.reportedHeightCm ?? null;
 
-  const trimesterLabel = deriveTrimester(pregnancyForm.gestationalWeeks ?? null);
+  const previousWeightKg =
+    previousAnthro?.weightKg ??
+    (latestAnthro && detail.onboardingReference?.reportedWeightKg ? detail.onboardingReference.reportedWeightKg : null);
+
+  const weightDelta = useMemo(() => {
+    if (currentWeightKg !== null && previousWeightKg !== null && currentWeightKg !== previousWeightKg) {
+      return currentWeightKg - previousWeightKg;
+    }
+    return null;
+  }, [currentWeightKg, previousWeightKg]);
+
+  const ageYears = useMemo(() => {
+    return calculateAgeFromBirthDate(
+      detail.resolvedBirthDate || detail.record.birthDate || detail.onboardingReference?.birthDate
+    );
+  }, [detail.resolvedBirthDate, detail.record.birthDate, detail.onboardingReference?.birthDate]);
+
+  const bioSex =
+    detail.resolvedBiologicalSex ||
+    normalizeBiologicalSex(detail.record.biologicalSex) ||
+    normalizeBiologicalSex(detail.onboardingReference?.sex);
+  const bioSexLabel =
+    bioSex === "MALE" ? "Masculino" : bioSex === "FEMALE" ? "Feminino" : "Não informado";
+
+  const bmiValue = useMemo(() => {
+    if (currentWeightKg && currentHeightCm && currentHeightCm > 0) {
+      const hM = currentHeightCm / 100;
+      return currentWeightKg / (hM * hM);
+    }
+    return null;
+  }, [currentWeightKg, currentHeightCm]);
+
+  const bmiClassification = useMemo(() => {
+    return classifyBMI(bmiValue);
+  }, [bmiValue]);
+
+  // Tri-state Allergy Calculation
+  const isAnswered = Boolean(
+    detail.onboardingReference?.hasOnboardingData || detail.onboardingReference?.submittedAt
+  );
+
+  const allergyState = useMemo(() => {
+    return resolvePatientAllergyStatus(
+      detail.record.allergies,
+      detail.record.foodAllergiesIntolerances,
+      isAnswered
+    );
+  }, [detail.record.allergies, detail.record.foodAllergiesIntolerances, isAnswered]);
+
+  const checkinsCount =
+    initialCheckinsSummary?.recentResponses?.length || initialCheckinsSummary?.totalCompletedCount || 0;
+  const latestCompletedConsultation = initialConsultationsSummary?.latestCompletedConsultation || null;
+  const nextScheduledConsultation = initialConsultationsSummary?.realNextAppointment || null;
 
   return (
-    <>
-      {/* Mobile-Native Patient Hub (md:hidden) */}
-      <div className="md:hidden">
-        <MobilePatientHub
-          slug={slug}
-          detail={detail}
-          activePlan={activePlan}
-          draftPlan={draftPlan}
-          evolutionHubData={evolutionHubData}
-          evolutionComparisonData={evolutionComparisonData}
-          clinicalForm={clinicalForm}
-          setClinicalForm={setClinicalForm}
-          pregnancyForm={pregnancyForm}
-          setPregnancyForm={setPregnancyForm}
-          onSaveClinical={handleSaveClinicalRecord}
-          onSavePregnancy={handleSavePregnancy}
-          onAddAnthropometry={() => setShowAddAnthro(true)}
-          onDeleteAnthropometry={handleDeleteAnthropometric}
-          onCopyFromOnboarding={handleCopyFromOnboarding}
-          isPending={isPending || autosaveStatus === "saving"}
-          message={message}
-          calcWeightOverride={calcWeightOverride}
-          setCalcWeightOverride={setCalcWeightOverride}
-          calcHeightOverride={calcHeightOverride}
-          setCalcHeightOverride={setCalcHeightOverride}
-          bmiResult={bmiResult}
-          initialMobileTab={initialTab}
-          initialPlanning={initialPlanning}
-          initialStaleStatus={initialStaleStatus}
-          initialConsultationsSummary={initialConsultationsSummary}
-          initialCheckinsSummary={initialCheckinsSummary}
-          initialFollowupSummary={initialFollowupSummary}
-          initialAppointmentPublicId={initialAppointmentPublicId}
-          canAuthor={canAuthorNutrition}
-          autosaveStatus={autosaveStatus}
-          autosaveError={autosaveError}
-          onRetryAutosave={handleRetryAutosave}
-          onFlushSave={flushPendingSave}
-          onFieldBlur={handleFieldBlur}
-          onPhysiologicalDataUpdated={(data) => {
-            setDetail((prev) => ({
-              ...prev,
-              resolvedBirthDate: data.resolvedBirthDate,
-              resolvedBiologicalSex: data.resolvedBiologicalSex,
-              birthDateProvenance: data.birthDateProvenance,
-              biologicalSexProvenance: data.biologicalSexProvenance,
-              record: {
-                ...prev.record,
-                birthDate: data.resolvedBirthDate,
-                biologicalSex: data.resolvedBiologicalSex,
-              },
-            }));
-          }}
-        />
-      </div>
+    <div className="w-full max-w-7xl mx-auto px-4 py-6 space-y-6">
+      {/* Workspace Navigation Bar */}
+      <NutritionWorkspaceNav slug={slug} activeTab="prontuario" />
 
-
-      {/* Preserved Desktop Patient Hub (hidden md:block) */}
-      <div className="hidden md:block space-y-6 max-w-7xl mx-auto px-4 py-6">
-        {/* Header Cockpit */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs">
-        <div className="space-y-2 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <Link
-              href={`/consultoria/${slug}/planos-v2/prontuario`}
-              onClick={() => flushPendingSave()}
-              className="text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"
-            >
-              <span>← Voltar aos Pacientes</span>
-            </Link>
+      {/* Top breadcrumb & Autosave Indicator */}
+      <div className="flex items-center justify-between gap-4">
+        <Link
+          href={`/consultoria/${slug}/planos-v2/prontuario`}
+          onClick={() => flushPendingSave()}
+          className="text-xs font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors inline-flex items-center gap-1.5 min-h-[36px]"
+        >
+          <span>← Voltar aos pacientes</span>
+        </Link>
+        {canAuthorNutrition && (
+          <div className="flex items-center gap-2">
+            <AutosaveIndicator
+              status={autosaveStatus}
+              errorMessage={autosaveError}
+              onRetry={handleRetryAutosave}
+            />
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="w-11 h-11 rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center font-bold text-base shrink-0 border border-[var(--brand-soft-border)]">
-              {detail.student.fullName ? detail.student.fullName.charAt(0).toUpperCase() : "P"}
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--text-primary)] flex items-center gap-2.5 flex-wrap">
-                {detail.student.fullName}
-                <Badge variant="brand" size="sm">
-                  Paciente Ativo
-                </Badge>
-                {pregnancyForm.pregnancyStatus === "PREGNANT" && (
-                  <Badge variant="brand" size="sm">Gestante</Badge>
-                )}
-                {pregnancyForm.pregnancyStatus === "POSTPARTUM" && (
-                  <Badge variant="warning" size="sm">Pós-parto</Badge>
-                )}
-              </h1>
-              <p className="text-xs text-[var(--text-secondary)] font-medium">
-                {detail.student.email} • Vinculado em {new Date(detail.student.joinedAt).toLocaleDateString("pt-BR")}
-              </p>
-            </div>
-          </div>
-
-          {/* Quick Metrics Bar in Header */}
-          <div className="flex items-center gap-4 pt-1 flex-wrap text-xs text-[var(--text-secondary)] font-medium">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">Último Peso:</span>
-              <span className="font-bold text-[var(--text-primary)]">
-                {latestAnthro?.weightKg ? `${latestAnthro.weightKg} kg` : "Não registrado"}
-              </span>
-              {latestAnthro?.measurementDate && (
-                <span className="text-[10px] text-[var(--text-tertiary)]">
-                  ({new Date(latestAnthro.measurementDate).toLocaleDateString("pt-BR")})
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">Anamnese:</span>
-              <span className="font-bold text-[var(--text-primary)]">
-                {detail.onboardingReference ? "Vinculada" : "Pendente"}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">Plano Vigente:</span>
-              <span className={`font-bold ${activePlan ? "text-[var(--brand)]" : "text-[var(--text-tertiary)]"}`}>
-                {activePlan ? activePlan.versionTitle : "Sem plano ativo"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
-          <Link
-            href={`/consultoria/${slug}/progresso/alunos/${detail.student.membershipPublicId}`}
-            onClick={() => flushPendingSave()}
-          >
-            <Button
-              variant="secondary"
-              size="md"
-              className="font-bold min-h-[42px] text-xs"
-              title="Acessar fotos corporais e histórico de evolução 360°"
-            >
-              Evolução 360° →
-            </Button>
-          </Link>
-          {/* Header plan action: duplicate continue-edit button removed from header when draft exists (preserved contextually in Plano tab) */}
-          {!draftPlan && (
-            activePlan ? (
-              <Button
-                variant="primary"
-                size="md"
-                disabled={isStartingEdit}
-                onClick={handleStartEditPlan}
-                className="font-bold min-h-[42px] text-xs"
-              >
-                {isStartingEdit ? "Abrindo..." : "Editar Plano"}
-              </Button>
-            ) : (
-              <Button
-                variant="primary"
-                size="md"
-                disabled={isCreatingScratch}
-                onClick={handleCreatePlanFromScratch}
-                className="font-bold min-h-[42px] text-xs"
-              >
-                {isCreatingScratch ? "Criando..." : "Prescrever Plano"}
-              </Button>
-            )
-          )}
-          {/* Prontuário Autosave Status Indicator */}
-          {canAuthorNutrition && activeTab !== "antropometria" && activeTab !== "gestacao" && (
-            <div className="px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center min-h-[42px]">
-              <AutosaveIndicator
-                status={autosaveStatus}
-                errorMessage={autosaveError}
-                onRetry={handleRetryAutosave}
-              />
-            </div>
-          )}
-          {activeTab === "gestacao" && (
-            <Button
-              onClick={handleSavePregnancy}
-              disabled={isPending}
-              variant="primary"
-              size="md"
-              className="font-bold min-h-[42px] text-xs shadow-sm"
-            >
-              {isPending ? "Salvando..." : "Salvar Dados Gestacionais"}
-            </Button>
-          )}
-          {activeTab === "antropometria" && (
-            <Button
-              onClick={() => setShowAddAnthro(true)}
-              variant="primary"
-              size="md"
-              className="font-bold min-h-[42px] text-xs shadow-sm"
-            >
-              + Nova Medição
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Notifications */}
       {message && (
         <div
-          className={`p-3 rounded-xl text-sm border ${
+          className={`p-3.5 rounded-2xl text-xs sm:text-sm border font-medium ${
             message.type === "success"
-              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-medium"
-              : "bg-destructive/10 border-destructive/30 text-destructive font-medium"
+              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+              : "bg-destructive/10 border-destructive/30 text-destructive"
           }`}
         >
           {message.text}
         </div>
       )}
 
-      {/* Navigation Tabs (Top Main Nav: 5 core tabs, fits desktop with zero horizontal overflow) */}
-      <div className="flex gap-1.5 border-b border-[var(--border-default)] pb-2 overflow-x-auto sm:overflow-visible no-scrollbar">
-        {(
-          [
-            { id: "resumo", label: "Resumo Geral" },
-            { id: "consultas", label: "Consultas" },
-            { id: "checkins", label: "Acompanhamento" },
-            { id: "planejamento", label: "Planejamento" },
-            { id: "plano", label: activePlan ? "Plano Ativo" : "Plano Alimentar" },
-          ] as const
-        ).map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => handleTabChange(tab.id)}
-            className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
-              activeTab === tab.id
-                ? "bg-[var(--brand-soft)] text-[var(--brand)] border border-[var(--brand-soft-border)] shadow-2xs font-bold"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-transparent"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* =================================================================== */}
+      {/* SECTION A: IDENTIFICAÇÃO & COCKPIT PRINCIPAL (DARK MODERN PILL)    */}
+      {/* =================================================================== */}
+      <div
+        id="sec-identificacao"
+        className="bg-zinc-950 text-white rounded-3xl p-5 sm:p-6 shadow-md border border-zinc-800/90 flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
+        {/* Left: Avatar + Info */}
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 font-extrabold flex items-center justify-center text-lg shrink-0 border border-emerald-500/30">
+            {detail.student.fullName ? detail.student.fullName.charAt(0).toUpperCase() : "P"}
+          </div>
+          <div className="min-w-0 space-y-0.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white truncate">
+                {detail.student.fullName}
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                Ativo
+              </span>
+              {detail.pregnancy?.pregnancyStatus === "PREGNANT" && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  Gestante
+                </span>
+              )}
+              {detail.pregnancy?.pregnancyStatus === "POSTPARTUM" && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Pós-parto
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-zinc-400 font-medium truncate">
+              {detail.student.email}
+            </p>
+          </div>
+        </div>
 
-      {/* Sub-area Navigation Header when viewing detailed clinical sub-tabs */}
-      {(activeTab === "clinico" ||
-        activeTab === "alimentar" ||
-        activeTab === "estilo_vida" ||
-        activeTab === "antropometria" ||
-        activeTab === "gestacao" ||
-        activeTab === "calculos") && (
-        <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-          <div className="flex items-center gap-2 text-xs sm:text-sm">
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0 flex-wrap">
+          {activePlan ? (
             <button
               type="button"
-              onClick={() => handleTabChange("resumo")}
-              className="font-bold text-[var(--brand)] hover:underline flex items-center gap-1.5 cursor-pointer"
+              onClick={handleStartEditPlan}
+              disabled={isStartingEdit}
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer min-h-[42px] flex items-center gap-2 disabled:opacity-50"
             >
-              <span>← Voltar ao Resumo Geral</span>
+              {isStartingEdit ? "Abrindo..." : "Abrir plano alimentar →"}
             </button>
-            <span className="text-[var(--text-tertiary)] font-bold">/</span>
-            <span className="font-extrabold text-[var(--text-primary)]">
-              {activeTab === "clinico" && "Histórico Clínico"}
-              {activeTab === "alimentar" && "Histórico Alimentar"}
-              {activeTab === "estilo_vida" && "Estilo de Vida"}
-              {activeTab === "antropometria" && `Antropometria (${detail.anthropometrics.length})`}
-              {activeTab === "gestacao" && "Dados Gestacionais"}
-              {activeTab === "calculos" && "Cálculos Clínicos"}
-            </span>
+          ) : draftPlan ? (
+            <button
+              type="button"
+              onClick={handleStartEditPlan}
+              disabled={isStartingEdit}
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer min-h-[42px] flex items-center gap-2 disabled:opacity-50"
+            >
+              {isStartingEdit ? "Abrindo..." : "Continuar rascunho →"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsPlanChoiceModalOpen(true)}
+              disabled={isCreatingScratch}
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer min-h-[42px] flex items-center gap-2 disabled:opacity-50"
+            >
+              <span>{isCreatingScratch ? "Criando..." : "+ Criar plano alimentar"}</span>
+            </button>
+          )}
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label="Mais opções do paciente"
+              className="w-10 h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <span className="text-lg leading-none">···</span>
+            </button>
+
+            {isMenuOpen && (
+              <div
+                className="absolute right-0 mt-2 w-56 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl p-1.5 z-30 space-y-1 animate-in fade-in duration-150"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <button
+                  type="button"
+                  onClick={() => setIsCadastralModalOpen(true)}
+                  className="w-full px-3.5 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] text-left text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2.5 cursor-pointer"
+                >
+                  <span>Dados do paciente</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      navigator.clipboard.writeText(window.location.href);
+                      setMessage({ type: "success", text: "Link do prontuário copiado!" });
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] text-left text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2.5 cursor-pointer"
+                >
+                  <span>Copiar link do prontuário</span>
+                </button>
+                {activePlan && (
+                  <button
+                    type="button"
+                    onClick={() => setIsSaveTemplateDialogOpen(true)}
+                    className="w-full px-3.5 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] text-left text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <span>Salvar plano como modelo</span>
+                  </button>
+                )}
+                <Link
+                  href={`/consultoria/${slug}/progresso/alunos/${detail.student.membershipPublicId}`}
+                  className="w-full px-3.5 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] text-left text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2.5 cursor-pointer"
+                >
+                  <span>Evolução 360° e fotos</span>
+                </Link>
+              </div>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => handleTabChange("resumo")}
-            className="px-3 py-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
-          >
-            Fechar detalhes ✕
-          </button>
         </div>
-      )}
+      </div>
 
-      {/* TAB: CONSULTAS */}
-      {activeTab === "consultas" && (
-        <ClinicalConsultationTab
-          slug={slug}
-          studentPublicId={detail.student.membershipPublicId}
-          studentName={detail.student.fullName}
-          initialSummary={initialConsultationsSummary}
-          initialAppointmentPublicId={initialAppointmentPublicId}
-          availableAnthropometrics={detail.anthropometrics}
-          canAuthor={canAuthorNutrition}
-        />
-      )}
-
-      {/* TAB: CHECK-INS */}
-      {activeTab === "checkins" && (
-        <PatientCheckinsTab
-          slug={slug}
-          studentPublicId={detail.student.membershipPublicId}
-          canAuthor={canAuthorNutrition}
-          initialSummary={initialCheckinsSummary}
-        />
-      )}
-
-      {/* TAB 1: RESUMO GERAL */}
-      {activeTab === "resumo" && (
-        <div onBlur={handleFieldBlur}>
-          <PatientGeneralSummaryTab
-            slug={slug}
-            detail={detail}
-            activePlan={activePlan}
-            draftPlan={draftPlan}
-            planning={initialPlanning}
-            staleStatus={initialStaleStatus}
-            consultationsSummary={initialConsultationsSummary}
-            checkinsSummary={initialCheckinsSummary}
-            followupSummary={initialFollowupSummary}
-            evolutionComparisonData={evolutionComparisonData}
-            clinicalForm={clinicalForm}
-            canAuthor={canAuthorNutrition}
-            onNavigateTab={(tab) => {
-              flushPendingSave();
-              setActiveTab(tab as TabType);
-            }}
-            onAddAnthropometry={() => setShowAddAnthro(true)}
-            onStartEditPlan={handleStartEditPlan}
-            onCreatePlanFromScratch={handleCreatePlanFromScratch}
-            onDiscardDraft={handleDiscardDraft}
-            isStartingEditPlan={isStartingEdit}
-            isDiscardingDraft={isDiscardingDraft}
-            isCreatingScratch={isCreatingScratch}
-          />
-        </div>
-      )}
-
-      {/* TAB: PLANEJAMENTO NUTRICIONAL */}
-      {activeTab === "planejamento" && (
-        <PatientPlanningTab
-          slug={slug}
-          studentPublicId={detail.student.membershipPublicId}
-          studentMembershipPublicId={detail.student.membershipPublicId}
-          patientRecordId={detail.record.id}
-          initialPlanning={initialPlanning || null}
-          initialStaleStatus={initialStaleStatus || null}
-          initialResolvedBirthDate={detail.resolvedBirthDate}
-          initialResolvedBiologicalSex={detail.resolvedBiologicalSex}
-          initialBirthDateProvenance={detail.birthDateProvenance}
-          initialBiologicalSexProvenance={detail.biologicalSexProvenance}
-          latestAnthro={latestAnthro}
-          onboardingRef={detail.onboardingReference}
-          activePlan={activePlan}
-          draftPlan={draftPlan}
-          canAuthor={canAuthorNutrition}
-          onStartEditPlan={handleStartEditPlan}
-          isStartingEditPlan={isStartingEdit}
-          onPhysiologicalDataUpdated={(data) => {
-            setDetail((prev) => ({
-              ...prev,
-              resolvedBirthDate: data.resolvedBirthDate,
-              resolvedBiologicalSex: data.resolvedBiologicalSex,
-              birthDateProvenance: data.birthDateProvenance,
-              biologicalSexProvenance: data.biologicalSexProvenance,
-              record: {
-                ...prev.record,
-                birthDate: data.resolvedBirthDate,
-                biologicalSex: data.resolvedBiologicalSex,
-              },
-            }));
+      {/* =================================================================== */}
+      {/* QUICK JUMP NAVIGATION BAR ("IR PARA")                              */}
+      {/* =================================================================== */}
+      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-2xs">
+        <a
+          href="#sec-visao-geral"
+          onClick={() => handleTabChange("visao-geral")}
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
+        >
+          <span>Visão geral</span>
+        </a>
+        <a
+          href="#sec-plano"
+          onClick={() => handleTabChange("plano")}
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
+        >
+          <span>Planos alimentares</span>
+          <span className="w-5 h-5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold flex items-center justify-center">
+            {activePlan ? 1 : 0}
+          </span>
+        </a>
+        <a
+          href="#sec-evolucao"
+          onClick={() => handleTabChange("evolucao")}
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
+        >
+          <span>Evolução</span>
+          <span className="w-5 h-5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold flex items-center justify-center">
+            {sortedAnthros.length}
+          </span>
+        </a>
+        <button
+          type="button"
+          onClick={() => {
+            handleTabChange("anamnese");
+            setIsAnamneseDrawerOpen(true);
           }}
-        />
-      )}
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer"
+        >
+          <span>Anamnese</span>
+          {isAnswered ? (
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              RESPONDIDA
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+              PENDENTE
+            </span>
+          )}
+        </button>
+        <a
+          href="#sec-acompanhamento"
+          onClick={() => handleTabChange("acompanhamento")}
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
+        >
+          <span>Formulários</span>
+          <span className="w-5 h-5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold flex items-center justify-center">
+            {checkinsCount}
+          </span>
+        </a>
+        <a
+          href="#sec-historico"
+          onClick={() => handleTabChange("historico")}
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
+        >
+          <span>Histórico</span>
+        </a>
+      </div>
 
-      {/* TAB: PLANO ALIMENTAR VIGENTE */}
-      {activeTab === "plano" && (
-
-        <div className="space-y-6">
-          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-5 sm:p-6 space-y-6 depth-surface">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase font-extrabold tracking-wider text-[var(--brand)]">
-                    Prescrição Nutricional
-                  </span>
-                  {activePlan ? (
-                    <Badge variant="brand" size="sm">
-                      Ativo
-                    </Badge>
-                  ) : (
-                    <Badge variant="neutral" size="sm">
-                      Sem plano ativo
-                    </Badge>
-                  )}
+      {/* =================================================================== */}
+      {/* MAIN TWO-COLUMN WORKSPACE                                           */}
+      {/* =================================================================== */}
+      <div id="sec-visao-geral" onBlur={handleFieldBlur} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* ================================================================= */}
+        {/* LEFT COLUMN: PLANO ALIMENTAR + ACOMPANHAMENTO + HISTÓRICO        */}
+        {/* Section id: "resumo"                                             */}
+        {/* ================================================================= */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* 1. PLANO ALIMENTAR ATUAL */}
+          <section
+            id="sec-plano"
+            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4"
+          >
+            {draftPlan && (
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <p className="text-xs font-bold text-amber-700 dark:text-amber-400">Rascunho de alteração em andamento</p>
+                  <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80">Atualizado em {formatDate(draftPlan.updatedAt)}</p>
                 </div>
-                <h2 className="text-xl font-extrabold text-[var(--text-primary)] mt-1">
-                  {activePlan ? activePlan.versionTitle : "Nenhum Plano Ativo"}
-                </h2>
-                {activePlan?.versionSubtitle && (
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    {activePlan.versionSubtitle}
-                  </p>
-                )}
+                <button
+                  type="button"
+                  onClick={handleStartEditPlan}
+                  disabled={isStartingEdit}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Continuar Edição →
+                </button>
               </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                {draftPlan ? (
-                  <>
-                    <Link
-                      href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}
-                      onClick={() => flushPendingSave()}
-                    >
-                      <Button variant="primary" size="md" className="font-bold text-xs min-h-[40px]">
-                        Continuar Edição →
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      disabled={isDiscardingDraft}
-                      onClick={handleDiscardDraft}
-                      className="font-bold text-xs min-h-[40px] text-red-600 dark:text-red-400 hover:bg-red-500/10 border border-red-500/20"
-                    >
-                      {isDiscardingDraft ? "Descartando..." : "Descartar Alterações"}
-                    </Button>
-                  </>
-                ) : activePlan ? (
-                  <>
-                    <Button
-                      variant="primary"
-                      size="md"
-                      disabled={isStartingEdit}
-                      onClick={handleStartEditPlan}
-                      className="font-bold text-xs min-h-[40px]"
-                    >
-                      {isStartingEdit ? "Abrindo..." : "Editar Plano"}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      onClick={() => setIsSaveTemplateDialogOpen(true)}
-                      className="font-bold text-xs min-h-[40px]"
-                    >
-                      Salvar como modelo
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      onClick={() => setIsCopyPlanDialogOpen(true)}
-                      className="font-bold text-xs min-h-[40px]"
-                    >
-                      Copiar plano
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="primary"
-                      size="md"
-                      disabled={isCreatingScratch}
-                      onClick={handleCreatePlanFromScratch}
-                      className="font-bold text-xs min-h-[40px]"
-                    >
-                      {isCreatingScratch ? "Criando..." : "+ Criar do zero"}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      onClick={() => setIsTemplatesModalOpen(true)}
-                      className="font-bold text-xs min-h-[40px]"
-                    >
-                      Usar modelo
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      onClick={() => setIsCopyPlanDialogOpen(true)}
-                      className="font-bold text-xs min-h-[40px]"
-                    >
-                      Copiar plano existente
-                    </Button>
-                  </>
-                )}
+            )}
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+                    Plano Alimentar Atual
+                  </h2>
+                </div>
               </div>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                activePlan
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                  : "bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]"
+              }`}>
+                {activePlan ? `V${activePlan.versionNumber} • Ativo` : "Nenhum ativo"}
+              </span>
             </div>
 
             {activePlan ? (
-              <div className="space-y-6">
-                {/* Macro summary cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Total Calórico</span>
-                    <span className="font-extrabold text-[var(--text-primary)] text-lg tabular-nums">
-                      {activePlan.totals.caloriesKcal ? `${activePlan.totals.caloriesKcal} kcal` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Proteínas</span>
-                    <span className="font-extrabold text-[var(--text-primary)] text-lg tabular-nums">
-                      {activePlan.totals.proteinG ? `${activePlan.totals.proteinG} g` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Carboidratos</span>
-                    <span className="font-extrabold text-[var(--text-primary)] text-lg tabular-nums">
-                      {activePlan.totals.carbohydrateG ? `${activePlan.totals.carbohydrateG} g` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Gorduras</span>
-                    <span className="font-extrabold text-[var(--text-primary)] text-lg tabular-nums">
-                      {activePlan.totals.fatG ? `${activePlan.totals.fatG} g` : "—"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Meals list */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--text-tertiary)]">
-                    Refeições Estruturadas ({activePlan.meals.length})
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-base font-extrabold text-[var(--text-primary)]">
+                    {activePlan.versionTitle}
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {activePlan.meals.map((meal, idx) => (
-                      <div
-                        key={idx}
-                        className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between"
-                      >
-                        <div className="space-y-0.5 min-w-0">
-                          <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] block truncate">
-                            {meal.title}
-                          </span>
-                          {meal.scheduledTime && (
-                            <span className="text-[11px] text-[var(--text-tertiary)] block">
-                              Horário previsto: {meal.scheduledTime}
-                            </span>
-                          )}
-                        </div>
-                        <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)] shrink-0">
-                          {meal.itemsCount} {meal.itemsCount === 1 ? "item" : "itens"}
-                        </span>
-                      </div>
-                    ))}
+                  {activePlan.versionSubtitle && (
+                    <p className="text-xs text-[var(--text-secondary)] font-medium">
+                      {activePlan.versionSubtitle}
+                    </p>
+                  )}
+                  <p className="text-[11px] text-[var(--text-tertiary)] pt-0.5">
+                    Prescrito por <strong className="text-[var(--text-secondary)]">{activePlan.prescriberName || "Nutricionista"}</strong> • Início em {formatDate(activePlan.startsOn)} • {activePlan.mealsCount} refeições
+                  </p>
+                </div>
+
+                {/* Macronutrient Pills */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Calorias</span>
+                    <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 block tabular-nums">
+                      {activePlan.totals.caloriesKcal ?? "—"} kcal
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Proteína</span>
+                    <span className="text-base font-extrabold text-[var(--text-primary)] block tabular-nums">
+                      {activePlan.totals.proteinG ?? "—"}g
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Carboidrato</span>
+                    <span className="text-base font-extrabold text-[var(--text-primary)] block tabular-nums">
+                      {activePlan.totals.carbohydrateG ?? "—"}g
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Gorduras</span>
+                    <span className="text-base font-extrabold text-[var(--text-primary)] block tabular-nums">
+                      {activePlan.totals.fatG ?? "—"}g
+                    </span>
                   </div>
                 </div>
 
-                {activePlan.notesForStudent && (
-                  <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">Orientações Gerais ao Paciente</span>
-                    <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">{activePlan.notesForStudent}</p>
+                {/* In-Place Expandable Meals List */}
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                      Refeições Prescritas ({activePlan.meals.length})
+                    </span>
+                    <span className="text-[11px] text-[var(--text-tertiary)]">
+                      Clique para expandir
+                    </span>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="p-8 text-center rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-3">
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Este paciente ainda não possui nenhum plano alimentar ativo atribuído nesta consultoria.
-                </p>
-                <Button
-                  variant="primary"
-                  size="md"
-                  disabled={isCreatingScratch}
-                  onClick={handleCreatePlanFromScratch}
-                  className="font-bold text-xs"
-                >
-                  {isCreatingScratch ? "Criando Plano..." : "Criar Plano no Builder"}
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* TAB 2: HISTÓRICO CLÍNICO */}
-      {activeTab === "clinico" && (
-        <div className="space-y-6" onBlur={handleFieldBlur}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
-              <h3 className="font-semibold text-foreground text-sm border-b border-border/20 pb-2">
-                Condições de Saúde e Histórico
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Patologias / Condições Diagnosticadas</label>
-                  <textarea
-                    value={clinicalForm.diagnosedConditions || ""}
-                    onChange={(e) => setClinicalForm({ ...clinicalForm, diagnosedConditions: e.target.value })}
-                    rows={3}
-                    className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    placeholder="Ex: Diabetes Tipo 2, Hipertensão, Hipotireoidismo..."
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Cirurgias Prévias</label>
-                  <input
-                    type="text"
-                    value={clinicalForm.previousSurgeries || ""}
-                    onChange={(e) => setClinicalForm({ ...clinicalForm, previousSurgeries: e.target.value })}
-                    className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    placeholder="Ex: Apendicectomia (2018), Colecistectomia (2021)..."
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Hospitalizações Relevantes</label>
-                  <input
-                    type="text"
-                    value={clinicalForm.hospitalizations || ""}
-                    onChange={(e) => setClinicalForm({ ...clinicalForm, hospitalizations: e.target.value })}
-                    className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Histórico Familiar de Doenças</label>
-                  <textarea
-                    value={clinicalForm.familyHistory || ""}
-                    onChange={(e) => setClinicalForm({ ...clinicalForm, familyHistory: e.target.value })}
-                    rows={2}
-                    className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    placeholder="Ex: Doença cardiovascular (pai), Diabetes (mãe)..."
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
-              <h3 className="font-semibold text-foreground text-sm border-b border-border/20 pb-2">
-                Alergias, Medicações e Gastrointestinal
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Alergias Gerais</label>
-                  <input
-                    type="text"
-                    value={clinicalForm.allergies || ""}
-                    onChange={(e) => setClinicalForm({ ...clinicalForm, allergies: e.target.value })}
-                    className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    placeholder="Ex: Dipirona, Pólen..."
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Alergias e Intolerâncias Alimentares</label>
-                  <textarea
-                    value={clinicalForm.foodAllergiesIntolerances || ""}
-                    onChange={(e) => setClinicalForm({ ...clinicalForm, foodAllergiesIntolerances: e.target.value })}
-                    rows={2}
-                    className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    placeholder="Ex: Lactose, Glúten, Amendoim, Frutos do mar..."
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Medicamentos de Uso Contínuo</label>
-                  <textarea
-                    value={clinicalForm.currentMedications || ""}
-                    onChange={(e) => setClinicalForm({ ...clinicalForm, currentMedications: e.target.value })}
-                    rows={2}
-                    className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    placeholder="Ex: Levotiroxina 50mcg, Enalapril 10mg..."
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Suplementação em Uso</label>
-                  <input
-                    type="text"
-                    value={clinicalForm.supplements || ""}
-                    onChange={(e) => setClinicalForm({ ...clinicalForm, supplements: e.target.value })}
-                    className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    placeholder="Ex: Whey protein, Creatina, Vitamina D..."
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Hábito Intestinal</label>
-                    <input
-                      type="text"
-                      value={clinicalForm.bowelHabit || ""}
-                      onChange={(e) => setClinicalForm({ ...clinicalForm, bowelHabit: e.target.value })}
-                      className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                      placeholder="Ex: Regular (diário)..."
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Hidratação (Água/dia)</label>
-                    <input
-                      type="text"
-                      value={clinicalForm.hydrationNotes || ""}
-                      onChange={(e) => setClinicalForm({ ...clinicalForm, hydrationNotes: e.target.value })}
-                      className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                      placeholder="Ex: 2.5 litros/dia..."
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Observações Gastrointestinais</label>
-                  <input
-                    type="text"
-                    value={clinicalForm.gastrointestinalNotes || ""}
-                    onChange={(e) => setClinicalForm({ ...clinicalForm, gastrointestinalNotes: e.target.value })}
-                    className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    placeholder="Ex: Refluxo ocasional, distensão abdominal..."
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: HISTÓRICO ALIMENTAR */}
-      {activeTab === "alimentar" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6" onBlur={handleFieldBlur}>
-          <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
-            <h3 className="font-semibold text-foreground text-sm border-b border-border/20 pb-2">
-              Preferências e Restrições
-            </h3>
-            <div className="space-y-3 text-sm">
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Alimentos Preferidos / Bem Aceitos</label>
-                <textarea
-                  value={clinicalForm.foodPreferences || ""}
-                  onChange={(e) => setClinicalForm({ ...clinicalForm, foodPreferences: e.target.value })}
-                  rows={3}
-                  className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  placeholder="Ex: Frango grelhado, arroz, banana, aveia, ovos..."
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Alimentos Rejeitados / Não Consome</label>
-                <textarea
-                  value={clinicalForm.dislikedFoods || ""}
-                  onChange={(e) => setClinicalForm({ ...clinicalForm, dislikedFoods: e.target.value })}
-                  rows={3}
-                  className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  placeholder="Ex: Fígado, peixe, quiabo, coentro..."
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Restrições Dietéticas / Padrão Alimentar</label>
-                <input
-                  type="text"
-                  value={clinicalForm.dietaryRestrictions || ""}
-                  onChange={(e) => setClinicalForm({ ...clinicalForm, dietaryRestrictions: e.target.value })}
-                  className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  placeholder="Ex: Vegetariano, Vegano, Sem glúten, Halal..."
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
-            <h3 className="font-semibold text-foreground text-sm border-b border-border/20 pb-2">
-              Rotina Alimentar e Apetite
-            </h3>
-            <div className="space-y-3 text-sm">
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Rotina Alimentar Habitual</label>
-                <textarea
-                  value={clinicalForm.usualEatingRoutine || ""}
-                  onChange={(e) => setClinicalForm({ ...clinicalForm, usualEatingRoutine: e.target.value })}
-                  rows={3}
-                  className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  placeholder="Ex: Café da manhã às 7h, almoço no trabalho às 12h, lanche às 16h..."
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Horários e Observações de Refeições</label>
-                <input
-                  type="text"
-                  value={clinicalForm.mealScheduleNotes || ""}
-                  onChange={(e) => setClinicalForm({ ...clinicalForm, mealScheduleNotes: e.target.value })}
-                  className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  placeholder="Ex: Janela curta para almoçar, come fora 3x na semana..."
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Padrão de Apetite e Fome</label>
-                <input
-                  type="text"
-                  value={clinicalForm.appetiteNotes || ""}
-                  onChange={(e) => setClinicalForm({ ...clinicalForm, appetiteNotes: e.target.value })}
-                  className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  placeholder="Ex: Mais fome no final da tarde, sem apetite ao acordar..."
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Dificuldades Prévias e Adesão</label>
-                <textarea
-                  value={clinicalForm.difficultiesAdherenceNotes || ""}
-                  onChange={(e) => setClinicalForm({ ...clinicalForm, difficultiesAdherenceNotes: e.target.value })}
-                  rows={2}
-                  className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  placeholder="Ex: Dificuldade em preparar refeições aos finais de semana..."
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: ESTILO DE VIDA */}
-      {activeTab === "estilo_vida" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6" onBlur={handleFieldBlur}>
-          <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
-            <h3 className="font-semibold text-foreground text-sm border-b border-border/20 pb-2">
-              Atividade Física e Sono
-            </h3>
-            <div className="space-y-3 text-sm">
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Atividade Física e Exercícios</label>
-                <textarea
-                  value={clinicalForm.physicalActivityNotes || ""}
-                  onChange={(e) => setClinicalForm({ ...clinicalForm, physicalActivityNotes: e.target.value })}
-                  rows={3}
-                  className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  placeholder="Ex: Musculação 4x/semana, corrida no sábado..."
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Rotina e Qualidade do Sono</label>
-                <textarea
-                  value={clinicalForm.sleepRoutine || ""}
-                  onChange={(e) => setClinicalForm({ ...clinicalForm, sleepRoutine: e.target.value })}
-                  rows={3}
-                  className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  placeholder="Ex: Dorme às 23h, acorda às 6h30, sono reparador..."
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
-            <h3 className="font-semibold text-foreground text-sm border-b border-border/20 pb-2">
-              Trabalho, Tabagismo e Álcool
-            </h3>
-            <div className="space-y-3 text-sm">
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Rotina de Trabalho / Estudos</label>
-                <textarea
-                  value={clinicalForm.workStudyRoutine || ""}
-                  onChange={(e) => setClinicalForm({ ...clinicalForm, workStudyRoutine: e.target.value })}
-                  rows={2}
-                  className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  placeholder="Ex: Trabalho administrativo sentado 8h/dia..."
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Tabagismo</label>
-                <input
-                  type="text"
-                  value={clinicalForm.smokingStatus || ""}
-                  onChange={(e) => setClinicalForm({ ...clinicalForm, smokingStatus: e.target.value })}
-                  className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  placeholder="Ex: Não fumante / Ex-fumante / Fumante ocasional..."
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Consumo de Bebidas Alcoólicas</label>
-                <input
-                  type="text"
-                  value={clinicalForm.alcoholNotes || ""}
-                  onChange={(e) => setClinicalForm({ ...clinicalForm, alcoholNotes: e.target.value })}
-                  className="w-full text-sm rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  placeholder="Ex: Socialmente aos finais de semana (1 a 2 doses)..."
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 5: ANTROPOMETRIA */}
-      {activeTab === "antropometria" && (
-        <div className="space-y-6">
-          <div className="rounded-xl border border-border/40 bg-card p-5">
-            <div className="flex items-center justify-between border-b border-border/20 pb-3 mb-4">
-              <div>
-                <h3 className="font-semibold text-foreground text-base">Histórico Antropométrico</h3>
-                <p className="text-xs text-muted-foreground">Registro cronológico de medições físicas e corporais.</p>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => setShowAddAnthro(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
-              >
-                + Adicionar Medição
-              </Button>
-            </div>
-
-            {detail.anthropometrics.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                Nenhuma medição antropométrica registrada ainda.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b border-border/40 text-xs uppercase text-muted-foreground">
-                      <th className="py-2.5 px-3">Data</th>
-                      <th className="py-2.5 px-3">Peso</th>
-                      <th className="py-2.5 px-3">Altura</th>
-                      <th className="py-2.5 px-3">Cintura</th>
-                      <th className="py-2.5 px-3">Quadril</th>
-                      <th className="py-2.5 px-3">Braço</th>
-                      <th className="py-2.5 px-3">Coxa</th>
-                      <th className="py-2.5 px-3">Observações</th>
-                      <th className="py-2.5 px-3 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detail.anthropometrics.map((entry) => (
-                      <tr key={entry.publicId} className="border-b border-border/20 hover:bg-muted/30 transition-colors">
-                        <td className="py-3 px-3 font-medium text-foreground">
-                          {new Date(`${entry.measurementDate}T12:00:00Z`).toLocaleDateString("pt-BR")}
-                        </td>
-                        <td className="py-3 px-3 text-foreground">
-                          {entry.weightKg !== null ? `${entry.weightKg} kg` : "-"}
-                        </td>
-                        <td className="py-3 px-3 text-foreground">
-                          {entry.heightCm !== null ? `${entry.heightCm} cm` : "-"}
-                        </td>
-                        <td className="py-3 px-3 text-foreground">
-                          {entry.waistCm !== null ? `${entry.waistCm} cm` : "-"}
-                        </td>
-                        <td className="py-3 px-3 text-foreground">
-                          {entry.hipCm !== null ? `${entry.hipCm} cm` : "-"}
-                        </td>
-                        <td className="py-3 px-3 text-foreground">
-                          {entry.armCm !== null ? `${entry.armCm} cm` : "-"}
-                        </td>
-                        <td className="py-3 px-3 text-foreground">
-                          {entry.thighCm !== null ? `${entry.thighCm} cm` : "-"}
-                        </td>
-                        <td className="py-3 px-3 text-xs text-muted-foreground max-w-xs truncate">
-                          {entry.notes || "-"}
-                        </td>
-                        <td className="py-3 px-3 text-right">
+                  <div className="space-y-2">
+                    {activePlan.meals.map((meal, idx) => {
+                      const isExpanded = expandedMealIdx === idx;
+                      return (
+                        <div
+                          key={idx}
+                          className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] overflow-hidden transition-colors"
+                        >
                           <button
                             type="button"
-                            onClick={() => handleDeleteAnthropometric(entry.publicId)}
-                            className="text-xs text-destructive hover:underline"
+                            onClick={() => setExpandedMealIdx(isExpanded ? null : idx)}
+                            className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer hover:bg-[var(--surface-hover)] transition-colors min-h-[44px]"
                           >
-                            Excluir
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center shrink-0">
+                                {idx + 1}
+                              </span>
+                              <div className="min-w-0">
+                                <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] block truncate">
+                                  {meal.title}
+                                </span>
+                                {meal.scheduledTime && (
+                                  <span className="text-[11px] text-[var(--text-tertiary)] block">
+                                    Horário: {meal.scheduledTime}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                                {meal.itemsCount} {meal.itemsCount === 1 ? "item" : "itens"}
+                              </span>
+                              <span className="text-xs text-[var(--text-tertiary)]">
+                                {isExpanded ? "▲" : "▼"}
+                              </span>
+                            </div>
                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* TAB 6: GESTAÇÃO */}
-      {activeTab === "gestacao" && (
-        <div className="space-y-6">
-          <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/20 pb-3">
-              <div>
-                <h3 className="font-semibold text-foreground text-base">Acompanhamento Gestacional e Pós-Parto</h3>
-                <p className="text-xs text-muted-foreground">
-                  Módulo clínico para registro obstétrico e acompanhamento nutricional.
-                </p>
-              </div>
+                          {isExpanded && (
+                            <div className="px-4 pb-3.5 pt-1 text-xs text-[var(--text-secondary)] border-t border-[var(--border-subtle)] space-y-2 bg-[var(--surface)]">
+                              <p className="font-medium text-[var(--text-tertiary)] text-[11px]">
+                                Para editar quantidades, alimentos e substituições detalhadas, abra o plano no builder.
+                              </p>
+                              <div className="flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={handleStartEditPlan}
+                                  className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                                >
+                                  Editar esta refeição no builder →
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-              {trimesterLabel && (
-                <Badge className="bg-purple-600 text-white text-xs px-3 py-1">
-                  {trimesterLabel}
-                </Badge>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs text-muted-foreground font-medium uppercase">Status da Paciente</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {(
-                  [
-                    { id: "NOT_APPLICABLE", label: "Não se Aplica" },
-                    { id: "NOT_PREGNANT", label: "Não Gestante" },
-                    { id: "PREGNANT", label: "Gestante" },
-                    { id: "POSTPARTUM", label: "Pós-Parto" },
-                  ] as const
-                ).map((st) => (
+                {/* Actions bottom bar */}
+                <div className="flex items-center justify-between gap-3 pt-3 border-t border-[var(--border-subtle)] flex-wrap">
                   <button
-                    key={st.id}
                     type="button"
-                    onClick={() => setPregnancyForm({ ...pregnancyForm, pregnancyStatus: st.id })}
-                    className={`py-2 px-3 text-xs font-medium rounded-lg border transition-colors ${
-                      pregnancyForm.pregnancyStatus === st.id
-                        ? "bg-purple-600 text-white border-purple-600 shadow-sm"
-                        : "border-border/60 bg-background text-muted-foreground hover:text-foreground"
-                    }`}
+                    onClick={handleStartEditPlan}
+                    disabled={isStartingEdit}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer flex items-center gap-2 min-h-[40px]"
                   >
-                    {st.label}
+                    <span>Editar no Builder →</span>
                   </button>
-                ))}
-              </div>
-            </div>
-
-            {pregnancyForm.pregnancyStatus === "PREGNANT" && (
-              <div className="space-y-4 pt-4 border-t border-border/20 text-sm">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Semana Gestacional</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="45"
-                      placeholder="Ex: 24"
-                      value={pregnancyForm.gestationalWeeks ?? ""}
-                      onChange={(e) =>
-                        setPregnancyForm({
-                          ...pregnancyForm,
-                          gestationalWeeks: e.target.value ? Number(e.target.value) : null,
-                        })
-                      }
-                      className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Data Provável do Parto (DPP)</label>
-                    <input
-                      type="date"
-                      value={pregnancyForm.estimatedDueDate ?? ""}
-                      onChange={(e) =>
-                        setPregnancyForm({
-                          ...pregnancyForm,
-                          estimatedDueDate: e.target.value || null,
-                        })
-                      }
-                      className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Data Última Menstruação (DUM)</label>
-                    <input
-                      type="date"
-                      value={pregnancyForm.lastMenstrualPeriodDate ?? ""}
-                      onChange={(e) =>
-                        setPregnancyForm({
-                          ...pregnancyForm,
-                          lastMenstrualPeriodDate: e.target.value || null,
-                        })
-                      }
-                      className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Peso Pré-Gestacional (kg)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="Ex: 62.0"
-                      value={pregnancyForm.prePregnancyWeightKg ?? ""}
-                      onChange={(e) =>
-                        setPregnancyForm({
-                          ...pregnancyForm,
-                          prePregnancyWeightKg: e.target.value ? Number(e.target.value) : null,
-                        })
-                      }
-                      className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Peso Gestacional Atual (kg)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="Ex: 68.5"
-                      value={pregnancyForm.currentPregnancyWeightKg ?? ""}
-                      onChange={(e) =>
-                        setPregnancyForm({
-                          ...pregnancyForm,
-                          currentPregnancyWeightKg: e.target.value ? Number(e.target.value) : null,
-                        })
-                      }
-                      className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Tipo de Gestação</label>
-                    <select
-                      value={pregnancyForm.pregnancyType ?? ""}
-                      onChange={(e) =>
-                        setPregnancyForm({
-                          ...pregnancyForm,
-                          pregnancyType: e.target.value || null,
-                        })
-                      }
-                      className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsSaveTemplateDialogOpen(true)}
+                      className="px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-secondary)] transition-colors cursor-pointer min-h-[40px]"
                     >
-                      <option value="">Não informado</option>
-                      <option value="SINGLETON">Única</option>
-                      <option value="TWINS">Gemelar</option>
-                      <option value="TRIPLETS_PLUS">Trigêmeos ou mais</option>
-                      <option value="OTHER">Outro</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Suplementação Obstétrica</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Ácido fólico 400mcg, Ferro 30mg, Ômega-3 DHA..."
-                      value={pregnancyForm.supplementationNotes ?? ""}
-                      onChange={(e) =>
-                        setPregnancyForm({
-                          ...pregnancyForm,
-                          supplementationNotes: e.target.value || null,
-                        })
-                      }
-                      className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Observações Obstétricas e Clínicas</label>
-                    <textarea
-                      rows={3}
-                      placeholder="Ex: Pré-natal de baixo risco, sem glicemia alterada no TOTG..."
-                      value={pregnancyForm.obstetricNotes ?? ""}
-                      onChange={(e) =>
-                        setPregnancyForm({
-                          ...pregnancyForm,
-                          obstetricNotes: e.target.value || null,
-                        })
-                      }
-                      className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {pregnancyForm.pregnancyStatus === "POSTPARTUM" && (
-              <div className="space-y-4 pt-4 border-t border-border/20 text-sm">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Data do Parto</label>
-                    <input
-                      type="date"
-                      value={pregnancyForm.deliveryDate ?? ""}
-                      onChange={(e) =>
-                        setPregnancyForm({
-                          ...pregnancyForm,
-                          deliveryDate: e.target.value || null,
-                        })
-                      }
-                      className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Status de Amamentação</label>
-                    <select
-                      value={pregnancyForm.breastfeedingStatus ?? ""}
-                      onChange={(e) =>
-                        setPregnancyForm({
-                          ...pregnancyForm,
-                          breastfeedingStatus: e.target.value || null,
-                        })
-                      }
-                      className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
+                      Salvar como modelo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsCopyPlanDialogOpen(true)}
+                      className="px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-secondary)] transition-colors cursor-pointer min-h-[40px]"
                     >
-                      <option value="">Não informado</option>
-                      <option value="EXCLUSIVE">Aleitamento materno exclusivo</option>
-                      <option value="PARTIAL">Aleitamento misto / parcial</option>
-                      <option value="FORMULA_ONLY">Fórmula infantil exclusiva</option>
-                      <option value="WEANED">Desmamado</option>
-                      <option value="NOT_APPLICABLE">Não se aplica</option>
-                    </select>
+                      Copiar plano
+                    </button>
                   </div>
-                </div>
-
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Observações do Pós-Parto</label>
-                  <textarea
-                    rows={3}
-                    placeholder="Ex: Recuperação puerperal satisfatória, boa ingestão hídrica para lactação..."
-                    value={pregnancyForm.postpartumNotes ?? ""}
-                    onChange={(e) =>
-                      setPregnancyForm({
-                        ...pregnancyForm,
-                        postpartumNotes: e.target.value || null,
-                      })
-                    }
-                    className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
-                  />
-                </div>
-              </div>
-            )}
-
-            {pregnancyForm.pregnancyStatus !== "PREGNANT" && pregnancyForm.pregnancyStatus !== "POSTPARTUM" && (
-              <p className="text-xs text-muted-foreground py-2">
-                Nenhum acompanhamento obstétrico ativo para este paciente. Altere o status acima caso deseje registrar gestação ou puerpério.
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-      {/* TAB 7: CÁLCULOS CLÍNICOS E METABÓLICOS */}
-      {activeTab === "calculos" && (
-        <div className="space-y-6">
-          {/* Card 1: IMC */}
-          <div className="rounded-2xl border border-border/50 bg-card p-6 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-heading text-lg font-bold text-foreground">
-                    Índice de Massa Corporal (IMC)
-                  </h3>
-                  <Badge variant="brand" size="sm">Aprovado (v1.0)</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Fórmula matemática padrão: peso (kg) / [altura (m)]². Decisão de suporte sem diagnósticos automáticos.
-                </p>
-              </div>
-              <div className="text-left sm:text-right">
-                <span className="text-xs text-muted-foreground font-mono">Fórmula: BMI_STANDARD_V1</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-              {/* Entradas e Fontes */}
-              <div className="space-y-3 md:col-span-2">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Dados de Entrada Utilizados
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                  <div className="p-3 rounded-xl bg-muted/40 border border-border/40 space-y-1">
-                    <span className="text-xs text-muted-foreground font-medium">Peso Corporal</span>
-                    <div className="font-semibold text-foreground">
-                      {bmiResult.inputs.weightKg
-                        ? `${bmiResult.inputs.weightKg.value} kg`
-                        : "Não informado"}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Origem: {bmiResult.inputs.weightKg?.sourceLabel || "Sem registro"}
-                      {bmiResult.inputs.weightKg?.isOverride && " (Ajuste temporário)"}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-muted/40 border border-border/40 space-y-1">
-                    <span className="text-xs text-muted-foreground font-medium">Estatura</span>
-                    <div className="font-semibold text-foreground">
-                      {bmiResult.inputs.heightCm
-                        ? `${bmiResult.inputs.heightCm.value} cm`
-                        : "Não informada"}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Origem: {bmiResult.inputs.heightCm?.sourceLabel || "Sem registro"}
-                      {bmiResult.inputs.heightCm?.isOverride && " (Ajuste temporário)"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Ajuste manual temporário (Override) */}
-                <div className="pt-2">
-                  <span className="text-xs font-medium text-foreground block mb-1.5">
-                    Ajuste Manual Temporário para Simulação
-                  </span>
-                  <p className="text-[11px] text-muted-foreground mb-2">
-                    Permite ao profissional testar valores para cálculo sem alterar o histórico de medições do aluno.
-                  </p>
-                  <div className="flex gap-3 items-center flex-wrap sm:flex-nowrap">
-                    <div className="flex-1 min-w-[120px]">
-                      <input
-                        type="number"
-                        step="0.1"
-                        placeholder="Peso simulado (kg)"
-                        value={calcWeightOverride}
-                        onChange={(e) => setCalcWeightOverride(e.target.value)}
-                        className="w-full text-xs rounded-lg border border-border/50 bg-background p-2 focus:outline-none focus:border-brand"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-[120px]">
-                      <input
-                        type="number"
-                        step="0.5"
-                        placeholder="Altura simulada (cm)"
-                        value={calcHeightOverride}
-                        onChange={(e) => setCalcHeightOverride(e.target.value)}
-                        className="w-full text-xs rounded-lg border border-border/50 bg-background p-2 focus:outline-none focus:border-brand"
-                      />
-                    </div>
-                    {(calcWeightOverride || calcHeightOverride) && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setCalcWeightOverride("");
-                          setCalcHeightOverride("");
-                        }}
-                        className="text-xs shrink-0"
-                      >
-                        Limpar Ajuste
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Resultado do IMC */}
-              <div className="p-5 rounded-2xl bg-secondary/30 border border-border/50 text-center space-y-2">
-                <span className="text-xs uppercase tracking-wider font-bold text-muted-foreground">
-                  Resultado do Cálculo
-                </span>
-                <div className="text-3xl font-extrabold text-foreground tracking-tight font-heading">
-                  {bmiResult.status === "SUCCESS"
-                    ? bmiResult.formattedResult
-                    : "—"}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {bmiResult.status === "SUCCESS"
-                    ? "Classificação diagnóstica não atribuída automaticamente."
-                    : bmiResult.formattedResult}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: TMB & GET/TDEE */}
-          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] p-6 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-heading text-lg font-bold text-[var(--text-primary)]">
-                    Taxa Metabólica Basal (TMB) & Gasto Energético Total (GET)
-                  </h3>
-                  {initialPlanning?.bmrKcal ? (
-                    <Badge variant="brand" size="sm">Calculado</Badge>
-                  ) : (
-                    <Badge variant="neutral" size="sm">Pendente</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  Valores calculados no Planejamento Nutricional com base na fórmula clínica e no nível de atividade física.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  flushPendingSave();
-                  setActiveTab("planejamento");
-                }}
-                className="text-xs font-bold text-[var(--brand)] hover:underline cursor-pointer"
-              >
-                Ajustar no Planejamento →
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-              <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1.5">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
-                  TMB (Basal)
-                </span>
-                <span className="font-heading font-extrabold text-[var(--text-primary)] text-2xl tabular-nums block">
-                  {initialPlanning?.bmrKcal ? `${Math.round(initialPlanning.bmrKcal)} kcal` : "TMB não calculada"}
-                </span>
-                <p className="text-[11px] text-[var(--text-secondary)]">
-                  Fórmula: {initialPlanning?.bmrFormula ? (BMR_FORMULA_METADATA[initialPlanning.bmrFormula]?.name || initialPlanning.bmrFormula) : "Não definida"}
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1.5">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
-                  Fator de Atividade
-                </span>
-                <span className="font-heading font-extrabold text-[var(--text-primary)] text-xl block truncate">
-                  {initialPlanning?.activityLevel ? (ACTIVITY_LEVEL_DEFINITIONS[initialPlanning.activityLevel]?.label || initialPlanning.activityLevel) : "Não definido"}
-                </span>
-                <p className="text-[11px] text-[var(--text-secondary)]">
-                  Multiplicador: {initialPlanning?.activityLevel ? `${ACTIVITY_LEVEL_DEFINITIONS[initialPlanning.activityLevel]?.factor}x` : "—"}
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1.5">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
-                  GET / TDEE (Gasto Total)
-                </span>
-                <span className="font-heading font-extrabold text-[var(--text-primary)] text-2xl tabular-nums block">
-                  {initialPlanning?.tdeeKcal ? `${Math.round(initialPlanning.tdeeKcal)} kcal` : "GET não calculado"}
-                </span>
-                <p className="text-[11px] text-[var(--text-secondary)]">
-                  Gasto energético total diário estimado
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Meta Calórica e Macronutrientes */}
-          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] p-6 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-heading text-lg font-bold text-[var(--text-primary)]">
-                    Meta Calórica Oficial & Distribuição de Macronutrientes
-                  </h3>
-                  {initialPlanning?.targetCaloriesKcal ? (
-                    <Badge variant="brand" size="sm">Meta Definida</Badge>
-                  ) : (
-                    <Badge variant="neutral" size="sm">Meta Pendente</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  Prescrição de calorias e distribuição planejada de macronutrientes para o objetivo do paciente.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  flushPendingSave();
-                  setActiveTab("planejamento");
-                }}
-                className="text-xs font-bold text-[var(--brand)] hover:underline cursor-pointer"
-              >
-                Editar Parâmetros →
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1.5">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
-                  Objetivo Nutricional
-                </span>
-                <span className="font-heading font-bold text-[var(--text-primary)] text-lg block">
-                  {initialPlanning?.goalType ? (GOAL_TYPE_DEFINITIONS[initialPlanning.goalType]?.label || initialPlanning.goalType) : "Objetivo não definido"}
-                </span>
-                {initialPlanning?.clinicalNotes && (
-                  <p className="text-[11px] text-[var(--text-secondary)] line-clamp-2">
-                    {initialPlanning.clinicalNotes}
-                  </p>
-                )}
-              </div>
-
-              <div className="p-4 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] space-y-1.5">
-                <span className="text-[10px] uppercase font-bold text-[var(--brand)] block">
-                  Meta Calórica Diária
-                </span>
-                <span className="font-heading font-extrabold text-[var(--brand)] text-2xl tabular-nums block">
-                  {initialPlanning?.targetCaloriesKcal ? `${initialPlanning.targetCaloriesKcal} kcal/dia` : "Meta calórica não definida"}
-                </span>
-                <p className="text-[11px] text-[var(--text-secondary)]">
-                  {initialPlanning?.targetCaloriesKcal && initialPlanning?.tdeeKcal
-                    ? `${initialPlanning.targetCaloriesKcal > initialPlanning.tdeeKcal ? "Superávit" : "Déficit"} de ${Math.abs(Math.round(initialPlanning.targetCaloriesKcal - initialPlanning.tdeeKcal))} kcal em relação ao GET`
-                    : "Padrão normocalórico ou pendente de cálculo"}
-                </p>
-              </div>
-            </div>
-
-            {/* Distribuição de Macronutrientes */}
-            {initialPlanning?.targetCaloriesKcal && (initialPlanning.targetProteinG !== null || initialPlanning.targetCarbsG !== null || initialPlanning.targetFatsG !== null) ? (
-              <div className="grid grid-cols-3 gap-3 text-center text-xs pt-2">
-                <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-blue-700 dark:text-blue-300 block">
-                    Proteína
-                  </span>
-                  <span className="font-heading font-extrabold text-[var(--text-primary)] text-lg tabular-nums block">
-                    {initialPlanning.targetProteinG !== null ? `${initialPlanning.targetProteinG}g` : "—"}
-                  </span>
-                  <span className="text-[10px] text-[var(--text-secondary)] block">
-                    {initialPlanning.targetProteinG !== null
-                      ? `${Math.round(initialPlanning.targetProteinG * 4)} kcal (${Math.round(((initialPlanning.targetProteinG * 4) / initialPlanning.targetCaloriesKcal) * 100)}%)`
-                      : "—"}
-                  </span>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-300 block">
-                    Carboidrato
-                  </span>
-                  <span className="font-heading font-extrabold text-[var(--text-primary)] text-lg tabular-nums block">
-                    {initialPlanning.targetCarbsG !== null ? `${initialPlanning.targetCarbsG}g` : "—"}
-                  </span>
-                  <span className="text-[10px] text-[var(--text-secondary)] block">
-                    {initialPlanning.targetCarbsG !== null
-                      ? `${Math.round(initialPlanning.targetCarbsG * 4)} kcal (${Math.round(((initialPlanning.targetCarbsG * 4) / initialPlanning.targetCaloriesKcal) * 100)}%)`
-                      : "—"}
-                  </span>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-rose-700 dark:text-rose-300 block">
-                    Gordura
-                  </span>
-                  <span className="font-heading font-extrabold text-[var(--text-primary)] text-lg tabular-nums block">
-                    {initialPlanning.targetFatsG !== null ? `${initialPlanning.targetFatsG}g` : "—"}
-                  </span>
-                  <span className="text-[10px] text-[var(--text-secondary)] block">
-                    {initialPlanning.targetFatsG !== null
-                      ? `${Math.round(initialPlanning.targetFatsG * 9)} kcal (${Math.round(((initialPlanning.targetFatsG * 9) / initialPlanning.targetCaloriesKcal) * 100)}%)`
-                      : "—"}
-                  </span>
                 </div>
               </div>
             ) : (
-              <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-center text-xs text-[var(--text-tertiary)]">
-                Distribuição de macronutrientes não definida ainda no planejamento deste paciente.
+              <div className="py-8 px-4 text-center space-y-3">
+                <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                  Nenhum plano alimentar ativo no momento para este paciente.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsPlanChoiceModalOpen(true)}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors cursor-pointer inline-flex items-center gap-2 min-h-[42px]"
+                >
+                  <span>+ Criar plano</span>
+                </button>
               </div>
             )}
-          </div>
+          </section>
+
+          {/* 2. ACOMPANHAMENTO CLÍNICO & ADERÊNCIA */}
+          <section
+            id="sec-acompanhamento"
+            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
+                  Acompanhamento Clínico & Aderência
+                </span>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  Acompanhamento Nutricional
+                </h3>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                {checkinsCount > 0 ? `${checkinsCount} check-in(s)` : "Sem registros no período"}
+              </span>
+            </div>
+
+            {/* 4 Metric Tiles as in Screenshot */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Último Acesso</span>
+                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block">
+                  {latestCompletedConsultation?.formattedDate || "Hoje"}
+                </span>
+              </div>
+              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Check-ins (7D)</span>
+                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block">
+                  {checkinsCount > 0 ? `${checkinsCount} respondido(s)` : "Sem registros"}
+                </span>
+              </div>
+              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Desvios Dieta</span>
+                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block">
+                  Dados insuficientes
+                </span>
+              </div>
+              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Plano Ativo</span>
+                <span className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400 block truncate">
+                  {activePlan ? activePlan.versionTitle : "Nenhum"}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* 3. HISTÓRICO DO PACIENTE */}
+          <section
+            id="sec-historico"
+            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+              <h3 className="text-base font-bold text-[var(--text-primary)]">
+                Histórico do Paciente
+              </h3>
+              <span className="text-xs text-[var(--text-tertiary)]">Eventos cronológicos</span>
+            </div>
+
+            <div className="space-y-3">
+              {nextScheduledConsultation && (
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                    R
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <p className="text-xs font-bold text-[var(--text-primary)]">Próxima Consulta Agendada</p>
+                    <p className="text-[11px] text-[var(--text-secondary)]">
+                      {nextScheduledConsultation.formattedStart}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {latestCompletedConsultation && (
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                    C
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <p className="text-xs font-bold text-[var(--text-primary)]">Consulta Realizada</p>
+                    <p className="text-[11px] text-[var(--text-secondary)]">
+                      {latestCompletedConsultation.formattedDate} • {latestCompletedConsultation.consultationTypeLabel || "Atendimento clínico"}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {activePlan && (
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                    P
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <p className="text-xs font-bold text-[var(--text-primary)]">Plano Alimentar Atribuído</p>
+                    <p className="text-[11px] text-[var(--text-secondary)]">
+                      {activePlan.versionTitle} • Início: {formatDate(activePlan.startsOn)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                  ✓
+                </div>
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="text-xs font-bold text-[var(--text-primary)]">Início do Acompanhamento</p>
+                  <p className="text-[11px] text-[var(--text-secondary)]">
+                    Cadastrado na consultoria em {new Date(detail.student.joinedAt).toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
-      )}
+
+        {/* ================================================================= */}
+        {/* RIGHT COLUMN: OBJETIVO + BIOMETRIA + ALERGIAS + DOCUMENTOS       */}
+        {/* ================================================================= */}
+        <div className="lg:col-span-5 space-y-6">
+          {/* 1. OBJETIVO NUTRICIONAL */}
+          <section
+            id="sec-objetivo"
+            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3"
+          >
+            <div>
+              <span className="text-[10px] uppercase font-extrabold text-emerald-600 dark:text-emerald-400 tracking-wider block">
+                Objetivo Nutricional
+              </span>
+              <h3 className="text-lg font-extrabold text-[var(--text-primary)]">
+                {clinicalForm.mainObjective || detail.onboardingReference?.mainObjective || "Massa Magra + Definição"}
+              </h3>
+            </div>
+
+            <div className="pt-2 border-t border-[var(--border-subtle)] space-y-1">
+              <label className="text-[10px] font-bold uppercase text-[var(--text-tertiary)] block">
+                Observações Clínicas
+              </label>
+              <textarea
+                value={clinicalForm.clinicalObservations || ""}
+                onChange={(e) => {
+                  const next = { ...clinicalForm, clinicalObservations: e.target.value };
+                  setClinicalForm(next);
+                  executeAutosave(next);
+                }}
+                onBlur={handleFieldBlur}
+                rows={2}
+                disabled={!canAuthorNutrition}
+                placeholder="Anotações e condutas clínicas do profissional..."
+                className="w-full text-xs rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-2.5 focus:outline-hidden focus:ring-1 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
+              />
+            </div>
+          </section>
+
+          {/* 2. DADOS BIOMÉTRICOS & CADASTRAIS */}
+          <section
+            id="sec-biometricos"
+            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3"
+          >
+            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] tracking-wider block">
+              Dados Biométricos & Cadastrais
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-center space-y-0.5">
+                <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Peso Atual</span>
+                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
+                  {currentWeightKg !== null ? `${currentWeightKg} kg` : "Não informado"}
+                </span>
+                {weightDelta !== null && (
+                  <span className={`text-[9px] font-bold block ${weightDelta > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                    {weightDelta > 0 ? `+${weightDelta.toFixed(1)} kg` : `${weightDelta.toFixed(1)} kg`}
+                  </span>
+                )}
+              </div>
+              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-center space-y-0.5">
+                <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Altura</span>
+                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
+                  {currentHeightCm !== null ? `${currentHeightCm} cm` : "Não informado"}
+                </span>
+                {bmiValue !== null && (
+                  <span className="text-[9px] font-bold text-[var(--text-tertiary)] block truncate" title={`IMC: ${bmiValue.toFixed(1)} · ${bmiClassification}`}>
+                    IMC {bmiValue.toFixed(1)}
+                  </span>
+                )}
+              </div>
+              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-center space-y-0.5">
+                <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Idade</span>
+                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
+                  {ageYears !== null ? `${ageYears} anos` : "Não informado"}
+                </span>
+              </div>
+              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-center space-y-0.5">
+                <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Sexo</span>
+                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block truncate">
+                  {bioSexLabel}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* 3. ALERGIAS & RESTRIÇÕES ALIMENTARES (STRICT TRI-STATE) */}
+          <section
+            id="sec-alergias"
+            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3"
+          >
+            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] tracking-wider block">
+              Alergias & Restrições Alimentares
+            </span>
+
+            {allergyState.status === "HAS_ALLERGIES" ? (
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {allergyState.items.map((item, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                      <span>{item}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : allergyState.status === "EXPLICITLY_NONE" ? (
+              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <span>Paciente declarou não possuir alergias ou restrições alimentares.</span>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                  <span>Alergias não informadas</span>
+                </div>
+                <span className="text-[11px] text-amber-700/80 dark:text-amber-400/80">
+                  {allergyState.subtext}
+                </span>
+              </div>
+            )}
+          </section>
+
+          {/* 4. REGISTROS & DOCUMENTOS */}
+          <section
+            id="sec-documentos"
+            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3"
+          >
+            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] tracking-wider block">
+              Registros & Documentos
+            </span>
+            <div className="grid grid-cols-3 gap-2.5">
+              <a
+                href="#sec-evolucao"
+                className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] transition-colors block text-center space-y-1"
+              >
+                <span className="text-xs font-bold text-[var(--text-primary)] block">Evolução</span>
+                <span className="text-[11px] text-[var(--text-secondary)] block">
+                  {sortedAnthros.length} registro(s)
+                </span>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setIsAnamneseDrawerOpen(true)}
+                className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] transition-colors block text-center space-y-1 cursor-pointer"
+              >
+                <span className="text-xs font-bold text-[var(--text-primary)] block">Anamnese</span>
+                <span className={`text-[11px] font-semibold block ${isAnswered ? "text-emerald-600" : "text-amber-600"}`}>
+                  {isAnswered ? "Respondida" : "Pendente"}
+                </span>
+              </button>
+
+              <a
+                href="#sec-acompanhamento"
+                className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] transition-colors block text-center space-y-1"
+              >
+                <span className="text-xs font-bold text-[var(--text-primary)] block">Formulários</span>
+                <span className="text-[11px] text-[var(--text-secondary)] block">
+                  {checkinsCount} formulário(s)
+                </span>
+              </a>
+            </div>
+          </section>
+
+          {/* 5. HISTÓRICO ANTROPOMÉTRICO (EVOLUÇÃO) */}
+          <section
+            id="sec-evolucao"
+            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
+                  Histórico Corporal
+                </span>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  Evolução Antropométrica
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddAnthro(true)}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              >
+                + Nova Medição
+              </button>
+            </div>
+
+            {sortedAnthros.length > 0 ? (
+              <div className="space-y-2">
+                <div className="divide-y divide-[var(--border-subtle)] text-xs">
+                  {sortedAnthros.slice(0, 5).map((anthro, idx) => {
+                    const rowBmi = anthro.weightKg && anthro.heightCm ? (anthro.weightKg / Math.pow(anthro.heightCm / 100, 2)).toFixed(1) : null;
+                    return (
+                      <div key={anthro.publicId || idx} className="py-2.5 flex items-center justify-between">
+                        <div>
+                          <span className="font-bold text-[var(--text-primary)] block">
+                            {formatDate(anthro.measurementDate)}
+                          </span>
+                          <span className="text-[11px] text-[var(--text-tertiary)]">
+                            {anthro.heightCm ? `${anthro.heightCm} cm` : "Altura —"} {rowBmi ? `• IMC ${rowBmi}` : ""}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-extrabold text-[var(--text-primary)] text-sm tabular-nums block">
+                            {anthro.weightKg ? `${anthro.weightKg} kg` : "—"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <Link
+                    href={`/consultoria/${slug}/progresso/alunos/${detail.student.membershipPublicId}`}
+                    className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                  >
+                    Ver evolução fotográfica e comparativos 360° →
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--text-tertiary)] py-4 text-center">
+                Nenhuma medição antropométrica registrada ainda.
+              </p>
+            )}
+          </section>
+
+          {/* 6. RESUMO DA ANAMNESE CLÍNICA */}
+          <section
+            id="sec-anamnese"
+            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                Resumo da Anamnese
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsAnamneseDrawerOpen(true)}
+                className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+              >
+                Ver Anamnese Completa →
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div>
+                <span className="text-[10px] font-bold uppercase text-[var(--text-tertiary)] block">Patologias:</span>
+                <p className="font-medium text-[var(--text-secondary)]">
+                  {clinicalForm.diagnosedConditions || detail.onboardingReference?.healthConditions || "Nenhuma relatada"}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase text-[var(--text-tertiary)] block">Medicamentos:</span>
+                <p className="font-medium text-[var(--text-secondary)]">
+                  {clinicalForm.currentMedications || detail.onboardingReference?.medications || "Nenhum de uso contínuo"}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase text-[var(--text-tertiary)] block">Alimentos de Preferência:</span>
+                <p className="font-medium text-[var(--text-secondary)]">
+                  {clinicalForm.foodPreferences || detail.onboardingReference?.preferredFoods || "Não informado"}
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
 
-      {/* Shared Anthropometric Measurement Modal (Mobile + Desktop) */}
+      {/* =================================================================== */}
+      {/* MODALS & DRAWERS                                                    */}
+      {/* =================================================================== */}
+
+      {/* 1. Modal: 4 Opções de Criação de Plano Alimentar */}
+      {isPlanChoiceModalOpen && (
+        <NutritionPlanChoiceModal
+          isOpen={isPlanChoiceModalOpen}
+          onClose={() => setIsPlanChoiceModalOpen(false)}
+          onSelectOption={handleSelectChoiceOption}
+        />
+      )}
+
+      {/* 2. Drawer: Visualização Completa da Anamnese */}
+      {isAnamneseDrawerOpen && (
+        <PatientAnamneseDrawer
+          isOpen={isAnamneseDrawerOpen}
+          onClose={() => setIsAnamneseDrawerOpen(false)}
+          detail={detail}
+          clinicalForm={clinicalForm}
+        />
+      )}
+
+      {/* 3. Modal: Dados Cadastrais */}
+      {isCadastralModalOpen && (
+        <PatientCadastralModal
+          isOpen={isCadastralModalOpen}
+          onClose={() => setIsCadastralModalOpen(false)}
+          detail={detail}
+        />
+      )}
+
+      {/* 4. Modal: Nova Medição Antropométrica */}
       {showAddAnthro && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-card border border-border/60 rounded-xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-border/30 pb-2">
-              <h4 className="font-semibold text-foreground text-base">Nova Medição Antropométrica</h4>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-[var(--border-subtle)] pb-3">
+              <h4 className="font-extrabold text-[var(--text-primary)] text-base">Nova Medição Antropométrica</h4>
               <button
                 type="button"
                 onClick={() => setShowAddAnthro(false)}
-                className="text-muted-foreground hover:text-foreground text-sm"
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-sm cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleAddAnthropometric} className="space-y-3 text-sm">
+            <form onSubmit={handleAddAnthropometric} className="space-y-3.5 text-xs">
               <div>
-                <label className="text-xs text-muted-foreground font-medium">Data da Medição *</label>
+                <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Data da Medição *</label>
                 <input
                   type="date"
                   required
                   value={newAnthro.measurementDate}
                   onChange={(e) => setNewAnthro({ ...newAnthro, measurementDate: e.target.value })}
-                  className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
+                  className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-2.5 mt-1 text-sm font-semibold text-[var(--text-primary)]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-muted-foreground font-medium">Peso (kg)</label>
+                  <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Peso (kg) *</label>
                   <input
                     type="number"
-                    step="0.01"
-                    min="1"
-                    max="500"
-                    placeholder="Ex: 75.5"
+                    step="0.1"
+                    required
                     value={newAnthro.weightKg ?? ""}
                     onChange={(e) =>
-                      setNewAnthro({ ...newAnthro, weightKg: e.target.value ? Number(e.target.value) : null })
+                      setNewAnthro({
+                        ...newAnthro,
+                        weightKg: e.target.value ? parseFloat(e.target.value) : null,
+                      })
                     }
-                    className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
+                    className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-2.5 mt-1 text-sm font-semibold text-[var(--text-primary)]"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground font-medium">Altura (cm)</label>
+                  <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Altura (cm)</label>
                   <input
                     type="number"
-                    step="0.1"
-                    min="40"
-                    max="260"
-                    placeholder="Ex: 175"
+                    step="0.5"
                     value={newAnthro.heightCm ?? ""}
                     onChange={(e) =>
-                      setNewAnthro({ ...newAnthro, heightCm: e.target.value ? Number(e.target.value) : null })
+                      setNewAnthro({
+                        ...newAnthro,
+                        heightCm: e.target.value ? parseFloat(e.target.value) : null,
+                      })
                     }
-                    className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
+                    className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-2.5 mt-1 text-sm font-semibold text-[var(--text-primary)]"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Cintura (cm)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    placeholder="Ex: 82"
-                    value={newAnthro.waistCm ?? ""}
-                    onChange={(e) =>
-                      setNewAnthro({ ...newAnthro, waistCm: e.target.value ? Number(e.target.value) : null })
-                    }
-                    className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Quadril (cm)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    placeholder="Ex: 98"
-                    value={newAnthro.hipCm ?? ""}
-                    onChange={(e) =>
-                      setNewAnthro({ ...newAnthro, hipCm: e.target.value ? Number(e.target.value) : null })
-                    }
-                    className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Braço (cm)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    placeholder="Ex: 34"
-                    value={newAnthro.armCm ?? ""}
-                    onChange={(e) =>
-                      setNewAnthro({ ...newAnthro, armCm: e.target.value ? Number(e.target.value) : null })
-                    }
-                    className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground font-medium">Coxa (cm)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    placeholder="Ex: 56"
-                    value={newAnthro.thighCm ?? ""}
-                    onChange={(e) =>
-                      setNewAnthro({ ...newAnthro, thighCm: e.target.value ? Number(e.target.value) : null })
-                    }
-                    className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Observações</label>
-                <input
-                  type="text"
-                  maxLength={500}
-                  placeholder="Ex: Medição pós-treino..."
-                  value={newAnthro.notes ?? ""}
-                  onChange={(e) => setNewAnthro({ ...newAnthro, notes: e.target.value || null })}
-                  className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowAddAnthro(false)}>
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
+                <button
+                  type="button"
+                  onClick={() => setShowAddAnthro(false)}
+                  className="px-4 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer"
+                >
                   Cancelar
-                </Button>
-                <Button type="submit" size="sm" disabled={isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
+                >
                   {isPending ? "Salvando..." : "Salvar Medição"}
-                </Button>
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Modals for Phase 4: Templates and Plan Copy */}
+      {/* 5. Modais de IA */}
+      {isAiGenerateModalOpen && (
+        <NutritionAiGenerateModal
+          isOpen={isAiGenerateModalOpen}
+          onClose={() => setIsAiGenerateModalOpen(false)}
+          consultancySlug={slug}
+        />
+      )}
+
+      <NutritionAiImportModal
+        isOpenControlled={isAiImportModalOpen}
+        onCloseControlled={() => setIsAiImportModalOpen(false)}
+        consultancySlug={slug}
+        hideTrigger
+      />
+
+      {/* 6. Modals de Modelos e Cópia */}
       {isTemplatesModalOpen && (
         <NutritionTemplatesModal
           isOpen={isTemplatesModalOpen}
@@ -2225,6 +1514,6 @@ export function PatientRecordView({
           defaultName={activePlan.versionTitle}
         />
       )}
-    </>
+    </div>
   );
 }

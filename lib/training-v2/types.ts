@@ -266,6 +266,7 @@ export type WorkoutBlockItemDto = {
   subBlockTitle?: string | null;
   sortOrder: number;
   exerciseNameSnapshot: string;
+  originalExerciseName?: string | null;
   muscleGroupSnapshot: string | null;
   equipmentSnapshot: string | null;
   instructionsSnapshot: string | null;

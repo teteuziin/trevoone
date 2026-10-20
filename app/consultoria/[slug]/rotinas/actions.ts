@@ -20,6 +20,7 @@ import {
   duplicateItemInDraft,
   moveItemToBlockInDraft,
   updateItemQuickConfigInDraft,
+  renameWorkoutItemInDraft,
   type QuickConfigInput,
   reorderBlocksInDraft,
   removeBlockFromDraft,
@@ -1408,6 +1409,24 @@ export async function updateExerciseQuickConfigAction(
 /**
  * Creates a new sub-block (Grupo) inside a workout block.
  */
+export async function renameExerciseItemAction(
+  slug: string,
+  itemPublicId: string,
+  newName: string
+): Promise<ActionResponse<{ publicId: string; exerciseNameSnapshot: string }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const result = await renameWorkoutItemInDraft(ctx, itemPublicId, newName);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: result };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao renomear exercício.",
+    };
+  }
+}
+
 export async function createSubBlockAction(
   slug: string,
   blockPublicId: string,

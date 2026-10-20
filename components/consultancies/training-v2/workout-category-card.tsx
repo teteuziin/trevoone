@@ -36,6 +36,7 @@ import type { CustomExerciseFormData } from "./custom-exercise-inline-modal";
 import type { WorkoutRootDto, WorkoutVersionDto } from "@/lib/training-v2/types";
 import { TrainingStudioAssistant } from "./training-studio-assistant";
 import { BlockOrderModal, type ReorderEntry } from "./block-order-modal";
+import { WorkoutRenameExerciseModal } from "./workout-rename-exercise-modal";
 
 export function parseActiveRest(title?: string | null): { isActive: boolean; activity: string } {
   if (!title) return { isActive: false, activity: "" };
@@ -154,6 +155,8 @@ function Edit2({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+const Pencil = Edit2;
+
 function Copy({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -251,6 +254,7 @@ export type CategoryCardProps = {
   onMoveExerciseDown: (categoryPublicId: string, itemIndex: number) => Promise<void>;
   onReorderExercises?: (categoryPublicId: string, itemPublicIds: string[]) => Promise<void>;
   onUpdateExerciseQuickConfig: (itemPublicId: string, config: QuickConfigInput) => Promise<void>;
+  onRenameExercise?: (itemPublicId: string, newName: string) => Promise<void>;
   // Sub-blocks (Grupos)
   onCreateSubBlock?: (categoryPublicId: string, title: string) => Promise<void>;
   onRenameSubBlock?: (subBlockPublicId: string, newTitle: string) => Promise<void>;
@@ -597,6 +601,7 @@ export function WorkoutCategoryCard({
   onMoveExerciseDown,
   onReorderExercises,
   onUpdateExerciseQuickConfig,
+  onRenameExercise,
   onCreateSubBlock,
   onRenameSubBlock,
   onDuplicateSubBlock,
@@ -736,6 +741,7 @@ export function WorkoutCategoryCard({
 
   // Mobile Bottom Sheets & Modals state
   const [quickEditingItem, setQuickEditingItem] = useState<WorkoutBlockItemDto | null>(null);
+  const [renamingItem, setRenamingItem] = useState<WorkoutBlockItemDto | null>(null);
   const [editingCombination, setEditingCombination] = useState<WorkoutItemCombinationDto | null>(null);
   const [mobileAddSheetTarget, setMobileAddSheetTarget] = useState<{
     isOpen: boolean;
@@ -1540,6 +1546,8 @@ export function WorkoutCategoryCard({
                               onMoveEntryToPosition={(pos) => handleMoveEntryInContainer(entries, activeEntryIdx, pos, subBlock.publicId)}
                               onOpenEditCombination={(c) => setEditingCombination(c)}
                               onOpenQuickEdit={(it) => setQuickEditingItem(it)}
+                        onRenameExercise={(it) => setRenamingItem(it)}
+     
                               onOpenActions={(it, idx, tot) =>
                                 setActionsSheetItem({
                                   item: it,
@@ -1591,6 +1599,8 @@ export function WorkoutCategoryCard({
                                 selectionIndex={selectionIndex}
                                 onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
                                 onOpenQuickEdit={() => setQuickEditingItem(item)}
+                          onRename={() => setRenamingItem(item)}
+     
                                 onOpenActions={() =>
                                   setActionsSheetItem({
                                     item,
@@ -1634,6 +1644,7 @@ export function WorkoutCategoryCard({
                                 onCloseMove={() => setMovingExerciseId(null)}
                                 onDuplicate={() => onDuplicateExercise(item.publicId)}
                                 onDelete={() => onDeleteExercise(item.publicId)}
+                onRename={() => setRenamingItem(item)}
                                 onMoveUp={handleItemMoveUp}
                                 onMoveDown={handleItemMoveDown}
                                 onMoveStart={onReorderExercises ? async () => { await handleMoveEntryInContainer(entries, activeEntryIdx, "start", subBlock.publicId); } : undefined}
@@ -1758,6 +1769,7 @@ export function WorkoutCategoryCard({
                         onMoveEntryToPosition={(pos) => handleMoveEntryInContainer(flatEntries, activeEntryIdx, pos, null)}
                         onOpenEditCombination={(c) => setEditingCombination(c)}
                         onOpenQuickEdit={(it) => setQuickEditingItem(it)}
+                        onRenameExercise={(it) => setRenamingItem(it)}
                         onOpenActions={(it, idx, tot) =>
                           setActionsSheetItem({
                             item: it,
@@ -1808,6 +1820,7 @@ export function WorkoutCategoryCard({
                           selectionIndex={selectionIndex}
                           onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
                           onOpenQuickEdit={() => setQuickEditingItem(item)}
+                          onRename={() => setRenamingItem(item)}
                           onOpenActions={() =>
                             setActionsSheetItem({ item, index: activeEntryIdx, total: items.length })
                           }
@@ -1846,6 +1859,7 @@ export function WorkoutCategoryCard({
                           onCloseMove={() => setMovingExerciseId(null)}
                           onDuplicate={() => onDuplicateExercise(item.publicId)}
                           onDelete={() => onDeleteExercise(item.publicId)}
+                onRename={() => setRenamingItem(item)}
                           onMoveUp={handleItemMoveUp}
                           onMoveDown={handleItemMoveDown}
                           onMoveStart={onReorderExercises ? async () => { await handleMoveEntryInContainer(flatEntries, activeEntryIdx, "start", null); } : undefined}
@@ -2012,6 +2026,22 @@ export function WorkoutCategoryCard({
         />
       )}
 
+      {/* Exercise Rename Modal */}
+      {renamingItem && (
+        <WorkoutRenameExerciseModal
+          isOpen={Boolean(renamingItem)}
+          item={
+            items.find((i) => i.publicId === renamingItem.publicId) || renamingItem
+          }
+          onClose={() => setRenamingItem(null)}
+          onSave={async (newName) => {
+            if (renamingItem && onRenameExercise) {
+              await onRenameExercise(renamingItem.publicId, newName);
+            }
+          }}
+        />
+      )}
+
       {/* Mobile Edit Combination Sheet */}
       {editingCombination && (
         <EditCombinationSheet
@@ -2088,6 +2118,11 @@ export function WorkoutCategoryCard({
             setActionsSheetItem(null);
             setQuickEditingItem(it);
           }}
+          onOpenRename={onRenameExercise ? () => {
+            const it = actionsSheetItem.item;
+            setActionsSheetItem(null);
+            setRenamingItem(it);
+          } : undefined}
           onOpenExecutionModal={() => {
             const it = actionsSheetItem.item;
             setActionsSheetItem(null);
@@ -2322,6 +2357,7 @@ export type LegacyCombinationCardProps = {
   onDeleteExercise: (itemPublicId: string) => Promise<void>;
   onMoveExerciseToCategory: (itemPublicId: string, targetCatId: string) => Promise<void>;
   onUpdateExerciseQuickConfig: (itemPublicId: string, config: QuickConfigInput) => Promise<void>;
+  onRenameExercise?: (item: WorkoutBlockItemDto) => void;
   onResolveExercise?: (itemPublicId: string) => void;
   onOpenCreateCustomExercise?: (
     categoryPublicId: string,
@@ -2370,6 +2406,7 @@ export function LegacyCombinationCard({
   onDeleteExercise,
   onMoveExerciseToCategory,
   onUpdateExerciseQuickConfig,
+  onRenameExercise,
   onResolveExercise,
   onOpenCreateCustomExercise,
   onUpdateCombination,
@@ -2663,6 +2700,7 @@ export function LegacyCombinationCard({
                 onCloseMove={onCloseMoveExercise}
                 onDuplicate={() => onDuplicateExercise(item.publicId)}
                 onDelete={() => onDeleteExercise(item.publicId)}
+                onRename={() => onRenameExercise?.(item)}
                 onMoveUp={() => Promise.resolve()}
                 onMoveDown={() => Promise.resolve()}
                 onMoveToCategory={(targetCatId) => onMoveExerciseToCategory(item.publicId, targetCatId)}
@@ -2751,6 +2789,7 @@ type ExerciseRowProps = {
   onMoveToCategory: (targetCategoryPublicId: string) => Promise<void>;
   onSaveQuickConfig: (config: QuickConfigInput) => Promise<void>;
   onResolve?: () => void;
+  onRename?: () => void;
   onOpenConvertCustom?: () => void;
   onOpenConfigureSequence?: (
     item: WorkoutBlockItemDto,
@@ -2803,6 +2842,7 @@ function ExerciseRow({
   onMoveToCategory,
   onSaveQuickConfig,
   onResolve,
+  onRename,
   onOpenConvertCustom,
   onOpenConfigureSequence,
   isSelectionMode,
@@ -3010,6 +3050,21 @@ function ExerciseRow({
               <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] line-clamp-2 sm:truncate break-words">
                 {item.exerciseNameSnapshot}
               </h3>
+
+              {isDraft && onRename && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRename();
+                  }}
+                  aria-label="Renomear exercício"
+                  title="Renomear exercício"
+                  className="p-1 rounded-md text-[var(--text-tertiary)] hover:text-emerald-600 hover:bg-emerald-500/10 transition-colors shrink-0 cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              )}
 
               {isSelectionMode && !inCombination && isSelected && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold bg-emerald-600 text-white shadow-xs shrink-0">
@@ -3807,6 +3862,7 @@ export type UnifiedCombinationBlockProps = {
   ) => Promise<void>;
   onUngroupCombination?: (combinationPublicId: string) => Promise<void>;
   onDeleteCombination?: (combinationPublicId: string, deleteItems?: boolean) => Promise<void>;
+  onRenameExercise?: (item: WorkoutBlockItemDto) => void;
 };
 
 export function UnifiedCombinationBlock({
@@ -3826,6 +3882,7 @@ export function UnifiedCombinationBlock({
   onMoveItemInCombination,
   onUngroupCombination,
   onDeleteCombination,
+  onRenameExercise,
 }: UnifiedCombinationBlockProps) {
   const items = useMemo(() => combination.items || [], [combination.items]);
   const theme = getCombinationTheme(combination.combinationType);
@@ -4378,6 +4435,20 @@ export function UnifiedCombinationBlock({
                       <h4 className="text-xs sm:text-sm font-extrabold text-current line-clamp-2 break-words">
                         {item.exerciseNameSnapshot}
                       </h4>
+                      {isDraft && onRenameExercise && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRenameExercise(item);
+                          }}
+                          aria-label="Renomear exercício"
+                          title="Renomear exercício"
+                          className="p-1 rounded-md text-current/70 hover:text-current hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       {item.isCustomExercise && (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 dark:bg-black/20 text-current border border-current/20">
                           Personalizado
@@ -4506,6 +4577,7 @@ export function MobileExerciseCard({
   onToggleSelect,
   onOpenQuickEdit,
   onOpenActions,
+  onRename,
   onOpenExecutionModal,
   onOpenConfigureSequence,
 }: {
@@ -4523,6 +4595,7 @@ export function MobileExerciseCard({
   onToggleSelect?: () => void;
   onOpenQuickEdit: () => void;
   onOpenActions: () => void;
+  onRename?: () => void;
   onOpenExecutionModal: () => void;
   onOpenConfigureSequence?: (
     item: WorkoutBlockItemDto,
@@ -4632,6 +4705,20 @@ export function MobileExerciseCard({
             <h4 className="text-sm sm:text-base font-extrabold text-[var(--text-primary)] leading-snug line-clamp-2 break-words">
               {item.exerciseNameSnapshot}
             </h4>
+            {isDraft && onRename && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRename();
+                }}
+                aria-label="Renomear exercício"
+                title="Renomear exercício"
+                className="p-1 rounded-md text-[var(--text-tertiary)] hover:text-emerald-600 hover:bg-emerald-500/10 transition-colors shrink-0 cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            )}
             {item.isCustomExercise && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
                 Personalizado
@@ -5676,6 +5763,7 @@ export function ExerciseActionsSheet({
   onMoveToPosition,
   onMoveToCategory,
   onOpenConvertCustom,
+  onOpenRename,
   onCombineFromHere,
   onStartGuidedCombination,
 }: {
@@ -5699,6 +5787,7 @@ export function ExerciseActionsSheet({
   onMoveToPosition?: (targetPosition: number) => Promise<void>;
   onMoveToCategory: (targetCatId: string) => Promise<void>;
   onOpenConvertCustom: () => void;
+  onOpenRename?: () => void;
   onCombineFromHere?: () => void;
   onStartGuidedCombination?: (type: WorkoutCombinationType) => void;
 }) {
@@ -5771,6 +5860,17 @@ export function ExerciseActionsSheet({
             <Edit2 className="w-4 h-4 text-emerald-600" />
             <span>Editar exercício</span>
           </button>
+
+          {onOpenRename && (
+            <button
+              type="button"
+              onClick={onOpenRename}
+              className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-[var(--text-primary)] min-h-[48px] cursor-pointer"
+            >
+              <Pencil className="w-4 h-4 text-emerald-600" />
+              <span>Renomear exercício</span>
+            </button>
+          )}
 
           {(item.customVideoUrl || item.pinnedMedia) && (
             <button

@@ -27,6 +27,7 @@ import {
   deleteExerciseAction,
   reorderExercisesAction,
   updateExerciseQuickConfigAction,
+  renameExerciseItemAction,
   createNewWorkoutVersionAction,
   duplicateWorkoutAction,
   saveWorkoutAsTemplateAction,
@@ -1022,6 +1023,34 @@ export function WorkoutBuilder({
       } else {
         notify(res.error || "Erro ao configurar exercício.");
         throw new Error(res.error || "Erro ao configurar exercício.");
+      }
+    });
+  }
+
+  // Rename Exercise Item Snapshot
+  async function handleRenameExercise(itemPublicId: string, newName: string) {
+    await runWithAutosave(async () => {
+      const res = await renameExerciseItemAction(consultancySlug, itemPublicId, newName);
+      if (res.ok && res.data) {
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => ({
+            ...b,
+            items: b.items
+              ? b.items.map((i) =>
+                  i.publicId === itemPublicId
+                    ? {
+                        ...i,
+                        exerciseNameSnapshot: res.data!.exerciseNameSnapshot,
+                      }
+                    : i
+                )
+              : [],
+          })),
+        }));
+      } else {
+        notify(res.error || "Erro ao renomear exercício.");
+        throw new Error(res.error || "Erro ao renomear exercício.");
       }
     });
   }
@@ -2354,6 +2383,7 @@ export function WorkoutBuilder({
                       onMoveExerciseUp={(catId, idx) => handleMoveExercise(catId, idx, "up")}
                       onMoveExerciseDown={(catId, idx) => handleMoveExercise(catId, idx, "down")}
                       onReorderExercises={handleReorderExercises}
+                      onRenameExercise={handleRenameExercise}
                       onUpdateExerciseQuickConfig={handleUpdateExerciseQuickConfig}
                       onCreateSubBlock={handleCreateSubBlock}
                       onRenameSubBlock={handleRenameSubBlock}

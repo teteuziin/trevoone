@@ -110,8 +110,42 @@ export function formatQuantity(
     maximumFractionDigits: 2,
   });
 
-  const unit = (unitLabel || unitCode || "").trim();
-  return unit ? `${formattedNum} ${unit}` : formattedNum;
+  let unit = (unitLabel || unitCode || "").trim();
+  if (!unit) return formattedNum;
+
+  // Standardize common gram/ml representations
+  if (unit.toLowerCase() === "gramas (g)" || unit.toUpperCase() === "G") {
+    return `${formattedNum} g`;
+  }
+  if (unit.toLowerCase() === "mililitros (ml)" || unit.toUpperCase() === "ML") {
+    return `${formattedNum} ml`;
+  }
+
+  // Remove duplicate leading number from unit label (e.g. '1 Fatia média (30g)' -> 'Fatia média (30g)')
+  unit = unit.replace(/^\d+([.,]\d+)?\s*/, "");
+
+  if (qty > 1) {
+    unit = unit
+      .replace(/^colher\s+de\s+sopa/i, "colheres de sopa")
+      .replace(/^colher\s+de\s+chá/i, "colheres de chá")
+      .replace(/^colher\s+de\s+sobremesa/i, "colheres de sobremesa")
+      .replace(/^colher\s+de\s+café/i, "colheres de café")
+      .replace(/^colher(\s|$)/i, "colheres$1")
+      .replace(/^fatia\s+média/i, "fatias médias")
+      .replace(/^fatia\s+pequena/i, "fatias pequenas")
+      .replace(/^fatia\s+grande/i, "fatias grandes")
+      .replace(/^fatia(\s|$)/i, "fatias$1")
+      .replace(/^unidade(\s|$)/i, "unidades$1")
+      .replace(/^concha(\s|$)/i, "conchas$1")
+      .replace(/^escumadeira(\s|$)/i, "escumadeiras$1")
+      .replace(/^xícara(\s|$)/i, "xícaras$1")
+      .replace(/^copo(\s|$)/i, "copos$1")
+      .replace(/^filé(\s|$)/i, "filés$1")
+      .replace(/^pedaço(\s|$)/i, "pedaços$1")
+      .replace(/^porção(\s|$)/i, "porções$1");
+  }
+
+  return `${formattedNum} ${unit}`;
 }
 
 /**

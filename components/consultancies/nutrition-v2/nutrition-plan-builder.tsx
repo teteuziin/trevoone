@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { PlanVersionTreeDto, PlanVersionHistoryItemDto } from "@/lib/nutrition-v2/plan-repository";
+import type { PlanVersionTreeDto, PlanVersionHistoryItemDto, MealWithItemsDto } from "@/lib/nutrition-v2/plan-repository";
 import {
   updatePlanMetadataAction,
   addMealAction,
@@ -35,10 +35,13 @@ import { NutritionVersionHistory } from "./nutrition-version-history";
 import { NutritionAssignModal } from "./nutrition-assign-modal";
 import { NutritionAssignmentsList } from "./nutrition-assignments-list";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
+import { NutritionPatientPreviewModal } from "./nutrition-patient-preview-modal";
+import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
 import { MobileActionSheet } from "@/components/ui/mobile";
 import type { AssignmentListItemDto } from "@/lib/nutrition-v2/assignment-repository";
 import type { FoodSelectionResult } from "./nutrition-food-picker";
 import type { AddSubstitutionInput } from "@/lib/nutrition-v2/plan-repository";
+import { formatMacroGram, formatCaloriesKcal } from "@/lib/nutrition-v2/nutrition-plan-presentation";
 
 export interface PatientBuilderContext {
   studentMembershipPublicId: string;
@@ -66,16 +69,7 @@ interface NutritionPlanBuilderProps {
 
 function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M19 12H5M12 19l-7-7 7-7" />
     </svg>
   );
@@ -83,16 +77,7 @@ function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
 
 function HistoryIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
     </svg>
@@ -101,16 +86,7 @@ function HistoryIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
 
 function CheckIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <polyline points="20 6 9 17 4 12" />
     </svg>
   );
@@ -118,16 +94,7 @@ function CheckIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
 
 function UserPlusIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="8.5" cy="7" r="4" />
       <line x1="20" y1="8" x2="20" y2="14" />
@@ -138,51 +105,24 @@ function UserPlusIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
 
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 5v14m-7-7h14" />
     </svg>
   );
 }
 
-function EditIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+function EyeIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }
 
 function TrashIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
     </svg>
   );
@@ -199,13 +139,22 @@ export function NutritionPlanBuilder({
 }: NutritionPlanBuilderProps) {
   const router = useRouter();
   const [tree, setTree] = useState<PlanVersionTreeDto>(initialTree);
-  const [isPending, startTransition] = useTransition();
   const [isDiscarding, setIsDiscarding] = useState(false);
+
+  // Tabs: Montagem (builder), Análise Nutricional, Orientações
+  const [activeTab, setActiveTab] = useState<"BUILDER" | "ANALYSIS" | "GUIDANCE">("BUILDER");
+
+  // Day group tabs: "ALL_DAYS" default
+  const [selectedDayTab, setSelectedDayTab] = useState<string>("ALL_DAYS");
+
+  // Autosave indicator state
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
+  const [autosaveError, setAutosaveError] = useState<string | null>(null);
 
   const isReadOnly = tree.version.status !== "DRAFT";
 
-  // Metadata editing state
-  const [isEditingMetadata, setIsEditingMetadata] = useState(false);
+  // In-place metadata editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(tree.version.title);
   const [subtitle, setSubtitle] = useState(tree.version.subtitle || "");
   const [objective, setObjective] = useState(tree.version.objective || "");
@@ -214,25 +163,24 @@ export function NutritionPlanBuilder({
 
   // Add meal state
   const [isAddingMeal, setIsAddingMeal] = useState(false);
-  const [isMicronutrientsDrawerOpen, setIsMicronutrientsDrawerOpen] = useState(false);
   const [newMealTitle, setNewMealTitle] = useState("");
   const [newMealTime, setNewMealTime] = useState("");
   const [newMealNotes, setNewMealNotes] = useState("");
 
-  // Publish Dialog & History Dialog states
+  // Modals & Drawers
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isSaveTemplateDialogOpen, setIsSaveTemplateDialogOpen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
 
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isMicronutrientsDrawerOpen, setIsMicronutrientsDrawerOpen] = useState(false);
+
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyItems, setHistoryItems] = useState<PlanVersionHistoryItemDto[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  // New version state
   const [isCreatingVersion, setIsCreatingVersion] = useState(false);
-
-  // Assignments state
   const [assignments, setAssignments] = useState<AssignmentListItemDto[]>(initialAssignments);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isMobileActionSheetOpen, setIsMobileActionSheetOpen] = useState(false);
@@ -336,68 +284,130 @@ export function NutritionPlanBuilder({
     }
   };
 
-  // 1. Save metadata
-  const handleSaveMetadata = async () => {
-    if (!title.trim()) {
-      alert("O título do plano é obrigatório.");
-      return;
-    }
+  // Save metadata with autosave feedback
+  const handleSaveMetadata = useCallback(
+    async (overrideData?: {
+      title?: string;
+      subtitle?: string | null;
+      objective?: string | null;
+      generalGuidance?: string | null;
+      notes?: string | null;
+    }) => {
+      const nextTitle = overrideData?.title ?? title;
+      if (!nextTitle.trim()) {
+        alert("O título do plano é obrigatório.");
+        return;
+      }
 
-    startTransition(async () => {
+      setAutosaveStatus("saving");
+      setAutosaveError(null);
+
       const res = await updatePlanMetadataAction(slug, tree.plan.publicId, tree.version.publicId, {
-        title: title.trim(),
-        subtitle: subtitle.trim() || null,
-        objective: objective.trim() || null,
-        generalGuidance: generalGuidance.trim() || null,
-        notes: notes.trim() || null,
+        title: nextTitle.trim(),
+        subtitle: overrideData?.subtitle !== undefined ? overrideData.subtitle : (subtitle.trim() || null),
+        objective: overrideData?.objective !== undefined ? overrideData.objective : (objective.trim() || null),
+        generalGuidance: overrideData?.generalGuidance !== undefined ? overrideData.generalGuidance : (generalGuidance.trim() || null),
+        notes: overrideData?.notes !== undefined ? overrideData.notes : (notes.trim() || null),
       });
 
       if (res.success) {
-        setIsEditingMetadata(false);
+        setAutosaveStatus("saved");
+        setIsEditingTitle(false);
         setTree((prev) => ({
           ...prev,
           version: {
             ...prev.version,
-            title: title.trim(),
-            subtitle: subtitle.trim() || null,
-            objective: objective.trim() || null,
-            generalGuidance: generalGuidance.trim() || null,
-            notes: notes.trim() || null,
+            title: nextTitle.trim(),
+            subtitle: overrideData?.subtitle !== undefined ? overrideData.subtitle : (subtitle.trim() || null),
+            objective: overrideData?.objective !== undefined ? overrideData.objective : (objective.trim() || null),
+            generalGuidance: overrideData?.generalGuidance !== undefined ? overrideData.generalGuidance : (generalGuidance.trim() || null),
+            notes: overrideData?.notes !== undefined ? overrideData.notes : (notes.trim() || null),
           },
         }));
+        setTimeout(() => setAutosaveStatus("idle"), 3000);
       } else {
-        alert(res.error || "Erro ao salvar dados.");
+        setAutosaveStatus("error");
+        setAutosaveError(res.error || "Erro ao salvar alterações.");
       }
-    });
-  };
+    },
+    [slug, tree.plan.publicId, tree.version.publicId, title, subtitle, objective, generalGuidance, notes]
+  );
 
-  // 2. Add meal
+  // Add meal
   const handleCreateMeal = async () => {
     if (!newMealTitle.trim()) {
       alert("O nome da refeição é obrigatório.");
       return;
     }
 
-    startTransition(async () => {
-      const res = await addMealAction(slug, tree.plan.publicId, tree.version.publicId, {
-        title: newMealTitle.trim(),
-        scheduledTime: newMealTime.trim() || null,
-        notes: newMealNotes.trim() || null,
-      });
-
-      if (res.success) {
-        setIsAddingMeal(false);
-        setNewMealTitle("");
-        setNewMealTime("");
-        setNewMealNotes("");
-        await refreshTree();
-      } else {
-        alert(res.error || "Erro ao adicionar refeição.");
-      }
+    setAutosaveStatus("saving");
+    const res = await addMealAction(slug, tree.plan.publicId, tree.version.publicId, {
+      title: newMealTitle.trim(),
+      scheduledTime: newMealTime.trim() || null,
+      notes: newMealNotes.trim() || null,
     });
+
+    if (res.success) {
+      setAutosaveStatus("saved");
+      setIsAddingMeal(false);
+      setNewMealTitle("");
+      setNewMealTime("");
+      setNewMealNotes("");
+      await refreshTree();
+      setTimeout(() => setAutosaveStatus("idle"), 3000);
+    } else {
+      setAutosaveStatus("error");
+      alert(res.error || "Erro ao adicionar refeição.");
+    }
   };
 
-  // 3. Reorder meals
+  // Duplicate meal
+  const handleDuplicateMeal = async (meal: MealWithItemsDto) => {
+    setAutosaveStatus("saving");
+    try {
+      const res = await addMealAction(slug, tree.plan.publicId, tree.version.publicId, {
+        title: `${meal.title} (Cópia)`,
+        scheduledTime: meal.scheduledTime,
+        notes: meal.notes,
+      });
+
+      if (res.success && res.data?.mealPublicId) {
+        const newMealPublicId = res.data.mealPublicId;
+        // Copy each item
+        for (const item of meal.items) {
+          const itemRes = await addMealItemAction(slug, tree.plan.publicId, newMealPublicId, {
+            foodPublicId: item.foodPublicId,
+            customName: item.foodId == null ? item.foodNameSnapshot : null,
+            prescribedQuantity: item.prescribedQuantity,
+            prescribedUnitCode: item.prescribedUnitCode,
+            prescribedUnitLabel: item.prescribedUnitLabel,
+            portionPublicId: null,
+            notes: item.notes,
+          });
+
+          if (itemRes.success && itemRes.data?.itemPublicId && item.substitutions.length > 0) {
+            for (const sub of item.substitutions) {
+              await addSubstitutionAction(slug, tree.plan.publicId, itemRes.data.itemPublicId, {
+                foodPublicId: sub.foodPublicId,
+                customName: sub.foodId == null ? sub.foodNameSnapshot : null,
+                prescribedQuantity: sub.prescribedQuantity,
+                prescribedUnitCode: sub.prescribedUnitCode,
+                prescribedUnitLabel: sub.prescribedUnitLabel,
+                notes: sub.notes,
+              });
+            }
+          }
+        }
+        await refreshTree();
+        setAutosaveStatus("saved");
+        setTimeout(() => setAutosaveStatus("idle"), 3000);
+      }
+    } catch {
+      setAutosaveStatus("error");
+    }
+  };
+
+  // Reorder meals
   const handleMoveMeal = async (index: number, direction: "UP" | "DOWN") => {
     const meals = [...tree.meals];
     const targetIdx = direction === "UP" ? index - 1 : index + 1;
@@ -407,50 +417,82 @@ export function NutritionPlanBuilder({
     meals[index] = meals[targetIdx];
     meals[targetIdx] = temp;
 
-    startTransition(async () => {
-      const res = await reorderMealsAction(
-        slug,
-        tree.plan.publicId,
-        tree.version.publicId,
-        meals.map((m) => m.publicId)
-      );
-      if (res.success) {
-        setTree((prev) => ({ ...prev, meals }));
-      } else {
-        alert(res.error || "Erro ao reordenar refeições.");
-      }
-    });
+    setAutosaveStatus("saving");
+    const res = await reorderMealsAction(
+      slug,
+      tree.plan.publicId,
+      tree.version.publicId,
+      meals.map((m) => m.publicId)
+    );
+    if (res.success) {
+      setTree((prev) => ({ ...prev, meals }));
+      setAutosaveStatus("saved");
+      setTimeout(() => setAutosaveStatus("idle"), 3000);
+    } else {
+      setAutosaveStatus("error");
+      alert(res.error || "Erro ao reordenar refeições.");
+    }
   };
 
+  // VET % calculations for Nutritional Analysis
+  const totalKcal = tree.dailyTotals.caloriesKcal || 0;
+  const pKcal = (tree.dailyTotals.proteinG || 0) * 4;
+  const cKcal = (tree.dailyTotals.carbohydrateG || 0) * 4;
+  const fKcal = (tree.dailyTotals.fatG || 0) * 9;
+  const calculatedSum = pKcal + cKcal + fKcal;
+
+  const pPct = calculatedSum > 0 ? Math.round((pKcal / calculatedSum) * 100) : 0;
+  const cPct = calculatedSum > 0 ? Math.round((cKcal / calculatedSum) * 100) : 0;
+  const fPct = calculatedSum > 0 ? Math.max(0, 100 - pPct - cPct) : 0;
+
   return (
-    <div className="w-full max-w-full min-w-0 min-h-[calc(100vh-4rem)] bg-transparent px-4 sm:px-6 md:px-8 py-4 sm:py-8">
-      <div className="space-y-6 w-full max-w-full lg:max-w-7xl mx-auto pb-28 sm:pb-20 min-w-0">
-        {/* Top Breadcrumb & Actions */}
-        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 min-w-0 w-full max-w-full">
+    <div className="w-full max-w-full min-w-0 min-h-[calc(100vh-4rem)] bg-transparent px-3 sm:px-6 md:px-8 py-3 sm:py-6">
+      <div className="space-y-4 sm:space-y-6 w-full max-w-full lg:max-w-7xl mx-auto pb-28 sm:pb-20 min-w-0">
+        {/* TOP BAR: Breadcrumb, Autosave Indicator, Actions */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 min-w-0 w-full max-w-full">
+          {/* Back link */}
           <Link
             href={patientContext ? patientContext.returnToUrl : `/consultoria/${slug}/planos-v2`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive min-w-0 max-w-full flex-1"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive min-w-0 shrink-0"
           >
-            <ArrowLeftIcon className="w-4 h-4 shrink-0 mt-0.5 sm:mt-0" />
-            <span className="block min-w-0 max-w-full break-words [overflow-wrap:anywhere] sm:hidden">
-              {patientContext ? `Voltar para ${patientContext.studentName}` : "Voltar para Planos"}
+            <ArrowLeftIcon className="w-4 h-4 shrink-0" />
+            <span className="block min-w-0 truncate sm:hidden">
+              {patientContext ? `Voltar para ${patientContext.studentName}` : "Voltar"}
             </span>
-            <span className="hidden sm:inline-block min-w-0 max-w-full break-words [overflow-wrap:anywhere]">
-              {patientContext ? `Voltar para paciente (${patientContext.studentName})` : "Voltar para Planos"}
+            <span className="hidden sm:inline-block min-w-0 truncate">
+              {patientContext ? `Voltar para ${patientContext.studentName}` : "Voltar para Planos"}
             </span>
           </Link>
 
-          {/* Desktop Action Controls & Version Badges (>= lg) */}
-          <div className="hidden lg:flex items-center gap-2.5 flex-wrap shrink-0">
+          {/* Autosave Status Indicator */}
+          <div className="flex items-center gap-2">
+            <AutosaveIndicator status={autosaveStatus} errorMessage={autosaveError} />
+          </div>
+
+          {/* Desktop Action Controls */}
+          <div className="hidden lg:flex items-center gap-2 shrink-0">
+            {/* Patient Preview Button */}
+            <button
+              type="button"
+              onClick={() => setIsPreviewOpen(true)}
+              className="px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[38px] cursor-pointer"
+              title="Visualizar prévia como o aluno verá no smartphone"
+            >
+              <EyeIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
+              <span>Prévia do Aluno</span>
+            </button>
+
+            {/* Version History Button */}
             <button
               type="button"
               onClick={handleOpenHistory}
-              className="px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[38px]"
+              className="px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[38px] cursor-pointer"
             >
               <HistoryIcon className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
               <span>Histórico</span>
             </button>
 
+            {/* PDF Button */}
             <a
               href={`/api/consultancies/${slug}/nutricao/pdf?planPublicId=${initialTree.plan.publicId}`}
               target="_blank"
@@ -464,10 +506,11 @@ export function NutritionPlanBuilder({
               <span>Baixar PDF</span>
             </a>
 
+            {/* Save as Template */}
             <button
               type="button"
               onClick={() => setIsSaveTemplateDialogOpen(true)}
-              className="px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[38px]"
+              className="px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[38px] cursor-pointer"
               title="Salvar estrutura deste plano como modelo reutilizável"
             >
               <svg className="w-3.5 h-3.5 text-[var(--text-secondary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -476,7 +519,7 @@ export function NutritionPlanBuilder({
               <span>Salvar como modelo</span>
             </button>
 
-            {/* Status Badge */}
+            {/* Version Badge */}
             <Badge
               variant={
                 tree.version.status === "PUBLISHED"
@@ -494,7 +537,7 @@ export function NutritionPlanBuilder({
                 : `Arquivada (V${tree.version.versionNumber})`}
             </Badge>
 
-            {/* Lifecycle Buttons */}
+            {/* Publish / Prescribe Buttons */}
             {tree.version.status === "DRAFT" && (
               <Button
                 variant="primary"
@@ -510,7 +553,6 @@ export function NutritionPlanBuilder({
               </Button>
             )}
 
-            {/* Prescribe Button for Published Version */}
             {tree.version.status === "PUBLISHED" && (
               <Button
                 variant="primary"
@@ -519,7 +561,7 @@ export function NutritionPlanBuilder({
                 className="font-bold min-h-[38px] shadow-sm"
               >
                 <UserPlusIcon className="w-3.5 h-3.5 mr-1" />
-                <span>Prescrever</span>
+                <span>Prescrever ao Aluno</span>
               </Button>
             )}
 
@@ -536,51 +578,28 @@ export function NutritionPlanBuilder({
               </Button>
             )}
           </div>
-
-          {/* Mobile Badge Only (< lg) */}
-          <div className="lg:hidden flex items-center gap-2 shrink-0">
-            <Badge
-              variant={
-                tree.version.status === "PUBLISHED"
-                  ? "success"
-                  : tree.version.status === "DRAFT"
-                  ? "warning"
-                  : "neutral"
-              }
-              size="sm"
-            >
-              {tree.version.status === "DRAFT"
-                ? `Rascunho (V${tree.version.versionNumber})`
-                : tree.version.status === "PUBLISHED"
-                ? `Publicada (V${tree.version.versionNumber})`
-                : `Arquivada (V${tree.version.versionNumber})`}
-            </Badge>
-          </div>
         </div>
 
-        {/* Patient Context Banner */}
+        {/* PATIENT CONTEXT BANNER */}
         {patientContext && (
-          <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--brand)]/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0 w-full max-w-full">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 flex-1 w-full max-w-full">
-              {/* [A] Avatar */}
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[var(--brand)] text-[var(--text-inverse)] flex items-center justify-center font-extrabold text-xs sm:text-sm shrink-0 shadow-xs mb-0.5 sm:mb-0">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)] border border-[var(--brand)]/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0 w-full max-w-full">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[var(--brand)] text-[var(--text-inverse)] flex items-center justify-center font-extrabold text-sm sm:text-base shrink-0 shadow-xs">
                 {patientContext.studentName.charAt(0).toUpperCase()}
               </div>
-              <div className="min-w-0 flex-1 w-full max-w-full flex flex-col gap-1.5 sm:gap-0.5">
-                {/* Title and Badge - Stacked on Mobile (< sm), side-by-side on sm+ */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 min-w-0 w-full max-w-full">
-                  <span className="text-sm font-extrabold text-[var(--text-primary)] block break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
-                    Plano alimentar de {patientContext.studentName}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm sm:text-base font-extrabold text-[var(--text-primary)] truncate">
+                    Plano de {patientContext.studentName}
                   </span>
-                  <span className="inline-block self-start sm:self-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)] text-[var(--text-inverse)] break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
-                    {tree.version.status === "DRAFT" ? "Alteração em andamento" : "Plano publicado"}
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)] text-[var(--text-inverse)] shrink-0">
+                    {tree.version.status === "DRAFT" ? "Alteração em andamento" : "Plano ativo"}
                   </span>
                 </div>
-                {/* Guidance text */}
-                <p className="text-[11px] text-[var(--text-secondary)] block break-words [overflow-wrap:anywhere] leading-relaxed min-w-0 max-w-full pt-0.5 sm:pt-0">
+                <p className="text-[11px] text-[var(--text-secondary)] truncate">
                   {tree.version.status === "DRAFT"
-                    ? "Enquanto este rascunho estiver em edição, o aluno continua visualizando a prescrição ativa anterior."
-                    : "Este plano está publicado e ativo para a paciente."}
+                    ? "As alterações feitas aqui serão publicadas diretamente para a paciente."
+                    : "Este plano está publicado e ativo no smartphone da paciente."}
                 </p>
               </div>
             </div>
@@ -592,788 +611,772 @@ export function NutritionPlanBuilder({
                   size="sm"
                   disabled={isDiscarding}
                   onClick={handleDiscardDraft}
-                  className="text-xs font-bold min-h-[38px] text-red-600 dark:text-red-400 hover:bg-red-500/10 border border-red-500/20"
+                  className="text-xs font-bold min-h-[36px] text-red-600 dark:text-red-400 hover:bg-red-500/10 border border-red-500/20"
                 >
-                  {isDiscarding ? "Descartando..." : "Descartar alterações"}
-                </Button>
-              )}
-              {tree.version.status === "DRAFT" && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    setPublishError(null);
-                    setIsPublishDialogOpen(true);
-                  }}
-                  className="text-xs font-bold min-h-[38px] shadow-sm"
-                >
-                  <CheckIcon className="w-3.5 h-3.5 mr-1" />
-                  <span>Publicar atualização</span>
+                  {isDiscarding ? "Descartando..." : "Descartar rascunho"}
                 </Button>
               )}
             </div>
           </div>
         )}
 
-        {/* Origin Banner */}
+        {/* ORIGIN BANNER */}
         {origin === "template" && (
-          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
             <span className="font-bold shrink-0">Origem:</span>
             <span>Criado a partir do modelo: <strong>{originName || "Modelo"}</strong></span>
           </div>
         )}
-        {origin === "copy" && (
-          <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-800 dark:text-purple-300 text-xs flex items-center gap-2">
-            <span className="font-bold shrink-0">Origem:</span>
-            <span>Criado a partir de uma cópia de plano</span>
-          </div>
-        )}
 
-        {/* Responsive Workspace: Mobile 1-Column Flow, Desktop 12-Column Grid */}
-        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 items-start w-full max-w-full min-w-0">
-          {/* LEFT / MAIN WORKSPACE: Plan Header & Meals */}
-          <div className="lg:col-span-8 space-y-6 w-full max-w-full min-w-0">
-            {/* Plan Header Card */}
-            <div className="p-4 sm:p-6 md:p-7 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 sm:space-y-5 depth-surface w-full max-w-full min-w-0">
-              {!isEditingMetadata ? (
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 w-full max-w-full min-w-0">
-                  <div className="space-y-1.5 sm:space-y-2 min-w-0 flex-1 w-full max-w-full">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
-                        Plano Alimentar
-                      </span>
-                      {isReadOnly && (
-                        <Badge variant="neutral" size="sm">
-                          Somente leitura
-                        </Badge>
-                      )}
-                    </div>
-
-                    <h1 className="text-lg sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight block break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
-                      {tree.version.title}
-                    </h1>
-
-                    {tree.version.subtitle && (
-                      <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium leading-relaxed break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
-                        {tree.version.subtitle}
-                      </p>
-                    )}
-
-                    {tree.version.objective && (
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] max-w-full min-w-0">
-                        <span className="shrink-0">Objetivo:</span>
-                        <span className="text-[var(--text-primary)] font-bold truncate">{tree.version.objective}</span>
-                      </div>
-                    )}
-
-                    {tree.version.generalGuidance && (
-                      <p className="text-xs text-[var(--text-secondary)] pt-1 whitespace-pre-line leading-relaxed break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
-                        {tree.version.generalGuidance}
-                      </p>
-                    )}
-                  </div>
-
-                  {!isReadOnly && (
-                    <div className="w-full sm:w-auto pt-1 sm:pt-0 shrink-0">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setIsEditingMetadata(true)}
-                        className="font-semibold text-xs w-full sm:w-auto min-h-[38px] justify-center"
-                      >
-                        <EditIcon className="w-3.5 h-3.5 mr-1 text-[var(--text-secondary)]" />
-                        <span>Editar Informações</span>
-                      </Button>
-                    </div>
+        {/* PLAN TITLE & IN-PLACE EDIT CARD */}
+        <div className="p-4 sm:p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-2 depth-surface">
+          {!isEditingTitle ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1 min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
+                    Prescrição Nutricional
+                  </span>
+                  {isReadOnly && (
+                    <Badge variant="neutral" size="sm">Somente leitura</Badge>
                   )}
                 </div>
-              ) : (
-            <div className="space-y-4 pt-1">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight truncate">
+                  {tree.version.title}
+                </h1>
+                {tree.version.subtitle && (
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium truncate">
+                    {tree.version.subtitle}
+                  </p>
+                )}
+              </div>
+
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingTitle(true)}
+                  className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors inline-flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  <span>Editar título</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
+                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
                     Título do Plano *
                   </label>
                   <input
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                    className="w-full px-3 py-1.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
+                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
                     Subtítulo (opcional)
                   </label>
                   <input
                     type="text"
                     value={subtitle}
                     onChange={(e) => setSubtitle(e.target.value)}
-                    placeholder="Ex: Fase de definição, Protocolo hipertrofia..."
-                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                    placeholder="Ex: Fase 1 - Hipertrofia..."
+                    className="w-full px-3 py-1.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
-                    Objetivo (opcional)
+                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                    Objetivo Clínico (opcional)
                   </label>
                   <input
                     type="text"
                     value={objective}
                     onChange={(e) => setObjective(e.target.value)}
-                    placeholder="Ex: Emagrecimento, Hipertrofia..."
-                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                    placeholder="Ex: Ganho de massa, Déficit..."
+                    className="w-full px-3 py-1.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
-                    Observações Internas (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Notas internas..."
-                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+              </div>
+              <div className="flex justify-end gap-2 pt-1 border-t border-[var(--border-subtle)]">
+                <Button variant="secondary" size="sm" onClick={() => setIsEditingTitle(false)}>
+                  Cancelar
+                </Button>
+                <Button variant="primary" size="sm" onClick={() => handleSaveMetadata()}>
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* MAIN NAVIGATION TABS (Nutrium pattern: Montagem, Análise Nutricional, Orientações) */}
+        <div className="border-b border-[var(--border-default)] flex items-center gap-1 sm:gap-2">
+          {[
+            { id: "BUILDER", label: "Montagem do Plano" },
+            { id: "ANALYSIS", label: "Análise Nutricional" },
+            { id: "GUIDANCE", label: "Orientações e Recomendações" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
+              className={`px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition-colors cursor-pointer ${
+                activeTab === tab.id
+                  ? "border-[var(--brand)] text-[var(--brand)]"
+                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ========================================================================= */}
+        {/* TAB 1: MONTAGEM (BUILDER) */}
+        {/* ========================================================================= */}
+        {activeTab === "BUILDER" && (
+          <div className="space-y-4">
+            {/* Days / Menus Selector Bar */}
+            <div className="p-2 sm:p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSelectedDayTab("ALL_DAYS")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                    selectedDayTab === "ALL_DAYS"
+                      ? "bg-[var(--brand)] text-white shadow-2xs"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                  }`}
+                >
+                  Todos os dias (Padrão)
+                </button>
+              </div>
+
+              <div className="text-xs text-[var(--text-tertiary)] hidden sm:block">
+                {tree.meals.length} refeição{tree.meals.length === 1 ? "" : "ões"} configurada{tree.meals.length === 1 ? "" : "s"}
+              </div>
+            </div>
+
+            {/* 2-Column Responsive Workspace: Left 8/12 Builder, Right 4/12 Sticky Cockpit */}
+            <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 items-start w-full max-w-full min-w-0">
+              {/* LEFT / MAIN WORKSPACE: Meals List */}
+              <div className="lg:col-span-8 space-y-4 w-full max-w-full min-w-0">
+                {/* Add Meal Button */}
+                {!isReadOnly && !isAddingMeal && (
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+                      Refeições do Plano
+                    </h2>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setIsAddingMeal(true)}
+                      className="font-bold min-h-[38px] shadow-sm"
+                    >
+                      <PlusIcon className="w-4 h-4 mr-1.5" />
+                      <span>Adicionar Refeição</span>
+                    </Button>
+                  </div>
+                )}
+
+                {/* Add Meal Form */}
+                {!isReadOnly && isAddingMeal && (
+                  <div className="p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--brand)]/40 shadow-sm space-y-3 depth-surface">
+                    <h3 className="text-sm font-bold text-[var(--text-primary)]">Nova Refeição</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                          Nome da refeição *
+                        </label>
+                        <input
+                          type="text"
+                          value={newMealTitle}
+                          onChange={(e) => setNewMealTitle(e.target.value)}
+                          placeholder="Ex: Café da manhã, Almoço, Lanche da tarde..."
+                          className="w-full px-3 py-1.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                          Horário (opcional)
+                        </label>
+                        <input
+                          type="time"
+                          value={newMealTime}
+                          onChange={(e) => setNewMealTime(e.target.value)}
+                          className="w-full px-3 py-1.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                        Observações (opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={newMealNotes}
+                        onChange={(e) => setNewMealNotes(e.target.value)}
+                        placeholder="Ex: Tomar logo ao acordar com água morna..."
+                        className="w-full px-3 py-1.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                      <Button type="button" variant="secondary" size="sm" onClick={() => setIsAddingMeal(false)}>
+                        Cancelar
+                      </Button>
+                      <Button type="button" variant="primary" size="sm" onClick={handleCreateMeal}>
+                        Criar Refeição
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {tree.meals.length === 0 && !isAddingMeal && (
+                  <div className="text-center py-16 px-4 bg-[var(--surface)] border border-dashed border-[var(--border-default)] rounded-xl space-y-3 depth-surface">
+                    <div className="w-12 h-12 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center mx-auto shadow-2xs">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-bold text-[var(--text-primary)]">
+                      {isReadOnly ? "Nenhuma refeição cadastrada" : "Adicione a primeira refeição"}
+                    </h3>
+                    <p className="text-xs text-[var(--text-secondary)] max-w-sm mx-auto">
+                      {isReadOnly
+                        ? "Esta versão não possui refeições cadastradas."
+                        : "Comece estruturando as refeições diárias (Café da manhã, Almoço, etc.) e adicione alimentos com porções e substituições."}
+                    </p>
+                    {!isReadOnly && (
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        onClick={() => setIsAddingMeal(true)}
+                        className="font-bold min-h-[42px] shadow-sm inline-flex items-center gap-1.5"
+                      >
+                        <PlusIcon className="w-4 h-4 mr-1" />
+                        <span>Criar Primeira Refeição</span>
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* Meals Render List */}
+                {tree.meals.length > 0 && (
+                  <div className="space-y-4">
+                    {tree.meals.map((meal, idx) => (
+                      <NutritionMealEditor
+                        key={meal.publicId}
+                        slug={slug}
+                        meal={meal}
+                        readOnly={isReadOnly}
+                        isFirst={idx === 0}
+                        isLast={idx === tree.meals.length - 1}
+                        onMoveUp={() => handleMoveMeal(idx, "UP")}
+                        onMoveDown={() => handleMoveMeal(idx, "DOWN")}
+                        onDuplicateMeal={() => handleDuplicateMeal(meal)}
+                        onUpdateMeal={async (data) => {
+                          setAutosaveStatus("saving");
+                          const res = await updateMealAction(slug, tree.plan.publicId, meal.publicId, data);
+                          if (res.success) {
+                            await refreshTree();
+                            setAutosaveStatus("saved");
+                            setTimeout(() => setAutosaveStatus("idle"), 3000);
+                          } else {
+                            setAutosaveStatus("error");
+                            alert(res.error || "Erro ao atualizar refeição.");
+                          }
+                        }}
+                        onRemoveMeal={async () => {
+                          setAutosaveStatus("saving");
+                          const res = await removeMealAction(slug, tree.plan.publicId, meal.publicId);
+                          if (res.success) {
+                            await refreshTree();
+                            setAutosaveStatus("saved");
+                            setTimeout(() => setAutosaveStatus("idle"), 3000);
+                          } else {
+                            setAutosaveStatus("error");
+                            alert(res.error || "Erro ao remover refeição.");
+                          }
+                        }}
+                        onAddItem={async (payload: FoodSelectionResult) => {
+                          setAutosaveStatus("saving");
+                          const res = await addMealItemAction(slug, tree.plan.publicId, meal.publicId, payload);
+                          if (res.success) {
+                            await refreshTree();
+                            setAutosaveStatus("saved");
+                            setTimeout(() => setAutosaveStatus("idle"), 3000);
+                          } else {
+                            setAutosaveStatus("error");
+                            throw new Error(res.error || "Erro ao adicionar alimento.");
+                          }
+                        }}
+                        onUpdateItem={async (itemPublicId, data) => {
+                          setAutosaveStatus("saving");
+                          const res = await updateMealItemAction(slug, tree.plan.publicId, itemPublicId, data);
+                          if (res.success) {
+                            await refreshTree();
+                            setAutosaveStatus("saved");
+                            setTimeout(() => setAutosaveStatus("idle"), 3000);
+                          } else {
+                            setAutosaveStatus("error");
+                            alert(res.error || "Erro ao atualizar item.");
+                          }
+                        }}
+                        onRemoveItem={async (itemPublicId) => {
+                          setAutosaveStatus("saving");
+                          const res = await removeMealItemAction(slug, tree.plan.publicId, itemPublicId);
+                          if (res.success) {
+                            await refreshTree();
+                            setAutosaveStatus("saved");
+                            setTimeout(() => setAutosaveStatus("idle"), 3000);
+                          } else {
+                            setAutosaveStatus("error");
+                            alert(res.error || "Erro ao remover item.");
+                          }
+                        }}
+                        onReorderItems={async (orderedItemPublicIds) => {
+                          setAutosaveStatus("saving");
+                          const res = await reorderMealItemsAction(slug, tree.plan.publicId, meal.publicId, orderedItemPublicIds);
+                          if (res.success) {
+                            await refreshTree();
+                            setAutosaveStatus("saved");
+                            setTimeout(() => setAutosaveStatus("idle"), 3000);
+                          } else {
+                            setAutosaveStatus("error");
+                            alert(res.error || "Erro ao reordenar itens.");
+                          }
+                        }}
+                        onAddSubstitution={async (itemPublicId, payload: AddSubstitutionInput) => {
+                          setAutosaveStatus("saving");
+                          const res = await addSubstitutionAction(slug, tree.plan.publicId, itemPublicId, payload);
+                          if (res.success) {
+                            await refreshTree();
+                            setAutosaveStatus("saved");
+                            setTimeout(() => setAutosaveStatus("idle"), 3000);
+                          } else {
+                            setAutosaveStatus("error");
+                            alert(res.error || "Erro ao adicionar substituição.");
+                          }
+                        }}
+                        onUpdateSubstitution={async (subPublicId, data) => {
+                          setAutosaveStatus("saving");
+                          const res = await updateSubstitutionAction(slug, tree.plan.publicId, subPublicId, data);
+                          if (res.success) {
+                            await refreshTree();
+                            setAutosaveStatus("saved");
+                            setTimeout(() => setAutosaveStatus("idle"), 3000);
+                          } else {
+                            setAutosaveStatus("error");
+                            throw new Error(res.error || "Erro ao atualizar substituição.");
+                          }
+                        }}
+                        onRemoveSubstitution={async (subPublicId) => {
+                          setAutosaveStatus("saving");
+                          const res = await removeSubstitutionAction(slug, tree.plan.publicId, subPublicId);
+                          if (res.success) {
+                            await refreshTree();
+                            setAutosaveStatus("saved");
+                            setTimeout(() => setAutosaveStatus("idle"), 3000);
+                          } else {
+                            setAutosaveStatus("error");
+                            alert(res.error || "Erro ao remover substituição.");
+                          }
+                        }}
+                        onReorderSubstitutions={async (itemPublicId, orderedSubs) => {
+                          setAutosaveStatus("saving");
+                          const res = await reorderSubstitutionsAction(slug, tree.plan.publicId, itemPublicId, orderedSubs);
+                          if (res.success) {
+                            await refreshTree();
+                            setAutosaveStatus("saved");
+                            setTimeout(() => setAutosaveStatus("idle"), 3000);
+                          } else {
+                            setAutosaveStatus("error");
+                            alert(res.error || "Erro ao reordenar substituições.");
+                          }
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* RIGHT / STICKY COCKPIT (~1/3 Desktop): Nutritional Real-Time Cockpit */}
+              <div className="w-full lg:col-span-4 lg:sticky lg:top-6 space-y-4">
+                <div className="p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 depth-surface">
+                  {/* Energy Header */}
+                  <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                        Meta Calórica Diária
+                      </span>
+                      <h3 className="text-sm font-bold text-[var(--text-primary)] mt-0.5">
+                        Totais do Cardápio
+                      </h3>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xl sm:text-2xl font-extrabold text-[var(--brand)] font-heading leading-tight">
+                        {tree.dailyTotals.caloriesKcal.toLocaleString("pt-BR")}{" "}
+                        <span className="text-xs font-semibold text-[var(--text-secondary)]">kcal</span>
+                      </div>
+                      {planningTarget?.caloriesKcal && (
+                        <span className="text-[10px] text-[var(--text-tertiary)] block">
+                          Meta: {planningTarget.caloriesKcal} kcal
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Calories Progress Bar if planning target exists */}
+                  {planningTarget?.caloriesKcal && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
+                        <span>Atingimento da Meta:</span>
+                        <span className="font-bold text-[var(--text-primary)]">
+                          {Math.round((tree.dailyTotals.caloriesKcal / planningTarget.caloriesKcal) * 100)}%
+                        </span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
+                        <div
+                          className="h-full bg-[var(--brand)] rounded-full transition-all duration-300"
+                          style={{
+                            width: `${Math.min(100, Math.round((tree.dailyTotals.caloriesKcal / planningTarget.caloriesKcal) * 100))}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Macronutrient VET % Segmented Bar */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)] block">
+                      Distribuição Calórica (% VET)
+                    </span>
+                    <div className="h-2.5 w-full rounded-full bg-[var(--surface-subtle)] flex overflow-hidden">
+                      <div style={{ width: `${pPct}%` }} className="bg-sky-500 h-full" title={`Proteína: ${pPct}%`} />
+                      <div style={{ width: `${cPct}%` }} className="bg-emerald-500 h-full" title={`Carboidratos: ${cPct}%`} />
+                      <div style={{ width: `${fPct}%` }} className="bg-amber-500 h-full" title={`Gorduras: ${fPct}%`} />
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-[var(--text-secondary)] font-medium pt-0.5">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0" />
+                        P: {pPct}%
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        C: {cPct}%
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                        G: {fPct}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Macro Cards */}
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="p-2 sm:p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                      <span className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400 block truncate">
+                        Proteínas
+                      </span>
+                      <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
+                        {tree.dailyTotals.proteinG}g
+                      </span>
+                      {planningTarget?.proteinG && (
+                        <span className="text-[9px] text-[var(--text-tertiary)] block">
+                          Meta: {planningTarget.proteinG}g
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-2 sm:p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                      <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block truncate">
+                        Carboidratos
+                      </span>
+                      <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
+                        {tree.dailyTotals.carbohydrateG}g
+                      </span>
+                      {planningTarget?.carbsG && (
+                        <span className="text-[9px] text-[var(--text-tertiary)] block">
+                          Meta: {planningTarget.carbsG}g
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-2 sm:p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                      <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block truncate">
+                        Gorduras
+                      </span>
+                      <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
+                        {tree.dailyTotals.fatG}g
+                      </span>
+                      {planningTarget?.fatsG && (
+                        <span className="text-[9px] text-[var(--text-tertiary)] block">
+                          Meta: {planningTarget.fatsG}g
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Fiber Row */}
+                  {tree.dailyMicronutrientTotals?.nutrients?.FIBER && (
+                    <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface-subtle)]/70 text-xs border border-[var(--border-subtle)]">
+                      <span className="text-[var(--text-secondary)] font-medium">Fibras Alimentares</span>
+                      <span className="font-bold text-[var(--text-primary)]">
+                        {tree.dailyMicronutrientTotals.nutrients.FIBER.value} g
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Caloric Distribution per Meal */}
+                  {tree.meals.length > 0 && totalKcal > 0 && (
+                    <div className="space-y-1.5 pt-1 border-t border-[var(--border-subtle)]">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)] block">
+                        Distribuição por Refeição
+                      </span>
+                      <div className="space-y-1 text-xs">
+                        {tree.meals.map((m) => {
+                          const mealPct = Math.round(((m.mealTotals.caloriesKcal || 0) / totalKcal) * 100);
+                          return (
+                            <div key={m.publicId} className="flex items-center justify-between text-[11px]">
+                              <span className="text-[var(--text-secondary)] truncate max-w-[150px]">
+                                {m.title}
+                              </span>
+                              <span className="font-semibold text-[var(--text-primary)] shrink-0">
+                                {m.mealTotals.caloriesKcal} kcal ({mealPct}%)
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Micronutrients Trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setIsMicronutrientsDrawerOpen(true)}
+                    className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] transition-all cursor-pointer min-h-[38px]"
+                  >
+                    <svg className="w-3.5 h-3.5 text-[var(--brand)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                    <span>Ver micronutrientes detalhados</span>
+                  </button>
+                </div>
+
+                {/* Assignments List Section */}
+                <div className="p-4 sm:p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3 depth-surface">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">
+                      Pacientes Vinculados
+                    </h3>
+                    {tree.version.status === "PUBLISHED" && (
+                      <button
+                        type="button"
+                        onClick={() => setIsAssignModalOpen(true)}
+                        className="text-xs font-bold text-[var(--brand)] hover:underline"
+                      >
+                        + Prescrever
+                      </button>
+                    )}
+                  </div>
+                  <NutritionAssignmentsList
+                    slug={slug}
+                    planPublicId={tree.plan.publicId}
+                    assignments={assignments}
+                    onRefresh={refreshAssignments}
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 2: ANÁLISE NUTRICIONAL (DEEP DIVE) */}
+        {/* ========================================================================= */}
+        {activeTab === "ANALYSIS" && (
+          <div className="p-4 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-6 depth-surface">
+            <div>
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">
+                Análise Nutricional Completa do Plano
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Quadro comparativo de macronutrientes, distribuição energética e micronutrientes por refeição.
+              </p>
+            </div>
+
+            {/* Macro Summary Matrix */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-xl bg-[var(--brand)]/10 border border-[var(--brand)]/20">
+                <span className="text-xs text-[var(--text-secondary)] block">Valor Energético Total</span>
+                <span className="text-xl font-extrabold text-[var(--brand)]">
+                  {formatCaloriesKcal(tree.dailyTotals.caloriesKcal)}
+                </span>
+                {planningTarget?.caloriesKcal && (
+                  <span className="text-[11px] text-[var(--text-tertiary)] block mt-1">
+                    Meta clínica: {planningTarget.caloriesKcal} kcal
+                  </span>
+                )}
+              </div>
+              <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                <span className="text-xs text-[var(--text-secondary)] block">Proteínas Totais</span>
+                <span className="text-xl font-bold text-[var(--text-primary)]">
+                  {formatMacroGram(tree.dailyTotals.proteinG)}
+                </span>
+                <span className="text-[11px] text-sky-600 dark:text-sky-400 block mt-1">
+                  {pPct}% do VET
+                </span>
+              </div>
+              <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                <span className="text-xs text-[var(--text-secondary)] block">Carboidratos Totais</span>
+                <span className="text-xl font-bold text-[var(--text-primary)]">
+                  {formatMacroGram(tree.dailyTotals.carbohydrateG)}
+                </span>
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block mt-1">
+                  {cPct}% do VET
+                </span>
+              </div>
+              <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                <span className="text-xs text-[var(--text-secondary)] block">Lipídios Totais</span>
+                <span className="text-xl font-bold text-[var(--text-primary)]">
+                  {formatMacroGram(tree.dailyTotals.fatG)}
+                </span>
+                <span className="text-[11px] text-amber-600 dark:text-amber-400 block mt-1">
+                  {fPct}% do VET
+                </span>
+              </div>
+            </div>
+
+            {/* Meal-by-Meal Table */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                Quadro por Refeição
+              </h3>
+              <div className="overflow-x-auto rounded-xl border border-[var(--border-default)]">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-b border-[var(--border-default)] font-semibold">
+                    <tr>
+                      <th className="py-2.5 px-3">Refeição</th>
+                      <th className="py-2.5 px-3">Horário</th>
+                      <th className="py-2.5 px-3 text-right">Calorias (kcal)</th>
+                      <th className="py-2.5 px-3 text-right">Proteínas (g)</th>
+                      <th className="py-2.5 px-3 text-right">Carboidratos (g)</th>
+                      <th className="py-2.5 px-3 text-right">Gorduras (g)</th>
+                      <th className="py-2.5 px-3 text-right">% do Dia</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-subtle)]">
+                    {tree.meals.map((m) => {
+                      const mealPct = totalKcal > 0 ? Math.round(((m.mealTotals.caloriesKcal || 0) / totalKcal) * 100) : 0;
+                      return (
+                        <tr key={m.publicId} className="hover:bg-[var(--surface-hover)]">
+                          <td className="py-2 px-3 font-semibold text-[var(--text-primary)]">{m.title}</td>
+                          <td className="py-2 px-3 text-[var(--text-secondary)]">{m.scheduledTime || "—"}</td>
+                          <td className="py-2 px-3 text-right font-bold text-[var(--brand)]">{m.mealTotals.caloriesKcal}</td>
+                          <td className="py-2 px-3 text-right text-[var(--text-primary)]">{m.mealTotals.proteinG}g</td>
+                          <td className="py-2 px-3 text-right text-[var(--text-primary)]">{m.mealTotals.carbohydrateG}g</td>
+                          <td className="py-2 px-3 text-right text-[var(--text-primary)]">{m.mealTotals.fatG}g</td>
+                          <td className="py-2 px-3 text-right text-[var(--text-secondary)]">{mealPct}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* In-page Micronutrients */}
+            {tree.dailyMicronutrientTotals && (
+              <div className="pt-2">
+                <NutritionMicronutrientsPanel
+                  totals={tree.dailyMicronutrientTotals}
+                  title="Micronutrientes do Plano (Minerais e Vitaminas)"
+                  defaultCollapsed={false}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 3: ORIENTAÇÕES E RECOMENDAÇÕES */}
+        {/* ========================================================================= */}
+        {activeTab === "GUIDANCE" && (
+          <div className="p-4 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 depth-surface">
+            <div>
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">
+                Orientações Clínicas e Recomendações
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Instruções personalizadas, recomendações hídricas e notas de consumo que o paciente visualiza no app.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
+                  Orientações Gerais do Nutricionista
+                </label>
+                <textarea
+                  rows={6}
+                  value={generalGuidance}
+                  onChange={(e) => setGeneralGuidance(e.target.value)}
+                  placeholder="Ex: Ingerir de 2,5 a 3 litros de água diariamente. Evitar frituras e açúcares refinados. Priorizar consumo de vegetais nas duas principais refeições..."
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] resize-none"
+                />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
-                  Orientações Gerais ao Paciente
+                  Notas Clínicas Internas (Visíveis apenas para a equipe)
                 </label>
                 <textarea
                   rows={3}
-                  value={generalGuidance}
-                  onChange={(e) => setGeneralGuidance(e.target.value)}
-                  placeholder="Ex: Ingerir 2 a 3 litros de água por dia. Evitar açúcar refinado..."
-                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors resize-none"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Ex: Paciente relata desconforto com lactose. Acompanhar adesão na próxima semana..."
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] resize-none"
                 />
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setIsEditingMetadata(false)}
-                  className="font-semibold min-h-[38px]"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  disabled={isPending}
-                  onClick={handleSaveMetadata}
-                  className="font-bold min-h-[38px] shadow-sm"
-                >
-                  {isPending ? "Salvando..." : "Salvar Alterações"}
-                </Button>
-              </div>
-            </div>
-          )}
-
-
-        </div>
-
-        {/* Meals Section */}
-        <div className="space-y-4 w-full max-w-full min-w-0">
-          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 min-w-0 w-full max-w-full">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-bold text-[var(--text-primary)] break-words [overflow-wrap:anywhere]">Refeições do Plano</h2>
-              <p className="text-xs text-[var(--text-secondary)] font-medium">
-                {tree.meals.length} refeição{tree.meals.length === 1 ? "" : "ões"} configurada{tree.meals.length === 1 ? "" : "s"}
-              </p>
-            </div>
-            {!isReadOnly && !isAddingMeal && (
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={() => setIsAddingMeal(true)}
-                className="font-bold min-h-[38px] shadow-sm shrink-0 w-full sm:w-auto"
-              >
-                <PlusIcon className="w-4 h-4 mr-1.5" />
-                <span>Adicionar Refeição</span>
-              </Button>
-            )}
-          </div>
-
-          {/* Add Meal Form */}
-          {!isReadOnly && isAddingMeal && (
-            <div className="p-5 sm:p-6 rounded-xl bg-[var(--surface)] border border-[var(--brand)]/40 shadow-sm space-y-4 depth-surface">
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">Nova Refeição</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
-                    Nome da refeição *
-                  </label>
-                  <input
-                    type="text"
-                    value={newMealTitle}
-                    onChange={(e) => setNewMealTitle(e.target.value)}
-                    placeholder="Ex: Café da manhã, Almoço, Lanche da tarde..."
-                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
-                    Horário (opcional)
-                  </label>
-                  <input
-                    type="time"
-                    value={newMealTime}
-                    onChange={(e) => setNewMealTime(e.target.value)}
-                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
-                  Observações (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={newMealNotes}
-                  onChange={(e) => setNewMealNotes(e.target.value)}
-                  placeholder="Ex: Tomar logo ao acordar..."
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
-                />
-              </div>
-              <div className="flex justify-end gap-2.5 pt-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setIsAddingMeal(false)}
-                  className="font-semibold min-h-[38px]"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  disabled={isPending}
-                  onClick={handleCreateMeal}
-                  className="font-bold min-h-[38px] shadow-sm"
-                >
-                  {isPending ? "Criando..." : "Criar Refeição"}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {tree.meals.length === 0 && !isAddingMeal && (
-            <div className="text-center py-16 px-4 bg-[var(--surface)] border border-dashed border-[var(--border-default)] rounded-xl space-y-3 depth-surface">
-              <div className="w-12 h-12 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center mx-auto shadow-2xs">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-              </div>
-              <h3 className="text-base font-bold text-[var(--text-primary)]">
-                {isReadOnly ? "Nenhuma refeição cadastrada" : "Adicione a primeira refeição"}
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] max-w-sm mx-auto">
-                {isReadOnly
-                  ? "Esta versão não possui refeições cadastradas."
-                  : "Comece estruturando as refeições diárias (Café da manhã, Almoço, etc.) e adicione alimentos com porções e substituições."}
-              </p>
               {!isReadOnly && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setIsAddingMeal(true)}
-                  className="font-bold min-h-[42px] shadow-sm inline-flex items-center gap-1.5"
-                >
-                  <PlusIcon className="w-4 h-4 mr-1" />
-                  <span>Criar Primeira Refeição</span>
-                </Button>
-              )}
-            </div>
-          )}
-
-          {/* Meals Render List */}
-          {tree.meals.length > 0 && (
-            <div className="space-y-4">
-              {tree.meals.map((meal, idx) => (
-                <NutritionMealEditor
-                  key={meal.publicId}
-                  slug={slug}
-                  meal={meal}
-                  readOnly={isReadOnly}
-                  isFirst={idx === 0}
-                  isLast={idx === tree.meals.length - 1}
-                  onMoveUp={() => handleMoveMeal(idx, "UP")}
-                  onMoveDown={() => handleMoveMeal(idx, "DOWN")}
-                  onUpdateMeal={async (data) => {
-                    startTransition(async () => {
-                      const res = await updateMealAction(slug, tree.plan.publicId, meal.publicId, data);
-                      if (res.success) await refreshTree();
-                      else alert(res.error || "Erro ao atualizar refeição.");
-                    });
-                  }}
-                  onRemoveMeal={async () => {
-                    startTransition(async () => {
-                      const res = await removeMealAction(slug, tree.plan.publicId, meal.publicId);
-                      if (res.success) await refreshTree();
-                      else alert(res.error || "Erro ao remover refeição.");
-                    });
-                  }}
-                  onAddItem={async (payload: FoodSelectionResult) => {
-                    startTransition(async () => {
-                      const res = await addMealItemAction(slug, tree.plan.publicId, meal.publicId, payload);
-                      if (res.success) await refreshTree();
-                      else alert(res.error || "Erro ao adicionar alimento.");
-                    });
-                  }}
-                  onUpdateItem={async (itemPublicId, data) => {
-                    startTransition(async () => {
-                      const res = await updateMealItemAction(slug, tree.plan.publicId, itemPublicId, data);
-                      if (res.success) await refreshTree();
-                      else alert(res.error || "Erro ao atualizar item.");
-                    });
-                  }}
-                  onRemoveItem={async (itemPublicId) => {
-                    startTransition(async () => {
-                      const res = await removeMealItemAction(slug, tree.plan.publicId, itemPublicId);
-                      if (res.success) await refreshTree();
-                      else alert(res.error || "Erro ao remover item.");
-                    });
-                  }}
-                  onReorderItems={async (orderedItemPublicIds) => {
-                    startTransition(async () => {
-                      const res = await reorderMealItemsAction(slug, tree.plan.publicId, meal.publicId, orderedItemPublicIds);
-                      if (res.success) await refreshTree();
-                      else alert(res.error || "Erro ao reordenar itens.");
-                    });
-                  }}
-                  onAddSubstitution={async (itemPublicId, payload: AddSubstitutionInput) => {
-                    startTransition(async () => {
-                      const res = await addSubstitutionAction(slug, tree.plan.publicId, itemPublicId, payload);
-                      if (res.success) await refreshTree();
-                      else alert(res.error || "Erro ao adicionar substituição.");
-                    });
-                  }}
-                  onUpdateSubstitution={async (subPublicId, data) => {
-                    const res = await updateSubstitutionAction(slug, tree.plan.publicId, subPublicId, data);
-                    if (res.success) {
-                      await refreshTree();
-                    } else {
-                      throw new Error(res.error || "Erro ao atualizar substituição.");
-                    }
-                  }}
-                  onRemoveSubstitution={async (subPublicId) => {
-                    startTransition(async () => {
-                      const res = await removeSubstitutionAction(slug, tree.plan.publicId, subPublicId);
-                      if (res.success) await refreshTree();
-                      else alert(res.error || "Erro ao remover substituição.");
-                    });
-                  }}
-                  onReorderSubstitutions={async (itemPublicId, orderedSubs) => {
-                    startTransition(async () => {
-                      const res = await reorderSubstitutionsAction(slug, tree.plan.publicId, itemPublicId, orderedSubs);
-                      if (res.success) await refreshTree();
-                      else alert(res.error || "Erro ao reordenar substituições.");
-                    });
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Mobile In-Flow Totals Block (Below Meals) */}
-        <div className="lg:hidden p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3 depth-surface w-full max-w-full min-w-0">
-          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
-            <div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)] block">
-                  {tree.dailyTotals.status === "INCOMPLETE" ? "Subtotal Conhecido" : "Total Diário"}
-                </span>
-                {tree.dailyTotals.status === "INCOMPLETE" ? (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                    Total Incompleto
-                  </span>
-                ) : tree.dailyTotals.status === "COMPLETE" ? (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                    Total Completo
-                  </span>
-                ) : null}
-              </div>
-              <div className={`text-xl font-extrabold font-heading leading-tight mt-0.5 ${tree.dailyTotals.status === "INCOMPLETE" ? "text-amber-600 dark:text-amber-400" : "text-[var(--brand)]"}`}>
-                {tree.dailyTotals.caloriesKcal.toLocaleString("pt-BR")}{" "}
-                <span className="text-xs font-semibold text-[var(--text-secondary)]">kcal</span>
-              </div>
-            </div>
-            {tree.dailyMicronutrientTotals?.nutrients?.FIBER && (
-              <div className="text-right">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)] block">
-                  Fibras
-                </span>
-                <span className="text-xs font-bold text-[var(--text-primary)]">
-                  {tree.dailyMicronutrientTotals.nutrients.FIBER.value} g
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Macro Breakdown 3 Columns */}
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-2 sm:p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5 min-w-0">
-              <span className="text-[9px] sm:text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400 block truncate">
-                {tree.dailyTotals.status === "INCOMPLETE" ? "Proteínas *" : "Proteínas"}
-              </span>
-              <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block tabular-nums truncate">
-                {tree.dailyTotals.proteinG}g
-              </span>
-            </div>
-            <div className="p-2 sm:p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5 min-w-0">
-              <span className="text-[9px] sm:text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block truncate">
-                {tree.dailyTotals.status === "INCOMPLETE" ? "Carboidratos *" : "Carboidratos"}
-              </span>
-              <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block tabular-nums truncate">
-                {tree.dailyTotals.carbohydrateG}g
-              </span>
-            </div>
-            <div className="p-2 sm:p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5 min-w-0">
-              <span className="text-[9px] sm:text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block truncate">
-                {tree.dailyTotals.status === "INCOMPLETE" ? "Gorduras *" : "Gorduras"}
-              </span>
-              <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block tabular-nums truncate">
-                {tree.dailyTotals.fatG}g
-              </span>
-            </div>
-          </div>
-
-          {/* Phase 3 Planning Target Comparison (Mobile) */}
-          {planningTarget && planningTarget.caloriesKcal !== null && (
-            <div className="p-3 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
-              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-1">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)]">
-                  Comparação com Planejamento
-                </span>
-                <span className="text-[10px] font-semibold text-[var(--text-secondary)]">Meta vs Plano</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Meta</span>
-                  <span className="text-xs font-extrabold text-[var(--text-primary)] block tabular-nums">
-                    {planningTarget.caloriesKcal} kcal
-                  </span>
-                </div>
-                <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Plano</span>
-                  <span className="text-xs font-extrabold text-[var(--brand)] block tabular-nums">
-                    {tree.dailyTotals.caloriesKcal} kcal
-                  </span>
-                </div>
-                <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Diferença</span>
-                  <span
-                    className={`text-xs font-extrabold block tabular-nums ${
-                      tree.dailyTotals.caloriesKcal === planningTarget.caloriesKcal
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : tree.dailyTotals.caloriesKcal > planningTarget.caloriesKcal
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-sky-600 dark:text-sky-400"
-                    }`}
+                <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleSaveMetadata()}
+                    className="font-bold min-h-[38px] shadow-sm"
                   >
-                    {(tree.dailyTotals.caloriesKcal - planningTarget.caloriesKcal > 0 ? "+" : "") +
-                      (tree.dailyTotals.caloriesKcal - planningTarget.caloriesKcal) +
-                      " kcal"}
-                  </span>
-                </div>
-              </div>
-              {planningTarget.proteinG !== null &&
-                planningTarget.carbsG !== null &&
-                planningTarget.fatsG !== null && (
-                  <div className="grid grid-cols-3 gap-1 text-[10px] pt-0.5 text-[var(--text-secondary)]">
-                    <div className="text-center">
-                      P: <strong className="text-[var(--text-primary)]">{tree.dailyTotals.proteinG}g</strong> / {planningTarget.proteinG}g
-                    </div>
-                    <div className="text-center">
-                      C: <strong className="text-[var(--text-primary)]">{tree.dailyTotals.carbohydrateG}g</strong> / {planningTarget.carbsG}g
-                    </div>
-                    <div className="text-center">
-                      G: <strong className="text-[var(--text-primary)]">{tree.dailyTotals.fatG}g</strong> / {planningTarget.fatsG}g
-                    </div>
-                  </div>
-                )}
-            </div>
-          )}
-
-          {/* Incomplete data disclosure */}
-          {!tree.dailyTotals.empty && tree.dailyTotals.status === "INCOMPLETE" && (
-            <div className="p-3 rounded-xl text-xs bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/25 space-y-2">
-              <div className="flex items-center gap-1.5 font-bold">
-                <svg className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <span>Total Diário Incompleto ({tree.dailyTotals.incompleteItemsCount} item{tree.dailyTotals.incompleteItemsCount === 1 ? "" : "s"} pendente{tree.dailyTotals.incompleteItemsCount === 1 ? "" : "s"})</span>
-              </div>
-              <p className="text-[11px] leading-relaxed opacity-90">
-                O valor acima reflete apenas o <strong>subtotal dos alimentos com cálculo nutricional completo</strong>.
-              </p>
-              {tree.dailyTotals.incompleteItems && tree.dailyTotals.incompleteItems.length > 0 && (
-                <div className="pt-1 border-t border-amber-500/20 space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider block opacity-75">Itens sem cálculo completo:</span>
-                  <ul className="space-y-1 text-[11px] max-h-36 overflow-y-auto pr-1">
-                    {tree.dailyTotals.incompleteItems.map((inc, i) => (
-                      <li key={i} className="flex items-start gap-1">
-                        <span className="text-amber-500 font-bold shrink-0">•</span>
-                        <span className="break-words">
-                          <strong>{inc.name}</strong> ({inc.prescribedQuantityText}): <span className="opacity-85">{inc.reason}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                    Salvar Orientações
+                  </Button>
                 </div>
               )}
             </div>
-          )}
-
-          {/* Button: Ver micronutrientes */}
-          <button
-            type="button"
-            onClick={() => setIsMicronutrientsDrawerOpen(true)}
-            className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] transition-all cursor-pointer shadow-2xs active:scale-98 min-h-[44px]"
-          >
-            <svg className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-            </svg>
-            <span>Ver micronutrientes</span>
-          </button>
-        </div>
-
-        {/* Alunos Prescritos Section */}
-        <div className="p-5 sm:p-6 md:p-7 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 depth-surface w-full max-w-full min-w-0">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="space-y-0.5">
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-                Alunos Prescritos
-              </h2>
-              <p className="text-xs text-[var(--text-secondary)] font-medium">
-                Prescrições ativas e histórico de versões atribuídas aos alunos.
-              </p>
-            </div>
-            {tree.version.status === "PUBLISHED" && (
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={() => setIsAssignModalOpen(true)}
-                className="font-bold min-h-[38px] shadow-sm"
-              >
-                <UserPlusIcon className="w-3.5 h-3.5 mr-1" />
-                <span>Prescrever ao Aluno</span>
-              </Button>
-            )}
           </div>
-
-          <NutritionAssignmentsList
-            slug={slug}
-            planPublicId={tree.plan.publicId}
-            assignments={assignments}
-            onRefresh={refreshAssignments}
-          />
-        </div>
-      </div>
-
-      {/* RIGHT / STICKY PANEL: Nutritional Analysis */}
-      <div className="hidden lg:block lg:col-span-4 lg:sticky lg:top-6 space-y-4">
-        {/* Daily Totals Cockpit */}
-        <div className="p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                  {tree.dailyTotals.status === "INCOMPLETE" ? "Subtotal Conhecido" : "Totais Nutricionais"}
-                </span>
-                {tree.dailyTotals.status === "INCOMPLETE" ? (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                    Total Incompleto
-                  </span>
-                ) : tree.dailyTotals.status === "COMPLETE" ? (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                    Total Completo
-                  </span>
-                ) : null}
-              </div>
-              <h3 className="font-heading text-base font-bold text-[var(--text-primary)] mt-0.5">
-                {tree.dailyTotals.status === "INCOMPLETE" ? "Cálculo Diário Parcial" : "Análise Diária do Cardápio"}
-              </h3>
-            </div>
-            <div className="text-right">
-              <div className={`text-2xl font-extrabold font-heading leading-tight ${tree.dailyTotals.status === "INCOMPLETE" ? "text-amber-600 dark:text-amber-400" : "text-[var(--brand)]"}`}>
-                {tree.dailyTotals.caloriesKcal.toLocaleString("pt-BR")}
-                <span className="text-xs font-semibold text-[var(--text-secondary)] ml-1">kcal</span>
-              </div>
-              {tree.dailyTotals.status === "INCOMPLETE" && (
-                <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 block mt-0.5">
-                  apenas itens calculados
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Macro Breakdown Cards */}
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400 block">
-                {tree.dailyTotals.status === "INCOMPLETE" ? "Proteínas *" : "Proteínas"}
-              </span>
-              <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
-                {tree.dailyTotals.proteinG}g
-              </span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block">
-                {tree.dailyTotals.status === "INCOMPLETE" ? "Carboidratos *" : "Carboidratos"}
-              </span>
-              <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
-                {tree.dailyTotals.carbohydrateG}g
-              </span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block">
-                {tree.dailyTotals.status === "INCOMPLETE" ? "Gorduras *" : "Gorduras"}
-              </span>
-              <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
-                {tree.dailyTotals.fatG}g
-              </span>
-            </div>
-          </div>
-
-          {/* Phase 3 Planning Target Comparison (Desktop) */}
-          {planningTarget && planningTarget.caloriesKcal !== null && (
-            <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
-              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-1.5">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)]">
-                  Comparação com Planejamento
-                </span>
-                <span className="text-[10px] font-semibold text-[var(--text-secondary)]">Meta vs Plano</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="p-2 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Meta</span>
-                  <span className="text-xs font-extrabold text-[var(--text-primary)] block tabular-nums">
-                    {planningTarget.caloriesKcal} kcal
-                  </span>
-                </div>
-                <div className="p-2 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Plano</span>
-                  <span className="text-xs font-extrabold text-[var(--brand)] block tabular-nums">
-                    {tree.dailyTotals.caloriesKcal} kcal
-                  </span>
-                </div>
-                <div className="p-2 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)]">
-                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Diferença</span>
-                  <span
-                    className={`text-xs font-extrabold block tabular-nums ${
-                      tree.dailyTotals.caloriesKcal === planningTarget.caloriesKcal
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : tree.dailyTotals.caloriesKcal > planningTarget.caloriesKcal
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-sky-600 dark:text-sky-400"
-                    }`}
-                  >
-                    {(tree.dailyTotals.caloriesKcal - planningTarget.caloriesKcal > 0 ? "+" : "") +
-                      (tree.dailyTotals.caloriesKcal - planningTarget.caloriesKcal) +
-                      " kcal"}
-                  </span>
-                </div>
-              </div>
-              {planningTarget.proteinG !== null &&
-                planningTarget.carbsG !== null &&
-                planningTarget.fatsG !== null && (
-                  <div className="grid grid-cols-3 gap-1 text-[10px] pt-1 text-[var(--text-secondary)]">
-                    <div className="text-center">
-                      P: <strong className="text-[var(--text-primary)]">{tree.dailyTotals.proteinG}g</strong> / {planningTarget.proteinG}g
-                    </div>
-                    <div className="text-center">
-                      C: <strong className="text-[var(--text-primary)]">{tree.dailyTotals.carbohydrateG}g</strong> / {planningTarget.carbsG}g
-                    </div>
-                    <div className="text-center">
-                      G: <strong className="text-[var(--text-primary)]">{tree.dailyTotals.fatG}g</strong> / {planningTarget.fatsG}g
-                    </div>
-                  </div>
-                )}
-            </div>
-          )}
-
-          {/* Fiber row */}
-          {tree.dailyMicronutrientTotals?.nutrients?.FIBER && (
-            <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface-subtle)]/70 text-xs border border-[var(--border-subtle)]">
-              <span className="text-[var(--text-secondary)] font-medium">Fibras Alimentares</span>
-              <span className="font-bold text-[var(--text-primary)]">
-                {tree.dailyMicronutrientTotals.nutrients.FIBER.value} g
-              </span>
-            </div>
-          )}
-
-          {/* Incomplete data disclosure (Desktop) */}
-          {!tree.dailyTotals.empty && tree.dailyTotals.status === "INCOMPLETE" && (
-            <div className="p-3.5 rounded-xl text-xs bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/25 space-y-2">
-              <div className="flex items-center gap-2 font-bold">
-                <svg className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <span>Total Diário Incompleto ({tree.dailyTotals.incompleteItemsCount} item{tree.dailyTotals.incompleteItemsCount === 1 ? "" : "s"} pendente{tree.dailyTotals.incompleteItemsCount === 1 ? "" : "s"})</span>
-              </div>
-              <p className="text-[11px] leading-relaxed opacity-90">
-                O valor exibido acima é um <strong>subtotal conhecido</strong>. Para obter o total preciso, vincule os alimentos pendentes à tabela nutricional ou informe medidas em gramas.
-              </p>
-              {tree.dailyTotals.incompleteItems && tree.dailyTotals.incompleteItems.length > 0 && (
-                <div className="pt-1.5 border-t border-amber-500/20 space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider block opacity-75">Itens sem cálculo completo:</span>
-                  <ul className="space-y-1 text-[11px] max-h-48 overflow-y-auto pr-1">
-                    {tree.dailyTotals.incompleteItems.map((inc, i) => (
-                      <li key={i} className="flex items-start gap-1">
-                        <span className="text-amber-500 font-bold shrink-0">•</span>
-                        <span className="break-words">
-                          <strong>{inc.name}</strong> ({inc.prescribedQuantityText}): <span className="opacity-85">{inc.reason}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-          {/* Button: Ver micronutrientes */}
-          <button
-            type="button"
-            onClick={() => setIsMicronutrientsDrawerOpen(true)}
-            className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] transition-all cursor-pointer shadow-2xs hover:border-[var(--brand)]/40 active:scale-98 min-h-[38px]"
-          >
-            <svg className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-            </svg>
-            <span>Ver micronutrientes</span>
-          </button>
-        </div>
-
-        {/* Plan Micronutrients Panel (Desktop In-Page) */}
-        {tree.dailyMicronutrientTotals && (
-          <NutritionMicronutrientsPanel
-            totals={tree.dailyMicronutrientTotals}
-            title="Micronutrientes do Plano"
-            defaultCollapsed={true}
-          />
         )}
-      </div>
-    </div>
 
-        {/* Micronutrients Drawer (Mobile & Modal) */}
+        {/* ========================================================================= */}
+        {/* MODALS & DRAWERS */}
+        {/* ========================================================================= */}
+
+        {/* Patient Preview Modal */}
+        <NutritionPatientPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          tree={tree}
+          studentName={patientContext?.studentName}
+        />
+
+        {/* Micronutrients Drawer */}
         {tree.dailyMicronutrientTotals && (
           <NutritionMicronutrientsPanel
             totals={tree.dailyMicronutrientTotals}
@@ -1405,7 +1408,7 @@ export function NutritionPlanBuilder({
           patientName={patientContext?.studentName}
         />
 
-        {/* Version History Drawer / Modal */}
+        {/* Version History Drawer */}
         <NutritionVersionHistory
           slug={slug}
           planPublicId={tree.plan.publicId}
@@ -1416,7 +1419,7 @@ export function NutritionPlanBuilder({
           onClose={() => setIsHistoryOpen(false)}
         />
 
-        {/* Prescribe / Assign Modal */}
+        {/* Prescribe Modal */}
         <NutritionAssignModal
           slug={slug}
           planPublicId={tree.plan.publicId}
@@ -1429,7 +1432,7 @@ export function NutritionPlanBuilder({
         />
       </div>
 
-      {/* Mobile Sticky Bottom Action Bar */}
+      {/* MOBILE STICKY BOTTOM ACTION BAR */}
       <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-default)] p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shadow-lg flex items-center justify-between gap-2.5 w-full max-w-full min-w-0">
         <button
           type="button"
@@ -1444,6 +1447,16 @@ export function NutritionPlanBuilder({
           </svg>
         </button>
 
+        {/* Preview Button Mobile */}
+        <button
+          type="button"
+          onClick={() => setIsPreviewOpen(true)}
+          className="min-h-[48px] px-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 shrink-0"
+        >
+          <EyeIcon className="w-4 h-4 text-[var(--brand)]" />
+          <span>Prévia</span>
+        </button>
+
         {tree.version.status === "DRAFT" && (
           <Button
             variant="primary"
@@ -1455,7 +1468,7 @@ export function NutritionPlanBuilder({
             className="flex-1 font-bold min-h-[48px] shadow-sm flex items-center justify-center gap-1.5 text-xs sm:text-sm"
           >
             <CheckIcon className="w-4 h-4" />
-            <span>{patientContext ? "Publicar atualização" : "Publicar Versão"}</span>
+            <span>{patientContext ? "Publicar atualização" : "Publicar"}</span>
           </Button>
         )}
 
@@ -1467,30 +1480,23 @@ export function NutritionPlanBuilder({
             className="flex-1 font-bold min-h-[48px] shadow-sm flex items-center justify-center gap-1.5 text-xs sm:text-sm"
           >
             <UserPlusIcon className="w-4 h-4" />
-            <span>Prescrever ao Aluno</span>
-          </Button>
-        )}
-
-        {tree.version.status !== "DRAFT" && tree.version.status !== "PUBLISHED" && (
-          <Button
-            variant="primary"
-            size="md"
-            disabled={isCreatingVersion}
-            onClick={handleCreateNextVersion}
-            className="flex-1 font-bold min-h-[48px] shadow-sm flex items-center justify-center gap-1.5 text-xs sm:text-sm"
-          >
-            <PlusIcon className="w-4 h-4" />
-            <span>{isCreatingVersion ? "Criando versão..." : "Criar Nova Versão"}</span>
+            <span>Prescrever</span>
           </Button>
         )}
       </div>
 
-      {/* Mobile Action Sheet for secondary actions */}
+      {/* Mobile Action Sheet */}
       <MobileActionSheet
         isOpen={isMobileActionSheetOpen}
         onClose={() => setIsMobileActionSheetOpen(false)}
         title={tree.version.title}
         options={[
+          {
+            id: "preview",
+            label: "Prévia do Aluno (Smartphone)",
+            icon: <EyeIcon className="w-4 h-4 text-[var(--brand)]" />,
+            onClick: () => setIsPreviewOpen(true),
+          },
           ...(tree.version.status === "DRAFT" && patientContext ? [{
             id: "discard-draft",
             label: "Descartar alterações",
@@ -1503,12 +1509,20 @@ export function NutritionPlanBuilder({
             id: "add-meal",
             label: "Adicionar Refeição",
             icon: <PlusIcon className="w-4 h-4 text-[var(--brand)]" />,
-            onClick: () => setIsAddingMeal(true),
+            onClick: () => {
+              setActiveTab("BUILDER");
+              setIsAddingMeal(true);
+            },
           }, {
             id: "edit-meta",
-            label: "Editar Informações do Plano",
-            icon: <EditIcon className="w-4 h-4 text-[var(--brand)]" />,
-            onClick: () => setIsEditingMetadata(true),
+            label: "Editar Título e Subtítulo",
+            icon: (
+              <svg className="w-4 h-4 text-[var(--brand)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            ),
+            onClick: () => setIsEditingTitle(true),
           }] : []),
           {
             id: "history",

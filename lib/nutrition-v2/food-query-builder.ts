@@ -1119,6 +1119,7 @@ export function buildSelectFoodsQuery(
     f.protein_g,
     f.carbohydrate_g,
     f.fat_g,
+    f.fiber_g,
     f.status,
     f.source_type,
     f.source_key,

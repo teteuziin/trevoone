@@ -12,6 +12,7 @@ import { NutritionFoodPicker } from "./nutrition-food-picker";
 import { NutritionEquivalentsModal } from "./nutrition-equivalents-modal";
 import type { FoodListItemDto } from "@/lib/nutrition-v2/food-repository";
 import { calculateMealMicronutrientTotals } from "@/lib/nutrition-v2/nutrient-calculator";
+import { formatQuantity } from "@/lib/nutrition-v2/nutrition-plan-presentation";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 
 interface NutritionItemEditorProps {
@@ -123,7 +124,7 @@ export function NutritionItemEditor({
           <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] text-[var(--text-secondary)] flex-wrap min-w-0 max-w-full">
             {item.prescribedQuantity != null && (
               <span className="font-medium text-[var(--text-primary)] shrink-0">
-                {item.prescribedQuantity} {item.prescribedUnitLabel || item.prescribedUnitCode || "g"}
+                {formatQuantity(item.prescribedQuantity, item.prescribedUnitLabel, item.prescribedUnitCode)}
               </span>
             )}
             <span className="text-[var(--text-tertiary)]">•</span>

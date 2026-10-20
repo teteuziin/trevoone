@@ -543,6 +543,9 @@ export function NutritionistFoodLibrary({
                       <span className="font-medium">P: {food.proteinG != null ? `${food.proteinG}g` : "--"}</span>
                       <span className="font-medium">C: {food.carbohydrateG != null ? `${food.carbohydrateG}g` : "--"}</span>
                       <span className="font-medium">G: {food.fatG != null ? `${food.fatG}g` : "--"}</span>
+                      {food.fiberG != null && (
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">Fibra: {food.fiberG}g</span>
+                      )}
                     </div>
                   </div>
 

@@ -8,6 +8,7 @@ import type {
 } from "@/lib/nutrition-v2/plan-repository";
 import { NutritionItemEditor } from "./nutrition-item-editor";
 import { NutritionFoodPicker, type FoodSelectionResult } from "./nutrition-food-picker";
+import { NutritionMealInlineSearch } from "./nutrition-meal-inline-search";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 
 interface NutritionMealEditorProps {
@@ -18,6 +19,7 @@ interface NutritionMealEditorProps {
   isLast: boolean;
   onUpdateMeal: (data: { title?: string; scheduledTime?: string | null; notes?: string | null }) => Promise<void>;
   onRemoveMeal: () => Promise<void>;
+  onDuplicateMeal?: () => Promise<void>;
   onMoveUp?: () => Promise<void>;
   onMoveDown?: () => Promise<void>;
   onAddItem: (payload: FoodSelectionResult) => Promise<void>;
@@ -62,6 +64,7 @@ export function NutritionMealEditor({
   const [notes, setNotes] = useState(meal.notes || "");
   const [isSaving, setIsSaving] = useState(false);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isInlineSearchOpen, setIsInlineSearchOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const handleSaveMeal = async () => {
@@ -345,18 +348,40 @@ export function NutritionMealEditor({
           )}
         </div>
 
-        {/* Add Item Action */}
+        {/* Add Item Action: Inline Nutrium Search by default */}
         {!readOnly && (
-          <button
-            type="button"
-            onClick={() => setIsPickerOpen(true)}
-            className="w-full py-3 px-4 rounded-xl border-2 border-dashed border-[var(--brand)]/30 hover:border-[var(--brand)] bg-[var(--brand)]/5 hover:bg-[var(--brand)]/10 text-xs sm:text-sm font-bold text-[var(--brand)] transition-colors flex items-center justify-center gap-2 min-h-[46px] sm:min-h-[42px] cursor-pointer active:scale-[0.99]"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            <span>+ Adicionar Alimento</span>
-          </button>
+          <div className="space-y-2">
+            {isInlineSearchOpen ? (
+              <NutritionMealInlineSearch
+                slug={slug}
+                mealTitle={meal.title}
+                onAddItem={onAddItem}
+                onClose={() => setIsInlineSearchOpen(false)}
+              />
+            ) : (
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsInlineSearchOpen(true)}
+                  className="w-full py-3 px-4 rounded-xl border-2 border-dashed border-[var(--brand)]/30 hover:border-[var(--brand)] bg-[var(--brand)]/5 hover:bg-[var(--brand)]/10 text-xs sm:text-sm font-bold text-[var(--brand)] transition-colors flex items-center justify-center gap-2 min-h-[46px] sm:min-h-[42px] cursor-pointer active:scale-[0.99]"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  <span>+ Adicionar Alimento</span>
+                </button>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setIsPickerOpen(true)}
+                    className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--brand)] hover:underline font-medium cursor-pointer"
+                  >
+                    ou buscar com filtros avançados em modal
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

@@ -288,9 +288,9 @@ export function PersonalStudentList({
           Ícone azul da área, Título "Alunos", contagem real em texto secundário
           Sem saudações, sem perguntas, sem frases motivacionais, sem hero gigante
           ========================================================================= */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-[#151619] border border-[#303238] shadow-sm flex flex-col gap-3.5">
-        {/* Retorno explícito: Seta + Texto "Voltar", alvo >= 44x44px, alto contraste, destino interno seguro */}
-        <div>
+      <div className="p-4 sm:p-5 rounded-2xl bg-[#151619] border border-[#303238] shadow-sm flex flex-col gap-3">
+        {/* Linha superior: Seta + Voltar, alvo confortável >= 44x44px */}
+        <div className="flex items-center justify-between">
           <Link
             href={`/consultoria/${consultancySlug}`}
             onClick={(e) => {
@@ -312,8 +312,9 @@ export function PersonalStudentList({
           </Link>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3.5 min-w-0">
+        {/* Linha de Identificação: Ícone + Título + Contagem em linha secundária no mobile quando necessário */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className={`w-10 h-10 rounded-xl ${isEffectiveNutritionist ? "bg-emerald-500/10 border-emerald-500/20" : "bg-blue-500/10 border-blue-500/20"} border flex items-center justify-center shrink-0`}>
               {isEffectiveNutritionist ? (
                 <DuotoneNutritionIcon className="w-5 h-5 text-emerald-400" />
@@ -321,25 +322,21 @@ export function PersonalStudentList({
                 <DuotoneStudentsIcon className="w-5 h-5 text-blue-400" />
               )}
             </div>
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-2.5">
-                <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                  {isEffectiveNutritionist ? "Pacientes" : "Alunos"}
-                </h1>
-                <span className="text-xs sm:text-sm text-[#8E929C] font-normal">
-                  {totalCount} {isEffectiveNutritionist ? (totalCount === 1 ? "paciente cadastrado" : "pacientes cadastrados") : (totalCount === 1 ? "aluno cadastrado" : "alunos cadastrados")}
-                </span>
-              </div>
-              <p className="text-xs text-[#8E929C] truncate">
-                {isEffectiveNutritionist ? "Gestão e acompanhamento direto dos pacientes da consultoria" : "Gestão e acompanhamento direto dos alunos da consultoria"}
-              </p>
+            <div className="min-w-0 flex flex-col sm:flex-row sm:items-baseline sm:gap-2.5">
+              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">
+                {isEffectiveNutritionist ? "Pacientes" : "Alunos"}
+              </h1>
+              <span className="text-xs sm:text-sm text-[#8E929C] font-normal leading-tight mt-0.5 sm:mt-0">
+                {totalCount} {isEffectiveNutritionist ? (totalCount === 1 ? "paciente cadastrado" : "pacientes cadastrados") : (totalCount === 1 ? "aluno cadastrado" : "alunos cadastrados")}
+              </span>
             </div>
           </div>
 
+          {/* Ação autorizada existente: Convidar paciente / membro acomodada em linha própria no mobile */}
           {isAdmin && (
             <Link
               href={`/consultoria/${consultancySlug}/membros`}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-[#10B981] hover:bg-[#059669] active:bg-[#047857] transition-colors min-h-[44px] shadow-sm shrink-0 self-start sm:self-auto"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-[#10B981] hover:bg-[#059669] active:bg-[#047857] transition-colors min-h-[44px] shadow-sm shrink-0"
             >
               <UserPlusIcon className="w-4 h-4" />
               <span>{isEffectiveNutritionist ? "Convidar paciente" : "Convidar membro"}</span>

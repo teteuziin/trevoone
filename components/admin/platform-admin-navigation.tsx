@@ -259,23 +259,23 @@ export function PlatformAdminNavigation({
           ========================================================================= */}
       <nav
         aria-label="Navegação rápida móvel"
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-lg transition-colors print:hidden border-specular-t"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[max(0.375rem,env(safe-area-inset-bottom,0px))] shadow-lg transition-colors print:hidden border-specular-t"
       >
-        <div className="flex items-center justify-around h-16 px-1">
+        <div className="flex items-center justify-around min-h-[58px] sm:min-h-[64px] h-auto px-1 pt-1 pb-0.5">
           {navItems.map((item) => (
             <Link
               key={item.id}
               href={item.href}
               prefetch={false}
               aria-current={item.isActive ? "page" : undefined}
-              className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
+              className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                 item.isActive
                   ? "text-[var(--text-primary)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               <div
-                className={`p-1.5 rounded-xl transition-all duration-150 ${
+                className={`p-1.5 rounded-xl shrink-0 transition-all duration-150 ${
                   item.isActive
                     ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-2xs"
                     : "group-hover:bg-[var(--surface-hover)]"
@@ -283,9 +283,9 @@ export function PlatformAdminNavigation({
               >
                 {item.icon}
               </div>
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className={`text-[10px] tracking-tight truncate max-w-full leading-tight ${
-                  item.isActive ? "font-semibold text-[var(--text-primary)]" : "font-medium text-[var(--text-tertiary)]"
+              <div className="flex items-center gap-1 mt-0.5 shrink-0">
+                <span className={`text-[10px] tracking-tight truncate max-w-full leading-none shrink-0 ${
+                  item.isActive ? "font-bold text-[var(--text-primary)]" : "font-medium text-[var(--text-tertiary)]"
                 }`}>
                   {item.label}
                 </span>

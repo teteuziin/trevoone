@@ -2110,6 +2110,7 @@ export async function confirmNutritionAiImport(params: {
   targetPatientMembershipId?: number | bigint | null;
   confirmedTitle?: string;
   confirmedMeals: ResolvedNutritionMeal[];
+  isTemplate?: boolean;
 }): Promise<{
   planPublicId: string;
   versionPublicId: string;
@@ -2124,6 +2125,7 @@ export async function confirmNutritionAiImport(params: {
     targetPatientMembershipId,
     confirmedTitle,
     confirmedMeals,
+    isTemplate = false,
   } = params;
 
   // Validate at least one meal exists to form a valid draft
@@ -2155,16 +2157,16 @@ export async function confirmNutritionAiImport(params: {
       };
     }
 
-    const title = (confirmedTitle || "Plano Alimentar Importado com IA").trim();
+    const title = (confirmedTitle || (isTemplate ? "Modelo de Plano Alimentar" : "Plano Alimentar Importado com IA")).trim();
     const planPublicId = crypto.randomUUID();
     const versionPublicId = crypto.randomUUID();
 
     // 1. Insert plan root
     const [pRes] = await db.query<ResultSetHeader>(
       `INSERT INTO nutrition_v2_plans (
-        public_id, consultancy_id, created_by_membership_id, status, created_at, updated_at
-      ) VALUES (?, ?, ?, 'ACTIVE', NOW(3), NOW(3))`,
-      [planPublicId, consultancyId, memberId]
+        public_id, consultancy_id, created_by_membership_id, is_template, status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'ACTIVE', NOW(3), NOW(3))`,
+      [planPublicId, consultancyId, memberId, isTemplate ? 1 : 0]
     );
     const planId = pRes.insertId;
 
@@ -2425,7 +2427,7 @@ export async function confirmNutritionAiImport(params: {
     // 4. Handle target patient candidate / optional context (does NOT publish or assign during import)
     let patientFullName: string | null = null;
 
-    if (targetPatientMembershipId) {
+    if (!isTemplate && targetPatientMembershipId) {
       const [sRows] = await db.query<RowDataPacket[]>(
         `SELECT u.full_name FROM consultancy_members cm
          INNER JOIN users u ON u.id = cm.user_id
@@ -2453,7 +2455,9 @@ export async function confirmNutritionAiImport(params: {
     await db.commit();
 
     // 6. Record audit activity event
-    const summary = patientFullName
+    const summary = isTemplate
+      ? `importou com IA o modelo de plano alimentar "${title}"`
+      : patientFullName
       ? `importou com IA o plano alimentar "${title}" para ${patientFullName}`
       : `importou com IA o plano alimentar "${title}"`;
 
@@ -2466,7 +2470,7 @@ export async function confirmNutritionAiImport(params: {
       module: "NUTRITION",
       resourceType: "NUTRITION_PLAN",
       resourcePublicId: planPublicId,
-      subjectMembershipId: targetPatientMembershipId || null,
+      subjectMembershipId: isTemplate ? null : (targetPatientMembershipId || null),
       summary,
       metadata: {
         importJobPublicId: jobPublicId,
@@ -2475,6 +2479,7 @@ export async function confirmNutritionAiImport(params: {
         mealsCount: confirmedMeals.length,
         foodsCreated,
         targetPatientName: patientFullName,
+        isTemplate,
       },
     });
 

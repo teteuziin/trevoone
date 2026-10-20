@@ -75,9 +75,8 @@ export function NutritionPlanCreationSheet({
         </Button>
       ) : (
         <>
-          {/* Desktop view: Importar plano (atalho) + Novo plano (abre seletor de 4 opções) */}
+          {/* Desktop view: single prominent action opening 4-options choice modal */}
           <div className="hidden sm:flex items-center gap-2.5 shrink-0">
-            <NutritionAiImportModal consultancySlug={consultancySlug} />
             <Button
               variant="primary"
               size="md"
@@ -109,6 +108,7 @@ export function NutritionPlanCreationSheet({
         isOpen={isChoiceModalOpen}
         onClose={() => setIsChoiceModalOpen(false)}
         onSelectOption={handleSelectChoice}
+        isTemplatesTab={isTemplatesTab}
       />
 
       {/* 2. Modal Criar do Zero com IA */}
@@ -122,6 +122,7 @@ export function NutritionPlanCreationSheet({
       {isImportAiOpen && (
         <NutritionAiImportModal
           consultancySlug={consultancySlug}
+          isTemplate={isTemplatesTab}
           isOpenControlled={isImportAiOpen}
           onCloseControlled={() => setIsImportAiOpen(false)}
           hideTrigger={true}

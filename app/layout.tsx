@@ -77,6 +77,7 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 const themeBootstrapScript = `(function(){try{var t=localStorage.getItem("trevo_theme");var prefersDark=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;var isDark=t==="dark"||(!t&&prefersDark)||(t==="system"&&prefersDark);if(isDark){document.documentElement.setAttribute("data-theme","dark");document.documentElement.classList.add("dark");}else{document.documentElement.setAttribute("data-theme","light");document.documentElement.classList.remove("dark");}}catch(e){}})();`;

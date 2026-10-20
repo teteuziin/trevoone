@@ -23,17 +23,6 @@ export interface NutritionOverviewHeaderProps {
   draftPlansCount?: number | null;
 }
 
-function DocumentUploadIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-      />
-    </svg>
-  );
-}
 
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -95,16 +84,7 @@ export function NutritionOverviewHeader({
 
           {/* Ações Desktop & Mobile com alinhamento preciso e sem quebra */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={() => setIsImportAiOpen(true)}
-              className="px-4 min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] text-[#E5E7EB] hover:text-white flex items-center justify-center gap-2 active:translate-y-[1px] transition-colors cursor-pointer select-none shadow-sm whitespace-nowrap"
-            >
-              <DocumentUploadIcon className="w-4 h-4 text-[#8E95A2] shrink-0" />
-              <span>Importar plano</span>
-            </button>
-
-            {/* + Novo plano (Ação primária de novo plano - sem duplicar o ícone + com o texto) */}
+            {/* + Novo plano (Ação primária de novo plano - abre seletor com as 4 opções) */}
             <button
               type="button"
               onClick={() => setIsChoiceModalOpen(true)}

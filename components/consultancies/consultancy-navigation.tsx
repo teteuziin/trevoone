@@ -1204,9 +1204,9 @@ export function ConsultancyNavigation({
             isDarkOverview
               ? "bg-[#F9FAFB] dark:bg-[#111215] border-t border-[#E5E7EB] dark:border-[#303238]"
               : "bg-[var(--surface)] border-t border-[var(--border-default)]"
-          } pb-[env(safe-area-inset-bottom,0px)] shadow-lg print:hidden transition-all duration-150 border-specular-t`}
+          } pb-[max(0.375rem,env(safe-area-inset-bottom,0px))] shadow-lg print:hidden border-specular-t`}
         >
-          <div className="flex items-center justify-around h-16 px-1">
+          <div className="flex items-center justify-around min-h-[58px] sm:min-h-[64px] h-auto px-1 pt-1 pb-0.5">
             {primaryNavItems.map((item) => {
               const active = isItemActive(item.href);
               return (
@@ -1215,14 +1215,14 @@ export function ConsultancyNavigation({
                   href={item.href}
                   prefetch={false}
                   aria-current={active ? "page" : undefined}
-                  className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] h-full py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
+                  className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                     active
                       ? isDarkOverview ? "text-[#065F46] dark:text-[#10B981]" : "text-[var(--brand)]"
                       : isDarkOverview ? "text-[#4B5563] hover:text-[#17191D] dark:text-[#C2C8CF] dark:hover:text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <div
-                    className={`px-3 py-1 rounded-full relative flex items-center justify-center transition-all duration-150 ${
+                    className={`px-3 py-1 rounded-full relative flex items-center justify-center shrink-0 transition-all duration-150 ${
                       active
                         ? isDarkOverview
                           ? "bg-emerald-500/15 text-[#065F46] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
@@ -1235,14 +1235,22 @@ export function ConsultancyNavigation({
                     <NavIcon name={item.iconName} className="w-[22px] h-[22px] shrink-0" />
                   </div>
                   <span
-                    className={`text-[11px] tracking-tight truncate max-w-full leading-tight mt-1 text-center transition-colors duration-150 ${
+                    className={`text-[11px] tracking-tight truncate max-w-full leading-none mt-1 text-center shrink-0 transition-colors duration-150 ${
                       active
-                        ? isDarkOverview ? "font-semibold text-[#065F46] dark:text-[#10B981]" : "font-semibold text-[var(--brand)]"
+                        ? isDarkOverview ? "font-bold text-[#065F46] dark:text-[#10B981]" : "font-bold text-[var(--brand)]"
                         : isDarkOverview ? "font-medium text-[#4B5563] group-hover:text-[#17191D] dark:text-[#C2C8CF] dark:group-hover:text-white" : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                     }`}
                   >
                     {item.mobileLabel || item.label}
                   </span>
+                  {active && (
+                    <span
+                      className={`w-1 h-1 rounded-full mt-0.5 shrink-0 ${
+                        isDarkOverview ? "bg-[#065F46] dark:bg-[#10B981]" : "bg-[var(--brand)]"
+                      }`}
+                      aria-hidden="true"
+                    />
+                  )}
                 </Link>
               );
             })}
@@ -1254,14 +1262,14 @@ export function ConsultancyNavigation({
               aria-label="Mais opções de navegação"
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-navigation-drawer"
-              className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] h-full py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
+              className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                 isMoreButtonActive
                   ? isDarkOverview ? "text-[#065F46] dark:text-[#10B981]" : "text-[var(--brand)]"
                   : isDarkOverview ? "text-[#4B5563] hover:text-[#17191D] dark:text-[#C2C8CF] dark:hover:text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               <div
-                className={`px-3 py-1 rounded-full relative flex items-center justify-center transition-all duration-150 ${
+                className={`px-3 py-1 rounded-full relative flex items-center justify-center shrink-0 transition-all duration-150 ${
                   isMoreButtonActive
                     ? isDarkOverview
                       ? "bg-emerald-500/15 text-[#065F46] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
@@ -1286,14 +1294,22 @@ export function ConsultancyNavigation({
                 )}
               </div>
               <span
-                className={`text-[11px] tracking-tight truncate max-w-full leading-tight mt-1 text-center transition-colors duration-150 ${
+                className={`text-[11px] tracking-tight truncate max-w-full leading-none mt-1 text-center shrink-0 transition-colors duration-150 ${
                   isMoreButtonActive
-                    ? isDarkOverview ? "font-semibold text-[#065F46] dark:text-[#10B981]" : "font-semibold text-[var(--brand)]"
+                    ? isDarkOverview ? "font-bold text-[#065F46] dark:text-[#10B981]" : "font-bold text-[var(--brand)]"
                     : isDarkOverview ? "font-medium text-[#4B5563] group-hover:text-[#17191D] dark:text-[#C2C8CF] dark:group-hover:text-white" : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                 }`}
               >
                 Mais
               </span>
+              {isMoreButtonActive && (
+                <span
+                  className={`w-1 h-1 rounded-full mt-0.5 shrink-0 ${
+                    isDarkOverview ? "bg-[#065F46] dark:bg-[#10B981]" : "bg-[var(--brand)]"
+                  }`}
+                  aria-hidden="true"
+                />
+              )}
             </button>
           </div>
         </nav>

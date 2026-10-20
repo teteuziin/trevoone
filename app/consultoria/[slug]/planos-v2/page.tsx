@@ -268,24 +268,17 @@ export default async function ConsultancyNutritionPlansPage({
             </div>
           ) : (
             /* Estado 2: Lista Vazia Inicial (nenhum item cadastrado) */
-            <div className="p-8 sm:p-12 text-center rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#151619] shadow-xs space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
-                <MealPlanIcon className="w-6 h-6" />
+            <div className="p-6 sm:p-8 text-center rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#151619] shadow-xs space-y-2.5 max-w-md mx-auto">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
+                <MealPlanIcon className="w-5 h-5" />
               </div>
-              <div className="space-y-1 max-w-md mx-auto">
+              <div className="space-y-1">
                 <h3 className="text-base font-bold text-zinc-900 dark:text-white">
-                  {isTemplatesTab
-                    ? "Você ainda não criou nenhum modelo de plano alimentar"
-                    : "Você ainda não criou nenhum plano alimentar"}
+                  {isTemplatesTab ? "Nenhum modelo criado" : "Nenhum plano alimentar criado"}
                 </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  {isTemplatesTab
-                    ? "Crie modelos padronizados para acelerar a prescrição aos seus pacientes."
-                    : "Estruture seu primeiro plano alimentar personalizado com refeições, horários e alimentos."}
+                  {isTemplatesTab ? "Use Novo modelo para começar." : "Use Novo plano para começar."}
                 </p>
-              </div>
-              <div className="pt-2">
-                <NutritionPlanCreationSheet consultancySlug={slug} isTemplatesTab={isTemplatesTab} />
               </div>
             </div>
           )

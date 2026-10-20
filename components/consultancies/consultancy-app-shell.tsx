@@ -661,7 +661,7 @@ export async function ConsultancyAppShell({
               ? "bg-transparent text-[#17191D] dark:text-[#FFFFFF]"
               : "bg-[#F0F1F3] dark:bg-[#0B0C0E]"
             : "xl:p-10"
-        } pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 lg:pb-10 print:p-0 print:max-w-full ${effectiveMaxWidthClass} ${className}`.trim()}
+        } pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-8 lg:pb-10 print:p-0 print:max-w-full ${effectiveMaxWidthClass} ${className}`.trim()}
       >
         {children}
       </main>

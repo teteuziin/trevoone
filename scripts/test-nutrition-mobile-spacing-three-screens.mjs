@@ -41,7 +41,7 @@ runTest("Screen 1: Choice modal locks body scroll while open", () => {
 runTest("Screen 1: Choice modal has equal 16px mobile lateral margins and safe-area padding", () => {
   assert.ok(choiceContent.includes("px-4 sm:px-6"), "16px lateral padding on mobile (px-4)");
   assert.ok(choiceContent.includes("safe-area-inset-bottom"), "Reserves space for safe area inset");
-  assert.ok(choiceContent.includes("pb-[calc(2rem+env(safe-area-inset-bottom,0px))]"), "Generous bottom space after Usar modelo");
+  assert.ok(choiceContent.includes("pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"), "16px bottom space plus safe area after Usar modelo");
 });
 
 runTest("Screen 1: Choice modal has proper card hierarchy, icon gap (12px), title-desc gap (4px)", () => {

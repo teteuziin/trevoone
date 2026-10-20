@@ -96,6 +96,7 @@ interface NutritionAiImportModalProps {
   isOpenControlled?: boolean;
   onCloseControlled?: () => void;
   hideTrigger?: boolean;
+  isTemplate?: boolean;
 }
 
 export function NutritionAiImportModal({
@@ -105,6 +106,7 @@ export function NutritionAiImportModal({
   isOpenControlled,
   onCloseControlled,
   hideTrigger = false,
+  isTemplate = false,
 }: NutritionAiImportModalProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -488,9 +490,10 @@ export function NutritionAiImportModal({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             jobPublicId: proposal.jobPublicId,
-            targetPatientMembershipId: selectedPatientId || defaultPatientMembershipId || null,
+            targetPatientMembershipId: isTemplate ? null : (selectedPatientId || defaultPatientMembershipId || null),
             confirmedTitle: proposal.title,
             confirmedMeals: proposal.meals,
+            isTemplate: Boolean(isTemplate),
           }),
         }
       );
@@ -745,29 +748,31 @@ export function NutritionAiImportModal({
 
                   {/* Form fields: Single column on mobile, 6-8px gap between label and field, 16px between groups */}
                   <div className="grid grid-cols-1 gap-4 pt-1">
-                    <div>
-                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1.5 uppercase tracking-wider">
-                        Paciente (opcional)
-                      </label>
-                      {defaultPatientMembershipId ? (
-                        <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-sm text-[var(--text-secondary)] min-h-[44px] flex items-center">
-                          Paciente contextualizado pelo aluno.
-                        </div>
-                      ) : (
-                        <select
-                          value={selectedPatientId || ''}
-                          onChange={(e) => setSelectedPatientId(e.target.value ? Number(e.target.value) : null)}
-                          className="w-full rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] px-3 py-2.5 text-base text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] min-h-[44px]"
-                        >
-                          <option value="">[ Nenhum — salvar como rascunho ]</option>
-                          {students.map((s) => (
-                            <option key={s.membershipId} value={s.membershipId}>
-                              {s.fullName} ({s.email})
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
+                    {!isTemplate && (
+                      <div>
+                        <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1.5 uppercase tracking-wider">
+                          Paciente (opcional)
+                        </label>
+                        {defaultPatientMembershipId ? (
+                          <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-sm text-[var(--text-secondary)] min-h-[44px] flex items-center">
+                            Paciente contextualizado pelo aluno.
+                          </div>
+                        ) : (
+                          <select
+                            value={selectedPatientId || ''}
+                            onChange={(e) => setSelectedPatientId(e.target.value ? Number(e.target.value) : null)}
+                            className="w-full rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] px-3 py-2.5 text-base text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] min-h-[44px]"
+                          >
+                            <option value="">[ Nenhum — salvar como rascunho ]</option>
+                            {students.map((s) => (
+                              <option key={s.membershipId} value={s.membershipId}>
+                                {s.fullName} ({s.email})
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1.5 uppercase tracking-wider">

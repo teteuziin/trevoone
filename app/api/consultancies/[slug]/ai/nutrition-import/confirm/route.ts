@@ -42,6 +42,7 @@ export async function POST(request: Request, context: RouteContext) {
       targetPatientMembershipId,
       confirmedTitle,
       confirmedMeals,
+      isTemplate,
     } = body;
 
     if (!jobPublicId || !confirmedMeals || !Array.isArray(confirmedMeals)) {
@@ -60,6 +61,7 @@ export async function POST(request: Request, context: RouteContext) {
       targetPatientMembershipId: targetPatientMembershipId ? Number(targetPatientMembershipId) : null,
       confirmedTitle,
       confirmedMeals,
+      isTemplate: Boolean(isTemplate),
     });
 
     return NextResponse.json({

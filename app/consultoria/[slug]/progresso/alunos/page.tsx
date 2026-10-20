@@ -78,7 +78,7 @@ export default async function ProfessionalStudentsProgressListPage({
       showDashboardWallpaper={true}
       maxWidth="default"
     >
-      <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+      <div className="w-full max-w-[1280px] mx-auto space-y-6">
         <PersonalStudentList
           consultancySlug={slug}
           students={students}

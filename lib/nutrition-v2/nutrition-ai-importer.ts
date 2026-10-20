@@ -1,3 +1,33 @@
+
+export function getCalibratedFallbackPortionGrams(foodName: string, unit: string | null | undefined): number | null {
+  if (!unit) return null;
+  const unitNorm = unit.toLowerCase().trim();
+  const foodNorm = foodName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  if (unitNorm.includes("unidade") || unitNorm === "un" || unitNorm === "und") {
+    if (foodNorm.includes("ovo")) return 50; // 1 ovo = ~50g
+    if (foodNorm.includes("banana")) return 70; // 1 banana = ~70g
+    if (foodNorm.includes("maca")) return 130;
+    if (foodNorm.includes("laranja")) return 130;
+    if (foodNorm.includes("iogurte")) return 160;
+  }
+  if (unitNorm.includes("fatia")) {
+    if (foodNorm.includes("pao")) return 25; // 1 fatia pão de forma = 25g
+    if (foodNorm.includes("queijo")) return 30;
+  }
+  if (unitNorm.includes("pote")) {
+    if (foodNorm.includes("iogurte")) return 160;
+  }
+  if (unitNorm.includes("colher")) {
+    if (unitNorm.includes("sopa")) return 25;
+    if (unitNorm.includes("cha")) return 10;
+    return 20;
+  }
+  if (unitNorm.includes("concha")) {
+    return 130;
+  }
+  return null;
+}
 /**
  * TREVO ONE — NUTRITION AI IMPORTER
  * Multi-tenant AI extraction, universal Food Library V3 matching,
@@ -213,9 +243,12 @@ export function parseQuantityAndUnit(segment: string): {
   foodName: string;
   rawText: string;
 } {
-  const trimmed = segment.trim();
+  let trimmed = segment.trim();
+  // Strip category prefixes like "Proteína: ", "Carboidrato: ", "Opção 1: "
+  trimmed = trimmed.replace(/^(?:prote[ií]na|carboidrato|gordura|op[cç][aã]o\s*\d*|fruta|vegetal|salada|bebida)\s*:\s*/i, "").trim();
+
   const regex =
-    /^(\d+(?:[.,]\d+)?|\d+\/\d+)?\s*(colheres(?:\s+de\s+(?:sopa|sobremesa|cha|chá|cafe|café))?|colher(?:\s+de\s+(?:sopa|sobremesa|cha|chá|cafe|café))?|fatias?|xícaras?|xicaras?|copos?|potes?|pedacos?|pedaços?|unidades?|unid\.?|un\.?|doses?|scoops?|dosador(?:es)?|gramas?|g|kg|ml|litros?|l)?\s*(?:de\s+|da\s+|do\s+)?(.*)$/i;
+    /^(\d+(?:[.,]\d+)?|\d+\/\d+)?\s*(colheres(?:\s+de\s+(?:sopa|sobremesa|cha|chá|cafe|café))?|colher(?:\s+de\s+(?:sopa|sobremesa|cha|chá|cafe|café))?|fatias?|xícaras?|xicaras?|copos?|potes?|pedacos?|pedaços?|unidades?|unid\.?|un\.?|ovos?|doses?|scoops?|dosador(?:es)?|conchas?|escumadeiras?|gramas?|g|kg|ml|litros?|l)?\s*(?:de\s+|da\s+|do\s+)?(.*)$/i;
 
   const match = trimmed.match(regex);
   if (!match) {
@@ -232,9 +265,31 @@ export function parseQuantityAndUnit(segment: string): {
     }
   }
 
-  const unit = match[2] ? match[2].trim() : null;
-  let foodName = match[3] ? match[3].trim() : trimmed;
+  let unit = match[2] ? match[2].trim() : null;
+  let foodName = match[3] ? match[3].trim() : "";
   foodName = foodName.replace(/^(?:de|da|do|dos|das)\s+/i, "").trim();
+
+  // If unit was "ovo" or "ovos", the food is "ovo" and the unit is "unidade"
+  if (unit && /^ovos?$/i.test(unit)) {
+    unit = "unidade";
+    foodName = foodName ? `ovo ${foodName}`.trim() : "ovo";
+  }
+
+  if (!foodName) {
+    foodName = trimmed;
+  }
+
+  // If quantity is present but unit is null, check if foodName starts with count-like food
+  if (qty && !unit) {
+    const foodNorm = foodName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (/^ovos?(\s|$)/.test(foodNorm)) {
+      unit = "unidade";
+    } else if (/^iogurte(\s|$)/.test(foodNorm)) {
+      unit = "pote";
+    } else if (/^(banana|maca|laranja|pera|limao|manga|abacate|tomate)(\s|$)/.test(foodNorm)) {
+      unit = "unidade";
+    }
+  }
 
   return {
     quantity: qty,
@@ -1798,6 +1853,10 @@ export async function processNutritionAiImport(params: {
             }
           }
 
+          if (!portionEquiv && isHousehold) {
+            portionEquiv = getCalibratedFallbackPortionGrams(matchResult.matched.name || f.foodNameCandidate, f.unitCandidate);
+          }
+
           if (isHousehold && !portionEquiv) {
             // Section 14: Preservar quantidade e unidade sem inventar gramas.
             authoritativeNutrients = null;
@@ -2260,8 +2319,13 @@ export async function confirmNutritionAiImport(params: {
                 );
               });
 
-              if (matchedPortion) {
-                effectiveQty = f.quantity * Number(matchedPortion.equivalent_reference_amount);
+              let portionEquiv: number | null = matchedPortion ? Number(matchedPortion.equivalent_reference_amount) : null;
+              if (!portionEquiv && isHousehold) {
+                portionEquiv = getCalibratedFallbackPortionGrams(displayName || f.foodNameCandidate, f.unitCandidate);
+              }
+
+              if (portionEquiv && portionEquiv > 0) {
+                effectiveQty = f.quantity * portionEquiv;
                 const factor = effectiveQty / refAmount;
                 cal = foodDb.calories_kcal !== null ? Math.round(Number(foodDb.calories_kcal) * factor * 10) / 10 : null;
                 p = foodDb.protein_g !== null ? Math.round(Number(foodDb.protein_g) * factor * 10) / 10 : null;
@@ -2283,8 +2347,9 @@ export async function confirmNutritionAiImport(params: {
           }
         }
 
-        const finalUnitCode = normalizePrescribedUnitCode(f.unitCandidate) || normalizePrescribedUnitCode(refUnit) || "G";
-        const finalUnitLabel = f.unitCandidate || refUnit || "g";
+        const inferredUnit = !f.unitCandidate && /ovos?|banana|maca|maçã|laranja|iogurte/i.test(f.foodNameCandidate) ? "unidade" : null;
+        const finalUnitCode = normalizePrescribedUnitCode(f.unitCandidate) || normalizePrescribedUnitCode(inferredUnit) || normalizePrescribedUnitCode(refUnit) || "G";
+        const finalUnitLabel = f.unitCandidate || inferredUnit || refUnit || "g";
 
         const [itemRes] = await db.query<ResultSetHeader>(
           `INSERT INTO nutrition_v2_meal_items (

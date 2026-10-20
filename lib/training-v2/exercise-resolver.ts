@@ -14,6 +14,7 @@ export interface ExerciseCandidateDbItem {
   muscleGroupPrimary?: string | null;
   equipment?: string | null;
   movementPattern?: string | null;
+  aliases?: string[];
 }
 
 export type ExerciseResolutionStatus = "MATCHED" | "AMBIGUOUS" | "NOT_FOUND";
@@ -123,37 +124,27 @@ const CRITICAL_CONFLICT_GROUPS: string[][] = [
   ["inclinado", "declinado", "reto", "horizontal", "plano", "vertical"],
   // 2. Grip / stance width
   ["aberta", "fechada", "neutra", "pronada", "supinada"],
-  // 3. Adductor vs Abductor (CRITICAL)
-  ["adutora", "aducao", "adutor"],
-  ["abdutora", "abducao", "abdutor"],
-  // 4. Triceps movement orientation
-  ["pushdown", "pulley", "corda"],
-  ["overhead", "frances"],
-  ["testa"],
-  // 5. Directional delts
+  // 3. Directional delts
   ["frontal", "lateral", "posterior"],
-  // 6. Leg machine actions
-  ["flexora", "flexao"],
-  ["extensora", "extensao"],
-  // 7. Abdominals
+  // 4. Abdominals
   ["supra", "infra", "obliquo"],
-  // 8. Stance / Position
+  // 5. Stance / Position
   ["em pe", "sentado", "deitado"],
-  // 9. High vs Low row/pull
+  // 6. High vs Low row/pull
   ["alta", "baixa"],
-  // 10. Unilateral vs Bilateral
+  // 7. Unilateral vs Bilateral
   ["unilateral", "bilateral"],
-  // 11. Chest mechanics: Press vs Fly (Crucifixo Inclinado != Supino Inclinado)
+  // 8. Chest mechanics: Press vs Fly (Crucifixo Inclinado != Supino Inclinado)
   ["supino", "crucifixo", "voador", "peck deck"],
-  // 12. Biceps mechanics: Direct vs Scott vs Martelo vs Alternada vs Concentrada (Rosca Scott != Rosca Direta)
+  // 9. Biceps mechanics: Direct vs Scott vs Martelo vs Alternada vs Concentrada (Rosca Scott != Rosca Direta)
   ["rosca direta", "rosca scott", "rosca preacher", "rosca martelo", "rosca concentrada", "rosca alternada"],
-  // 13. Back mechanics: Pull/Pulldown vs Row
+  // 10. Back mechanics: Pull/Pulldown vs Row
   ["puxada", "remada"],
   ["pulldown", "remada"],
   ["puxada", "row"],
-  // 14. Quad mechanics: Squat vs Leg Press vs Hack
+  // 11. Quad mechanics: Squat vs Leg Press vs Hack
   ["agachamento", "leg press", "hack squat"],
-  // 15. Equipment conflict: Dumbbell vs Barbell
+  // 12. Equipment conflict: Dumbbell vs Barbell
   ["halter", "barra"],
 ];
 
@@ -178,13 +169,23 @@ export function hasConflictingModifiers(nameA: string, nameB: string): boolean {
     }
   }
 
-  // Cross-group conflict: Adutora vs Abdutora
+  // Cross-group conflict: Adutora vs Abdutora (Strictly Mutually Exclusive)
   const hasAducA = /\badu(tora|cao|tor)\b/.test(normA);
   const hasAbducA = /\babdu(tora|cao|tor)\b/.test(normA);
   const hasAducB = /\badu(tora|cao|tor)\b/.test(normB);
   const hasAbducB = /\babdu(tora|cao|tor)\b/.test(normB);
 
   if ((hasAducA && hasAbducB) || (hasAbducA && hasAducB)) {
+    return true;
+  }
+
+  // Cross-group conflict: Leg machines Flexão/Flexora vs Extensão/Extensora
+  const isLegExtA = /\b(extensora|extensao)\b/.test(normA) && !normA.includes("triceps") && !normA.includes("lombar");
+  const isLegFlexA = /\b(flexora|flexao)\b/.test(normA) && !normA.includes("braco") && !normA.includes("punho") && !normA.includes("solo");
+  const isLegExtB = /\b(extensora|extensao)\b/.test(normB) && !normB.includes("triceps") && !normB.includes("lombar");
+  const isLegFlexB = /\b(flexora|flexao)\b/.test(normB) && !normB.includes("braco") && !normB.includes("punho") && !normB.includes("solo");
+
+  if ((isLegExtA && isLegFlexB) || (isLegFlexA && isLegExtB)) {
     return true;
   }
 
@@ -199,22 +200,26 @@ export const EXERCISE_SYNONYM_CLUSTERS: string[][] = [
   // Cadeira Abdutora
   [
     "cadeira abdutora",
+    "abdutora",
     "abducao de quadril na maquina",
     "maquina abdutora",
     "abducao de quadril",
     "abducao quadril maquina",
     "abducao maquina",
-    "hip abduction machine"
+    "hip abduction machine",
+    "cadeira de abducao"
   ],
   // Cadeira Adutora
   [
     "cadeira adutora",
+    "adutora",
     "aducao de quadril na maquina",
     "maquina adutora",
     "aducao de quadril",
     "aducao quadril maquina",
     "aducao maquina",
-    "hip adduction machine"
+    "hip adduction machine",
+    "cadeira de aducao"
   ],
   // Rosca Direta Barra W / EZ
   [
@@ -501,7 +506,11 @@ export const EXERCISE_SYNONYM_CLUSTERS: string[][] = [
     "cadeira extensora",
     "extensora",
     "leg extension",
-    "extensao de pernas"
+    "extensao de pernas",
+    "extensao de perna",
+    "extensao de joelho",
+    "extensao de joelhos",
+    "cadeira de extensao"
   ],
   // Mesa Flexora
   [
@@ -720,6 +729,20 @@ export function calculateExerciseMatchScore(
     return 0.98;
   }
 
+  // 5.1 Custom / Database Aliases Match (from exercise_aliases)
+  if (target.aliases && target.aliases.length > 0) {
+    for (const rawAlias of target.aliases) {
+      const normAlias = normalizeExerciseText(rawAlias);
+      if (!normAlias) continue;
+      if (normCandidate === normAlias) {
+        return 0.98;
+      }
+      if (areExerciseSynonyms(normCandidate, normAlias)) {
+        return 0.96;
+      }
+    }
+  }
+
   // 5.5. Cluster Root Matching (e.g. "lat pulldown" in cluster matching "Puxada Frontal com Barra Aberta")
   let clusterRootScore = 0;
   const candidateClusterIdx = ALIAS_LOOKUP_MAP.get(normCandidate);
@@ -860,8 +883,13 @@ export function resolveCanonicalExercise(
 
   // 3. Clear Winner (High Confidence)
   if (best.score >= 0.85) {
-    // Check if second place is too close (real ambiguity)
-    if (second && second.score >= 0.80 && best.score - second.score < 0.08) {
+    // Exact name or ID match is NEVER ambiguous, even if an alias or synonym also scored high
+    const isExactMatch =
+      best.score >= 0.99 ||
+      normCandidate === normalizeExerciseText(best.item.name) ||
+      (best.item.normalizedName && normCandidate === normalizeExerciseText(best.item.normalizedName));
+
+    if (!isExactMatch && second && second.score >= 0.80 && best.score - second.score < 0.08) {
       return {
         status: "AMBIGUOUS",
         candidates: scoredItems.slice(0, 5).map((s) => s.item),

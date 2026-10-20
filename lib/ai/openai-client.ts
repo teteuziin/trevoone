@@ -47,7 +47,11 @@ Quando uma única linha contiver múltiplas opções (ex: '1 fatia de pão de fo
     - Preencha 'combinationType' com 'BI_SET', 'TRI_SET', 'SUPERSET', 'GIANT_SET' ou 'CIRCUIT'.
     - Para cada grupo de exercícios combinados, use o mesmo número em 'combinationIndex' (ex: 1 para a primeira combinação, 2 para a segunda).
     - Se houver descanso explícito após a combinação (ex: 'descanse 60s após a sequência'), preencha 'combinationRestSeconds'.
-    - Para exercícios comuns (não combinados), defina 'combinationType': null, 'combinationIndex': null, 'combinationRestSeconds': null.`;
+    - Para exercícios comuns (não combinados), defina 'combinationType': null, 'combinationIndex': null, 'combinationRestSeconds': null.
+16. Para alimentos e planos alimentares:
+    - NUNCA inclua prefixos de categorias, macronutrientes ou marcadores de lista em 'foodNameCandidate' (ex: se o documento contiver 'Proteína: 2 ovos' ou 'Carboidrato: 3 colheres de arroz' ou 'Opção 1: 1 pote de iogurte', extraia 'foodNameCandidate' estritamente como 'Ovo' ou 'Arroz' ou 'Iogurte', NUNCA como 'Proteína: ovos' ou 'Carboidrato: arroz').
+    - PRESERVE UNIDADES CASEIRAS E ITENS POR UNIDADE/CONTAGEM: Quando um alimento for prescrito por contagem de itens (ex: '2 ovos', '1 ovo', '2 bananas', '1 maçã', '1 iogurte', '2 fatias de pão'), preencha 'quantity' com o número (ex: 2, 1) e 'unitCandidate' com a unidade caseira explícita ('unidade', 'fatia', 'pote', 'colher de sopa', 'xícara', 'concha', etc.). NUNCA deixe 'unitCandidate' nulo para contagens de itens e NUNCA converta '2 ovos' para '2 g' ou '1 iogurte' para '1 g'.
+    - Se a unidade de peso ou volume for informada (ex: '150g de frango', '200ml de leite'), preencha 'quantity': 150 e 'unitCandidate': 'g' (ou 'ml').`;
 
 export const TRAINING_GENERATION_SYSTEM_PROMPT = `Você é o treinador especialista em musculação e prescrição esportiva do TREVO ONE.
 Sua função é CRIAR E PRESCREVER uma rotina de treino personalizada completa, estruturada, segura e equilibrada com base nas solicitações e parâmetros informados pelo profissional de educação física.

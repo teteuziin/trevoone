@@ -262,7 +262,13 @@ export async function addExerciseItemToBlockAction(
   subBlockPublicId?: string | null,
   durationUnit?: "SECONDS" | "MINUTES" | null,
   sortOrder?: number | null,
-  combinationPublicId?: string | null
+  combinationPublicId?: string | null,
+  initialPrescription?: {
+    sets: number;
+    targetReps?: number | null;
+    targetRepsMax?: number | null;
+    targetRestSeconds?: number | null;
+  } | null
 ): Promise<ActionResponse<WorkoutBlockItemDto>> {
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
@@ -282,26 +288,32 @@ export async function addExerciseItemToBlockAction(
 
     // Provide default initial set if none exist
     try {
+      const setCount = initialPrescription?.sets && initialPrescription.sets > 0 ? initialPrescription.sets : 4;
+      const reps = initialPrescription?.targetReps != null ? initialPrescription.targetReps : 10;
+      const repsMax = initialPrescription?.targetRepsMax != null ? initialPrescription.targetRepsMax : null;
+      const restSec = initialPrescription?.targetRestSeconds != null ? initialPrescription.targetRestSeconds : 60;
+
       const initialSets: WorkoutItemSetDto[] = [];
-      for (let s = 1; s <= 4; s++) {
+      for (let s = 1; s <= setCount; s++) {
         await addSetToDraftItem(ctx, item.publicId, {
           setNumber: s,
           setType: "NORMAL",
-          targetReps: 10,
-          targetRestSeconds: 60,
+          targetReps: reps,
+          targetRepsMax: repsMax,
+          targetRestSeconds: restSec,
           durationUnit: durationUnit || null,
         });
         initialSets.push({
           setNumber: s,
           setType: "NORMAL",
           parentSetNumber: null,
-          targetReps: 10,
-          targetRepsMax: null,
+          targetReps: reps,
+          targetRepsMax: repsMax,
           targetLoadKg: null,
           targetDurationSeconds: null,
           durationUnit: durationUnit || null,
           targetDistanceMeters: null,
-          targetRestSeconds: 60,
+          targetRestSeconds: restSec,
           intensityIndicator: null,
         });
       }

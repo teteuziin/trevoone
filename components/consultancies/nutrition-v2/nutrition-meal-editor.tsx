@@ -153,6 +153,11 @@ export function NutritionMealEditor({
             <span className="font-bold text-[var(--brand)]">
               {meal.mealTotals.caloriesKcal} kcal
             </span>
+            {meal.mealTotals.hasIncompleteData && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                Subtotal parcial
+              </span>
+            )}
             <span className="text-[var(--text-tertiary)]">·</span>
             <span>P {meal.mealTotals.proteinG}g</span>
             <span className="text-[var(--text-tertiary)]">·</span>
@@ -160,6 +165,11 @@ export function NutritionMealEditor({
             <span className="text-[var(--text-tertiary)]">·</span>
             <span>G {meal.mealTotals.fatG}g</span>
           </div>
+          {meal.mealTotals.hasIncompleteData && (
+            <span className="sm:hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+              Subtotal parcial
+            </span>
+          )}
         </div>
 
         {/* Right: Collapse toggle + Action menu ⋮ */}
@@ -304,6 +314,11 @@ export function NutritionMealEditor({
             <span className="font-bold text-[var(--brand)] shrink-0">
               {meal.mealTotals.caloriesKcal} kcal
             </span>
+            {meal.mealTotals.hasIncompleteData && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                Subtotal parcial
+              </span>
+            )}
             <span className="text-[var(--text-tertiary)]">·</span>
             <span className="text-[var(--text-muted)] text-[11px]">
               P {meal.mealTotals.proteinG}g • C {meal.mealTotals.carbohydrateG}g • G {meal.mealTotals.fatG}g

@@ -32,6 +32,15 @@ import {
 } from "./training-studio-tokens";
 import { GuidedCombinationModal } from "./guided-combination-modal";
 import { addExerciseItemToBlockAction, createCustomExerciseAction } from "@/app/consultoria/[slug]/rotinas/actions";
+import type { WorkoutNextExerciseDefault } from "./workout-next-exercise-default-modal";
+
+function Sliders({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16M8 4v4m8 2v4m-6 4v4" />
+    </svg>
+  );
+}
 import type { CustomExerciseFormData } from "./custom-exercise-inline-modal";
 import type { WorkoutRootDto, WorkoutVersionDto } from "@/lib/training-v2/types";
 import { TrainingStudioAssistant } from "./training-studio-assistant";
@@ -307,6 +316,8 @@ export type CategoryCardProps = {
   categories?: WorkoutBlockDto[];
   onOpenPublishDialog?: () => void;
   onCreateDraft?: () => void;
+  nextExerciseDefault?: WorkoutNextExerciseDefault | null;
+  onOpenDefaultExerciseModal?: () => void;
 };
 
 type ContainerEntry =
@@ -622,6 +633,8 @@ export function WorkoutCategoryCard({
   categories,
   onOpenPublishDialog,
   onCreateDraft,
+  nextExerciseDefault,
+  onOpenDefaultExerciseModal,
 }: CategoryCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(category.title || "");
@@ -697,12 +710,25 @@ export function WorkoutCategoryCard({
 
   async function handleAddAndCombineItem(exercisePublicId: string) {
     if (!consultancySlug) return null;
+    const initialPrescription = nextExerciseDefault
+      ? {
+          sets: nextExerciseDefault.sets,
+          targetReps: nextExerciseDefault.repsType === "FIXED" ? nextExerciseDefault.reps : nextExerciseDefault.repsMin,
+          targetRepsMax: nextExerciseDefault.repsType === "RANGE" ? nextExerciseDefault.repsMax : null,
+          targetRestSeconds: 60,
+        }
+      : undefined;
+
     const res = await addExerciseItemToBlockAction(
       consultancySlug,
       category.publicId,
       exercisePublicId,
       undefined,
-      guidedModalState.subBlockPublicId
+      guidedModalState.subBlockPublicId,
+      undefined,
+      undefined,
+      undefined,
+      initialPrescription
     );
     if (res.ok && res.data) {
       return res.data;
@@ -1178,6 +1204,31 @@ export function WorkoutCategoryCard({
               <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>Adicionar exercício</span>
             </button>
+
+            {onOpenDefaultExerciseModal && (
+              <button
+                type="button"
+                data-testid="category-next-exercise-default-btn"
+                onClick={onOpenDefaultExerciseModal}
+                className={`min-h-[44px] px-3.5 py-2.5 rounded-xl border font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all cursor-pointer ${
+                  nextExerciseDefault
+                    ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40"
+                    : "bg-zinc-100 hover:bg-zinc-200 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] text-zinc-900 dark:text-zinc-100 border-zinc-300 dark:border-white/[0.12]"
+                }`}
+                title="Configurar séries e repetições padrão para os próximos exercícios adicionados"
+              >
+                <Sliders className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>
+                  {nextExerciseDefault
+                    ? `Padrão ativo: ${nextExerciseDefault.sets} séries · ${
+                        nextExerciseDefault.repsType === "RANGE"
+                          ? `${nextExerciseDefault.repsMin}–${nextExerciseDefault.repsMax} reps`
+                          : `${nextExerciseDefault.reps} reps`
+                      }`
+                    : "Padrão de séries/reps"}
+                </span>
+              </button>
+            )}
 
             {onCreateCombination && (
               <button

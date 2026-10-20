@@ -168,3 +168,26 @@ INSERT IGNORE INTO `exercise_aliases` (`exercise_id`, `alias`, `normalized_alias
 SELECT e.id, 'pulley baixo', 'pulley baixo', e.scope, e.consultancy_id
 FROM `exercises` e
 WHERE e.normalized_name LIKE '%remada baixa%';
+
+-- Cadeira Abdutora
+INSERT IGNORE INTO `exercise_aliases` (`exercise_id`, `alias`, `normalized_alias`, `scope`, `consultancy_id`)
+SELECT e.id, 'abdutora', 'abdutora', e.scope, e.consultancy_id
+FROM `exercises` e
+WHERE e.normalized_name LIKE '%cadeira abdutora%' OR e.normalized_name LIKE '%abducao%';
+
+INSERT IGNORE INTO `exercise_aliases` (`exercise_id`, `alias`, `normalized_alias`, `scope`, `consultancy_id`)
+SELECT e.id, 'abdução de quadril', 'abducao de quadril', e.scope, e.consultancy_id
+FROM `exercises` e
+WHERE e.normalized_name LIKE '%cadeira abdutora%';
+
+-- Cadeira Adutora
+INSERT IGNORE INTO `exercise_aliases` (`exercise_id`, `alias`, `normalized_alias`, `scope`, `consultancy_id`)
+SELECT e.id, 'adutora', 'adutora', e.scope, e.consultancy_id
+FROM `exercises` e
+WHERE e.normalized_name LIKE '%cadeira adutora%' OR e.normalized_name LIKE '%aducao%';
+
+INSERT IGNORE INTO `exercise_aliases` (`exercise_id`, `alias`, `normalized_alias`, `scope`, `consultancy_id`)
+SELECT e.id, 'adução de quadril', 'aducao de quadril', e.scope, e.consultancy_id
+FROM `exercises` e
+WHERE e.normalized_name LIKE '%cadeira adutora%';
+

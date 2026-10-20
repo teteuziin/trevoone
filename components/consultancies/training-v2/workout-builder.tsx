@@ -62,6 +62,10 @@ import Link from "next/link";
 import { TemplateAssignModal } from "./template-assign-modal";
 import { StudentWorkoutRenderer } from "./student-workout-renderer";
 import { StudioExerciseLibrarySidebar } from "./studio-exercise-library-sidebar";
+import {
+  WorkoutNextExerciseDefaultModal,
+  type WorkoutNextExerciseDefault,
+} from "./workout-next-exercise-default-modal";
 import { TrainingStudioAssistant } from "./training-studio-assistant";
 
 function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -442,6 +446,8 @@ export function WorkoutBuilder({
   const [newCategoryName, setNewCategoryName] = useState("");
 
   // Modals state
+  const [nextExerciseDefault, setNextExerciseDefault] = useState<WorkoutNextExerciseDefault | null>(null);
+  const [isDefaultExerciseModalOpen, setIsDefaultExerciseModalOpen] = useState(false);
   const [activeCategoryForPicker, setActiveCategoryForPicker] = useState<string | null>(null);
   const [activeSubBlockForPicker, setActiveSubBlockForPicker] = useState<string | null>(null);
   const [resolvingItemPublicId, setResolvingItemPublicId] = useState<string | null>(null);
@@ -507,12 +513,25 @@ export function WorkoutBuilder({
   // Add Exercise directly to Category (used by Studio Sidebar and Quick Actions)
   async function handleAddExerciseToCategory(categoryPublicId: string, exercisePublicId: string) {
     return runWithAutosave(async () => {
+      const initialPrescription = nextExerciseDefault
+        ? {
+            sets: nextExerciseDefault.sets,
+            targetReps: nextExerciseDefault.repsType === "FIXED" ? nextExerciseDefault.reps : nextExerciseDefault.repsMin,
+            targetRepsMax: nextExerciseDefault.repsType === "RANGE" ? nextExerciseDefault.repsMax : null,
+            targetRestSeconds: 60,
+          }
+        : undefined;
+
       const res = await addExerciseItemToBlockAction(
         consultancySlug,
         categoryPublicId,
         exercisePublicId,
         undefined,
-        undefined
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        initialPrescription
       );
       if (res.ok && res.data) {
         const newItem = res.data;
@@ -692,12 +711,25 @@ export function WorkoutBuilder({
     const catId = activeCategoryForPicker;
     const subBlockId = activeSubBlockForPicker;
     await runWithAutosave(async () => {
+      const initialPrescription = nextExerciseDefault
+        ? {
+            sets: nextExerciseDefault.sets,
+            targetReps: nextExerciseDefault.repsType === "FIXED" ? nextExerciseDefault.reps : nextExerciseDefault.repsMin,
+            targetRepsMax: nextExerciseDefault.repsType === "RANGE" ? nextExerciseDefault.repsMax : null,
+            targetRestSeconds: 60,
+          }
+        : undefined;
+
       const res = await addExerciseItemToBlockAction(
         consultancySlug,
         catId,
         exercisePublicId,
         undefined,
-        subBlockId
+        subBlockId,
+        undefined,
+        undefined,
+        undefined,
+        initialPrescription
       );
       if (res.ok && res.data) {
         const newItem = res.data;
@@ -796,13 +828,16 @@ export function WorkoutBuilder({
         notes: data.notes,
         isSequence: data.isSequence || data.type === "SEQUENCE",
         sequenceMovements: data.sequenceMovements,
-        sets: [
-          {
-            setType: "NORMAL",
-            targetReps: 10,
-            targetRestSeconds: data.restSeconds ?? 60,
-          },
-        ],
+        sets: Array.from({ length: nextExerciseDefault ? nextExerciseDefault.sets : 1 }, () => ({
+          setType: "NORMAL",
+          targetReps: nextExerciseDefault
+            ? (nextExerciseDefault.repsType === "FIXED" ? nextExerciseDefault.reps || 10 : nextExerciseDefault.repsMin || 8)
+            : 10,
+          targetRepsMax: nextExerciseDefault && nextExerciseDefault.repsType === "RANGE"
+            ? nextExerciseDefault.repsMax || 12
+            : null,
+          targetRestSeconds: data.restSeconds ?? 60,
+        })),
       });
       if (res.ok && res.data) {
         const newItem = res.data;
@@ -2404,6 +2439,8 @@ export function WorkoutBuilder({
                       onRemoveItemFromCombination={handleRemoveItemFromCombination}
                       onOpenCreateCustomExercise={handleOpenCreateCustomExercise}
                       onOpenConfigureSequence={(item, movements) => setConfiguringSequenceItem({ item, movements })}
+                      nextExerciseDefault={nextExerciseDefault}
+                      onOpenDefaultExerciseModal={() => setIsDefaultExerciseModalOpen(true)}
                     />
                   </div>
                 );
@@ -2578,6 +2615,25 @@ export function WorkoutBuilder({
           </aside>
         )}
       </div>
+
+      {/* Next Exercise Default Prescription Modal */}
+      <WorkoutNextExerciseDefaultModal
+        isOpen={isDefaultExerciseModalOpen}
+        onClose={() => setIsDefaultExerciseModalOpen(false)}
+        currentDefault={nextExerciseDefault}
+        onSave={(newDefault) => {
+          setNextExerciseDefault(newDefault);
+          notify(
+            newDefault
+              ? `Padrão ativado: ${newDefault.sets} séries com ${
+                  newDefault.repsType === "RANGE"
+                    ? `${newDefault.repsMin}–${newDefault.repsMax} reps`
+                    : `${newDefault.reps} reps`
+                }.`
+              : "Padrão de séries/reps desativado."
+          );
+        }}
+      />
 
       {/* Unified Exercise Picker Modal */}
       {(activeCategoryForPicker || resolvingItemPublicId) && (

@@ -98,15 +98,39 @@ export async function matchExerciseCandidate(
 
   const db = await getDbConnection();
   try {
-    const [rows] = await db.query<RowDataPacket[]>(
-      `SELECT
-        public_id, name, normalized_name, muscle_group_primary, equipment, movement_pattern
-       FROM exercises
-       WHERE status = 'PUBLISHED'
-         AND deleted_at IS NULL
-         AND (scope = 'GLOBAL' OR (scope = 'CONSULTANCY' AND consultancy_id = ?))`,
-      [consultancyId]
-    );
+    let rows: RowDataPacket[] = [];
+    try {
+      const [rowsWithAliases] = await db.query<RowDataPacket[]>(
+        `SELECT
+          e.public_id,
+          e.name,
+          e.normalized_name,
+          e.muscle_group_primary,
+          e.equipment,
+          e.movement_pattern,
+          GROUP_CONCAT(ea.alias SEPARATOR '||') AS aliases_concat
+         FROM exercises e
+         LEFT JOIN exercise_aliases ea ON ea.exercise_id = e.id
+         WHERE e.status = 'PUBLISHED'
+           AND e.deleted_at IS NULL
+           AND (e.scope = 'GLOBAL' OR (e.scope = 'CONSULTANCY' AND e.consultancy_id = ?))
+         GROUP BY e.id`,
+        [consultancyId]
+      );
+      rows = rowsWithAliases;
+    } catch {
+      // Fallback if exercise_aliases table is not yet migrated
+      const [fallbackRows] = await db.query<RowDataPacket[]>(
+        `SELECT
+          public_id, name, normalized_name, muscle_group_primary, equipment, movement_pattern
+         FROM exercises
+         WHERE status = 'PUBLISHED'
+           AND deleted_at IS NULL
+           AND (scope = 'GLOBAL' OR (scope = 'CONSULTANCY' AND consultancy_id = ?))`,
+        [consultancyId]
+      );
+      rows = fallbackRows;
+    }
 
     const availableItems: ExerciseCandidateDbItem[] = rows.map((r) => ({
       publicId: String(r.public_id),
@@ -115,6 +139,12 @@ export async function matchExerciseCandidate(
       muscleGroupPrimary: r.muscle_group_primary ? String(r.muscle_group_primary) : null,
       equipment: r.equipment ? String(r.equipment) : null,
       movementPattern: r.movement_pattern ? String(r.movement_pattern) : null,
+      aliases: r.aliases_concat
+        ? String(r.aliases_concat)
+            .split("||")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [],
     }));
 
     // Layers 1 to 6: Deterministic canonical resolution

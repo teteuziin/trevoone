@@ -146,6 +146,8 @@ export const POPULAR_EXERCISE_ALIASES: Record<string, string[]> = {
   "cadeira extensora": ["extensora", "extensora pernas", "extensao de pernas", "extensao de joelho", "extensao perna"],
   "cadeira flexora": ["flexora", "flexora sentada", "flexao de pernas", "flexao perna"],
   "mesa flexora": ["flexora", "flexora deitada", "mesa de pernas", "flexao deitada"],
+  "cadeira abdutora": ["abdutora", "abducao", "abducao de quadril", "abducao na maquina", "cadeira de abducao", "maquina abdutora", "abducao quadril"],
+  "cadeira adutora": ["adutora", "aducao", "aducao de quadril", "aducao na maquina", "cadeira de aducao", "maquina adutora", "aducao quadril"],
   "leg press 45": ["leg", "leg 45", "leg press", "legpress", "leg 45 graus", "leg press 45 graus"],
   "leg press horizontal": ["leg horizontal", "leg reto", "leg sentado"],
   "supino reto com barra": ["supino reto", "supino barra", "supino", "supino reto na barra", "supino horizontal"],

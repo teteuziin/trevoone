@@ -1052,9 +1052,17 @@ export function NutritionPlanBuilder({
                   {/* Energy Header */}
                   <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                        Total do Cardápio
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                          Total do Cardápio
+                        </span>
+                        {tree.dailyTotals.hasIncompleteData && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Subtotal parcial
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xl sm:text-2xl font-extrabold text-[var(--brand)] font-heading leading-tight mt-0.5">
                         {tree.dailyTotals.caloriesKcal.toLocaleString("pt-BR")}{" "}
                         <span className="text-xs font-semibold text-[var(--text-secondary)]">kcal</span>
@@ -1073,6 +1081,20 @@ export function NutritionPlanBuilder({
                       </div>
                     </div>
                   </div>
+
+                  {tree.dailyTotals.hasIncompleteData && (
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2">
+                      <span className="text-sm shrink-0">⚠️</span>
+                      <div className="space-y-0.5">
+                        <p className="font-semibold text-[11px]">Subtotal calculado — dados incompletos</p>
+                        <p className="text-[11px] text-amber-700 dark:text-amber-400/90 leading-relaxed">
+                          {tree.dailyTotals.incompleteItemsCount}{" "}
+                          {tree.dailyTotals.incompleteItemsCount === 1 ? "alimento precisa" : "alimentos precisam"} de
+                          vínculo ou medida caseira para fechar as calorias exatas.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Calories Progress Bar only if planningTarget?.caloriesKcal exists */}
                   {planningTarget?.caloriesKcal ? (

@@ -318,16 +318,16 @@ export async function ConsultancyAppShell({
       {
         id: "learner-nutricao",
         label: "Nutrição",
-        mobileLabel: "Nutrição",
+        mobileLabel: "Alimentação",
         href: `/consultoria/${consultancySlug}/nutricao`,
         iconName: "nutrition",
       },
       {
-        id: "learner-progresso",
-        label: "Evolução",
-        mobileLabel: "Evolução",
-        href: `/consultoria/${consultancySlug}/progresso`,
-        iconName: "progress",
+        id: "student-consultas",
+        label: "Consultas",
+        mobileLabel: "Consultas",
+        href: `/consultoria/${consultancySlug}/consultas`,
+        iconName: "consultations",
       }
     );
   } else if (isPersonal && isAdmin) {
@@ -487,16 +487,16 @@ export async function ConsultancyAppShell({
       {
         id: "learner-nutricao",
         label: "Nutrição",
-        mobileLabel: "Nutrição",
+        mobileLabel: "Alimentação",
         href: `/consultoria/${consultancySlug}/nutricao`,
         iconName: "nutrition",
       },
       {
-        id: "learner-progresso",
-        label: "Evolução",
-        mobileLabel: "Evolução",
-        href: `/consultoria/${consultancySlug}/progresso`,
-        iconName: "progress",
+        id: "student-consultas",
+        label: "Consultas",
+        mobileLabel: "Consultas",
+        href: `/consultoria/${consultancySlug}/consultas`,
+        iconName: "consultations",
       }
     );
   }

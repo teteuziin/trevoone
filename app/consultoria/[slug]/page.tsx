@@ -16,8 +16,15 @@ import {
 import { listPlansForConsultancy } from "@/lib/nutrition-v2/plan-repository";
 import {
   listUpcomingConsultationsForProfessional,
+  listUpcomingConsultationsForStudent,
   CONSULTATION_STATUS_LABELS,
+  type ConsultationListItemDto,
 } from "@/lib/consultancies/consultations";
+import {
+  listChatConsultationsForStudent,
+  type ChatConsultationDto,
+} from "@/lib/consultancies/trevo-chat";
+import { getActiveStudentWorkoutExecution } from "@/lib/training-v2/execution-repository";
 import { getConsultancyLocalDate } from "@/lib/consultancies/timezone";
 import { getStudentOwnProgressHistory } from "@/lib/consultancies/progress";
 import { getStudentPhotoEvaluationsData } from "@/lib/consultancies/photo-evaluations";
@@ -28,7 +35,6 @@ import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-
 import { listUnreadAnnouncementsForUser } from "@/lib/consultancies/announcements";
 import { DashboardContext } from "@/components/dashboard/dashboard-context";
 import { DashboardStudentView } from "@/components/dashboard/dashboard-student-view";
-import { StudentPendingRequestsInbox } from "@/components/consultancies/student/student-pending-requests-inbox";
 import { listStudentPendingRequests } from "@/lib/consultancies/student-requests";
 import { getTodayCheckin } from "@/lib/checkins/service";
 import { getPendingCheckinForStudent } from "@/lib/nutrition-v2/checkin-repository";
@@ -114,11 +120,16 @@ export default async function ConsultancyPage({ params }: PageProps) {
           if (!tCtx?.isStudent) return null;
           const cards = await listStudentWorkoutCards(tCtx);
           if (cards.length === 0) return null;
+          const inProgressSession = cards[0]
+            ? await getActiveStudentWorkoutExecution(tCtx, cards[0].assignmentPublicId).catch(() => null)
+            : null;
           return {
             title: cards[0].workoutTitle,
             subtitle: cards[0].subtitle,
             workoutCount: cards.length,
             blockCount: cards[0].blockCount,
+            hasActiveSession: Boolean(inProgressSession && inProgressSession.status === "IN_PROGRESS"),
+            activeSessionAssignmentPublicId: inProgressSession ? cards[0].assignmentPublicId : null,
             workouts: cards.map((c) => ({
               publicId: c.assignmentPublicId,
               title: c.workoutTitle,
@@ -157,6 +168,16 @@ export default async function ConsultancyPage({ params }: PageProps) {
         }
       })()
     : Promise.resolve(null);
+
+  // Student Consultations query
+  const studentConsultationsPromise = needStudentData && context.membershipId
+    ? listUpcomingConsultationsForStudent(context.consultancyId, context.membershipId, 5).catch(() => [])
+    : Promise.resolve([]);
+
+  // Student Chat query
+  const studentChatPromise = needStudentData && context.membershipId
+    ? listChatConsultationsForStudent(context.consultancyId, context.membershipId).catch(() => [])
+    : Promise.resolve([]);
 
   // Personal Workouts V2 query
   const personalWorkoutsPromise = needPersonalData
@@ -400,6 +421,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
     pendingNutritionCheckin,
     referrerData,
     nutritionistCockpitResult,
+    studentConsultations,
+    studentChats,
   ] = await Promise.all([
     needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) ? getStudentOnboardingStatus(session.userId, slug).catch(() => null) : Promise.resolve(null),
     needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer)
@@ -426,7 +449,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
         }).catch(() => null)
       : Promise.resolve(null),
     needAdminData ? getConsultancyAdminOverview(context.consultancyId).catch(() => null) : Promise.resolve(null),
-    needStudentData && effectiveMode === "STUDENT"
+    needStudentData
       ? listStudentPendingRequests(context.consultancyId, session.userId, context.consultancySlug).catch(() => [])
       : Promise.resolve([]),
     needStudentData && context.membershipId
@@ -439,6 +462,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
       ? getReferrerDashboardData(context.consultancyId, context.membershipId).catch(() => null)
       : Promise.resolve(null),
     nutritionistCockpitPromise,
+    studentConsultationsPromise,
+    studentChatPromise,
   ]);
 
   // Derived metrics for Nutritionist cockpit
@@ -536,13 +561,52 @@ export default async function ConsultancyPage({ params }: PageProps) {
       ? studentProgress.entries[1]
       : null;
 
+  // Derived student consultations & chats for Student/VIP cockpit
+  const normalizedStudentConsultations = (studentConsultations || []).map((c: ConsultationListItemDto) => {
+    const tz = context.consultancyTimezone || "America/Sao_Paulo";
+    const timeFormatted = new Intl.DateTimeFormat("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: tz,
+    }).format(c.scheduledStartAt);
+    const dateFormatted = new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      timeZone: tz,
+    }).format(c.scheduledStartAt);
+    return {
+      publicId: c.publicId,
+      professionalName: c.counterpartName,
+      timeFormatted: `${dateFormatted} às ${timeFormatted}`,
+      type: c.title || "Consulta por vídeo",
+      status: c.status,
+      statusLabel: CONSULTATION_STATUS_LABELS[c.status] || "Agendada",
+      canJoinNow: Boolean(c.canJoinNow),
+      href: `/consultoria/${slug}/consultas`,
+    };
+  });
+
+  const normalizedStudentChats = (studentChats || []).map((ch: ChatConsultationDto) => ({
+    publicId: ch.publicId,
+    professionalName: ch.professionalName,
+    title: ch.title,
+    unreadCount: ch.unreadCountStudent || 0,
+    lastMessagePreview: ch.lastMessagePreview || null,
+    href: `/consultoria/${slug}/consultas`,
+  }));
+
+  const isStudentOverview = Boolean(
+    needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer)
+  );
+
   const isDarkOverviewTheme = Boolean(
     isPurePersonal ||
       isCombinedPersonalAdmin ||
       isCombinedNutritionistAdmin ||
       isPureNutritionist ||
+      isStudentOverview ||
       (effectiveMode === "ADMIN" && !isPersonal && !isNutritionist) ||
-      (effectiveState.isPreview && (effectiveMode === "PERSONAL" || effectiveMode === "ADMIN" || effectiveMode === "NUTRITIONIST"))
+      (effectiveState.isPreview && (effectiveMode === "PERSONAL" || effectiveMode === "ADMIN" || effectiveMode === "NUTRITIONIST" || effectiveMode === "STUDENT"))
   );
 
   const isTrainerOrAdminScreen = Boolean(
@@ -550,8 +614,9 @@ export default async function ConsultancyPage({ params }: PageProps) {
       isCombinedPersonalAdmin ||
       isPureNutritionist ||
       isCombinedNutritionistAdmin ||
+      isStudentOverview ||
       (effectiveMode === "ADMIN" && !isPersonal && !isNutritionist) ||
-      (effectiveState.isPreview && (effectiveMode === "PERSONAL" || effectiveMode === "ADMIN" || effectiveMode === "NUTRITIONIST"))
+      (effectiveState.isPreview && (effectiveMode === "PERSONAL" || effectiveMode === "ADMIN" || effectiveMode === "NUTRITIONIST" || effectiveMode === "STUDENT"))
   );
 
   return (
@@ -574,7 +639,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     >
       <div className="w-full max-w-[1280px] mx-auto space-y-5 sm:space-y-6">
         {/* Context Header Compacto (oculta para Nutricionista, Personal e Admin que possuem cabeçalho executivo próprio) */}
-        {!(isPureNutritionist || isCombinedNutritionistAdmin || isPurePersonal || isCombinedPersonalAdmin || isPureAdmin) && (
+        {!(isPureNutritionist || isCombinedNutritionistAdmin || isPurePersonal || isCombinedPersonalAdmin || isPureAdmin || isStudentOverview) && (
           <DashboardContext
             userName={session.fullName}
             consultancyName={context.consultancyName}
@@ -626,25 +691,25 @@ export default async function ConsultancyPage({ params }: PageProps) {
 
         {/* 3. Visão Combinada Aluno + Influenciador/VIP (STUDENT FIRST) */}
         {!effectiveState.isPreview && isStudent && isInfluencer && !isPersonal && !isConsultancyAdmin && !isNutritionist && (
-          <>
-            <StudentPendingRequestsInbox requests={studentPendingRequests || []} />
-            <DashboardCombinedStudentVipView
-              consultancySlug={context.consultancySlug}
-              consultancyName={context.consultancyName}
-              userName={session.fullName}
-              onboarding={studentOnboarding}
-              activeTrainingPlan={activeTrainingPlan}
-              activeNutritionPlan={activeNutritionPlan}
-              latestProgress={latestProgress}
-              previousProgress={previousProgress}
-              pendingPhotoEvaluation={hasPendingPhotoEvaluation}
-              todayCheckin={todayCheckin}
-              missions={influencerMissionsResult?.items || []}
-              totalMissions={influencerMissionsResult?.total || 0}
-              referrerData={referrerData}
-              pendingNutritionCheckin={pendingNutritionCheckin}
-            />
-          </>
+          <DashboardCombinedStudentVipView
+            consultancySlug={context.consultancySlug}
+            consultancyName={context.consultancyName}
+            userName={session.fullName}
+            onboarding={studentOnboarding}
+            activeTrainingPlan={activeTrainingPlan}
+            activeNutritionPlan={activeNutritionPlan}
+            latestProgress={latestProgress}
+            previousProgress={previousProgress}
+            pendingPhotoEvaluation={hasPendingPhotoEvaluation}
+            todayCheckin={todayCheckin}
+            pendingNutritionCheckin={pendingNutritionCheckin}
+            studentPendingRequests={studentPendingRequests || []}
+            upcomingConsultations={normalizedStudentConsultations}
+            chatConversations={normalizedStudentChats}
+            missions={influencerMissionsResult?.items || []}
+            totalMissions={influencerMissionsResult?.total || 0}
+            referrerData={referrerData}
+          />
         )}
 
         {/* 4. Visão do Influenciador / VIP Puro (ou Preview Manual) */}
@@ -709,22 +774,24 @@ export default async function ConsultancyPage({ params }: PageProps) {
 
         {/* 7. Visão do Aluno (Puro ou Preview) */}
         {((effectiveMode === "STUDENT" && !isInfluencer) || (effectiveState.isPreview && effectiveMode === "STUDENT")) && (
-          <>
-            <StudentPendingRequestsInbox requests={studentPendingRequests || []} />
-            <DashboardStudentView
-              consultancySlug={context.consultancySlug}
-              consultancyName={context.consultancyName}
-              userName={session.fullName}
-              onboarding={studentOnboarding}
-              activeTrainingPlan={activeTrainingPlan}
-              activeNutritionPlan={activeNutritionPlan}
-              latestProgress={latestProgress}
-              previousProgress={previousProgress}
-              pendingPhotoEvaluation={hasPendingPhotoEvaluation}
-              todayCheckin={todayCheckin}
-              pendingNutritionCheckin={pendingNutritionCheckin}
-            />
-          </>
+          <DashboardStudentView
+            consultancySlug={context.consultancySlug}
+            consultancyName={context.consultancyName}
+            userName={session.fullName}
+            onboarding={studentOnboarding}
+            activeTrainingPlan={activeTrainingPlan}
+            activeNutritionPlan={activeNutritionPlan}
+            latestProgress={latestProgress}
+            previousProgress={previousProgress}
+            pendingPhotoEvaluation={hasPendingPhotoEvaluation}
+            todayCheckin={todayCheckin}
+            pendingNutritionCheckin={pendingNutritionCheckin}
+            studentPendingRequests={studentPendingRequests || []}
+            upcomingConsultations={normalizedStudentConsultations}
+            chatConversations={normalizedStudentChats}
+            isInfluencer={false}
+            isVip={false}
+          />
         )}
       </div>
     </ConsultancyAppShell>

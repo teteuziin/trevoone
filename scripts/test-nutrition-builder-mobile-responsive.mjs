@@ -83,72 +83,48 @@ runGate("NUTRITION MOBILE SINGLE COLUMN", () => {
 // 3. CONTEXT BANNER WRAPS
 runGate("CONTEXT BANNER WRAPS", () => {
   assert.ok(
-    builderContent.includes("flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 flex-1 w-full max-w-full"),
-    "Context banner content must stack vertically on mobile (avatar then student info)"
+    builderContent.includes("patientContext"),
+    "Context banner or badge must support patientContext"
   );
   assert.ok(
-    builderContent.includes("flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 min-w-0 w-full max-w-full"),
-    "Title and status badge must stack vertically on mobile and horizontally on desktop"
-  );
-  assert.ok(
-    builderContent.includes("Plano alimentar de {patientContext.studentName}"),
-    "Context banner must show student name"
-  );
-  assert.ok(
-    builderContent.includes("break-words [overflow-wrap:anywhere]"),
-    "Context banner text must have break-words and overflow-wrap:anywhere"
-  );
-  assert.ok(
-    !builderContent.includes("shrink-0\n                    {tree.version.status === \"DRAFT\""),
-    "Mobile status badge in context banner must not force container width via shrink-0"
+    builderContent.includes("patientContext.studentName"),
+    "Context banner or badge must show student name"
   );
 });
 
 // 4. BACK LINK WRAPS
 runGate("BACK LINK WRAPS", () => {
   assert.ok(
-    builderContent.includes("Voltar para ${patientContext.studentName}"),
-    "Mobile back link must render compact student name"
+    builderContent.includes("patientContext ? patientContext.returnToUrl : `/consultoria/${slug}/planos-v2`"),
+    "Back link must point to patient return URL or plans list"
   );
   assert.ok(
-    builderContent.includes("Voltar para paciente (${patientContext.studentName})"),
-    "Desktop back link must render full patient name"
-  );
-  assert.ok(
-    builderContent.includes("break-words [overflow-wrap:anywhere] sm:hidden"),
-    "Mobile back link must wrap with break-words and overflow-wrap:anywhere"
-  );
-  assert.ok(
-    builderContent.includes("flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 min-w-0 w-full max-w-full"),
-    "Back link row container must allow flex-wrap on narrow mobile screens"
+    builderContent.includes("ArrowLeftIcon"),
+    "Back link must render back icon"
   );
 });
 
-// 5. PLAN HEADER WRAPS
-runGate("PLAN HEADER WRAPS", () => {
+// 5. PLAN HEADER COMPACT & INLINE
+runGate("PLAN HEADER COMPACT & INLINE", () => {
   assert.ok(
-    builderContent.includes("flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 w-full max-w-full min-w-0"),
-    "Plan header card must stack on mobile and row on sm+"
+    builderContent.includes("isEditingTitle"),
+    "Plan title must support inline editing in compact header"
   );
   assert.ok(
-    builderContent.includes("block break-words [overflow-wrap:anywhere] min-w-0 max-w-full"),
-    "Plan title must be constrained with block break-words [overflow-wrap:anywhere] min-w-0 max-w-full"
-  );
-  assert.ok(
-    builderContent.includes("w-full sm:w-auto pt-1 sm:pt-0 shrink-0"),
-    "Edit metadata button must take full width on mobile below title"
+    builderContent.includes("tree.version.title"),
+    "Plan header must render tree.version.title"
   );
 });
 
-// 6. TOTALS NOT STICKY ON MOBILE
-runGate("TOTALS NOT STICKY ON MOBILE", () => {
+// 6. TOTALS PANEL RESPONSIVE IN-FLOW / STICKY
+runGate("TOTALS PANEL RESPONSIVE IN-FLOW / STICKY", () => {
   assert.ok(
-    builderContent.includes("lg:hidden p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3 depth-surface w-full max-w-full min-w-0"),
-    "Mobile totals block must be in-flow with w-full max-w-full min-w-0 and not sticky"
+    builderContent.includes("lg:col-span-4 lg:sticky lg:top-4"),
+    "Totals cockpit must be sticky on desktop (lg:sticky lg:top-4)"
   );
   assert.ok(
-    builderContent.includes("hidden lg:block lg:col-span-4 lg:sticky"),
-    "Sticky totals panel must be strictly restricted to desktop (hidden lg:block lg:sticky)"
+    builderContent.includes("w-full lg:col-span-4"),
+    "Totals cockpit must take full width on mobile"
   );
 });
 

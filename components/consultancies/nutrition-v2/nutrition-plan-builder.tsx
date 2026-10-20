@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { PlanVersionTreeDto, PlanVersionHistoryItemDto, MealWithItemsDto } from "@/lib/nutrition-v2/plan-repository";
+import type { PlanVersionTreeDto, PlanVersionHistoryItemDto, MealWithItemsDto, MealItemWithSubstitutionsDto } from "@/lib/nutrition-v2/plan-repository";
 import {
   updatePlanMetadataAction,
   addMealAction,
@@ -33,7 +33,6 @@ import { NutritionPublishDialog } from "./nutrition-publish-dialog";
 import { NutritionSaveTemplateDialog } from "./nutrition-save-template-dialog";
 import { NutritionVersionHistory } from "./nutrition-version-history";
 import { NutritionAssignModal } from "./nutrition-assign-modal";
-import { NutritionAssignmentsList } from "./nutrition-assignments-list";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { NutritionPatientPreviewModal } from "./nutrition-patient-preview-modal";
 import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
@@ -41,6 +40,7 @@ import { MobileActionSheet } from "@/components/ui/mobile";
 import type { AssignmentListItemDto } from "@/lib/nutrition-v2/assignment-repository";
 import type { FoodSelectionResult } from "./nutrition-food-picker";
 import type { AddSubstitutionInput } from "@/lib/nutrition-v2/plan-repository";
+import type { PendingPublicationItem } from "@/lib/nutrition-v2/validation";
 import { formatMacroGram, formatCaloriesKcal } from "@/lib/nutrition-v2/nutrition-plan-presentation";
 
 export interface PatientBuilderContext {
@@ -120,14 +120,6 @@ function EyeIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   );
 }
 
-function TrashIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-    </svg>
-  );
-}
-
 export function NutritionPlanBuilder({
   slug,
   initialTree,
@@ -141,11 +133,14 @@ export function NutritionPlanBuilder({
   const [tree, setTree] = useState<PlanVersionTreeDto>(initialTree);
   const [isDiscarding, setIsDiscarding] = useState(false);
 
-  // Tabs: Montagem (builder), Análise Nutricional, Orientações
+  // Tabs: Montagem, Análise, Orientações
   const [activeTab, setActiveTab] = useState<"BUILDER" | "ANALYSIS" | "GUIDANCE">("BUILDER");
 
   // Day group tabs: "ALL_DAYS" default
   const [selectedDayTab, setSelectedDayTab] = useState<string>("ALL_DAYS");
+
+  // Expand / collapse all meals state
+  const [allMealsCollapsed, setAllMealsCollapsed] = useState<boolean | undefined>(undefined);
 
   // Autosave indicator state
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
@@ -156,8 +151,8 @@ export function NutritionPlanBuilder({
   // In-place metadata editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(tree.version.title);
-  const [subtitle, setSubtitle] = useState(tree.version.subtitle || "");
-  const [objective, setObjective] = useState(tree.version.objective || "");
+  const subtitle = tree.version.subtitle || "";
+  const objective = tree.version.objective || "";
   const [generalGuidance, setGeneralGuidance] = useState(tree.version.generalGuidance || "");
   const [notes, setNotes] = useState(tree.version.notes || "");
 
@@ -184,6 +179,13 @@ export function NutritionPlanBuilder({
   const [assignments, setAssignments] = useState<AssignmentListItemDto[]>(initialAssignments);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isMobileActionSheetOpen, setIsMobileActionSheetOpen] = useState(false);
+
+  // Undo delete engine
+  const [deletedItemUndo, setDeletedItemUndo] = useState<{
+    mealPublicId: string;
+    item: MealItemWithSubstitutionsDto;
+  } | null>(null);
+  const undoTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const refreshAssignments = async () => {
     const res = await listPlanAssignmentsAction(slug, tree.plan.publicId);
@@ -373,7 +375,6 @@ export function NutritionPlanBuilder({
 
       if (res.success && res.data?.mealPublicId) {
         const newMealPublicId = res.data.mealPublicId;
-        // Copy each item
         for (const item of meal.items) {
           const itemRes = await addMealItemAction(slug, tree.plan.publicId, newMealPublicId, {
             foodPublicId: item.foodPublicId,
@@ -434,6 +435,81 @@ export function NutritionPlanBuilder({
     }
   };
 
+  // Remove Item with floating Undo Toast
+  const handleRemoveItemWithUndo = async (mealPublicId: string, itemPublicId: string) => {
+    const meal = tree.meals.find((m) => m.publicId === mealPublicId);
+    const item = meal?.items.find((i) => i.publicId === itemPublicId);
+
+    setAutosaveStatus("saving");
+    const res = await removeMealItemAction(slug, tree.plan.publicId, itemPublicId);
+    if (res.success) {
+      await refreshTree();
+      setAutosaveStatus("saved");
+      setTimeout(() => setAutosaveStatus("idle"), 3000);
+
+      if (item) {
+        if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+        setDeletedItemUndo({ mealPublicId, item });
+        undoTimerRef.current = setTimeout(() => {
+          setDeletedItemUndo(null);
+        }, 7000);
+      }
+    } else {
+      setAutosaveStatus("error");
+      alert(res.error || "Erro ao remover item.");
+    }
+  };
+
+  // Restore deleted item
+  const handleUndoRemoveItem = async () => {
+    if (!deletedItemUndo) return;
+    const { mealPublicId, item } = deletedItemUndo;
+    setDeletedItemUndo(null);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+
+    setAutosaveStatus("saving");
+    try {
+      const res = await addMealItemAction(slug, tree.plan.publicId, mealPublicId, {
+        foodPublicId: item.foodPublicId,
+        customName: item.foodId == null ? item.foodNameSnapshot : null,
+        prescribedQuantity: item.prescribedQuantity,
+        prescribedUnitCode: item.prescribedUnitCode,
+        prescribedUnitLabel: item.prescribedUnitLabel,
+        portionPublicId: null,
+        notes: item.notes,
+      });
+
+      if (res.success && res.data?.itemPublicId && item.substitutions.length > 0) {
+        for (const sub of item.substitutions) {
+          await addSubstitutionAction(slug, tree.plan.publicId, res.data.itemPublicId, {
+            foodPublicId: sub.foodPublicId,
+            customName: sub.foodId == null ? sub.foodNameSnapshot : null,
+            prescribedQuantity: sub.prescribedQuantity,
+            prescribedUnitCode: sub.prescribedUnitCode,
+            prescribedUnitLabel: sub.prescribedUnitLabel,
+            notes: sub.notes,
+          });
+        }
+      }
+      await refreshTree();
+      setAutosaveStatus("saved");
+      setTimeout(() => setAutosaveStatus("idle"), 3000);
+    } catch {
+      setAutosaveStatus("error");
+    }
+  };
+
+  // Review item directly from publication checklist
+  const handleReviewPublicationItem = (pendingItem: PendingPublicationItem) => {
+    setIsPublishDialogOpen(false);
+    const el = document.getElementById(`item-${pendingItem.itemPublicId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-2", "ring-amber-500");
+      setTimeout(() => el.classList.remove("ring-2", "ring-amber-500"), 3500);
+    }
+  };
+
   // VET % calculations for Nutritional Analysis
   const totalKcal = tree.dailyTotals.caloriesKcal || 0;
   const pKcal = (tree.dailyTotals.proteinG || 0) * 4;
@@ -446,36 +522,115 @@ export function NutritionPlanBuilder({
   const fPct = calculatedSum > 0 ? Math.max(0, 100 - pPct - cPct) : 0;
 
   return (
-    <div className="w-full max-w-full min-w-0 min-h-[calc(100vh-4rem)] bg-transparent px-3 sm:px-6 md:px-8 py-3 sm:py-6">
-      <div className="space-y-4 sm:space-y-6 w-full max-w-full lg:max-w-7xl mx-auto pb-28 sm:pb-20 min-w-0">
-        {/* TOP BAR: Breadcrumb, Autosave Indicator, Actions */}
-        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 min-w-0 w-full max-w-full">
-          {/* Back link */}
-          <Link
-            href={patientContext ? patientContext.returnToUrl : `/consultoria/${slug}/planos-v2`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive min-w-0 shrink-0"
-          >
-            <ArrowLeftIcon className="w-4 h-4 shrink-0" />
-            <span className="block min-w-0 truncate sm:hidden">
-              {patientContext ? `Voltar para ${patientContext.studentName}` : "Voltar"}
-            </span>
-            <span className="hidden sm:inline-block min-w-0 truncate">
-              {patientContext ? `Voltar para ${patientContext.studentName}` : "Voltar para Planos"}
-            </span>
-          </Link>
+    <div className="w-full max-w-full min-w-0 min-h-[calc(100vh-4rem)] bg-transparent px-3 sm:px-6 md:px-8 py-2.5 sm:py-5">
+      <div className="space-y-3 sm:space-y-4 w-full max-w-full lg:max-w-7xl mx-auto pb-28 sm:pb-20 min-w-0">
+        {/* ========================================================================= */}
+        {/* COMPACT TOP BAR: Back link, Inline Title, Badges, Autosave, Desktop Actions */}
+        {/* (Eliminates the giant separate title card!)                              */}
+        {/* ========================================================================= */}
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 min-w-0 w-full max-w-full depth-surface">
+          {/* Left: Back Link & Inline Editable Title */}
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <Link
+              href={patientContext ? patientContext.returnToUrl : `/consultoria/${slug}/planos-v2`}
+              className="p-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0"
+              title={patientContext ? `Voltar para ${patientContext.studentName}` : "Voltar para Planos"}
+            >
+              <ArrowLeftIcon className="w-4 h-4" />
+            </Link>
 
-          {/* Autosave Status Indicator */}
-          <div className="flex items-center gap-2">
-            <AutosaveIndicator status={autosaveStatus} errorMessage={autosaveError} />
+            {/* Title / Inline Title Edit */}
+            <div className="min-w-0 flex-1 flex items-center gap-2 flex-wrap">
+              {isEditingTitle ? (
+                <div className="flex items-center gap-1.5 flex-1 max-w-md">
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveMetadata();
+                      if (e.key === "Escape") setIsEditingTitle(false);
+                    }}
+                    className="w-full px-2.5 py-1 text-sm font-bold rounded-lg border border-[var(--brand)] bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSaveMetadata()}
+                    className="px-2.5 py-1 text-xs font-bold rounded-lg bg-[var(--brand)] text-white hover:opacity-90 cursor-pointer shrink-0"
+                  >
+                    Salvar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingTitle(false)}
+                    className="px-2 py-1 text-xs rounded-lg border border-[var(--border)] text-[var(--text-secondary)] cursor-pointer shrink-0"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 min-w-0 group">
+                  <h1
+                    onClick={() => !isReadOnly && setIsEditingTitle(true)}
+                    className={`text-sm sm:text-base font-extrabold text-[var(--text-primary)] truncate ${
+                      !isReadOnly ? "cursor-pointer hover:text-[var(--brand)] transition-colors" : ""
+                    }`}
+                    title={tree.version.title}
+                  >
+                    {tree.version.title}
+                  </h1>
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingTitle(true)}
+                      className="p-1 text-[var(--text-muted)] hover:text-[var(--brand)] rounded transition-colors opacity-70 group-hover:opacity-100 cursor-pointer"
+                      title="Editar título"
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Version & Status Badges */}
+              <Badge
+                variant={
+                  tree.version.status === "PUBLISHED"
+                    ? "success"
+                    : tree.version.status === "DRAFT"
+                    ? "warning"
+                    : "neutral"
+                }
+                size="sm"
+              >
+                {tree.version.status === "DRAFT"
+                  ? `Rascunho V${tree.version.versionNumber}`
+                  : tree.version.status === "PUBLISHED"
+                  ? `V${tree.version.versionNumber}`
+                  : `Arquivada V${tree.version.versionNumber}`}
+              </Badge>
+
+              {patientContext && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)]/10 text-[var(--brand)] border border-[var(--brand)]/20 truncate max-w-[150px]">
+                  {patientContext.studentName}
+                </span>
+              )}
+
+              <AutosaveIndicator status={autosaveStatus} errorMessage={autosaveError} />
+            </div>
           </div>
 
-          {/* Desktop Action Controls */}
+          {/* Right: Desktop Action Controls */}
           <div className="hidden lg:flex items-center gap-2 shrink-0">
             {/* Patient Preview Button */}
             <button
               type="button"
               onClick={() => setIsPreviewOpen(true)}
-              className="px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[38px] cursor-pointer"
+              className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[34px] cursor-pointer"
               title="Visualizar prévia como o aluno verá no smartphone"
             >
               <EyeIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
@@ -486,7 +641,7 @@ export function NutritionPlanBuilder({
             <button
               type="button"
               onClick={handleOpenHistory}
-              className="px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[38px] cursor-pointer"
+              className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[34px] cursor-pointer"
             >
               <HistoryIcon className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
               <span>Histórico</span>
@@ -497,45 +652,27 @@ export function NutritionPlanBuilder({
               href={`/api/consultancies/${slug}/nutricao/pdf?planPublicId=${initialTree.plan.publicId}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[38px]"
+              className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[34px]"
               title="Baixar plano alimentar em PDF oficial"
             >
               <svg className="w-3.5 h-3.5 text-[var(--brand)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <span>Baixar PDF</span>
+              <span>PDF</span>
             </a>
 
             {/* Save as Template */}
             <button
               type="button"
               onClick={() => setIsSaveTemplateDialogOpen(true)}
-              className="px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[38px] cursor-pointer"
+              className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[34px] cursor-pointer"
               title="Salvar estrutura deste plano como modelo reutilizável"
             >
               <svg className="w-3.5 h-3.5 text-[var(--text-secondary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
               </svg>
-              <span>Salvar como modelo</span>
+              <span>Modelo</span>
             </button>
-
-            {/* Version Badge */}
-            <Badge
-              variant={
-                tree.version.status === "PUBLISHED"
-                  ? "success"
-                  : tree.version.status === "DRAFT"
-                  ? "warning"
-                  : "neutral"
-              }
-              size="md"
-            >
-              {tree.version.status === "DRAFT"
-                ? `Rascunho (V${tree.version.versionNumber})`
-                : tree.version.status === "PUBLISHED"
-                ? `Publicada (V${tree.version.versionNumber})`
-                : `Arquivada (V${tree.version.versionNumber})`}
-            </Badge>
 
             {/* Publish / Prescribe Buttons */}
             {tree.version.status === "DRAFT" && (
@@ -546,7 +683,7 @@ export function NutritionPlanBuilder({
                   setPublishError(null);
                   setIsPublishDialogOpen(true);
                 }}
-                className="font-bold min-h-[38px] shadow-sm"
+                className="font-bold min-h-[34px] shadow-sm text-xs"
               >
                 <CheckIcon className="w-3.5 h-3.5 mr-1" />
                 <span>{patientContext ? "Publicar atualização" : "Publicar Versão"}</span>
@@ -558,10 +695,10 @@ export function NutritionPlanBuilder({
                 variant="primary"
                 size="sm"
                 onClick={() => setIsAssignModalOpen(true)}
-                className="font-bold min-h-[38px] shadow-sm"
+                className="font-bold min-h-[34px] shadow-sm text-xs"
               >
                 <UserPlusIcon className="w-3.5 h-3.5 mr-1" />
-                <span>Prescrever ao Aluno</span>
+                <span>Prescrever ao Aluno{assignments.length > 0 ? ` (${assignments.length})` : ""}</span>
               </Button>
             )}
 
@@ -571,163 +708,37 @@ export function NutritionPlanBuilder({
                 size="sm"
                 disabled={isCreatingVersion}
                 onClick={handleCreateNextVersion}
-                className="font-bold min-h-[38px] shadow-sm"
+                className="font-bold min-h-[34px] shadow-sm text-xs"
               >
                 <PlusIcon className="w-3.5 h-3.5 mr-1" />
-                <span>{isCreatingVersion ? "Criando versão..." : "Criar Nova Versão"}</span>
+                <span>{isCreatingVersion ? "Criando..." : "Nova Versão"}</span>
               </Button>
             )}
           </div>
         </div>
 
-        {/* PATIENT CONTEXT BANNER */}
-        {patientContext && (
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)] border border-[var(--brand)]/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0 w-full max-w-full">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[var(--brand)] text-[var(--text-inverse)] flex items-center justify-center font-extrabold text-sm sm:text-base shrink-0 shadow-xs">
-                {patientContext.studentName.charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm sm:text-base font-extrabold text-[var(--text-primary)] truncate">
-                    Plano de {patientContext.studentName}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)] text-[var(--text-inverse)] shrink-0">
-                    {tree.version.status === "DRAFT" ? "Alteração em andamento" : "Plano ativo"}
-                  </span>
-                </div>
-                <p className="text-[11px] text-[var(--text-secondary)] truncate">
-                  {tree.version.status === "DRAFT"
-                    ? "As alterações feitas aqui serão publicadas diretamente para a paciente."
-                    : "Este plano está publicado e ativo no smartphone da paciente."}
-                </p>
-              </div>
-            </div>
-
-            <div className="hidden lg:flex items-center gap-2 shrink-0">
-              {tree.version.status === "DRAFT" && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={isDiscarding}
-                  onClick={handleDiscardDraft}
-                  className="text-xs font-bold min-h-[36px] text-red-600 dark:text-red-400 hover:bg-red-500/10 border border-red-500/20"
-                >
-                  {isDiscarding ? "Descartando..." : "Descartar rascunho"}
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ORIGIN BANNER */}
+        {/* Origin Banner (compact) */}
         {origin === "template" && (
-          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
+          <div className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
             <span className="font-bold shrink-0">Origem:</span>
             <span>Criado a partir do modelo: <strong>{originName || "Modelo"}</strong></span>
           </div>
         )}
 
-        {/* PLAN TITLE & IN-PLACE EDIT CARD */}
-        <div className="p-4 sm:p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-2 depth-surface">
-          {!isEditingTitle ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="space-y-1 min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
-                    Prescrição Nutricional
-                  </span>
-                  {isReadOnly && (
-                    <Badge variant="neutral" size="sm">Somente leitura</Badge>
-                  )}
-                </div>
-                <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight truncate">
-                  {tree.version.title}
-                </h1>
-                {tree.version.subtitle && (
-                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium truncate">
-                    {tree.version.subtitle}
-                  </p>
-                )}
-              </div>
-
-              {!isReadOnly && (
-                <button
-                  type="button"
-                  onClick={() => setIsEditingTitle(true)}
-                  className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors inline-flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                  <span>Editar título</span>
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3 pt-1">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
-                    Título do Plano *
-                  </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
-                    Subtítulo (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={subtitle}
-                    onChange={(e) => setSubtitle(e.target.value)}
-                    placeholder="Ex: Fase 1 - Hipertrofia..."
-                    className="w-full px-3 py-1.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
-                    Objetivo Clínico (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={objective}
-                    onChange={(e) => setObjective(e.target.value)}
-                    placeholder="Ex: Ganho de massa, Déficit..."
-                    className="w-full px-3 py-1.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-1 border-t border-[var(--border-subtle)]">
-                <Button variant="secondary" size="sm" onClick={() => setIsEditingTitle(false)}>
-                  Cancelar
-                </Button>
-                <Button variant="primary" size="sm" onClick={() => handleSaveMetadata()}>
-                  Salvar
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* MAIN NAVIGATION TABS (Nutrium pattern: Montagem, Análise Nutricional, Orientações) */}
+        {/* ========================================================================= */}
+        {/* CRISP TABS: Montagem, Análise, Orientações                                */}
+        {/* ========================================================================= */}
         <div className="border-b border-[var(--border-default)] flex items-center gap-1 sm:gap-2">
           {[
-            { id: "BUILDER", label: "Montagem do Plano" },
-            { id: "ANALYSIS", label: "Análise Nutricional" },
-            { id: "GUIDANCE", label: "Orientações e Recomendações" },
+            { id: "BUILDER", label: "Montagem" },
+            { id: "ANALYSIS", label: "Análise" },
+            { id: "GUIDANCE", label: "Orientações" },
           ].map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition-colors cursor-pointer ${
+              className={`px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold border-b-2 transition-colors cursor-pointer ${
                 activeTab === tab.id
                   ? "border-[var(--brand)] text-[var(--brand)]"
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -739,13 +750,13 @@ export function NutritionPlanBuilder({
         </div>
 
         {/* ========================================================================= */}
-        {/* TAB 1: MONTAGEM (BUILDER) */}
+        {/* TAB 1: MONTAGEM (BUILDER)                                                 */}
         {/* ========================================================================= */}
         {activeTab === "BUILDER" && (
-          <div className="space-y-4">
-            {/* Days / Menus Selector Bar */}
-            <div className="p-2 sm:p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
-              <div className="flex items-center gap-1.5 shrink-0">
+          <div className="space-y-3 sm:space-y-4">
+            {/* Days / Menus Selector Bar with Quick Meal Jump & Expand All */}
+            <div className="p-2 sm:p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs flex items-center justify-between gap-2 overflow-x-auto scrollbar-none flex-wrap sm:flex-nowrap">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setSelectedDayTab("ALL_DAYS")}
@@ -755,23 +766,55 @@ export function NutritionPlanBuilder({
                       : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                   }`}
                 >
-                  Todos os dias (Padrão)
+                  Todos os dias
                 </button>
+
+                {/* Quick Meal Jump Dropdown */}
+                {tree.meals.length > 0 && (
+                  <select
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const el = document.getElementById(e.target.value);
+                      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                    defaultValue=""
+                    className="px-2.5 py-1.5 text-xs rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] cursor-pointer"
+                  >
+                    <option value="" disabled>Ir para refeição...</option>
+                    {tree.meals.map((m) => (
+                      <option key={m.publicId} value={`meal-${m.publicId}`}>
+                        {m.title} ({m.mealTotals.caloriesKcal} kcal)
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
-              <div className="text-xs text-[var(--text-tertiary)] hidden sm:block">
-                {tree.meals.length} refeição{tree.meals.length === 1 ? "" : "ões"} configurada{tree.meals.length === 1 ? "" : "s"}
+              <div className="flex items-center gap-2 text-xs shrink-0">
+                {/* Expand / Collapse All Toggle */}
+                {tree.meals.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setAllMealsCollapsed((prev) => !prev)}
+                    className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                  >
+                    {allMealsCollapsed ? "Expandir todas" : "Recolher todas"}
+                  </button>
+                )}
+                <span className="text-[var(--text-tertiary)] hidden md:inline">
+                  {tree.meals.length} refeição{tree.meals.length === 1 ? "" : "ões"}
+                </span>
               </div>
             </div>
 
             {/* 2-Column Responsive Workspace: Left 8/12 Builder, Right 4/12 Sticky Cockpit */}
-            <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 items-start w-full max-w-full min-w-0">
+            <div className="flex flex-col lg:grid lg:grid-cols-12 gap-5 items-start w-full max-w-full min-w-0">
               {/* LEFT / MAIN WORKSPACE: Meals List */}
-              <div className="lg:col-span-8 space-y-4 w-full max-w-full min-w-0">
-                {/* Add Meal Button */}
+              <div className="lg:col-span-8 space-y-3.5 w-full max-w-full min-w-0">
+                {/* Add Meal Top Row */}
                 {!isReadOnly && !isAddingMeal && (
                   <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+                    <h2 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
                       Refeições do Plano
                     </h2>
                     <Button
@@ -779,18 +822,18 @@ export function NutritionPlanBuilder({
                       variant="primary"
                       size="sm"
                       onClick={() => setIsAddingMeal(true)}
-                      className="font-bold min-h-[38px] shadow-sm"
+                      className="font-bold min-h-[34px] shadow-sm text-xs"
                     >
-                      <PlusIcon className="w-4 h-4 mr-1.5" />
-                      <span>Adicionar Refeição</span>
+                      <PlusIcon className="w-3.5 h-3.5 mr-1" />
+                      <span>Nova Refeição</span>
                     </Button>
                   </div>
                 )}
 
                 {/* Add Meal Form */}
                 {!isReadOnly && isAddingMeal && (
-                  <div className="p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--brand)]/40 shadow-sm space-y-3 depth-surface">
-                    <h3 className="text-sm font-bold text-[var(--text-primary)]">Nova Refeição</h3>
+                  <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--brand)]/40 shadow-sm space-y-3 depth-surface animate-in fade-in duration-150">
+                    <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">Nova Refeição</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="sm:col-span-2">
                         <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
@@ -828,7 +871,7 @@ export function NutritionPlanBuilder({
                         className="w-full px-3 py-1.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                       />
                     </div>
-                    <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                    <div className="flex justify-end gap-2 pt-1 border-t border-[var(--border-subtle)]">
                       <Button type="button" variant="secondary" size="sm" onClick={() => setIsAddingMeal(false)}>
                         Cancelar
                       </Button>
@@ -841,7 +884,7 @@ export function NutritionPlanBuilder({
 
                 {/* Empty State */}
                 {tree.meals.length === 0 && !isAddingMeal && (
-                  <div className="text-center py-16 px-4 bg-[var(--surface)] border border-dashed border-[var(--border-default)] rounded-xl space-y-3 depth-surface">
+                  <div className="text-center py-14 px-4 bg-[var(--surface)] border border-dashed border-[var(--border-default)] rounded-xl space-y-3 depth-surface">
                     <div className="w-12 h-12 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center mx-auto shadow-2xs">
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -853,7 +896,7 @@ export function NutritionPlanBuilder({
                     <p className="text-xs text-[var(--text-secondary)] max-w-sm mx-auto">
                       {isReadOnly
                         ? "Esta versão não possui refeições cadastradas."
-                        : "Comece estruturando as refeições diárias (Café da manhã, Almoço, etc.) e adicione alimentos com porções e substituições."}
+                        : "Estruture as refeições diárias e adicione alimentos com porções e substituições equivalentes."}
                     </p>
                     {!isReadOnly && (
                       <Button
@@ -861,7 +904,7 @@ export function NutritionPlanBuilder({
                         variant="primary"
                         size="sm"
                         onClick={() => setIsAddingMeal(true)}
-                        className="font-bold min-h-[42px] shadow-sm inline-flex items-center gap-1.5"
+                        className="font-bold min-h-[38px] shadow-sm inline-flex items-center gap-1.5"
                       >
                         <PlusIcon className="w-4 h-4 mr-1" />
                         <span>Criar Primeira Refeição</span>
@@ -872,7 +915,7 @@ export function NutritionPlanBuilder({
 
                 {/* Meals Render List */}
                 {tree.meals.length > 0 && (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {tree.meals.map((meal, idx) => (
                       <NutritionMealEditor
                         key={meal.publicId}
@@ -881,6 +924,7 @@ export function NutritionPlanBuilder({
                         readOnly={isReadOnly}
                         isFirst={idx === 0}
                         isLast={idx === tree.meals.length - 1}
+                        forceCollapsed={allMealsCollapsed}
                         onMoveUp={() => handleMoveMeal(idx, "UP")}
                         onMoveDown={() => handleMoveMeal(idx, "DOWN")}
                         onDuplicateMeal={() => handleDuplicateMeal(meal)}
@@ -932,18 +976,7 @@ export function NutritionPlanBuilder({
                             alert(res.error || "Erro ao atualizar item.");
                           }
                         }}
-                        onRemoveItem={async (itemPublicId) => {
-                          setAutosaveStatus("saving");
-                          const res = await removeMealItemAction(slug, tree.plan.publicId, itemPublicId);
-                          if (res.success) {
-                            await refreshTree();
-                            setAutosaveStatus("saved");
-                            setTimeout(() => setAutosaveStatus("idle"), 3000);
-                          } else {
-                            setAutosaveStatus("error");
-                            alert(res.error || "Erro ao remover item.");
-                          }
-                        }}
+                        onRemoveItem={(itemPublicId) => handleRemoveItemWithUndo(meal.publicId, itemPublicId)}
                         onReorderItems={async (orderedItemPublicIds) => {
                           setAutosaveStatus("saving");
                           const res = await reorderMealItemsAction(slug, tree.plan.publicId, meal.publicId, orderedItemPublicIds);
@@ -1010,34 +1043,39 @@ export function NutritionPlanBuilder({
                 )}
               </div>
 
-              {/* RIGHT / STICKY COCKPIT (~1/3 Desktop): Nutritional Real-Time Cockpit */}
-              <div className="w-full lg:col-span-4 lg:sticky lg:top-6 space-y-4">
-                <div className="p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 depth-surface">
+              {/* ========================================================================= */}
+              {/* RIGHT / STICKY COCKPIT: Nutritional Summary (Total do Cardápio vs Meta)    */}
+              {/* (Corrected labels: Total vs Meta, no misleading 66.5 kcal meta label)     */}
+              {/* ========================================================================= */}
+              <div className="w-full lg:col-span-4 lg:sticky lg:top-4 space-y-3.5">
+                <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 depth-surface">
                   {/* Energy Header */}
                   <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
                     <div>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                        Meta Calórica Diária
+                        Total do Cardápio
                       </span>
-                      <h3 className="text-sm font-bold text-[var(--text-primary)] mt-0.5">
-                        Totais do Cardápio
-                      </h3>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xl sm:text-2xl font-extrabold text-[var(--brand)] font-heading leading-tight">
+                      <div className="text-xl sm:text-2xl font-extrabold text-[var(--brand)] font-heading leading-tight mt-0.5">
                         {tree.dailyTotals.caloriesKcal.toLocaleString("pt-BR")}{" "}
                         <span className="text-xs font-semibold text-[var(--text-secondary)]">kcal</span>
                       </div>
-                      {planningTarget?.caloriesKcal && (
-                        <span className="text-[10px] text-[var(--text-tertiary)] block">
-                          Meta: {planningTarget.caloriesKcal} kcal
-                        </span>
-                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                        Meta Clínica
+                      </span>
+                      <div className="text-xs sm:text-sm font-semibold text-[var(--text-secondary)] mt-0.5">
+                        {planningTarget?.caloriesKcal ? (
+                          <span className="font-bold text-[var(--text-primary)]">{planningTarget.caloriesKcal} kcal</span>
+                        ) : (
+                          <span className="text-[var(--text-muted)] italic">Não definida</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Calories Progress Bar if planning target exists */}
-                  {planningTarget?.caloriesKcal && (
+                  {/* Calories Progress Bar only if planningTarget?.caloriesKcal exists */}
+                  {planningTarget?.caloriesKcal ? (
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
                         <span>Atingimento da Meta:</span>
@@ -1054,13 +1092,14 @@ export function NutritionPlanBuilder({
                         />
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
                   {/* Macronutrient VET % Segmented Bar */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)] block">
-                      Distribuição Calórica (% VET)
-                    </span>
+                    <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)]">
+                      <span>Distribuição Calórica (% VET)</span>
+                      <span className="text-[9px] font-normal normal-case text-[var(--text-muted)]">Valor Energético Total</span>
+                    </div>
                     <div className="h-2.5 w-full rounded-full bg-[var(--surface-subtle)] flex overflow-hidden">
                       <div style={{ width: `${pPct}%` }} className="bg-sky-500 h-full" title={`Proteína: ${pPct}%`} />
                       <div style={{ width: `${cPct}%` }} className="bg-emerald-500 h-full" title={`Carboidratos: ${cPct}%`} />
@@ -1127,7 +1166,7 @@ export function NutritionPlanBuilder({
 
                   {/* Fiber Row */}
                   {tree.dailyMicronutrientTotals?.nutrients?.FIBER && (
-                    <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface-subtle)]/70 text-xs border border-[var(--border-subtle)]">
+                    <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface-subtle)] text-xs border border-[var(--border-subtle)]">
                       <span className="text-[var(--text-secondary)] font-medium">Fibras Alimentares</span>
                       <span className="font-bold text-[var(--text-primary)]">
                         {tree.dailyMicronutrientTotals.nutrients.FIBER.value} g
@@ -1163,7 +1202,7 @@ export function NutritionPlanBuilder({
                   <button
                     type="button"
                     onClick={() => setIsMicronutrientsDrawerOpen(true)}
-                    className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] transition-all cursor-pointer min-h-[38px]"
+                    className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] transition-all cursor-pointer min-h-[36px]"
                   >
                     <svg className="w-3.5 h-3.5 text-[var(--brand)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
@@ -1171,46 +1210,22 @@ export function NutritionPlanBuilder({
                     <span>Ver micronutrientes detalhados</span>
                   </button>
                 </div>
-
-                {/* Assignments List Section */}
-                <div className="p-4 sm:p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3 depth-surface">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">
-                      Pacientes Vinculados
-                    </h3>
-                    {tree.version.status === "PUBLISHED" && (
-                      <button
-                        type="button"
-                        onClick={() => setIsAssignModalOpen(true)}
-                        className="text-xs font-bold text-[var(--brand)] hover:underline"
-                      >
-                        + Prescrever
-                      </button>
-                    )}
-                  </div>
-                  <NutritionAssignmentsList
-                    slug={slug}
-                    planPublicId={tree.plan.publicId}
-                    assignments={assignments}
-                    onRefresh={refreshAssignments}
-                  />
-                </div>
               </div>
             </div>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 2: ANÁLISE NUTRICIONAL (DEEP DIVE) */}
+        {/* TAB 2: ANÁLISE NUTRICIONAL (DEEP DIVE)                                    */}
         {/* ========================================================================= */}
         {activeTab === "ANALYSIS" && (
           <div className="p-4 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-6 depth-surface">
             <div>
-              <h2 className="text-lg font-bold text-[var(--text-primary)]">
+              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
                 Análise Nutricional Completa do Plano
               </h2>
               <p className="text-xs text-[var(--text-secondary)]">
-                Quadro comparativo de macronutrientes, distribuição energética e micronutrientes por refeição.
+                Quadro comparativo de macronutrientes, distribuição energética (% VET) e micronutrientes.
               </p>
             </div>
 
@@ -1308,16 +1323,16 @@ export function NutritionPlanBuilder({
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 3: ORIENTAÇÕES E RECOMENDAÇÕES */}
+        {/* TAB 3: ORIENTAÇÕES E RECOMENDAÇÕES                                       */}
         {/* ========================================================================= */}
         {activeTab === "GUIDANCE" && (
           <div className="p-4 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 depth-surface">
             <div>
-              <h2 className="text-lg font-bold text-[var(--text-primary)]">
+              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
                 Orientações Clínicas e Recomendações
               </h2>
               <p className="text-xs text-[var(--text-secondary)]">
-                Instruções personalizadas, recomendações hídricas e notas de consumo que o paciente visualiza no app.
+                Instruções personalizadas, recomendações hídricas e notas que o paciente visualiza no app.
               </p>
             </div>
 
@@ -1354,7 +1369,7 @@ export function NutritionPlanBuilder({
                     variant="primary"
                     size="sm"
                     onClick={() => handleSaveMetadata()}
-                    className="font-bold min-h-[38px] shadow-sm"
+                    className="font-bold min-h-[36px] shadow-sm text-xs"
                   >
                     Salvar Orientações
                   </Button>
@@ -1365,7 +1380,32 @@ export function NutritionPlanBuilder({
         )}
 
         {/* ========================================================================= */}
-        {/* MODALS & DRAWERS */}
+        {/* FLOATING UNDO TOAST                                                       */}
+        {/* ========================================================================= */}
+        {deletedItemUndo && (
+          <div className="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-zinc-950 text-white shadow-2xl flex items-center gap-3 text-xs border border-zinc-800 animate-in slide-in-from-bottom duration-200">
+            <span className="truncate max-w-[200px] sm:max-w-xs font-medium">
+              Alimento &ldquo;{deletedItemUndo.item.foodNameSnapshot}&rdquo; removido.
+            </span>
+            <button
+              type="button"
+              onClick={handleUndoRemoveItem}
+              className="px-2.5 py-1 rounded-lg bg-[var(--brand)] text-white font-bold hover:opacity-90 transition-opacity cursor-pointer shadow-xs shrink-0"
+            >
+              Desfazer
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeletedItemUndo(null)}
+              className="text-zinc-400 hover:text-white shrink-0 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODALS & DRAWERS                                                          */}
         {/* ========================================================================= */}
 
         {/* Patient Preview Modal */}
@@ -1406,6 +1446,7 @@ export function NutritionPlanBuilder({
           isPublishing={isPublishing}
           errorMessage={publishError}
           patientName={patientContext?.studentName}
+          onReviewItem={handleReviewPublicationItem}
         />
 
         {/* Version History Drawer */}
@@ -1432,13 +1473,15 @@ export function NutritionPlanBuilder({
         />
       </div>
 
-      {/* MOBILE STICKY BOTTOM ACTION BAR */}
-      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-default)] p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shadow-lg flex items-center justify-between gap-2.5 w-full max-w-full min-w-0">
+      {/* ========================================================================= */}
+      {/* MOBILE STICKY BOTTOM ACTION BAR                                           */}
+      {/* ========================================================================= */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-default)] p-2.5 pb-[calc(0.6rem+env(safe-area-inset-bottom,0px))] shadow-lg flex items-center justify-between gap-2 w-full max-w-full min-w-0">
         <button
           type="button"
           aria-label="Mais ações do plano"
           onClick={() => setIsMobileActionSheetOpen(true)}
-          className="min-h-[48px] min-w-[48px] rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] active:scale-95 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center shrink-0 cursor-pointer"
+          className="min-h-[44px] min-w-[44px] rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] active:scale-95 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center shrink-0 cursor-pointer"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <circle cx="12" cy="12" r="1" />
@@ -1451,9 +1494,9 @@ export function NutritionPlanBuilder({
         <button
           type="button"
           onClick={() => setIsPreviewOpen(true)}
-          className="min-h-[48px] px-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 shrink-0"
+          className="min-h-[44px] px-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 shrink-0 cursor-pointer"
         >
-          <EyeIcon className="w-4 h-4 text-[var(--brand)]" />
+          <EyeIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
           <span>Prévia</span>
         </button>
 
@@ -1465,7 +1508,7 @@ export function NutritionPlanBuilder({
               setPublishError(null);
               setIsPublishDialogOpen(true);
             }}
-            className="flex-1 font-bold min-h-[48px] shadow-sm flex items-center justify-center gap-1.5 text-xs sm:text-sm"
+            className="flex-1 font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-1.5 text-xs sm:text-sm"
           >
             <CheckIcon className="w-4 h-4" />
             <span>{patientContext ? "Publicar atualização" : "Publicar"}</span>
@@ -1477,10 +1520,10 @@ export function NutritionPlanBuilder({
             variant="primary"
             size="md"
             onClick={() => setIsAssignModalOpen(true)}
-            className="flex-1 font-bold min-h-[48px] shadow-sm flex items-center justify-center gap-1.5 text-xs sm:text-sm"
+            className="flex-1 font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-1.5 text-xs sm:text-sm"
           >
             <UserPlusIcon className="w-4 h-4" />
-            <span>Prescrever</span>
+            <span>Prescrever{assignments.length > 0 ? ` (${assignments.length})` : ""}</span>
           </Button>
         )}
       </div>
@@ -1500,7 +1543,11 @@ export function NutritionPlanBuilder({
           ...(tree.version.status === "DRAFT" && patientContext ? [{
             id: "discard-draft",
             label: "Descartar alterações",
-            icon: <TrashIcon className="w-4 h-4 text-red-600 dark:text-red-400" />,
+            icon: (
+              <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            ),
             variant: "danger" as const,
             disabled: isDiscarding,
             onClick: handleDiscardDraft,
@@ -1515,7 +1562,7 @@ export function NutritionPlanBuilder({
             },
           }, {
             id: "edit-meta",
-            label: "Editar Título e Subtítulo",
+            label: "Editar Título do Plano",
             icon: (
               <svg className="w-4 h-4 text-[var(--brand)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />

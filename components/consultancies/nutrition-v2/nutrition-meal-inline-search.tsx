@@ -22,6 +22,20 @@ interface NutritionMealInlineSearchProps {
   onClose: () => void;
 }
 
+// Popular staples to show when search query is empty
+const QUICK_SUGGESTIONS = [
+  "Arroz branco",
+  "Feijão carioca",
+  "Peito de frango",
+  "Ovo de galinha",
+  "Banana prata",
+  "Aveia em flocos",
+  "Pão francês",
+  "Azeite de oliva",
+  "Leite integral",
+  "Batata doce",
+];
+
 export function NutritionMealInlineSearch({
   slug,
   mealTitle,
@@ -33,6 +47,9 @@ export function NutritionMealInlineSearch({
   const [foods, setFoods] = useState<FoodListItemDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, startSearchTransition] = useTransition();
+
+  // Keyboard navigation active index
+  const [activeIndex, setActiveIndex] = useState<number>(-1);
 
   // Portions cache per foodPublicId
   const [foodPortionsMap, setFoodPortionsMap] = useState<Record<string, FoodPortionOption[]>>({});
@@ -48,6 +65,7 @@ export function NutritionMealInlineSearch({
   const [recentlyAddedId, setRecentlyAddedId] = useState<string | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const resultsContainerRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Focus on mount
@@ -60,9 +78,11 @@ export function NutritionMealInlineSearch({
     async (searchTerm: string, source: "ALL" | "TACO" | "USDA" | "CONSULTANCY") => {
       setIsLoading(true);
       try {
-        const res = await searchFoodsForPickerAction(slug, searchTerm, "ALL", 1, source);
+        const effectiveQuery = searchTerm.trim() || "arroz";
+        const res = await searchFoodsForPickerAction(slug, effectiveQuery, "ALL", 1, source);
         if (res.success && res.data) {
           setFoods(res.data.items || []);
+          setActiveIndex(-1);
         } else {
           setFoods([]);
         }
@@ -75,7 +95,7 @@ export function NutritionMealInlineSearch({
     [slug]
   );
 
-  // Search trigger on query or source change
+  // Trigger search on mount and on query/filter changes
   useEffect(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -85,7 +105,7 @@ export function NutritionMealInlineSearch({
       startSearchTransition(() => {
         fetchFoods(query, sourceFilter);
       });
-    }, 250);
+    }, 220);
 
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
@@ -180,7 +200,7 @@ export function NutritionMealInlineSearch({
         setRecentlyAddedId((curr) => (curr === food.publicId ? null : curr));
       }, 2000);
 
-      // Keep focus on the search input for continuous typing
+      // Keep focus on the search input for continuous additions
       searchInputRef.current?.focus();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Erro ao adicionar alimento.");
@@ -189,10 +209,52 @@ export function NutritionMealInlineSearch({
     }
   };
 
+  // Keyboard navigation handler
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => {
+        const next = prev < foods.length - 1 ? prev + 1 : prev;
+        scrollToItem(next);
+        return next;
+      });
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => {
+        const next = prev > 0 ? prev - 1 : 0;
+        scrollToItem(next);
+        return next;
+      });
+      return;
+    }
+
+    if (e.key === "Enter" && activeIndex >= 0 && activeIndex < foods.length) {
+      e.preventDefault();
+      handleAddFood(foods[activeIndex]);
+    }
+  };
+
+  const scrollToItem = (idx: number) => {
+    if (!resultsContainerRef.current) return;
+    const elements = resultsContainerRef.current.children;
+    if (elements[idx]) {
+      (elements[idx] as HTMLElement).scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  };
+
   return (
-    <div className="mt-3 p-3.5 sm:p-4 rounded-xl border-2 border-[var(--brand)]/40 bg-[var(--surface-subtle)] space-y-3.5 shadow-sm depth-surface animate-in fade-in duration-200">
+    <div className="mt-2.5 p-3 sm:p-4 rounded-2xl border-2 border-[var(--brand)]/40 bg-[var(--surface-subtle)] space-y-3 shadow-md depth-surface animate-in fade-in duration-150">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-[var(--brand)] animate-pulse" />
           <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">
@@ -202,15 +264,15 @@ export function NutritionMealInlineSearch({
         <button
           type="button"
           onClick={onClose}
-          className="px-2.5 py-1 text-xs font-bold rounded-lg border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors inline-flex items-center gap-1 cursor-pointer"
+          className="px-2.5 py-1 text-xs font-bold rounded-lg border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
         >
-          <span>Concluir busca</span>
-          <span className="text-[10px]">✕</span>
+          <span>Concluir</span>
+          <span className="text-[10px] text-[var(--text-muted)]">Esc</span>
         </button>
       </div>
 
       {/* Search Input & Source Filters */}
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         <div className="relative">
           <svg
             className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -225,7 +287,8 @@ export function NutritionMealInlineSearch({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por nome (ex: arroz branco, peito de frango, banana prata, aveia)..."
+            onKeyDown={handleKeyDown}
+            placeholder="Buscar alimento (ex: arroz, peito de frango, banana, aveia)..."
             className="w-full pl-9 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
           />
           {(isLoading || isSearching) && (
@@ -238,8 +301,25 @@ export function NutritionMealInlineSearch({
           )}
         </div>
 
+        {/* Quick Suggestion Chips when query is short */}
+        {!query.trim() && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
+            <span className="text-[10px] font-semibold text-[var(--text-muted)] shrink-0">Sugestões:</span>
+            {QUICK_SUGGESTIONS.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setQuery(item)}
+                className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--brand)] whitespace-nowrap cursor-pointer transition-colors"
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Source Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs scrollbar-none">
           {[
             { id: "ALL", label: "Todos os bancos" },
             { id: "TACO", label: "TACO Brasil" },
@@ -263,14 +343,17 @@ export function NutritionMealInlineSearch({
       </div>
 
       {/* Results List */}
-      <div className="max-h-[360px] overflow-y-auto space-y-2 pr-1 divide-y divide-[var(--border-subtle)]">
+      <div
+        ref={resultsContainerRef}
+        className="max-h-[340px] overflow-y-auto space-y-1.5 pr-1 divide-y divide-[var(--border-subtle)]"
+      >
         {foods.length === 0 && !isLoading && !isSearching && (
-          <div className="py-8 text-center text-xs text-[var(--text-tertiary)]">
-            {query.trim() ? "Nenhum alimento encontrado para o termo pesquisado." : "Digite o nome de um alimento para buscar..."}
+          <div className="py-6 text-center text-xs text-[var(--text-tertiary)]">
+            Nenhum alimento encontrado para o termo pesquisado.
           </div>
         )}
 
-        {foods.map((food) => {
+        {foods.map((food, idx) => {
           const qty = selectedQuantities[food.publicId] ?? 1;
           const portions = foodPortionsMap[food.publicId] || [];
           const chosenPortionId = selectedPortions[food.publicId] || (portions[0]?.publicId ?? "G");
@@ -290,31 +373,33 @@ export function NutritionMealInlineSearch({
           const previewP = food.proteinG != null ? Math.round(food.proteinG * scaleFactor * 10) / 10 : null;
           const previewC = food.carbohydrateG != null ? Math.round(food.carbohydrateG * scaleFactor * 10) / 10 : null;
           const previewG = food.fatG != null ? Math.round(food.fatG * scaleFactor * 10) / 10 : null;
-          const previewFiber = food.fiberG != null ? Math.round(food.fiberG * scaleFactor * 10) / 10 : null;
 
           const qualityBadge = getDataQualityBadgeInfo(food.dataQuality);
           const isAdding = addingFoodId === food.publicId;
           const isRecentlyAdded = recentlyAddedId === food.publicId;
+          const isActive = idx === activeIndex;
 
           return (
             <div
               key={food.publicId}
-              className={`pt-2.5 first:pt-0 p-2.5 rounded-xl transition-all ${
+              className={`pt-2 first:pt-0 p-2 sm:p-2.5 rounded-xl transition-all ${
                 isRecentlyAdded
                   ? "bg-emerald-500/10 border border-emerald-500/30"
+                  : isActive
+                  ? "bg-[var(--brand)]/10 border border-[var(--brand)]/40"
                   : "hover:bg-[var(--surface)] border border-transparent hover:border-[var(--border-default)]"
               }`}
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 {/* Food Information */}
-                <div className="space-y-1 min-w-0 flex-1">
+                <div className="space-y-0.5 min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] leading-tight">
                       {food.displayNamePtBr || food.name}
                     </span>
 
                     <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${
+                      className={`px-1.5 py-0.2 rounded text-[9px] font-semibold shrink-0 ${
                         food.scope === "GLOBAL"
                           ? food.sourceKey === "TACO"
                             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
@@ -325,16 +410,14 @@ export function NutritionMealInlineSearch({
                       {food.scope === "GLOBAL"
                         ? food.sourceKey === "TACO"
                           ? "TACO"
-                          : food.sourceKey?.startsWith("USDA")
-                          ? "USDA"
-                          : "Trevo One"
+                          : "USDA"
                         : "Consultoria"}
                     </span>
 
                     {qualityBadge && (
                       <span
                         title={qualityBadge.title}
-                        className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
+                        className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
                       >
                         {qualityBadge.label}
                       </span>
@@ -342,7 +425,7 @@ export function NutritionMealInlineSearch({
                   </div>
 
                   {/* Reference Nutrition Badges */}
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--text-secondary)]">
                     <span className="text-[var(--text-tertiary)]">
                       Ref {food.referenceAmount}{food.referenceUnitCode?.toLowerCase() || "g"}:
                     </span>
@@ -355,32 +438,25 @@ export function NutritionMealInlineSearch({
                     <span>{food.carbohydrateG != null ? `${food.carbohydrateG}g C` : "— C"}</span>
                     <span>•</span>
                     <span>{food.fatG != null ? `${food.fatG}g G` : "— G"}</span>
-                    {food.fiberG != null && (
-                      <>
-                        <span>•</span>
-                        <span className="text-emerald-600 dark:text-emerald-400">{food.fiberG}g Fibra</span>
-                      </>
-                    )}
                   </div>
                 </div>
 
                 {/* Interactive Quantity, Portion & Add Button */}
-                <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
                   {/* Quantity input */}
-                  <div className="w-16">
+                  <div className="w-14">
                     <input
-                      type="number"
-                      step="any"
-                      min="0.1"
+                      type="text"
+                      inputMode="decimal"
                       value={qty}
                       onChange={(e) => handleQuantityChange(food.publicId, e.target.value)}
-                      className="w-full px-2 py-1 text-xs font-bold text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                      className="w-full px-1.5 py-1 text-xs font-bold text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                       title="Quantidade prescrita"
                     />
                   </div>
 
                   {/* Portion dropdown */}
-                  <div className="min-w-[130px] max-w-[200px]">
+                  <div className="min-w-[110px] max-w-[160px]">
                     <select
                       value={chosenPortionId}
                       onChange={(e) => handlePortionChange(food.publicId, e.target.value)}
@@ -400,7 +476,7 @@ export function NutritionMealInlineSearch({
                     type="button"
                     disabled={isAdding}
                     onClick={() => handleAddFood(food)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer min-h-[34px] ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer min-h-[32px] ${
                       isRecentlyAdded
                         ? "bg-emerald-600 text-white"
                         : "bg-[var(--brand)] hover:opacity-90 text-white shadow-2xs"
@@ -421,7 +497,7 @@ export function NutritionMealInlineSearch({
                     ) : (
                       <>
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 4v16m8-8H4" />
                         </svg>
                         <span>Adicionar</span>
                       </>
@@ -434,11 +510,10 @@ export function NutritionMealInlineSearch({
               {previewKcal != null && (
                 <div className="mt-1 pt-1 border-t border-[var(--border-subtle)] flex items-center justify-between text-[10px] text-[var(--text-tertiary)]">
                   <span>
-                    Subtotal calculado ({qty} {chosenPortionId === "G" ? "g" : portions.find((p) => p.publicId === chosenPortionId)?.label || "porção"}):
+                    Subtotal ({qty} {chosenPortionId === "G" ? "g" : portions.find((p) => p.publicId === chosenPortionId)?.label || "porção"}):
                   </span>
                   <span className="font-semibold text-[var(--text-secondary)]">
                     <strong className="text-[var(--brand)]">{previewKcal} kcal</strong> • {previewP}g P • {previewC}g C • {previewG}g G
-                    {previewFiber != null && ` • ${previewFiber}g F`}
                   </span>
                 </div>
               )}

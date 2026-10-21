@@ -3,6 +3,7 @@ import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
 import { getPlanVersionTreeByPlanPublicId } from "@/lib/nutrition-v2/plan-repository";
 import { listPlanAssignments } from "@/lib/nutrition-v2/assignment-repository";
 import { getPatientPlanningByStudent } from "@/lib/nutrition-v2/patient-planning-repository";
+import { getNutritionBuilderPreferences } from "@/lib/nutrition-v2/builder-preferences-repository";
 import { NutritionPlanBuilder } from "@/components/consultancies/nutrition-v2/nutrition-plan-builder";
 import { getDbConnection } from "@/lib/db/mysql";
 import type { RowDataPacket } from "mysql2/promise";
@@ -132,6 +133,8 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
     conn.release();
   }
 
+  const initialPreferences = await getNutritionBuilderPreferences(ctx);
+
   return (
     <main className="w-full max-w-full min-w-0 flex-1 flex flex-col">
       <NutritionPlanBuilder
@@ -142,6 +145,7 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
         origin={origin}
         originName={originName}
         planningTarget={planningTarget || undefined}
+        initialPreferences={initialPreferences}
       />
     </main>
   );

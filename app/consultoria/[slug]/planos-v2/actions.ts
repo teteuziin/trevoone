@@ -1389,6 +1389,12 @@ export async function discardPatientPlanDraftAction(
   }
 }
 
+import {
+  getNutritionBuilderPreferences,
+  saveNutritionBuilderPreferences,
+  type NutritionBuilderPreferences,
+} from "@/lib/nutrition-v2/builder-preferences-repository";
+
 export async function createPatientPlanFromScratchAction(
   slug: string,
   studentMembershipPublicId: string
@@ -1412,6 +1418,52 @@ export async function createPatientPlanFromScratchAction(
     return { success: true, data };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao criar plano para o paciente.";
+    return { success: false, error: message };
+  }
+}
+
+export async function getNutritionBuilderPreferencesAction(
+  slug: string
+): Promise<ActionResult<NutritionBuilderPreferences>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanViewNutrition(ctx);
+    const data = await getNutritionBuilderPreferences(ctx);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao carregar preferências do painel.";
+    return { success: false, error: message };
+  }
+}
+
+export async function saveNutritionBuilderPreferencesAction(
+  slug: string,
+  preferences: NutritionBuilderPreferences
+): Promise<ActionResult<NutritionBuilderPreferences>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    if (
+      !preferences ||
+      typeof preferences.showStudentPreview !== "boolean" ||
+      typeof preferences.showVersionHistory !== "boolean" ||
+      typeof preferences.showTemplateActions !== "boolean"
+    ) {
+      return { success: false, error: "Dados de preferências inválidos.", code: "BAD_REQUEST" };
+    }
+
+    const data = await saveNutritionBuilderPreferences(ctx, {
+      showStudentPreview: preferences.showStudentPreview,
+      showVersionHistory: preferences.showVersionHistory,
+      showTemplateActions: preferences.showTemplateActions,
+    });
+
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao salvar preferências do painel.";
     return { success: false, error: message };
   }
 }

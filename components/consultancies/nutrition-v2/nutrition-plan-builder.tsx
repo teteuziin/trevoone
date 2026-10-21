@@ -35,6 +35,12 @@ import { NutritionVersionHistory } from "./nutrition-version-history";
 import { NutritionAssignModal } from "./nutrition-assign-modal";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { NutritionPatientPreviewModal } from "./nutrition-patient-preview-modal";
+import { NutritionBuilderPreferencesDrawer } from "./nutrition-builder-preferences-drawer";
+import {
+  type NutritionBuilderPreferences,
+  DEFAULT_NUTRITION_BUILDER_PREFERENCES,
+} from "@/lib/nutrition-v2/builder-preferences-types";
+import { SettingsIcon } from "@/components/ui/icons";
 import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
 import { MobileActionSheet } from "@/components/ui/mobile";
 import type { AssignmentListItemDto } from "@/lib/nutrition-v2/assignment-repository";
@@ -65,6 +71,7 @@ interface NutritionPlanBuilderProps {
   origin?: string;
   originName?: string;
   planningTarget?: PlanningTargetDto;
+  initialPreferences?: NutritionBuilderPreferences;
 }
 
 function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -128,10 +135,17 @@ export function NutritionPlanBuilder({
   origin,
   originName,
   planningTarget,
+  initialPreferences,
 }: NutritionPlanBuilderProps) {
   const router = useRouter();
   const [tree, setTree] = useState<PlanVersionTreeDto>(initialTree);
   const [isDiscarding, setIsDiscarding] = useState(false);
+
+  // Individual Nutritionist Builder Preferences
+  const [preferences, setPreferences] = useState<NutritionBuilderPreferences>(
+    initialPreferences || DEFAULT_NUTRITION_BUILDER_PREFERENCES
+  );
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
 
   // Tabs: Montagem, Análise, Orientações
   const [activeTab, setActiveTab] = useState<"BUILDER" | "ANALYSIS" | "GUIDANCE">("BUILDER");
@@ -627,25 +641,29 @@ export function NutritionPlanBuilder({
           {/* Right: Desktop Action Controls */}
           <div className="hidden lg:flex items-center gap-2 shrink-0">
             {/* Patient Preview Button */}
-            <button
-              type="button"
-              onClick={() => setIsPreviewOpen(true)}
-              className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[34px] cursor-pointer"
-              title="Visualizar prévia como o aluno verá no smartphone"
-            >
-              <EyeIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
-              <span>Prévia do Aluno</span>
-            </button>
+            {preferences.showStudentPreview && (
+              <button
+                type="button"
+                onClick={() => setIsPreviewOpen(true)}
+                className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[34px] cursor-pointer"
+                title="Visualizar prévia como o aluno verá no smartphone"
+              >
+                <EyeIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
+                <span>Prévia do Aluno</span>
+              </button>
+            )}
 
             {/* Version History Button */}
-            <button
-              type="button"
-              onClick={handleOpenHistory}
-              className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[34px] cursor-pointer"
-            >
-              <HistoryIcon className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-              <span>Histórico</span>
-            </button>
+            {preferences.showVersionHistory && (
+              <button
+                type="button"
+                onClick={handleOpenHistory}
+                className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[34px] cursor-pointer"
+              >
+                <HistoryIcon className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                <span>Histórico</span>
+              </button>
+            )}
 
             {/* PDF Button */}
             <a
@@ -662,16 +680,29 @@ export function NutritionPlanBuilder({
             </a>
 
             {/* Save as Template */}
+            {preferences.showTemplateActions && (
+              <button
+                type="button"
+                onClick={() => setIsSaveTemplateDialogOpen(true)}
+                className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[34px] cursor-pointer"
+                title="Salvar estrutura deste plano como modelo reutilizável"
+              >
+                <svg className="w-3.5 h-3.5 text-[var(--text-secondary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                <span>Modelo</span>
+              </button>
+            )}
+
+            {/* Panel View Preferences Trigger */}
             <button
               type="button"
-              onClick={() => setIsSaveTemplateDialogOpen(true)}
-              className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[34px] cursor-pointer"
-              title="Salvar estrutura deste plano como modelo reutilizável"
+              onClick={() => setIsPreferencesOpen(true)}
+              className="p-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[34px] min-w-[34px] flex items-center justify-center cursor-pointer shadow-2xs depth-interactive"
+              title="Preferências do painel"
+              aria-label="Preferências do painel"
             >
-              <svg className="w-3.5 h-3.5 text-[var(--text-secondary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-              </svg>
-              <span>Modelo</span>
+              <SettingsIcon className="w-4 h-4" />
             </button>
 
             {/* Publish / Prescribe Buttons */}
@@ -1513,14 +1544,16 @@ export function NutritionPlanBuilder({
         </button>
 
         {/* Preview Button Mobile */}
-        <button
-          type="button"
-          onClick={() => setIsPreviewOpen(true)}
-          className="min-h-[44px] px-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 shrink-0 cursor-pointer"
-        >
-          <EyeIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
-          <span>Prévia</span>
-        </button>
+        {preferences.showStudentPreview && (
+          <button
+            type="button"
+            onClick={() => setIsPreviewOpen(true)}
+            className="min-h-[44px] px-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 shrink-0 cursor-pointer"
+          >
+            <EyeIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
+            <span>Prévia</span>
+          </button>
+        )}
 
         {tree.version.status === "DRAFT" && (
           <Button
@@ -1556,12 +1589,12 @@ export function NutritionPlanBuilder({
         onClose={() => setIsMobileActionSheetOpen(false)}
         title={tree.version.title}
         options={[
-          {
+          ...(preferences.showStudentPreview ? [{
             id: "preview",
             label: "Prévia do Aluno (Smartphone)",
             icon: <EyeIcon className="w-4 h-4 text-[var(--brand)]" />,
             onClick: () => setIsPreviewOpen(true),
-          },
+          }] : []),
           ...(tree.version.status === "DRAFT" && patientContext ? [{
             id: "discard-draft",
             label: "Descartar alterações",
@@ -1593,12 +1626,12 @@ export function NutritionPlanBuilder({
             ),
             onClick: () => setIsEditingTitle(true),
           }] : []),
-          {
+          ...(preferences.showVersionHistory ? [{
             id: "history",
             label: "Histórico de Versões",
             icon: <HistoryIcon className="w-4 h-4 text-[var(--text-secondary)]" />,
             onClick: () => handleOpenHistory(),
-          },
+          }] : []),
           {
             id: "pdf",
             label: "Baixar plano em PDF",
@@ -1611,7 +1644,7 @@ export function NutritionPlanBuilder({
               window.open(`/api/consultancies/${slug}/nutricao/pdf?planPublicId=${initialTree.plan.publicId}`, "_blank");
             },
           },
-          {
+          ...(preferences.showTemplateActions ? [{
             id: "template",
             label: "Salvar como modelo",
             icon: (
@@ -1620,8 +1653,23 @@ export function NutritionPlanBuilder({
               </svg>
             ),
             onClick: () => setIsSaveTemplateDialogOpen(true),
+          }] : []),
+          {
+            id: "preferences",
+            label: "Preferências do painel",
+            icon: <SettingsIcon className="w-4 h-4 text-[var(--brand)]" />,
+            onClick: () => setIsPreferencesOpen(true),
           },
         ]}
+      />
+
+      {/* Panel Preferences Drawer */}
+      <NutritionBuilderPreferencesDrawer
+        isOpen={isPreferencesOpen}
+        onClose={() => setIsPreferencesOpen(false)}
+        slug={slug}
+        preferences={preferences}
+        onSaved={(newPrefs) => setPreferences(newPrefs)}
       />
     </div>
   );

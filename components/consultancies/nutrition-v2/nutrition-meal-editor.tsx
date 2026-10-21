@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import type {
   MealWithItemsDto,
+  UpdateMealItemInput,
   AddSubstitutionInput,
   UpdateSubstitutionInput,
 } from "@/lib/nutrition-v2/plan-repository";
@@ -24,14 +25,7 @@ interface NutritionMealEditorProps {
   onMoveUp?: () => Promise<void>;
   onMoveDown?: () => Promise<void>;
   onAddItem: (payload: FoodSelectionResult) => Promise<void>;
-  onUpdateItem: (itemPublicId: string, data: {
-    foodPublicId?: string;
-    portionPublicId?: string | null;
-    prescribedQuantity?: number | null;
-    prescribedUnitCode?: string | null;
-    prescribedUnitLabel?: string | null;
-    notes?: string | null;
-  }) => Promise<void>;
+  onUpdateItem: (itemPublicId: string, data: UpdateMealItemInput) => Promise<void>;
   onRemoveItem: (itemPublicId: string) => Promise<void>;
   onReorderItems: (orderedItemPublicIds: string[]) => Promise<void>;
   onAddSubstitution: (itemPublicId: string, payload: AddSubstitutionInput) => Promise<void>;
@@ -420,6 +414,7 @@ export function NutritionMealEditor({
                   onRemoveItem={() => onRemoveItem(item.publicId)}
                   onMoveUp={() => handleMoveItem(idx, "UP")}
                   onMoveDown={() => handleMoveItem(idx, "DOWN")}
+                  onAddItemToMeal={onAddItem}
                   onAddSubstitution={(payload) => onAddSubstitution(item.publicId, payload)}
                   onUpdateSubstitution={onUpdateSubstitution}
                   onRemoveSubstitution={onRemoveSubstitution}

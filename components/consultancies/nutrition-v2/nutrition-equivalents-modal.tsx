@@ -9,6 +9,8 @@ import type { FoodListItemDto } from "@/lib/nutrition-v2/food-repository";
 import type {
   MealItemWithSubstitutionsDto,
   ItemSubstitutionDto,
+  AddMealItemInput,
+  UpdateMealItemInput,
   AddSubstitutionInput,
   UpdateSubstitutionInput,
 } from "@/lib/nutrition-v2/plan-repository";
@@ -39,6 +41,8 @@ interface NutritionEquivalentsModalProps {
   substitutionToReview?: ItemSubstitutionDto | null;
   onAddSubstitution: (payload: AddSubstitutionInput) => Promise<void>;
   onUpdateSubstitution?: (subPublicId: string, data: UpdateSubstitutionInput) => Promise<void>;
+  onAddItemToMeal?: (payload: AddMealItemInput) => Promise<void>;
+  onReplaceItem?: (data: UpdateMealItemInput) => Promise<void>;
   initialFoods?: FoodListItemDto[];
 }
 
@@ -46,6 +50,29 @@ interface FoodPortionOption {
   publicId: string;
   label: string;
   equivalentReferenceAmount: number;
+}
+
+interface ReplacementCandidateState {
+  food: FoodListItemDto;
+  activeQty: number;
+  activeUnitCode: string;
+  activePortionPublicId: string | null;
+  activeUnitLabel: string;
+  displayMacros: MacroSnapshots;
+}
+
+function getInitialCriterion(
+  reviewSub?: ItemSubstitutionDto | null,
+  item?: MealItemWithSubstitutionsDto
+): EquivalentCriterion {
+  if (reviewSub?.equivalenceCriterion && reviewSub.equivalenceCriterion !== "MANUAL") {
+    return reviewSub.equivalenceCriterion;
+  }
+  if (item?.caloriesKcalSnapshot != null && item.caloriesKcalSnapshot > 0) return "CALORIES";
+  if (item?.proteinGSnapshot != null && item.proteinGSnapshot > 0) return "PROTEIN";
+  if (item?.carbohydrateGSnapshot != null && item.carbohydrateGSnapshot > 0) return "CARBOHYDRATE";
+  if (item?.fatGSnapshot != null && item.fatGSnapshot > 0) return "FAT";
+  return "CALORIES";
 }
 
 export function NutritionEquivalentsModal({
@@ -56,19 +83,23 @@ export function NutritionEquivalentsModal({
   substitutionToReview,
   onAddSubstitution,
   onUpdateSubstitution,
+  onAddItemToMeal,
+  onReplaceItem,
   initialFoods,
 }: NutritionEquivalentsModalProps) {
   const isReviewMode = !!substitutionToReview;
 
   const [prevReviewId, setPrevReviewId] = useState<string | null>(substitutionToReview?.publicId ?? null);
   const [selectedCriterion, setSelectedCriterion] = useState<EquivalentCriterion>(
-    substitutionToReview?.equivalenceCriterion && substitutionToReview.equivalenceCriterion !== "MANUAL"
-      ? substitutionToReview.equivalenceCriterion
-      : "CALORIES"
+    getInitialCriterion(substitutionToReview, prescribedItem)
   );
   const [query, setQuery] = useState("");
   const [scopeFilter, setScopeFilter] = useState<"ALL" | "GLOBAL" | "CONSULTANCY">("ALL");
   const [foods, setFoods] = useState<FoodListItemDto[]>(initialFoods || []);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const searchRequestIdRef = useRef(0);
   const [isSearching, startSearchTransition] = useTransition();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
@@ -76,17 +107,15 @@ export function NutritionEquivalentsModal({
   const [customQuantities, setCustomQuantities] = useState<Record<string, string>>({});
   const [selectedUnits, setSelectedUnits] = useState<Record<string, string>>({});
   const [foodPortionsMap, setFoodPortionsMap] = useState<Record<string, FoodPortionOption[]>>({});
+  const [replacementCandidate, setReplacementCandidate] = useState<ReplacementCandidateState | null>(null);
   const loadedPortionFoodIdsRef = useRef<Set<string>>(new Set());
 
   if ((substitutionToReview?.publicId ?? null) !== prevReviewId) {
     setPrevReviewId(substitutionToReview?.publicId ?? null);
-    setSelectedCriterion(
-      substitutionToReview?.equivalenceCriterion && substitutionToReview.equivalenceCriterion !== "MANUAL"
-        ? substitutionToReview.equivalenceCriterion
-        : "CALORIES"
-    );
+    setSelectedCriterion(getInitialCriterion(substitutionToReview, prescribedItem));
     setCustomQuantities({});
     setSelectedUnits({});
+    setReplacementCandidate(null);
   }
 
   // Convert prescribed item into pure reference DTO (First Food Anchor)
@@ -103,23 +132,33 @@ export function NutritionEquivalentsModal({
     };
   }, [prescribedItem]);
 
-  // Load candidate foods server-side with debounced search
+  // Render-phase state sync: Reset to page 1 whenever search query or scope filter changes
+  const [prevSearchSnapshot, setPrevSearchSnapshot] = useState({ query, scopeFilter });
+  if (prevSearchSnapshot.query !== query || prevSearchSnapshot.scopeFilter !== scopeFilter) {
+    setPrevSearchSnapshot({ query, scopeFilter });
+    setPage(1);
+  }
+
+  // Load candidate foods server-side with debounced search and race-condition request ID guard
   useEffect(() => {
     if (!isOpen) return;
 
     let isCurrent = true;
+    const currentRequestId = ++searchRequestIdRef.current;
     const timer = setTimeout(() => {
       startSearchTransition(async () => {
         const searchQuery = isReviewMode ? (query || substitutionToReview?.foodNameSnapshot || "") : query;
-        const res = await searchFoodsForPickerAction(slug, searchQuery, scopeFilter, 1);
-        if (isCurrent && res.success && res.data) {
+        const res = await searchFoodsForPickerAction(slug, searchQuery, scopeFilter, page);
+        if (!isCurrent || searchRequestIdRef.current !== currentRequestId) return;
+
+        if (res.success && res.data) {
           setFoods(res.data.items);
-        } else if (isCurrent && initialFoods && initialFoods.length > 0) {
-          const q = searchQuery.trim().toLowerCase();
-          const filtered = q
-            ? initialFoods.filter((f) => (f.displayNamePtBr || f.name).toLowerCase().includes(q))
-            : initialFoods;
-          setFoods(filtered);
+          setTotalPages(res.data.totalPages || 1);
+          setTotalCount(res.data.total || 0);
+        } else if (initialFoods && initialFoods.length > 0 && !searchQuery.trim()) {
+          setFoods(initialFoods);
+          setTotalPages(1);
+          setTotalCount(initialFoods.length);
         }
       });
     }, 200);
@@ -128,7 +167,7 @@ export function NutritionEquivalentsModal({
       isCurrent = false;
       clearTimeout(timer);
     };
-  }, [isOpen, slug, query, scopeFilter, initialFoods, isReviewMode, substitutionToReview]);
+  }, [isOpen, slug, query, scopeFilter, page, initialFoods, isReviewMode, substitutionToReview]);
 
   // Pre-load household portions from Food Library for candidate foods
   useEffect(() => {
@@ -182,10 +221,12 @@ export function NutritionEquivalentsModal({
   const handleClose = useCallback(() => {
     if (isSubmitting) return;
     setQuery("");
+    setPage(1);
     setSuccessMessage(null);
     setSubmittingId(null);
     setCustomQuantities({});
     setSelectedUnits({});
+    setReplacementCandidate(null);
     loadedPortionFoodIdsRef.current.clear();
     onClose();
   }, [isSubmitting, onClose]);
@@ -305,8 +346,52 @@ export function NutritionEquivalentsModal({
     });
   }, [calculatedItems, isReviewMode, prescribedItem.categorySnapshot]);
 
-  // Handle adding new substitution
-  const handleAdd = async (
+  // Action A: Add candidate as a new item to the meal
+  const handleAddToMeal = async (
+    food: FoodListItemDto,
+    defaultRoundedQty: number,
+    unitCode: string,
+    portionPublicId?: string | null,
+    unitLabel?: string | null
+  ) => {
+    if (!onAddItemToMeal) return;
+    try {
+      setSubmittingId(food.publicId);
+      setIsSubmitting(true);
+
+      const customQtyStr = customQuantities[food.publicId];
+      const finalQty = customQtyStr ? parseFloat(customQtyStr.replace(",", ".")) : defaultRoundedQty;
+      if (!Number.isFinite(finalQty) || finalQty <= 0) {
+        alert("Quantidade inválida.");
+        return;
+      }
+
+      const normalizedUnit = (unitCode || "G").toUpperCase();
+      const payload: AddMealItemInput = {
+        foodPublicId: food.publicId,
+        prescribedQuantity: finalQty,
+        portionPublicId: portionPublicId || null,
+        prescribedUnitCode: normalizedUnit,
+        prescribedUnitLabel: unitLabel || (normalizedUnit === "G" ? "Gramas (g)" : normalizedUnit.toLowerCase()),
+        notes: null,
+      };
+
+      await onAddItemToMeal(payload);
+      setSuccessMessage(`${food.displayNamePtBr || food.name} adicionado à refeição!`);
+
+      setTimeout(() => {
+        handleClose();
+      }, 600);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao adicionar alimento à refeição.");
+    } finally {
+      setIsSubmitting(false);
+      setSubmittingId(null);
+    }
+  };
+
+  // Action B: Add candidate as a linked substitution option
+  const handleAddSubstitution = async (
     food: FoodListItemDto,
     defaultRoundedQty: number,
     unitCode: string,
@@ -345,7 +430,7 @@ export function NutritionEquivalentsModal({
       };
 
       await onAddSubstitution(payload);
-      setSuccessMessage(`${food.displayNamePtBr || food.name} adicionado com sucesso!`);
+      setSuccessMessage(`${food.displayNamePtBr || food.name} adicionado como substituição!`);
 
       setTimeout(() => {
         handleClose();
@@ -355,6 +440,55 @@ export function NutritionEquivalentsModal({
     } finally {
       setIsSubmitting(false);
       setSubmittingId(null);
+    }
+  };
+
+  // Action C: Initiate replacement of original food
+  const handleStartReplace = (
+    food: FoodListItemDto,
+    activeQty: number,
+    activeUnitCode: string,
+    activePortionPublicId: string | null,
+    activeUnitLabel: string,
+    displayMacros: MacroSnapshots
+  ) => {
+    setReplacementCandidate({
+      food,
+      activeQty,
+      activeUnitCode,
+      activePortionPublicId,
+      activeUnitLabel,
+      displayMacros,
+    });
+  };
+
+  // Action C: Confirm and execute replacement
+  const handleConfirmReplace = async () => {
+    if (!replacementCandidate || !onReplaceItem) return;
+    try {
+      setIsSubmitting(true);
+      const normalizedUnit = (replacementCandidate.activeUnitCode || "G").toUpperCase();
+      const payload: UpdateMealItemInput = {
+        foodPublicId: replacementCandidate.food.publicId,
+        prescribedQuantity: replacementCandidate.activeQty,
+        portionPublicId: replacementCandidate.activePortionPublicId || null,
+        prescribedUnitCode: normalizedUnit,
+        prescribedUnitLabel: replacementCandidate.activeUnitLabel || (normalizedUnit === "G" ? "Gramas (g)" : normalizedUnit.toLowerCase()),
+        notes: prescribedItem.notes || null,
+      };
+
+      await onReplaceItem(payload);
+      setSuccessMessage(
+        `${prescribedItem.foodNameSnapshot} foi substituído por ${replacementCandidate.food.displayNamePtBr || replacementCandidate.food.name}!`
+      );
+
+      setTimeout(() => {
+        handleClose();
+      }, 600);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao substituir alimento.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -416,6 +550,31 @@ export function NutritionEquivalentsModal({
   const currentCriterionShort = EQUIVALENT_CRITERIA_SHORT_LABELS[selectedCriterion];
   const currentCriterionUnit = EQUIVALENT_CRITERIA_UNITS[selectedCriterion];
 
+  const deltaKcal =
+    replacementCandidate &&
+    prescribedItem.caloriesKcalSnapshot != null &&
+    replacementCandidate.displayMacros.caloriesKcal != null
+      ? Math.round((replacementCandidate.displayMacros.caloriesKcal - prescribedItem.caloriesKcalSnapshot) * 10) / 10
+      : null;
+  const deltaP =
+    replacementCandidate &&
+    prescribedItem.proteinGSnapshot != null &&
+    replacementCandidate.displayMacros.proteinG != null
+      ? Math.round((replacementCandidate.displayMacros.proteinG - prescribedItem.proteinGSnapshot) * 10) / 10
+      : null;
+  const deltaC =
+    replacementCandidate &&
+    prescribedItem.carbohydrateGSnapshot != null &&
+    replacementCandidate.displayMacros.carbohydrateG != null
+      ? Math.round((replacementCandidate.displayMacros.carbohydrateG - prescribedItem.carbohydrateGSnapshot) * 10) / 10
+      : null;
+  const deltaG =
+    replacementCandidate &&
+    prescribedItem.fatGSnapshot != null &&
+    replacementCandidate.displayMacros.fatG != null
+      ? Math.round((replacementCandidate.displayMacros.fatG - prescribedItem.fatGSnapshot) * 10) / 10
+      : null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
       <div
@@ -434,11 +593,13 @@ export function NutritionEquivalentsModal({
                 </svg>
               </span>
               <h2 id="equivalents-title" className="text-base sm:text-lg font-bold truncate">
-                {isReviewMode
+                {replacementCandidate
+                  ? "Confirmar Substituição do Alimento Base"
+                  : isReviewMode
                   ? substitutionToReview?.derivedStatus === "STALE"
                     ? "Recalcular Equivalência Desatualizada"
                     : "Revisar Equivalência Nutricional"
-                  : "Adicionar Substituição com Equivalência"}
+                  : "Equivalência Nutricional Dinâmica"}
               </h2>
               {isReviewMode && substitutionToReview?.derivedStatus === "UNVERIFIED" && (
                 <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border border-zinc-500/30">
@@ -452,7 +613,9 @@ export function NutritionEquivalentsModal({
               )}
             </div>
             <p className="text-xs text-[var(--text-secondary)]">
-              {isReviewMode
+              {replacementCandidate
+                ? "Confira os dados antes de substituir o alimento original na refeição."
+                : isReviewMode
                 ? substitutionToReview?.derivedStatus === "STALE"
                   ? `O alimento principal foi alterado (${
                       substitutionToReview.staleReason
@@ -479,80 +642,269 @@ export function NutritionEquivalentsModal({
 
         {/* Scrollable Content Body */}
         <div className="p-4 sm:p-5 overflow-y-auto space-y-4 min-h-0 flex-1">
-          {/* Reference Base Food Card (First Food Anchor) */}
-          <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-[var(--surface-sunken)] border border-[var(--border-default)] space-y-2.5">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                    Alimento Principal (Base)
+          {replacementCandidate ? (
+            /* Action C: Dedicated Replacement Confirmation View */
+            <div className="space-y-4 animate-in fade-in duration-150">
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+                <span className="p-2 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </span>
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-[var(--text-primary)]">
+                    Confirmar Substituição do Alimento Base
+                  </h3>
+                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                    Você está prestes a substituir <strong>{prescribedItem.foodNameSnapshot}</strong> por <strong>{replacementCandidate.food.displayNamePtBr || replacementCandidate.food.name}</strong> diretamente na refeição. A posição do alimento será preservada.
+                  </p>
+                </div>
+              </div>
+
+              {/* Side-by-side Before vs After Comparison */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Before (Original) */}
+                <div className="p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-sunken)] space-y-2.5">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+                      Alimento Atual (Removido)
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-700 dark:text-rose-400">
+                      Antes
+                    </span>
+                  </div>
+                  <div className="font-bold text-sm text-[var(--text-primary)]">
+                    {prescribedItem.foodNameSnapshot}
+                  </div>
+                  <div className="text-xs font-semibold text-[var(--text-secondary)]">
+                    Porção: {prescribedItem.prescribedQuantity} {prescribedItem.prescribedUnitLabel || prescribedItem.prescribedUnitCode || "g"}
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5 text-center pt-1 font-mono text-[11px]">
+                    <div className="p-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-amber-700 dark:text-amber-400">
+                      <div className="text-[9px] uppercase font-bold">Kcal</div>
+                      <div className="font-bold">{prescribedItem.caloriesKcalSnapshot ?? "-"}</div>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-sky-700 dark:text-sky-400">
+                      <div className="text-[9px] uppercase font-bold">P</div>
+                      <div className="font-bold">{prescribedItem.proteinGSnapshot != null ? `${prescribedItem.proteinGSnapshot}g` : "-"}</div>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-emerald-700 dark:text-emerald-400">
+                      <div className="text-[9px] uppercase font-bold">C</div>
+                      <div className="font-bold">{prescribedItem.carbohydrateGSnapshot != null ? `${prescribedItem.carbohydrateGSnapshot}g` : "-"}</div>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-orange-700 dark:text-orange-400">
+                      <div className="text-[9px] uppercase font-bold">G</div>
+                      <div className="font-bold">{prescribedItem.fatGSnapshot != null ? `${prescribedItem.fatGSnapshot}g` : "-"}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* After (New Candidate) */}
+                <div className="p-4 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 space-y-2.5">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                      Novo Alimento Base
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-800 dark:text-emerald-300">
+                      Depois
+                    </span>
+                  </div>
+                  <div className="font-bold text-sm text-emerald-950 dark:text-emerald-100">
+                    {replacementCandidate.food.displayNamePtBr || replacementCandidate.food.name}
+                  </div>
+                  <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                    Porção: {replacementCandidate.activeQty} {replacementCandidate.activeUnitLabel || replacementCandidate.activeUnitCode || "g"}
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5 text-center pt-1 font-mono text-[11px]">
+                    <div className="p-1.5 rounded-lg bg-[var(--surface)] border border-emerald-500/30 text-amber-700 dark:text-amber-400">
+                      <div className="text-[9px] uppercase font-bold">Kcal</div>
+                      <div className="font-bold">{replacementCandidate.displayMacros.caloriesKcal ?? "-"}</div>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-[var(--surface)] border border-emerald-500/30 text-sky-700 dark:text-sky-400">
+                      <div className="text-[9px] uppercase font-bold">P</div>
+                      <div className="font-bold">{replacementCandidate.displayMacros.proteinG != null ? `${replacementCandidate.displayMacros.proteinG}g` : "-"}</div>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-[var(--surface)] border border-emerald-500/30 text-emerald-700 dark:text-emerald-400">
+                      <div className="text-[9px] uppercase font-bold">C</div>
+                      <div className="font-bold">{replacementCandidate.displayMacros.carbohydrateG != null ? `${replacementCandidate.displayMacros.carbohydrateG}g` : "-"}</div>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-[var(--surface)] border border-emerald-500/30 text-orange-700 dark:text-orange-400">
+                      <div className="text-[9px] uppercase font-bold">G</div>
+                      <div className="font-bold">{replacementCandidate.displayMacros.fatG != null ? `${replacementCandidate.displayMacros.fatG}g` : "-"}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Nutritional Delta Summary Card */}
+              <div className="p-3.5 rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-2 text-xs">
+                <span className="font-bold text-[var(--text-secondary)]">Diferença Nutricional Prevista:</span>
+                <div className="flex items-center gap-2.5 font-mono text-xs flex-wrap">
+                  <span className={`font-bold ${deltaKcal != null && deltaKcal > 0 ? "text-amber-600 dark:text-amber-400" : "text-[var(--text-primary)]"}`}>
+                    {deltaKcal != null && deltaKcal > 0 ? `+${deltaKcal}` : deltaKcal ?? "-"} kcal
+                  </span>
+                  <span className="text-[var(--text-tertiary)]">·</span>
+                  <span className="text-sky-700 dark:text-sky-400 font-semibold">
+                    P {deltaP != null && deltaP > 0 ? `+${deltaP}` : deltaP ?? "-"}g
+                  </span>
+                  <span className="text-[var(--text-tertiary)]">·</span>
+                  <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                    C {deltaC != null && deltaC > 0 ? `+${deltaC}` : deltaC ?? "-"}g
+                  </span>
+                  <span className="text-[var(--text-tertiary)]">·</span>
+                  <span className="text-orange-700 dark:text-orange-400 font-semibold">
+                    G {deltaG != null && deltaG > 0 ? `+${deltaG}` : deltaG ?? "-"}g
                   </span>
                 </div>
-                <span className="text-sm font-bold text-[var(--text-primary)] truncate block mt-0.5">
-                  {prescribedItem.foodNameSnapshot}
-                </span>
               </div>
 
-              {prescribedItem.prescribedQuantity != null && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--brand)]">
-                  {prescribedItem.prescribedQuantity} {prescribedItem.prescribedUnitLabel || prescribedItem.prescribedUnitCode || "g"}
-                </span>
+              {/* Existing Substitutions Warning */}
+              {prescribedItem.substitutions.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-900 dark:text-amber-200 text-xs space-y-1.5">
+                  <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300">
+                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span>Atenção: este alimento possui {prescribedItem.substitutions.length} substituição(ões) vinculada(s)</span>
+                  </div>
+                  <p className="leading-relaxed opacity-95">
+                    As opções de substituição cadastradas serão preservadas, mas serão marcadas automaticamente como <strong>Desatualizadas (BASE_FOOD_CHANGED)</strong> para que você possa revisar ou recalcular as equivalências em relação ao novo alimento.
+                  </p>
+                </div>
               )}
-            </div>
 
-            {/* Base Food Macro Snapshots */}
-            <div className="grid grid-cols-4 gap-2 pt-1">
-              <div
-                className={`p-2 rounded-lg border text-center transition-all ${
-                  selectedCriterion === "CALORIES"
-                    ? "bg-amber-500/15 border-amber-500/40 ring-1 ring-amber-500/30"
-                    : "bg-[var(--surface)] border-[var(--border-subtle)]"
-                }`}
-              >
-                <div className="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-400">Calorias</div>
-                <div className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] mt-0.5 tabular-nums">
-                  {prescribedItem.caloriesKcalSnapshot != null ? `${prescribedItem.caloriesKcalSnapshot} kcal` : "-"}
-                </div>
-              </div>
-              <div
-                className={`p-2 rounded-lg border text-center transition-all ${
-                  selectedCriterion === "PROTEIN"
-                    ? "bg-sky-500/15 border-sky-500/40 ring-1 ring-sky-500/30"
-                    : "bg-[var(--surface)] border-[var(--border-subtle)]"
-                }`}
-              >
-                <div className="text-[10px] uppercase font-bold text-sky-700 dark:text-sky-400">Proteína</div>
-                <div className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] mt-0.5 tabular-nums">
-                  {prescribedItem.proteinGSnapshot != null ? `${prescribedItem.proteinGSnapshot}g` : "-"}
-                </div>
-              </div>
-              <div
-                className={`p-2 rounded-lg border text-center transition-all ${
-                  selectedCriterion === "CARBOHYDRATE"
-                    ? "bg-emerald-500/15 border-emerald-500/40 ring-1 ring-emerald-500/30"
-                    : "bg-[var(--surface)] border-[var(--border-subtle)]"
-                }`}
-              >
-                <div className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-400">Carboidrato</div>
-                <div className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] mt-0.5 tabular-nums">
-                  {prescribedItem.carbohydrateGSnapshot != null ? `${prescribedItem.carbohydrateGSnapshot}g` : "-"}
-                </div>
-              </div>
-              <div
-                className={`p-2 rounded-lg border text-center transition-all ${
-                  selectedCriterion === "FAT"
-                    ? "bg-orange-500/15 border-orange-500/40 ring-1 ring-orange-500/30"
-                    : "bg-[var(--surface)] border-[var(--border-subtle)]"
-                }`}
-              >
-                <div className="text-[10px] uppercase font-bold text-orange-700 dark:text-orange-400">Gordura</div>
-                <div className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] mt-0.5 tabular-nums">
-                  {prescribedItem.fatGSnapshot != null ? `${prescribedItem.fatGSnapshot}g` : "-"}
-                </div>
+              {/* Confirmation Actions */}
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => setReplacementCandidate(null)}
+                  className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold border border-[var(--border-default)] hover:bg-[var(--surface-hover)] cursor-pointer"
+                >
+                  Voltar para a busca
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={handleConfirmReplace}
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-amber-600 hover:bg-amber-700 active:scale-[0.98] transition-all shadow-xs inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmitting ? "Substituindo..." : "Confirmar e Substituir Alimento"}
+                </button>
               </div>
             </div>
-          </div>
+          ) : (
+            /* Regular flow */
+            <>
+              {/* Reference Base Food Card (First Food Anchor) */}
+              <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-[var(--surface-sunken)] border border-[var(--border-default)] space-y-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+                        Alimento Principal (Base)
+                      </span>
+                    </div>
+                    <span className="text-sm font-bold text-[var(--text-primary)] truncate block mt-0.5">
+                      {prescribedItem.foodNameSnapshot}
+                    </span>
+                  </div>
+
+                  {prescribedItem.prescribedQuantity != null && (
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--brand)]">
+                      {prescribedItem.prescribedQuantity} {prescribedItem.prescribedUnitLabel || prescribedItem.prescribedUnitCode || "g"}
+                    </span>
+                  )}
+                </div>
+
+                {/* Base Food Macro Snapshots (Interactive Clickable Criterion Selectors) */}
+                <div className="grid grid-cols-4 gap-2 pt-1">
+                  <button
+                    type="button"
+                    role="button"
+                    aria-pressed={selectedCriterion === "CALORIES"}
+                    onClick={() => setSelectedCriterion("CALORIES")}
+                    className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                      selectedCriterion === "CALORIES"
+                        ? "bg-amber-500/20 border-amber-500 ring-2 ring-amber-500/40 shadow-xs"
+                        : "bg-[var(--surface)] border-[var(--border-subtle)] hover:border-amber-500/50 hover:bg-amber-500/5"
+                    }`}
+                    title="Clique para calcular equivalência por Calorias"
+                  >
+                    <div className="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1">
+                      <span>Calorias</span>
+                      {selectedCriterion === "CALORIES" && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
+                    </div>
+                    <div className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] mt-0.5 tabular-nums">
+                      {prescribedItem.caloriesKcalSnapshot != null ? `${prescribedItem.caloriesKcalSnapshot} kcal` : "-"}
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="button"
+                    aria-pressed={selectedCriterion === "PROTEIN"}
+                    onClick={() => setSelectedCriterion("PROTEIN")}
+                    className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                      selectedCriterion === "PROTEIN"
+                        ? "bg-sky-500/20 border-sky-500 ring-2 ring-sky-500/40 shadow-xs"
+                        : "bg-[var(--surface)] border-[var(--border-subtle)] hover:border-sky-500/50 hover:bg-sky-500/5"
+                    }`}
+                    title="Clique para calcular equivalência por Proteína"
+                  >
+                    <div className="text-[10px] uppercase font-bold text-sky-700 dark:text-sky-400 flex items-center justify-center gap-1">
+                      <span>Proteína</span>
+                      {selectedCriterion === "PROTEIN" && <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />}
+                    </div>
+                    <div className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] mt-0.5 tabular-nums">
+                      {prescribedItem.proteinGSnapshot != null ? `${prescribedItem.proteinGSnapshot}g` : "-"}
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="button"
+                    aria-pressed={selectedCriterion === "CARBOHYDRATE"}
+                    onClick={() => setSelectedCriterion("CARBOHYDRATE")}
+                    className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                      selectedCriterion === "CARBOHYDRATE"
+                        ? "bg-emerald-500/20 border-emerald-500 ring-2 ring-emerald-500/40 shadow-xs"
+                        : "bg-[var(--surface)] border-[var(--border-subtle)] hover:border-emerald-500/50 hover:bg-emerald-500/5"
+                    }`}
+                    title="Clique para calcular equivalência por Carboidrato"
+                  >
+                    <div className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-400 flex items-center justify-center gap-1">
+                      <span>Carboidrato</span>
+                      {selectedCriterion === "CARBOHYDRATE" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                    </div>
+                    <div className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] mt-0.5 tabular-nums">
+                      {prescribedItem.carbohydrateGSnapshot != null ? `${prescribedItem.carbohydrateGSnapshot}g` : "-"}
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="button"
+                    aria-pressed={selectedCriterion === "FAT"}
+                    onClick={() => setSelectedCriterion("FAT")}
+                    className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                      selectedCriterion === "FAT"
+                        ? "bg-orange-500/20 border-orange-500 ring-2 ring-orange-500/40 shadow-xs"
+                        : "bg-[var(--surface)] border-[var(--border-subtle)] hover:border-orange-500/50 hover:bg-orange-500/5"
+                    }`}
+                    title="Clique para calcular equivalência por Gordura"
+                  >
+                    <div className="text-[10px] uppercase font-bold text-orange-700 dark:text-orange-400 flex items-center justify-center gap-1">
+                      <span>Gordura</span>
+                      {selectedCriterion === "FAT" && <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
+                    </div>
+                    <div className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] mt-0.5 tabular-nums">
+                      {prescribedItem.fatGSnapshot != null ? `${prescribedItem.fatGSnapshot}g` : "-"}
+                    </div>
+                  </button>
+                </div>
+              </div>
 
           {/* Primary Criterion Tabs + Secondary Manual Adjustment Button */}
           <div className="space-y-2">
@@ -671,6 +1023,33 @@ export function NutritionEquivalentsModal({
                   Minha Consultoria
                 </button>
               </div>
+
+              {/* Top Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-xs">
+                  <span className="text-[var(--text-secondary)] font-medium text-[11px]">
+                    Página <strong>{page}</strong> de <strong>{totalPages}</strong> ({totalCount} alimento{totalCount !== 1 ? "s" : ""})
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={page <= 1 || isSearching}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      className="min-h-[32px] px-2.5 py-1 rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-[11px] font-semibold cursor-pointer transition-colors"
+                    >
+                      ← Anterior
+                    </button>
+                    <button
+                      type="button"
+                      disabled={page >= totalPages || isSearching}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      className="min-h-[32px] px-2.5 py-1 rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-[11px] font-semibold cursor-pointer transition-colors"
+                    >
+                      Próxima →
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -973,6 +1352,43 @@ export function NutritionEquivalentsModal({
 
                         {/* Confirmation & Practical Rounding Box */}
                         <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)] space-y-3">
+                          {/* Calculated vs Practical Display (Clinically Clear Differentiation) */}
+                          <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center gap-2 flex-wrap text-xs">
+                              <span className="text-[var(--text-secondary)] font-medium">Calculado:</span>
+                              <span className="font-mono font-bold text-[var(--text-primary)]">
+                                {calc.calculatedQuantity != null
+                                  ? `${roundMacro(calc.calculatedQuantity)} ${calc.unitCode?.toLowerCase() || "g"}`
+                                  : calc.formattedQuantity}
+                              </span>
+                              <span className="text-[var(--text-tertiary)]">|</span>
+                              <span className="text-[var(--text-secondary)] font-medium">Aplicar:</span>
+                              <span className="font-mono font-bold text-[var(--brand)]">
+                                {activeQty} {selectedUnitVal === "G" ? (calc.unitCode?.toLowerCase() || "g") : activeUnitLabel}
+                              </span>
+                              {calc.differenceMetrics && selectedCriterion !== "MANUAL" && (
+                                <>
+                                  <span className="text-[var(--text-tertiary)]">|</span>
+                                  <span className="text-[var(--text-secondary)] font-medium">
+                                    Diferença ({currentCriterionShort.toLowerCase()}):
+                                  </span>
+                                  <span
+                                    className={`font-semibold font-mono ${
+                                      Math.abs(calc.differenceMetrics.percentageDifference) <= 2
+                                        ? "text-emerald-600 dark:text-emerald-400"
+                                        : "text-amber-600 dark:text-amber-400"
+                                    }`}
+                                  >
+                                    {calc.differenceMetrics.absoluteDifference > 0 ? "+" : ""}
+                                    {calc.differenceMetrics.absoluteDifference} {currentCriterionUnit} (
+                                    {calc.differenceMetrics.percentageDifference > 0 ? "+" : ""}
+                                    {calc.differenceMetrics.percentageDifference}%)
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
                           {/* Header: Equivalência calculada + Sugestões de arredondamento rápido */}
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
                             <div className="text-xs">
@@ -1074,8 +1490,8 @@ export function NutritionEquivalentsModal({
                             </div>
                           </div>
 
-                          {/* Status & Confirmation Action Button Row (Touch Targets >= 44px) */}
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                          {/* Status & Action Buttons Row (Touch Targets >= 44px) */}
+                          <div className="space-y-2.5 pt-1">
                             <div className="text-[11px] text-[var(--text-secondary)]">
                               {isOverridden ? (
                                 <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
@@ -1090,8 +1506,8 @@ export function NutritionEquivalentsModal({
                               )}
                             </div>
 
-                            <div className="shrink-0">
-                              {isReviewMode ? (
+                            {isReviewMode ? (
+                              <div className="flex justify-end pt-1">
                                 <button
                                   type="button"
                                   disabled={isSubmitting || isSelf}
@@ -1100,17 +1516,74 @@ export function NutritionEquivalentsModal({
                                 >
                                   {isSubmitting ? "Confirmando..." : "Confirmar equivalência"}
                                 </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  disabled={!calc.canApply || isSubmitting || isSelf || isDuplicate}
-                                  onClick={() => handleAdd(food, activeQty!, activeUnitCode, activePortionPublicId, activeUnitLabel)}
-                                  className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[var(--brand)] hover:opacity-90 active:scale-[0.98] transition-all shadow-xs inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  {isSubmittingThis ? "Adicionando..." : "Confirmar substituição"}
-                                </button>
-                              )}
-                            </div>
+                              </div>
+                            ) : (
+                              /* Three Clearly Distinct Actions in Add Mode */
+                              <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                                <div className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                                  Ações para este equivalente:
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                  {/* Action A: Adicionar à refeição */}
+                                  {onAddItemToMeal && (
+                                    <button
+                                      type="button"
+                                      disabled={!calc.canApply || isSubmitting || isSelf}
+                                      onClick={() => handleAddToMeal(food, activeQty, activeUnitCode, activePortionPublicId, activeUnitLabel)}
+                                      className="min-h-[44px] p-2.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-[0.98] transition-all text-left flex flex-col justify-between cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs group"
+                                    >
+                                      <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-800 dark:text-emerald-300">
+                                        <svg className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                                        </svg>
+                                        <span>Adicionar à refeição</span>
+                                      </div>
+                                      <span className="text-[10px] text-emerald-900/70 dark:text-emerald-300/70 mt-1 leading-tight">
+                                        Novo alimento independente (soma aos macros da refeição).
+                                      </span>
+                                    </button>
+                                  )}
+
+                                  {/* Action B: Como substituição */}
+                                  <button
+                                    type="button"
+                                    disabled={!calc.canApply || isSubmitting || isSelf || isDuplicate}
+                                    onClick={() => handleAddSubstitution(food, activeQty, activeUnitCode, activePortionPublicId, activeUnitLabel)}
+                                    className="min-h-[44px] p-2.5 rounded-xl bg-[var(--brand)] text-white hover:opacity-90 active:scale-[0.98] transition-all text-left flex flex-col justify-between shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                      </svg>
+                                      <span>{isSubmittingThis ? "Adicionando..." : "Como substituição"}</span>
+                                    </div>
+                                    <span className="text-[10px] text-white/80 mt-1 leading-tight">
+                                      Alternativa (&quot;OU&quot;) para o paciente variar a dieta.
+                                    </span>
+                                  </button>
+
+                                  {/* Action C: Substituir o alimento */}
+                                  {onReplaceItem && (
+                                    <button
+                                      type="button"
+                                      disabled={!calc.canApply || isSubmitting || isSelf}
+                                      onClick={() => handleStartReplace(food, activeQty, activeUnitCode, activePortionPublicId, activeUnitLabel, displayMacros)}
+                                      className="min-h-[44px] p-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 active:scale-[0.98] transition-all text-left flex flex-col justify-between cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs group"
+                                    >
+                                      <div className="flex items-center gap-1.5 font-bold text-xs text-amber-800 dark:text-amber-300">
+                                        <svg className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        <span>Substituir o alimento</span>
+                                      </div>
+                                      <span className="text-[10px] text-amber-900/70 dark:text-amber-300/70 mt-1 leading-tight">
+                                        Troca o alimento base mantendo sua posição na refeição.
+                                      </span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1175,7 +1648,36 @@ export function NutritionEquivalentsModal({
               })
             )}
           </div>
-        </div>
+
+          {/* Bottom Pagination Controls */}
+          {!isReviewMode && totalPages > 1 && (
+            <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-xs mt-2">
+              <span className="text-[var(--text-secondary)] font-medium text-[11px]">
+                Página <strong>{page}</strong> de <strong>{totalPages}</strong> ({totalCount} alimento{totalCount !== 1 ? "s" : ""})
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={page <= 1 || isSearching}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="min-h-[36px] px-3 py-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  ← Anterior
+                </button>
+                <button
+                  type="button"
+                  disabled={page >= totalPages || isSearching}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="min-h-[36px] px-3 py-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  Próxima →
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
 
         {/* Modal Footer */}
         <div className="p-3 sm:p-4 border-t border-[var(--border-subtle)] bg-[var(--surface-sunken)]/60 flex items-center justify-between gap-3 text-xs text-[var(--text-secondary)] shrink-0">

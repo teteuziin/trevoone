@@ -698,11 +698,12 @@ export function NutritionPlanBuilder({
             <button
               type="button"
               onClick={() => setIsPreferencesOpen(true)}
-              className="p-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[34px] min-w-[34px] flex items-center justify-center cursor-pointer shadow-2xs depth-interactive"
-              title="Preferências do painel"
+              className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[34px] cursor-pointer"
+              title="Configurar preferências de visualização do painel"
               aria-label="Preferências do painel"
             >
-              <SettingsIcon className="w-4 h-4" />
+              <SettingsIcon className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+              <span>Preferências</span>
             </button>
 
             {/* Publish / Prescribe Buttons */}

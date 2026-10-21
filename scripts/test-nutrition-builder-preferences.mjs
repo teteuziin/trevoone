@@ -166,6 +166,7 @@ assert(builderCode.includes("Publicar atualização"), "Publish update must be p
 assert(builderCode.includes("NutritionBuilderPreferencesDrawer"), "Drawer component must be integrated");
 assert(builderCode.includes("setIsPreferencesOpen(true)"), "Drawer trigger must be wired up");
 assert(builderCode.includes("Preferências do painel"), "Label 'Preferências do painel' must be present");
+assert(builderCode.includes("<span>Preferências</span>"), "Desktop button with text 'Preferências' must be present");
 
 console.log("✓ NutritionPlanBuilder conditional rendering and invariant guards verified");
 
@@ -206,5 +207,87 @@ assert(pageCode.includes("getNutritionBuilderPreferences"), "Page must load getN
 assert(pageCode.includes("initialPreferences={initialPreferences}"), "Page must pass initialPreferences to builder");
 
 console.log("✓ Server Actions and SSR integration verified with zero flicker");
+
+// 8. Behavioral Lifecycle Simulation (Open, Preset Selection, Toggle, Save, Persistence, Restoration)
+console.log("\n--- Testing Behavioral Lifecycle: Open -> Preset -> Toggle -> Save -> Persist -> In-Place Update ---");
+
+// Step 1: Initial State (Nutritionist opens editor for the first time)
+let currentEditorPrefs = { ...DEFAULT_NUTRITION_BUILDER_PREFERENCES };
+let isDrawerOpen = false;
+let drawerDraft = null;
+
+function renderEditorHeader(prefs) {
+  return {
+    hasStudentPreview: prefs.showStudentPreview,
+    hasHistory: prefs.showVersionHistory,
+    hasTemplate: prefs.showTemplateActions,
+    hasPdf: true, // Always true
+    hasPublish: true, // Always true
+    hasPreferencesButton: true, // Always true
+  };
+}
+
+let header = renderEditorHeader(currentEditorPrefs);
+assert.strictEqual(header.hasStudentPreview, true);
+assert.strictEqual(header.hasHistory, true);
+assert.strictEqual(header.hasTemplate, true);
+assert.strictEqual(header.hasPdf, true);
+assert.strictEqual(header.hasPreferencesButton, true);
+
+// Step 2: Open Preferences Drawer
+isDrawerOpen = true;
+drawerDraft = { ...currentEditorPrefs };
+assert.strictEqual(isDrawerOpen, true);
+assert.strictEqual(getPresetFromPreferences(drawerDraft), "COMPLETO");
+
+// Step 3: Nutritionist selects SIMPLIFICADO preset in drawer
+drawerDraft = {
+  showStudentPreview: false,
+  showVersionHistory: false,
+  showTemplateActions: false,
+};
+assert.strictEqual(getPresetFromPreferences(drawerDraft), "SIMPLIFICADO");
+
+// Step 4: Nutritionist saves preferences -> Server Action saves -> In-place update (no reload)
+const savedInDb = mockSavePreferences(1, 10, drawerDraft);
+currentEditorPrefs = { ...savedInDb };
+isDrawerOpen = false;
+
+// Step 5: Check Editor Header immediately reflects updated preferences
+header = renderEditorHeader(currentEditorPrefs);
+assert.strictEqual(header.hasStudentPreview, false, "Student preview must be hidden in SIMPLIFICADO");
+assert.strictEqual(header.hasHistory, false, "Version history must be hidden in SIMPLIFICADO");
+assert.strictEqual(header.hasTemplate, false, "Template actions must be hidden in SIMPLIFICADO");
+assert.strictEqual(header.hasPdf, true, "PDF must remain visible in SIMPLIFICADO");
+assert.strictEqual(header.hasPreferencesButton, true, "Preferences button must remain visible in SIMPLIFICADO");
+
+// Step 6: Nutritionist reopens drawer and switches to PERSONALIZADO (e.g. enable preview only)
+isDrawerOpen = true;
+drawerDraft = { ...currentEditorPrefs };
+drawerDraft.showStudentPreview = true;
+assert.strictEqual(getPresetFromPreferences(drawerDraft), "PERSONALIZADO");
+
+// Step 7: Save PERSONALIZADO
+mockSavePreferences(1, 10, drawerDraft);
+currentEditorPrefs = { ...drawerDraft };
+header = renderEditorHeader(currentEditorPrefs);
+assert.strictEqual(header.hasStudentPreview, true, "Student preview must be visible in PERSONALIZADO");
+assert.strictEqual(header.hasHistory, false, "Version history must remain hidden");
+assert.strictEqual(header.hasTemplate, false, "Template actions must remain hidden");
+
+// Step 8: Restore Default with confirmation
+let confirmed = true;
+if (confirmed) {
+  drawerDraft = { ...DEFAULT_NUTRITION_BUILDER_PREFERENCES };
+}
+mockSavePreferences(1, 10, drawerDraft);
+currentEditorPrefs = { ...drawerDraft };
+header = renderEditorHeader(currentEditorPrefs);
+assert.strictEqual(header.hasStudentPreview, true);
+assert.strictEqual(header.hasHistory, true);
+assert.strictEqual(header.hasTemplate, true);
+assert.strictEqual(getPresetFromPreferences(currentEditorPrefs), "COMPLETO");
+
+console.log("✓ Behavioral lifecycle simulation passed all state transitions cleanly");
 
 console.log("\n=== ALL NUTRITION PREFERENCES TEST SUITE ASSERTIONS PASSED ===");

@@ -19,6 +19,7 @@ interface NutritionItemEditorProps {
   slug: string;
   item: MealItemWithSubstitutionsDto;
   readOnly?: boolean;
+  onLiveQuantityChange?: (itemPublicId: string, quantity: number | null) => void;
   onUpdateItem: (data: {
     foodPublicId?: string;
     portionPublicId?: string | null;
@@ -43,6 +44,7 @@ export function NutritionItemEditor({
   slug,
   item,
   readOnly = false,
+  onLiveQuantityChange,
   onUpdateItem,
   onRemoveItem,
   onMoveUp,
@@ -124,15 +126,31 @@ export function NutritionItemEditor({
     ? Math.round(item.fatGSnapshot * scale * 10) / 10
     : null;
 
-  // Debounced quantity save
+  // Portion weight calculation
+  const equivGrams = item.portionEquivalentAmount != null && item.portionEquivalentAmount > 0
+    ? Math.round((isCustomQtyValid ? parsedLocalQty : (item.prescribedQuantity || 0)) * item.portionEquivalentAmount * 10) / 10
+    : null;
+
+  const isMissingPortionConversion = item.foodId != null &&
+    item.prescribedUnitCode &&
+    !["G", "KG", "ML", "L"].includes(item.prescribedUnitCode.trim().toUpperCase()) &&
+    (item.portionEquivalentAmount == null || item.portionEquivalentAmount <= 0) &&
+    item.caloriesKcalSnapshot == null;
+
+  // Debounced quantity save + live synchronous propagation
   const handleQuantityChange = (newVal: string) => {
     setLocalQuantity(newVal);
+    const parsed = newVal ? parseFloat(newVal.replace(",", ".")) : null;
+    const validQty = parsed != null && Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+
+    // Immediately propagate to parent builder for instant meal and day totals
+    onLiveQuantityChange?.(item.publicId, validQty);
+
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
     debounceTimerRef.current = setTimeout(async () => {
-      const num = newVal ? parseFloat(newVal.replace(",", ".")) : null;
-      if (num != null && Number.isFinite(num) && num > 0) {
-        await onUpdateItem({ prescribedQuantity: num });
+      if (validQty != null) {
+        await onUpdateItem({ prescribedQuantity: validQty });
       }
     }, 600);
   };
@@ -218,8 +236,18 @@ export function NutritionItemEditor({
                 {localQuantity}
               </span>
             )}
-            <span className="text-xs text-[var(--text-secondary)] font-medium truncate max-w-[120px]">
-              {item.prescribedUnitLabel || item.prescribedUnitCode || "g"}
+            <span className="text-xs text-[var(--text-secondary)] font-medium truncate max-w-[150px] inline-flex items-center gap-1">
+              <span>{item.prescribedUnitLabel || item.prescribedUnitCode || "g"}</span>
+              {equivGrams != null && (
+                <span className="text-[11px] text-[var(--text-muted)] font-normal">
+                  ({equivGrams}g)
+                </span>
+              )}
+              {isMissingPortionConversion && (
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20">
+                  Medida sem equivalência cadastrada
+                </span>
+              )}
             </span>
           </div>
 
@@ -511,7 +539,7 @@ export function NutritionItemEditor({
         </div>
 
         {/* Line 2: Inline Quantity Input + Measure & Weight */}
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-2 text-xs flex-wrap">
           {!readOnly ? (
             <input
               data-item-input={item.publicId}
@@ -520,13 +548,23 @@ export function NutritionItemEditor({
               value={localQuantity}
               onChange={(e) => handleQuantityChange(e.target.value)}
               placeholder="100"
-              className="w-14 px-1.5 py-1 text-xs text-center font-bold rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+              className="w-16 px-2 py-2 text-base sm:text-xs text-center font-bold rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] min-h-[44px]"
             />
           ) : (
-            <span className="font-bold text-[var(--text-primary)]">{localQuantity}</span>
+            <span className="font-bold text-sm text-[var(--text-primary)]">{localQuantity}</span>
           )}
-          <span className="text-[var(--text-secondary)] truncate">
+          <span className="text-[var(--text-secondary)]">
             {item.prescribedUnitLabel || item.prescribedUnitCode || "g"}
+            {equivGrams != null && (
+              <span className="text-[11px] text-[var(--text-muted)] font-normal ml-1">
+                ({equivGrams}g)
+              </span>
+            )}
+            {isMissingPortionConversion && (
+              <span className="block text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20 mt-0.5">
+                Medida sem equivalência cadastrada
+              </span>
+            )}
           </span>
         </div>
 

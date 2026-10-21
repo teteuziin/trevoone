@@ -15,6 +15,7 @@ interface NutritionMealEditorProps {
   slug: string;
   meal: MealWithItemsDto;
   readOnly?: boolean;
+  onLiveQuantityChange?: (mealPublicId: string, itemPublicId: string, quantity: number | null) => void;
   isFirst: boolean;
   isLast: boolean;
   onUpdateMeal: (data: { title?: string; scheduledTime?: string | null; notes?: string | null }) => Promise<void>;
@@ -44,6 +45,7 @@ export function NutritionMealEditor({
   slug,
   meal,
   readOnly = false,
+  onLiveQuantityChange,
   isFirst,
   isLast,
   onUpdateMeal,
@@ -159,11 +161,20 @@ export function NutritionMealEditor({
               </span>
             )}
             <span className="text-[var(--text-tertiary)]">·</span>
-            <span>P {meal.mealTotals.proteinG}g</span>
+            <span>
+              P {meal.mealTotals.proteinG}g
+              {meal.mealTotals.missingProteinCount > 0 && <span className="text-amber-500 font-bold ml-0.5">*</span>}
+            </span>
             <span className="text-[var(--text-tertiary)]">·</span>
-            <span>C {meal.mealTotals.carbohydrateG}g</span>
+            <span>
+              C {meal.mealTotals.carbohydrateG}g
+              {meal.mealTotals.missingCarbohydrateCount > 0 && <span className="text-amber-500 font-bold ml-0.5">*</span>}
+            </span>
             <span className="text-[var(--text-tertiary)]">·</span>
-            <span>G {meal.mealTotals.fatG}g</span>
+            <span>
+              G {meal.mealTotals.fatG}g
+              {meal.mealTotals.missingFatCount > 0 && <span className="text-amber-500 font-bold ml-0.5">*</span>}
+            </span>
           </div>
           {meal.mealTotals.hasIncompleteData && (
             <span className="sm:hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
@@ -404,6 +415,7 @@ export function NutritionMealEditor({
                   readOnly={readOnly}
                   isFirst={idx === 0}
                   isLast={idx === meal.items.length - 1}
+                  onLiveQuantityChange={(itemPublicId, qty) => onLiveQuantityChange?.(meal.publicId, itemPublicId, qty)}
                   onUpdateItem={(data) => onUpdateItem(item.publicId, data)}
                   onRemoveItem={() => onRemoveItem(item.publicId)}
                   onMoveUp={() => handleMoveItem(idx, "UP")}
@@ -422,27 +434,27 @@ export function NutritionMealEditor({
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={`font-bold text-xs sm:text-sm ${meal.mealTotals.status === "INCOMPLETE" ? "text-amber-600 dark:text-amber-400" : "text-[var(--text-primary)]"}`}>
-                  {meal.mealTotals.status === "INCOMPLETE" ? `Subtotal: ${meal.mealTotals.caloriesKcal} kcal` : `Subtotal: ${meal.mealTotals.caloriesKcal} kcal`}
+                  {meal.mealTotals.status === "INCOMPLETE" ? `Subtotal calculado: ${meal.mealTotals.caloriesKcal} kcal` : `Subtotal: ${meal.mealTotals.caloriesKcal} kcal`}
                 </span>
                 <span className="text-[var(--text-tertiary)]">•</span>
                 <span className="text-[var(--text-secondary)]">
                   P <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.proteinG}g</strong>
-                  {!meal.mealTotals.empty && meal.mealTotals.status === "INCOMPLETE" && (
-                    <span className="text-amber-500 font-bold ml-0.5">*</span>
+                  {!meal.mealTotals.empty && meal.mealTotals.missingProteinCount > 0 && (
+                    <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.missingProteinCount} alimento(s) sem proteína cadastrada`}>*</span>
                   )}
                 </span>
                 <span className="text-[var(--text-tertiary)]">•</span>
                 <span className="text-[var(--text-secondary)]">
                   C <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.carbohydrateG}g</strong>
-                  {!meal.mealTotals.empty && meal.mealTotals.status === "INCOMPLETE" && (
-                    <span className="text-amber-500 font-bold ml-0.5">*</span>
+                  {!meal.mealTotals.empty && meal.mealTotals.missingCarbohydrateCount > 0 && (
+                    <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.missingCarbohydrateCount} alimento(s) sem carboidrato cadastrado`}>*</span>
                   )}
                 </span>
                 <span className="text-[var(--text-tertiary)]">•</span>
                 <span className="text-[var(--text-secondary)]">
                   G <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.fatG}g</strong>
-                  {!meal.mealTotals.empty && meal.mealTotals.status === "INCOMPLETE" && (
-                    <span className="text-amber-500 font-bold ml-0.5">*</span>
+                  {!meal.mealTotals.empty && meal.mealTotals.missingFatCount > 0 && (
+                    <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.missingFatCount} alimento(s) sem gordura cadastrada`}>*</span>
                   )}
                 </span>
               </div>

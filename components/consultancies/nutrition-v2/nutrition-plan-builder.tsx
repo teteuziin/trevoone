@@ -48,6 +48,7 @@ import type { FoodSelectionResult } from "./nutrition-food-picker";
 import type { AddSubstitutionInput } from "@/lib/nutrition-v2/plan-repository";
 import type { PendingPublicationItem } from "@/lib/nutrition-v2/validation";
 import { formatMacroGram, formatCaloriesKcal } from "@/lib/nutrition-v2/nutrition-plan-presentation";
+import { scaleItemSnapshots, calculateMealTotals, calculatePlanTotals } from "@/lib/nutrition-v2/nutrient-calculator";
 
 export interface PatientBuilderContext {
   studentMembershipPublicId: string;
@@ -513,6 +514,55 @@ export function NutritionPlanBuilder({
     }
   };
 
+  // Live client-side quantity update with synchronous totals recalculation
+  const handleLiveQuantityChange = useCallback((mealPublicId: string, itemPublicId: string, quantity: number | null) => {
+    if (quantity == null || !Number.isFinite(quantity) || quantity <= 0) return;
+
+    setTree((prevTree) => {
+      const mealIdx = prevTree.meals.findIndex((m) => m.publicId === mealPublicId);
+      if (mealIdx === -1) return prevTree;
+
+      const targetMeal = prevTree.meals[mealIdx];
+      const itemIdx = targetMeal.items.findIndex((it) => it.publicId === itemPublicId);
+      if (itemIdx === -1) return prevTree;
+
+      const currentItem = targetMeal.items[itemIdx];
+      const baseQty = currentItem.prescribedQuantity;
+      if (baseQty == null || baseQty <= 0) return prevTree;
+
+      const scaled = scaleItemSnapshots(currentItem, quantity);
+      const updatedItem: MealItemWithSubstitutionsDto = {
+        ...currentItem,
+        prescribedQuantity: quantity,
+        caloriesKcalSnapshot: scaled.caloriesKcalSnapshot,
+        proteinGSnapshot: scaled.proteinGSnapshot,
+        carbohydrateGSnapshot: scaled.carbohydrateGSnapshot,
+        fatGSnapshot: scaled.fatGSnapshot,
+      };
+
+      const updatedItems = [...targetMeal.items];
+      updatedItems[itemIdx] = updatedItem;
+
+      const updatedMealTotals = calculateMealTotals(updatedItems);
+      const updatedMeal: MealWithItemsDto = {
+        ...targetMeal,
+        items: updatedItems,
+        mealTotals: updatedMealTotals,
+      };
+
+      const updatedMeals = [...prevTree.meals];
+      updatedMeals[mealIdx] = updatedMeal;
+
+      const updatedDailyTotals = calculatePlanTotals(updatedMeals);
+
+      return {
+        ...prevTree,
+        meals: updatedMeals,
+        dailyTotals: updatedDailyTotals,
+      };
+    });
+  }, []);
+
   // Review item directly from publication checklist
   const handleReviewPublicationItem = (pendingItem: PendingPublicationItem) => {
     setIsPublishDialogOpen(false);
@@ -957,6 +1007,7 @@ export function NutritionPlanBuilder({
                         isFirst={idx === 0}
                         isLast={idx === tree.meals.length - 1}
                         forceCollapsed={allMealsCollapsed}
+                        onLiveQuantityChange={handleLiveQuantityChange}
                         onMoveUp={() => handleMoveMeal(idx, "UP")}
                         onMoveDown={() => handleMoveMeal(idx, "DOWN")}
                         onDuplicateMeal={() => handleDuplicateMeal(meal)}
@@ -1159,6 +1210,11 @@ export function NutritionPlanBuilder({
                       <div style={{ width: `${cPct}%` }} className="bg-emerald-500 h-full" title={`Carboidratos: ${cPct}%`} />
                       <div style={{ width: `${fPct}%` }} className="bg-amber-500 h-full" title={`Gorduras: ${fPct}%`} />
                     </div>
+                    {(tree.dailyTotals.missingProteinCount > 0 || tree.dailyTotals.missingCarbohydrateCount > 0 || tree.dailyTotals.missingFatCount > 0) && (
+                      <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                        Distribuição estimada sobre dados parciais
+                      </div>
+                    )}
                     <div className="flex items-center justify-between text-[10px] text-[var(--text-secondary)] font-medium pt-0.5">
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0" />
@@ -1184,6 +1240,11 @@ export function NutritionPlanBuilder({
                       <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
                         {tree.dailyTotals.proteinG}g
                       </span>
+                      {tree.dailyTotals.missingProteinCount > 0 && (
+                        <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold block" title={`${tree.dailyTotals.missingProteinCount} alimento(s) sem proteína cadastrada`}>
+                          * ({tree.dailyTotals.missingProteinCount} sem info)
+                        </span>
+                      )}
                       {planningTarget?.proteinG && (
                         <span className="text-[9px] text-[var(--text-tertiary)] block">
                           Meta: {planningTarget.proteinG}g
@@ -1197,6 +1258,11 @@ export function NutritionPlanBuilder({
                       <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
                         {tree.dailyTotals.carbohydrateG}g
                       </span>
+                      {tree.dailyTotals.missingCarbohydrateCount > 0 && (
+                        <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold block" title={`${tree.dailyTotals.missingCarbohydrateCount} alimento(s) sem carboidrato cadastrado`}>
+                          * ({tree.dailyTotals.missingCarbohydrateCount} sem info)
+                        </span>
+                      )}
                       {planningTarget?.carbsG && (
                         <span className="text-[9px] text-[var(--text-tertiary)] block">
                           Meta: {planningTarget.carbsG}g
@@ -1210,6 +1276,11 @@ export function NutritionPlanBuilder({
                       <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
                         {tree.dailyTotals.fatG}g
                       </span>
+                      {tree.dailyTotals.missingFatCount > 0 && (
+                        <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold block" title={`${tree.dailyTotals.missingFatCount} alimento(s) sem gordura cadastrada`}>
+                          * ({tree.dailyTotals.missingFatCount} sem info)
+                        </span>
+                      )}
                       {planningTarget?.fatsG && (
                         <span className="text-[9px] text-[var(--text-tertiary)] block">
                           Meta: {planningTarget.fatsG}g
@@ -1290,6 +1361,11 @@ export function NutritionPlanBuilder({
                 <span className="text-xl font-extrabold text-[var(--brand)]">
                   {formatCaloriesKcal(tree.dailyTotals.caloriesKcal)}
                 </span>
+                {tree.dailyTotals.hasIncompleteData && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
+                    Subtotal calculado ({tree.dailyTotals.incompleteItemsCount} sem info)
+                  </span>
+                )}
                 {planningTarget?.caloriesKcal && (
                   <span className="text-[11px] text-[var(--text-tertiary)] block mt-1">
                     Meta clínica: {planningTarget.caloriesKcal} kcal
@@ -1301,6 +1377,11 @@ export function NutritionPlanBuilder({
                 <span className="text-xl font-bold text-[var(--text-primary)]">
                   {formatMacroGram(tree.dailyTotals.proteinG)}
                 </span>
+                {tree.dailyTotals.missingProteinCount > 0 && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
+                    * {tree.dailyTotals.missingProteinCount} sem info
+                  </span>
+                )}
                 <span className="text-[11px] text-sky-600 dark:text-sky-400 block mt-1">
                   {pPct}% do VET
                 </span>
@@ -1310,6 +1391,11 @@ export function NutritionPlanBuilder({
                 <span className="text-xl font-bold text-[var(--text-primary)]">
                   {formatMacroGram(tree.dailyTotals.carbohydrateG)}
                 </span>
+                {tree.dailyTotals.missingCarbohydrateCount > 0 && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
+                    * {tree.dailyTotals.missingCarbohydrateCount} sem info
+                  </span>
+                )}
                 <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block mt-1">
                   {cPct}% do VET
                 </span>
@@ -1319,6 +1405,11 @@ export function NutritionPlanBuilder({
                 <span className="text-xl font-bold text-[var(--text-primary)]">
                   {formatMacroGram(tree.dailyTotals.fatG)}
                 </span>
+                {tree.dailyTotals.missingFatCount > 0 && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
+                    * {tree.dailyTotals.missingFatCount} sem info
+                  </span>
+                )}
                 <span className="text-[11px] text-amber-600 dark:text-amber-400 block mt-1">
                   {fPct}% do VET
                 </span>

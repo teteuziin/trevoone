@@ -314,6 +314,9 @@ export interface IncompleteFoodItemInfo {
   reasonCode?: "FOOD_NOT_LINKED" | "PORTION_NOT_FOUND" | "MACROS_INCOMPLETE" | "QUANTITY_MISSING";
   missingCalories: boolean;
   missingMacros: boolean;
+  missingProtein?: boolean;
+  missingCarbs?: boolean;
+  missingFat?: boolean;
 }
 
 export interface NutrientTotalDetail {
@@ -337,6 +340,10 @@ export interface MacroTotals {
   incompleteItemsCount: number;
   incompleteItems: IncompleteFoodItemInfo[];
   empty: boolean;
+  missingCaloriesCount: number;
+  missingProteinCount: number;
+  missingCarbohydrateCount: number;
+  missingFatCount: number;
   details: {
     calories: NutrientTotalDetail;
     protein: NutrientTotalDetail;
@@ -433,7 +440,12 @@ export function calculateMealTotals(
         reason = "Quantidade prescrita não informada";
         reasonCode = "QUANTITY_MISSING";
       } else if (isCalUnknown) {
-        reason = "Calorias indisponíveis ou medida caseira sem conversão em gramas";
+        const u = (item.prescribedUnitCode || "").trim().toUpperCase();
+        if (u !== "G" && u !== "KG" && u !== "ML" && u !== "L") {
+          reason = "Medida sem equivalência cadastrada";
+        } else {
+          reason = "Calorias indisponíveis na tabela nutricional";
+        }
         reasonCode = "PORTION_NOT_FOUND";
       } else {
         reason = "Macronutrientes incompletos na tabela nutricional";
@@ -450,6 +462,9 @@ export function calculateMealTotals(
         reasonCode,
         missingCalories: isCalUnknown,
         missingMacros: isProtUnknown || isCarbUnknown || isFatUnknown,
+        missingProtein: isProtUnknown,
+        missingCarbs: isCarbUnknown,
+        missingFat: isFatUnknown,
       });
     }
   }
@@ -477,6 +492,10 @@ export function calculateMealTotals(
     incompleteItemsCount: incompleteItems.length,
     incompleteItems,
     empty: totalItemsCount === 0,
+    missingCaloriesCount: totalItemsCount - calDetail.knownItemCount,
+    missingProteinCount: totalItemsCount - protDetail.knownItemCount,
+    missingCarbohydrateCount: totalItemsCount - carbDetail.knownItemCount,
+    missingFatCount: totalItemsCount - fatDetail.knownItemCount,
     details: {
       calories: calDetail,
       protein: protDetail,
@@ -572,6 +591,10 @@ export function calculatePlanTotals(
     incompleteItemsCount: incompleteItems.length,
     incompleteItems,
     empty: isEmpty,
+    missingCaloriesCount: totalItemsCount - calKnown,
+    missingProteinCount: totalItemsCount - protKnown,
+    missingCarbohydrateCount: totalItemsCount - carbKnown,
+    missingFatCount: totalItemsCount - fatKnown,
     details: {
       calories: {
         value: calValue,
@@ -606,6 +629,63 @@ export function calculatePlanTotals(
         empty: isEmpty,
       },
     },
+  };
+}
+
+/**
+ * Safely scales an item's macronutrient snapshots proportionally when quantity changes.
+ * Preserves nulls strictly: unknown stays null, zero stays 0.
+ * Does not invent numbers or substitute declared calories with derived math.
+ */
+export function scaleItemSnapshots(
+  item: {
+    prescribedQuantity?: number | null;
+    caloriesKcalSnapshot?: number | null;
+    proteinGSnapshot?: number | null;
+    carbohydrateGSnapshot?: number | null;
+    fatGSnapshot?: number | null;
+  },
+  newQuantity: number
+): {
+  caloriesKcalSnapshot: number | null;
+  proteinGSnapshot: number | null;
+  carbohydrateGSnapshot: number | null;
+  fatGSnapshot: number | null;
+} {
+  if (!Number.isFinite(newQuantity) || newQuantity <= 0) {
+    return {
+      caloriesKcalSnapshot: null,
+      proteinGSnapshot: null,
+      carbohydrateGSnapshot: null,
+      fatGSnapshot: null,
+    };
+  }
+
+  const baseQty = Number(item.prescribedQuantity);
+  if (!Number.isFinite(baseQty) || baseQty <= 0) {
+    return {
+      caloriesKcalSnapshot: item.caloriesKcalSnapshot ?? null,
+      proteinGSnapshot: item.proteinGSnapshot ?? null,
+      carbohydrateGSnapshot: item.carbohydrateGSnapshot ?? null,
+      fatGSnapshot: item.fatGSnapshot ?? null,
+    };
+  }
+
+  const ratio = newQuantity / baseQty;
+
+  const scaleValue = (val: number | null | undefined): number | null => {
+    if (val == null) return null;
+    const num = Number(val);
+    if (!Number.isFinite(num)) return null;
+    if (num === 0) return 0;
+    return roundMacro(num * ratio);
+  };
+
+  return {
+    caloriesKcalSnapshot: scaleValue(item.caloriesKcalSnapshot),
+    proteinGSnapshot: scaleValue(item.proteinGSnapshot),
+    carbohydrateGSnapshot: scaleValue(item.carbohydrateGSnapshot),
+    fatGSnapshot: scaleValue(item.fatGSnapshot),
   };
 }
 

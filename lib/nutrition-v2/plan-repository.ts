@@ -164,6 +164,7 @@ export interface MealItemWithSubstitutionsDto {
   prescribedQuantity: number | null;
   prescribedUnitCode: string | null;
   prescribedUnitLabel: string | null;
+  portionEquivalentAmount?: number | null;
   caloriesKcalSnapshot: number | null;
   proteinGSnapshot: number | null;
   carbohydrateGSnapshot: number | null;
@@ -183,6 +184,7 @@ export interface ItemSubstitutionDto {
   prescribedQuantity: number | null;
   prescribedUnitCode: string | null;
   prescribedUnitLabel: string | null;
+  portionEquivalentAmount?: number | null;
   caloriesKcalSnapshot: number | null;
   proteinGSnapshot: number | null;
   carbohydrateGSnapshot: number | null;
@@ -786,9 +788,16 @@ export async function getPlanVersionTreeByPlanPublicId(
         `SELECT
           mi.*,
           f.public_id AS food_public_id,
-          f.scope AS food_scope
+          f.scope AS food_scope,
+          fp.equivalent_reference_amount AS portion_equivalent_amount
          FROM nutrition_v2_meal_items mi
          LEFT JOIN nutrition_v2_foods f ON f.id = mi.food_id
+         LEFT JOIN (
+           SELECT food_id, LOWER(TRIM(label)) AS norm_label, MAX(equivalent_reference_amount) AS equivalent_reference_amount
+           FROM nutrition_v2_food_portions
+           WHERE deleted_at IS NULL AND status = 'ACTIVE'
+           GROUP BY food_id, LOWER(TRIM(label))
+         ) fp ON fp.food_id = mi.food_id AND fp.norm_label = LOWER(TRIM(mi.prescribed_unit_label))
          WHERE mi.meal_id IN (?) AND mi.deleted_at IS NULL
          ORDER BY mi.sort_order ASC, mi.id ASC`,
         [mealIds]
@@ -802,9 +811,16 @@ export async function getPlanVersionTreeByPlanPublicId(
           `SELECT
             s.*,
             f.public_id AS food_public_id,
-            f.scope AS food_scope
+            f.scope AS food_scope,
+            fp.equivalent_reference_amount AS portion_equivalent_amount
            FROM nutrition_v2_item_substitutions s
            LEFT JOIN nutrition_v2_foods f ON f.id = s.food_id
+           LEFT JOIN (
+             SELECT food_id, LOWER(TRIM(label)) AS norm_label, MAX(equivalent_reference_amount) AS equivalent_reference_amount
+             FROM nutrition_v2_food_portions
+             WHERE deleted_at IS NULL AND status = 'ACTIVE'
+             GROUP BY food_id, LOWER(TRIM(label))
+           ) fp ON fp.food_id = s.food_id AND fp.norm_label = LOWER(TRIM(s.prescribed_unit_label))
            WHERE s.meal_item_id IN (?) AND s.deleted_at IS NULL
            ORDER BY s.sort_order ASC, s.id ASC`,
           [itemIds]
@@ -846,6 +862,7 @@ export async function getPlanVersionTreeByPlanPublicId(
         prescribedQuantity: s.prescribed_quantity != null ? Number(s.prescribed_quantity) : null,
         prescribedUnitCode: s.prescribed_unit_code ? String(s.prescribed_unit_code) : null,
         prescribedUnitLabel: s.prescribed_unit_label ? String(s.prescribed_unit_label) : null,
+        portionEquivalentAmount: s.portion_equivalent_amount != null ? Number(s.portion_equivalent_amount) : null,
         caloriesKcalSnapshot: s.calories_kcal_snapshot != null ? Number(s.calories_kcal_snapshot) : null,
         proteinGSnapshot: s.protein_g_snapshot != null ? Number(s.protein_g_snapshot) : null,
         carbohydrateGSnapshot: s.carbohydrate_g_snapshot != null ? Number(s.carbohydrate_g_snapshot) : null,
@@ -878,6 +895,7 @@ export async function getPlanVersionTreeByPlanPublicId(
         prescribedQuantity: it.prescribed_quantity != null ? Number(it.prescribed_quantity) : null,
         prescribedUnitCode: it.prescribed_unit_code ? String(it.prescribed_unit_code) : null,
         prescribedUnitLabel: it.prescribed_unit_label ? String(it.prescribed_unit_label) : null,
+        portionEquivalentAmount: it.portion_equivalent_amount != null ? Number(it.portion_equivalent_amount) : null,
         caloriesKcalSnapshot: it.calories_kcal_snapshot != null ? Number(it.calories_kcal_snapshot) : null,
         proteinGSnapshot: it.protein_g_snapshot != null ? Number(it.protein_g_snapshot) : null,
         carbohydrateGSnapshot: it.carbohydrate_g_snapshot != null ? Number(it.carbohydrate_g_snapshot) : null,
@@ -1362,8 +1380,35 @@ export async function addMealItem(
           throw new NutritionAuthorizationError("Peso ou referência da porção inválido.", "INVALID_PORTION_AMOUNT", 400);
         }
 
-        prescribedUnitCode = "PORCAO";
+        prescribedUnitCode = input.prescribedUnitCode && input.prescribedUnitCode !== "G"
+          ? input.prescribedUnitCode.trim().toUpperCase()
+          : derivePortionUnitCode(String(portion.label));
         prescribedUnitLabel = String(portion.label);
+      } else if (foodId && (input.prescribedUnitCode === "PORCAO" || (input.prescribedUnitCode && !["G", "KG", "ML", "L"].includes(input.prescribedUnitCode.trim().toUpperCase())) || input.prescribedUnitLabel)) {
+        // Fallback: match portion by label if portionPublicId wasn't passed directly
+        const targetLabel = (input.prescribedUnitLabel || input.prescribedUnitCode || "").trim();
+        if (targetLabel) {
+          const [matchedPortions] = await connection.query<RowDataPacket[]>(
+            `SELECT * FROM nutrition_v2_food_portions
+             WHERE food_id = ? AND LOWER(TRIM(label)) = LOWER(TRIM(?)) AND deleted_at IS NULL AND status = 'ACTIVE' LIMIT 1`,
+            [foodId, targetLabel]
+          );
+          if (matchedPortions.length > 0) {
+            const p = matchedPortions[0];
+            const eq = Number(p.equivalent_reference_amount);
+            if (Number.isFinite(eq) && eq > 0) {
+              portionEquivalentAmount = eq;
+              prescribedUnitCode = input.prescribedUnitCode && input.prescribedUnitCode !== "G"
+                ? input.prescribedUnitCode.trim().toUpperCase()
+                : derivePortionUnitCode(String(p.label));
+              prescribedUnitLabel = String(p.label);
+            }
+          }
+        }
+        if (portionEquivalentAmount == null && (!prescribedUnitCode || prescribedUnitCode === "PORCAO")) {
+          prescribedUnitCode = (food.reference_unit_code ? String(food.reference_unit_code).toUpperCase() : "G");
+          prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+        }
       } else {
         // Alimento sem porção doméstica selecionada: fallback seguro para unidade canônica de referência (ex: Gramas)
         if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
@@ -1569,7 +1614,9 @@ export async function updateMealItem(
         f.calories_kcal,
         f.protein_g,
         f.carbohydrate_g,
-        f.fat_g
+        f.fat_g,
+        f.fiber_g,
+        f.data_quality AS f_data_quality
        FROM nutrition_v2_meal_items mi
        INNER JOIN nutrition_v2_meals m ON m.id = mi.meal_id
        INNER JOIN nutrition_v2_plan_versions v ON v.id = m.nutrition_plan_version_id
@@ -1606,7 +1653,7 @@ export async function updateMealItem(
       protein_g: item.protein_g,
       carbohydrate_g: item.carbohydrate_g,
       fat_g: item.fat_g,
-      fiber_g: null,
+      fiber_g: item.fiber_g != null ? Number(item.fiber_g) : null,
     } as RowDataPacket) : null;
 
     let foodNameSnapshot = String(item.food_name_snapshot);
@@ -1694,7 +1741,9 @@ export async function updateMealItem(
             throw new NutritionAuthorizationError("Peso ou referência da porção inválido.", "INVALID_PORTION_AMOUNT", 400);
           }
           portionEquivalentAmount = eq;
-          prescribedUnitCode = "PORCAO";
+          prescribedUnitCode = input.prescribedUnitCode && input.prescribedUnitCode !== "G"
+            ? input.prescribedUnitCode.trim().toUpperCase()
+            : derivePortionUnitCode(String(portion.label));
           prescribedUnitLabel = String(portion.label);
         } else {
           portionEquivalentAmount = null;
@@ -1704,9 +1753,31 @@ export async function updateMealItem(
           }
         }
       } else {
-        if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
-          prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
-          prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+        // When input.portionPublicId is undefined, preserve existing registered portion if present
+        if (item.prescribed_unit_label && item.prescribed_unit_code !== "G") {
+          const [matchingPortions] = await connection.query<RowDataPacket[]>(
+            `SELECT * FROM nutrition_v2_food_portions
+             WHERE food_id = ? AND LOWER(TRIM(label)) = LOWER(TRIM(?)) AND deleted_at IS NULL AND status = 'ACTIVE' LIMIT 1`,
+            [effectiveFoodId, String(item.prescribed_unit_label)]
+          );
+          if (matchingPortions.length > 0) {
+            const portion = matchingPortions[0];
+            portionEquivalentAmount = Number(portion.equivalent_reference_amount);
+            prescribedUnitCode = String(item.prescribed_unit_code);
+            prescribedUnitLabel = String(portion.label);
+          } else {
+            portionEquivalentAmount = null;
+            if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
+              prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
+              prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+            }
+          }
+        } else {
+          portionEquivalentAmount = null;
+          if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
+            prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
+            prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+          }
         }
       }
 

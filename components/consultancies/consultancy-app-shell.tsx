@@ -632,6 +632,7 @@ export async function ConsultancyAppShell({
         avatarUrl={userAvatarUrl}
         hasProfilePhoto={hasProfilePhoto}
         profilePhotoUpdatedAt={profilePhotoUpdatedAt}
+        consultancyName={consultancyName}
       />
 
       {/* Unread Announcements Slide / Reading Modal */}

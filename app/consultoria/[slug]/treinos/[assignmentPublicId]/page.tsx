@@ -16,10 +16,16 @@ type PageProps = {
     slug: string;
     assignmentPublicId: string;
   }>;
+  searchParams?: Promise<{
+    bloco?: string;
+    block?: string;
+  }>;
 };
 
-export default async function StudentWorkoutDetailPage({ params }: PageProps) {
+export default async function StudentWorkoutDetailPage({ params, searchParams }: PageProps) {
   const { slug, assignmentPublicId } = await params;
+  const search = searchParams ? await searchParams : undefined;
+  const targetBlockPublicId = search?.bloco || search?.block || null;
 
   const session = await getCurrentSession();
   if (!session) {
@@ -81,6 +87,7 @@ export default async function StudentWorkoutDetailPage({ params }: PageProps) {
           userPublicId={session.userPublicId}
           consultancyPublicId={context.consultancyPublicId}
           role="STUDENT"
+          initialSelectedBlockPublicId={targetBlockPublicId}
         />
       </div>
     </ConsultancyAppShell>

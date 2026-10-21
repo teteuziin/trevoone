@@ -3,52 +3,23 @@
 import React from "react";
 import {
   DashboardStudentView,
+  type StudentOnboardingInfo,
   type StudentActiveTrainingSummary,
   type StudentActiveNutritionSummary,
 } from "./dashboard-student-view";
 import type { DailyCheckinRecord } from "@/lib/checkins/service";
-import type { MissionListItemView } from "@/lib/consultancies/missions";
-import type { MemberPayoutProfile, CommissionStatus } from "@/lib/referrals/service";
 import type { CheckinRequestDetailDto } from "@/lib/nutrition-v2/checkin-types";
 import type { StudentPendingRequestDto } from "@/lib/consultancies/student-requests";
-import type { StudentConsultationItem, StudentChatItem } from "./student/sections/student-consultations-chat-section";
+import type { MissionListItemView } from "@/lib/consultancies/missions";
+import type {
+  StudentConsultationItem,
+  StudentChatItem,
+} from "./student/sections/student-consultations-chat-section";
+import type { StudentProgressEntry } from "./student/sections/student-evolution-section";
+import type { DailyWorkoutResolution } from "@/lib/training-v2/daily-workout-resolver";
+import type { getReferrerDashboardData } from "@/lib/referrals/service";
 
-export interface StudentOnboardingInfo {
-  applicable: boolean;
-  isComplete: boolean;
-  confirmedRequirements: number;
-  totalRequirements: number;
-}
-
-export interface LatestProgressInfo {
-  recordedOn: string;
-  weightKg: number | null;
-  waistCm?: number | null;
-  abdomenCm?: number | null;
-  hipCm?: number | null;
-  armCm?: number | null;
-  thighCm?: number | null;
-}
-
-export interface ReferrerDashboardData {
-  code: string;
-  publicId: string;
-  referralUrl: string;
-  registrationsCount: number;
-  conversionsCount: number;
-  pendingAmount: number;
-  approvedAmount: number;
-  paidAmount: number;
-  pixProfile: MemberPayoutProfile | null;
-  commissions: Array<{
-    id: number;
-    publicId: string;
-    amount: number;
-    status: CommissionStatus;
-    createdAt: Date;
-    paidAt: Date | null;
-  }>;
-}
+export type ReferrerDashboardData = Awaited<ReturnType<typeof getReferrerDashboardData>>;
 
 export interface DashboardCombinedStudentVipViewProps {
   consultancySlug: string;
@@ -57,8 +28,8 @@ export interface DashboardCombinedStudentVipViewProps {
   onboarding: StudentOnboardingInfo | null;
   activeTrainingPlan: StudentActiveTrainingSummary | null;
   activeNutritionPlan: StudentActiveNutritionSummary | null;
-  latestProgress: LatestProgressInfo | null;
-  previousProgress?: LatestProgressInfo | null;
+  latestProgress: StudentProgressEntry | null;
+  previousProgress?: StudentProgressEntry | null;
   pendingPhotoEvaluation?: boolean;
   todayCheckin?: DailyCheckinRecord | null;
   pendingNutritionCheckin?: CheckinRequestDetailDto | null;
@@ -68,6 +39,7 @@ export interface DashboardCombinedStudentVipViewProps {
   missions?: MissionListItemView[];
   totalMissions?: number;
   referrerData?: ReferrerDashboardData | null;
+  dailyWorkoutResolution?: DailyWorkoutResolution | null;
 }
 
 /**
@@ -93,6 +65,7 @@ export function DashboardCombinedStudentVipView({
   missions = [],
   totalMissions = 0,
   referrerData = null,
+  dailyWorkoutResolution = null,
 }: DashboardCombinedStudentVipViewProps) {
   return (
     <DashboardStudentView
@@ -115,6 +88,7 @@ export function DashboardCombinedStudentVipView({
       missions={missions}
       totalMissions={totalMissions}
       referrerData={referrerData}
+      dailyWorkoutResolution={dailyWorkoutResolution}
     />
   );
 }

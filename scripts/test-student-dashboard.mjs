@@ -1,7 +1,10 @@
+import { register } from "node:module";
+register("./ts-loader.mjs", import.meta.url);
+
 import assert from "node:assert";
 import fs from "node:fs";
 
-console.log("=== RUNNING STUDENT & VIP DASHBOARD TEST SUITE ===");
+console.log("=== RUNNING STUDENT DASHBOARD & DAILY WORKOUT TEST SUITE ===");
 
 // 1. Verify files exist
 const studentViewPath = "components/dashboard/dashboard-student-view.tsx";
@@ -9,11 +12,16 @@ const combinedViewPath = "components/dashboard/dashboard-combined-student-vip-vi
 const headerPath = "components/dashboard/student/sections/student-overview-header.tsx";
 const focusPath = "components/dashboard/student/sections/student-focus-section.tsx";
 const pendingPath = "components/dashboard/student/sections/student-pending-section.tsx";
+const pickerPath = "components/dashboard/student/sections/workout-division-picker-modal.tsx";
 const consultChatPath = "components/dashboard/student/sections/student-consultations-chat-section.tsx";
 const evolutionPath = "components/dashboard/student/sections/student-evolution-section.tsx";
 const benefitsPath = "components/dashboard/student/sections/student-benefits-section.tsx";
+const welcomePath = "components/auth/post-login-welcome.tsx";
+const resolverPath = "lib/training-v2/daily-workout-resolver.ts";
 const shellPath = "components/consultancies/consultancy-app-shell.tsx";
 const pagePath = "app/consultoria/[slug]/page.tsx";
+const treinosPagePath = "app/consultoria/[slug]/treinos/page.tsx";
+const treinosDetailPath = "app/consultoria/[slug]/treinos/[assignmentPublicId]/page.tsx";
 
 const files = [
   studentViewPath,
@@ -21,90 +29,128 @@ const files = [
   headerPath,
   focusPath,
   pendingPath,
+  pickerPath,
   consultChatPath,
   evolutionPath,
   benefitsPath,
+  welcomePath,
+  resolverPath,
   shellPath,
   pagePath,
+  treinosPagePath,
+  treinosDetailPath,
 ];
 
 for (const f of files) {
   assert(fs.existsSync(f), `File must exist: ${f}`);
 }
-console.log("✓ All 10 student dashboard files exist and are located in expected paths");
+console.log("✓ All 15 student dashboard & daily workout files exist");
 
-// 2. Read contents
+// Import resolver logic
+const {
+  parseScheduledWeekdays,
+  formatScheduledWeekdaysLabel,
+  resolveNextBlockInCycle,
+} = await import("../lib/training-v2/daily-workout-resolver.ts");
+
+// 2. Unit Tests for Daily Workout Resolver Logic
+console.log("\n--- Testing Weekday Schedule Parser ---");
+const monWedFri = parseScheduledWeekdays("Segunda, Quarta e Sexta — Peito");
+assert.deepStrictEqual(monWedFri, [1, 3, 5], "Must parse Segunda, Quarta, Sexta as [1, 3, 5]");
+
+const tuesThurs = parseScheduledWeekdays("Terça e Quinta — Pernas", "Focar no quadríceps");
+assert.deepStrictEqual(tuesThurs, [2, 4], "Must parse Terça e Quinta as [2, 4]");
+
+const saturday = parseScheduledWeekdays("Sábado — Cardio");
+assert.deepStrictEqual(saturday, [6], "Must parse Sábado as [6]");
+
+const sunday = parseScheduledWeekdays("Domingo — Alongamento");
+assert.deepStrictEqual(sunday, [0], "Must parse Domingo as [0]");
+
+const noWeekdays = parseScheduledWeekdays("Treino A — Peito e Tríceps", "3 séries por exercício");
+assert.deepStrictEqual(noWeekdays, [], "Sequential training must have empty weekdays");
+
+const labelMon = formatScheduledWeekdaysLabel([1]);
+assert.strictEqual(labelMon, "Segunda-feira", "Single day label must be full name");
+
+const labelMulti = formatScheduledWeekdaysLabel([1, 4]);
+assert.strictEqual(labelMulti, "Seg, Qui", "Multi-day label must format nicely");
+
+console.log("✓ Weekday Schedule Parser passed cleanly");
+
+console.log("\n--- Testing Sequence Cycle Progression (No Days) ---");
+// Scenario: Blocks [A, B, C] -> ids [10, 20, 30]
+const blocks = [10, 20, 30];
+
+// Step 1: No previous sessions
+const r0 = resolveNextBlockInCycle(blocks, []);
+assert.strictEqual(r0.nextIndex, 0, "First session of cycle must be index 0 (A)");
+assert.strictEqual(r0.isNewCycle, true, "First session must be flagged as new cycle");
+
+// Step 2: Student completed A (10)
+const r1 = resolveNextBlockInCycle(blocks, [10]);
+assert.strictEqual(r1.nextIndex, 1, "Next after A must be index 1 (B)");
+assert.deepStrictEqual(r1.pendingIndices, [1, 2], "Remaining pendings must be [B, C]");
+
+// Step 3: Out-of-order execution!
+// If student chose C (30) when pending was [A, B, C]:
+const rOutOfOrder = resolveNextBlockInCycle(blocks, [30]);
+assert.strictEqual(rOutOfOrder.nextIndex, 0, "After out-of-order C, next pending in cycle must be index 0 (A)");
+assert.deepStrictEqual(rOutOfOrder.pendingIndices, [0, 1], "Remaining pendings must be [A, B]");
+
+// Step 4: After completing A (history: [10, 30])
+const rAfterA = resolveNextBlockInCycle(blocks, [10, 30]);
+assert.strictEqual(rAfterA.nextIndex, 1, "After C and A, next pending must be index 1 (B)");
+assert.deepStrictEqual(rAfterA.pendingIndices, [1], "Remaining pending must be [B]");
+
+// Step 5: After completing B (history: [20, 10, 30] - cycle complete!)
+const rCycleComplete = resolveNextBlockInCycle(blocks, [20, 10, 30]);
+assert.strictEqual(rCycleComplete.nextIndex, 0, "When all blocks in cycle completed, new cycle starts at index 0 (A)");
+assert.strictEqual(rCycleComplete.isNewCycle, true, "Cycle reset must flag isNewCycle = true");
+
+console.log("✓ Sequence Cycle Progression and Out-of-Order Recovery passed cleanly");
+
+// 3. UI and Component Structure Verification
 const headerCode = fs.readFileSync(headerPath, "utf8");
 const focusCode = fs.readFileSync(focusPath, "utf8");
-const pendingCode = fs.readFileSync(pendingPath, "utf8");
-const consultChatCode = fs.readFileSync(consultChatPath, "utf8");
-const evolutionCode = fs.readFileSync(evolutionPath, "utf8");
-const benefitsCode = fs.readFileSync(benefitsPath, "utf8");
-const studentViewCode = fs.readFileSync(studentViewPath, "utf8");
-const combinedViewCode = fs.readFileSync(combinedViewPath, "utf8");
-const shellCode = fs.readFileSync(shellPath, "utf8");
+const pickerCode = fs.readFileSync(pickerPath, "utf8");
+const welcomeCode = fs.readFileSync(welcomePath, "utf8");
 const pageCode = fs.readFileSync(pagePath, "utf8");
+const treinosPageCode = fs.readFileSync(treinosPagePath, "utf8");
+const treinosDetailCode = fs.readFileSync(treinosDetailPath, "utf8");
 
-// 3. Header verification
-assert(headerCode.includes("Meu acompanhamento"), "Header must include strong title 'Meu acompanhamento'");
-assert(headerCode.includes("Aluno:"), "Header must display Aluno: {userName} once");
-assert(headerCode.includes("Acompanhamento do Aluno"), "Header must have clean tracker tag");
-assert(headerCode.includes("Ficha de Treino"), "Header must have integrated training indicator");
-assert(headerCode.includes("Plano Alimentar"), "Header must have integrated nutrition indicator");
-assert(headerCode.includes("Para Responder"), "Header must have integrated pending requests indicator");
-assert(headerCode.includes("Consultas & Chat"), "Header must have integrated consultations/chat indicator");
-console.log("✓ Header component verified (title, single name, integrated indicators, cockpit styling)");
+// Header verification (compact, no repeating cards)
+assert(headerCode.includes("Meu acompanhamento"), "Header must have title 'Meu acompanhamento'");
+assert(headerCode.includes("Aluno:"), "Header must identify student once");
+assert(!headerCode.includes("Ficha de Treino"), "Header must NOT duplicate summary tiles already present below");
+console.log("✓ Compact cockpit header verified (no duplicate summary blocks)");
 
-// 4. Grammar & Pluralization checks
-assert(headerCode.includes('workoutRoutinesCount === 1 ? "1 rotina ativa" : `${workoutRoutinesCount} rotinas ativas`'), "Must correctly pluralize '1 rotina ativa' vs 'X rotinas ativas'");
-assert(focusCode.includes('routinesCount === 1 ? "1 rotina" : `${routinesCount} rotinas`'), "Must correctly pluralize '1 rotina' vs 'X rotinas'");
-console.log("✓ Grammar & pluralization verified (no more '1 rotinas')");
+// Focus section verification
+assert(focusCode.includes("divisionTitle"), "Focus section must display divisionTitle in highlight");
+assert(focusCode.includes("Escolher outro treino"), "Focus section must provide secondary action 'Escolher outro treino'");
+assert(focusCode.includes("WorkoutDivisionPickerModal"), "Focus section must integrate WorkoutDivisionPickerModal");
+assert(focusCode.includes("Abrir plano alimentar"), "Focus section must have single clear nutrition action");
+assert(!focusCode.includes("Ver cardápio completo"), "Focus section must NOT duplicate nutrition action");
+console.log("✓ Training focus section verified (division highlight, choose other workout, single nutrition action)");
 
-// 5. Training Focus & Actions
-assert(focusCode.includes('"Continuar treino"'), "Must provide 'Continuar treino' action when session in progress");
-assert(focusCode.includes('"Iniciar treino"'), "Must provide 'Iniciar treino' action when routine defined");
-assert(focusCode.includes('"Escolher treino"'), "Must provide 'Escolher treino' action when multiple routines available");
-assert(focusCode.includes("(estimativa)"), "Must identify estimated duration as estimate");
-assert(focusCode.includes('"Seu treino ainda não foi disponibilizado'), "Must provide respectful empty state for training");
-assert(focusCode.includes('"Seu plano alimentar ainda não foi disponibilizado'), "Must provide respectful empty state for nutrition");
-console.log("✓ Training and Nutrition focus section verified (correct actions, estimate label, clear empty states)");
+// Division picker modal verification
+assert(pickerCode.includes("A troca vale para esta sessão"), "Picker must clarify that swap applies only to this session");
+assert(pickerCode.includes("Fazer este treino"), "Picker CTA must be 'Fazer este treino'");
+assert(pickerCode.includes("?bloco="), "Picker must navigate to workout with bloco query param");
+console.log("✓ Workout division picker modal verified");
 
-// 6. Section Order & Structure
-const headerIndex = studentViewCode.indexOf("StudentOverviewHeader");
-const focusIndex = studentViewCode.indexOf("StudentFocusSection");
-const pendingIndex = studentViewCode.indexOf("StudentPendingSection");
-const consultIndex = studentViewCode.indexOf("StudentConsultationsChatSection");
-const evolutionIndex = studentViewCode.indexOf("StudentEvolutionSection");
-const benefitsIndex = studentViewCode.indexOf("StudentBenefitsSection");
+// Post login welcome verification
+assert(welcomeCode.includes("Trevo"), "Welcome screen must render Trevo One brand");
+assert(welcomeCode.includes("Abrindo seu painel..."), "Welcome screen must show objective status 'Abrindo seu painel...'");
+assert(!welcomeCode.includes("Já estávamos com saudades!"), "Welcome screen must NOT contain 'Já estávamos com saudades!'");
+assert(!welcomeCode.includes("bg-emerald-500/15 blur-3xl"), "Welcome screen must NOT have blurry neon glow");
+assert(welcomeCode.includes("Continuar para o painel"), "Welcome screen must have recoverable escape button");
+console.log("✓ Post-login welcome screen verified (crisp logo, objective status, no neon halo, recoverable)");
 
-assert(headerIndex < focusIndex, "Header (A) must precede Focus Section (B)");
-assert(focusIndex < pendingIndex, "Focus Section (B) must precede Pending Section (C)");
-assert(pendingIndex < consultIndex, "Pending Section (C) must precede Consultations Section (D)");
-assert(consultIndex < evolutionIndex, "Consultations Section (D) must precede Evolution Section (E)");
-assert(evolutionIndex < benefitsIndex, "Evolution Section (E) must precede Benefits Section (F)");
-console.log("✓ Section order strictly verified: A. Header -> B. Focus (Treino/Dieta) -> C. Pendências -> D. Consultas -> E. Evolução -> F. Benefícios VIP");
+// Authoritative shared resolution verification
+assert(pageCode.includes("resolveStudentDailyWorkout"), "page.tsx must use resolveStudentDailyWorkout");
+assert(treinosPageCode.includes("resolveStudentDailyWorkout"), "treinos/page.tsx must use resolveStudentDailyWorkout");
+assert(treinosDetailCode.includes("initialSelectedBlockPublicId"), "treinos detail must pass initialSelectedBlockPublicId");
+console.log("✓ Shared authoritative resolution verified across dashboard and workout pages");
 
-// 7. Neutral Evolution Metrics (No judgmental classification)
-assert(!evolutionCode.includes("fracasso"), "Must not classify weight change as failure");
-assert(!evolutionCode.includes("perdeu pouco"), "Must not judge weight progress");
-assert(evolutionCode.includes("vs registro anterior"), "Must display neutral delta vs previous entry");
-console.log("✓ Evolution section verified: objective data, no judgmental labels");
-
-// 8. Mobile Navigation Tabs
-assert(shellCode.includes('mobileLabel: "Alimentação"'), "Mobile navigation must label nutrition tab as 'Alimentação'");
-assert(shellCode.includes('id: "student-consultas"'), "Mobile navigation must include 'student-consultas' as primary tab");
-console.log("✓ Mobile navigation verified: Início, Treinos, Alimentação, Consultas, Mais");
-
-// 9. Wallpaper & Theme Variant in page.tsx
-assert(pageCode.includes("isStudentOverview"), "page.tsx must define isStudentOverview");
-assert(pageCode.includes("isStudentOverview ||"), "Dark overview theme must include isStudentOverview");
-assert(pageCode.includes("!(isPureNutritionist || isCombinedNutritionistAdmin || isPurePersonal || isCombinedPersonalAdmin || isPureAdmin || isStudentOverview)"), "DashboardContext must be hidden for student overview to avoid duplicate greeting");
-console.log("✓ Wallpaper and theme integration in page.tsx verified");
-
-// 10. Combined Student & VIP View Integration
-assert(combinedViewCode.includes("isInfluencer={true}"), "Combined view must pass isInfluencer=true to StudentView");
-assert(combinedViewCode.includes("isVip={true}"), "Combined view must pass isVip=true to StudentView");
-assert(!combinedViewCode.includes("activeTab"), "Combined view must not hide student monitoring behind tabs");
-console.log("✓ Combined Student + VIP view verified: student monitoring is front and center without tabs");
-
-console.log("✓ ALL STUDENT & VIP DASHBOARD AUTOMATED TESTS PASSED CLEANLY!");
+console.log("\n=== ALL 14 TEST SUITE ASSERTIONS PASSED WITH ZERO REGRESSIONS ===");

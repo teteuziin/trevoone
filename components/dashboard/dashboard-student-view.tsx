@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { DailyCheckinWidget } from "@/components/checkin/daily-checkin-widget";
 import { StudentOverviewHeader } from "./student/sections/student-overview-header";
 import { StudentFocusSection } from "./student/sections/student-focus-section";
 import {
@@ -23,6 +22,7 @@ import type { CheckinRequestDetailDto } from "@/lib/nutrition-v2/checkin-types";
 import type { StudentPendingRequestDto } from "@/lib/consultancies/student-requests";
 import type { MissionListItemView } from "@/lib/consultancies/missions";
 import type { ReferrerDashboardData } from "./dashboard-combined-student-vip-view";
+import type { DailyWorkoutResolution } from "@/lib/training-v2/daily-workout-resolver";
 
 export interface StudentWorkoutRoutineSummary {
   publicId?: string;
@@ -86,6 +86,7 @@ export interface DashboardStudentViewProps {
   missions?: MissionListItemView[];
   totalMissions?: number;
   referrerData?: ReferrerDashboardData | null;
+  dailyWorkoutResolution?: DailyWorkoutResolution | null;
 }
 
 export function DashboardStudentView({
@@ -108,14 +109,29 @@ export function DashboardStudentView({
   missions = [],
   totalMissions = 0,
   referrerData = null,
+  dailyWorkoutResolution = null,
 }: DashboardStudentViewProps) {
   // =========================================================================
   // AGREGAÇÃO UNIFICADA DE PENDÊNCIAS (SEÇÃO C: "PARA RESPONDER")
+  // Sem duplicar avisos ou cards soltos na tela
   // =========================================================================
   const pendingItems: StudentPendingItem[] = useMemo(() => {
     const list: StudentPendingItem[] = [];
 
-    // 1. Check-in de acompanhamento nutricional com prazo real
+    // 1. Check-in diário geral (se não preenchido hoje)
+    const isDailyCheckinDone = Boolean(todayCheckin && todayCheckin.id);
+    if (!isDailyCheckinDone) {
+      list.push({
+        id: "daily-checkin-today",
+        type: "CHECKIN",
+        title: "Check-in de hoje",
+        subtitle: "Compartilhe seu treino, dieta e disposição de hoje em 30 segundos.",
+        ctaLabel: "Responder",
+        href: `/consultoria/${consultancySlug}?checkin=open`,
+      });
+    }
+
+    // 2. Check-in de acompanhamento nutricional com prazo real
     if (pendingNutritionCheckin && pendingNutritionCheckin.derivedState === "PENDING") {
       list.push({
         id: `nutrition-checkin-${pendingNutritionCheckin.publicId}`,
@@ -130,7 +146,7 @@ export function DashboardStudentView({
       });
     }
 
-    // 2. Anamnese pendente
+    // 3. Anamnese pendente
     if (onboarding && onboarding.applicable && !onboarding.isComplete) {
       list.push({
         id: "onboarding-pending",
@@ -144,7 +160,7 @@ export function DashboardStudentView({
       });
     }
 
-    // 3. Avaliação física e fotos
+    // 4. Avaliação física e fotos
     if (pendingPhotoEvaluation) {
       list.push({
         id: "photo-evaluation-pending",
@@ -156,7 +172,7 @@ export function DashboardStudentView({
       });
     }
 
-    // 4. Solicitações e formulários adicionais
+    // 5. Solicitações e formulários adicionais
     for (const req of studentPendingRequests) {
       list.push({
         id: `req-${req.publicId}`,
@@ -180,18 +196,12 @@ export function DashboardStudentView({
     return list;
   }, [
     consultancySlug,
+    todayCheckin,
     onboarding,
     pendingNutritionCheckin,
     pendingPhotoEvaluation,
     studentPendingRequests,
   ]);
-
-  const workoutRoutinesCount =
-    activeTrainingPlan?.workoutCount || activeTrainingPlan?.workouts?.length || 0;
-  const nutritionMealsCount =
-    activeNutritionPlan?.mealsCount || activeNutritionPlan?.meals?.length || 0;
-
-  const nextConsultation = upcomingConsultations[0] || null;
 
   return (
     <div className="w-full space-y-6 sm:space-y-8 animate-in fade-in duration-150">
@@ -204,17 +214,10 @@ export function DashboardStudentView({
         userName={userName}
         isInfluencer={isInfluencer}
         isVip={isVip}
-        activeWorkoutTitle={activeTrainingPlan?.title || null}
-        workoutRoutinesCount={workoutRoutinesCount}
-        activeNutritionTitle={activeNutritionPlan?.title || null}
-        nutritionMealsCount={nutritionMealsCount}
-        pendingRequestsCount={pendingItems.length}
-        nextConsultationFormatted={nextConsultation?.timeFormatted || null}
-        nextConsultationTitle={nextConsultation?.professionalName || null}
       />
 
       {/* ===================================================================== */}
-      {/* B. TREINO E ALIMENTAÇÃO COMO FOCO PRINCIPAL                           */}
+      {/* B. TREINO E ALIMENTAÇÃO COMO FOCO PRINCIPAL (Divisão do Dia + Ações)  */}
       {/* ===================================================================== */}
       <StudentFocusSection
         consultancySlug={consultancySlug}
@@ -222,24 +225,16 @@ export function DashboardStudentView({
         hasActiveSession={activeTrainingPlan?.hasActiveSession || false}
         activeSessionAssignmentPublicId={activeTrainingPlan?.activeSessionAssignmentPublicId || null}
         activeNutrition={activeNutritionPlan}
+        dailyWorkoutResolution={dailyWorkoutResolution}
       />
 
       {/* ===================================================================== */}
       {/* C. PENDÊNCIAS COMPACTAS E ACIONÁVEIS ("Para responder")               */}
       {/* ===================================================================== */}
-      <div className="space-y-4">
-        {/* Widget de Check-in Diário */}
-        <DailyCheckinWidget
-          consultancySlug={consultancySlug}
-          todayCheckin={todayCheckin || null}
-        />
-
-        {/* Lista de Solicitações e Anamneses Pendentes */}
-        <StudentPendingSection
-          consultancySlug={consultancySlug}
-          items={pendingItems}
-        />
-      </div>
+      <StudentPendingSection
+        consultancySlug={consultancySlug}
+        items={pendingItems}
+      />
 
       {/* ===================================================================== */}
       {/* D. CONSULTAS E TREVO CHAT ("Consultas e conversas")                   */}
@@ -260,13 +255,13 @@ export function DashboardStudentView({
       />
 
       {/* ===================================================================== */}
-      {/* F. RECURSOS VIP / INFLUENCIADOR (QUANDO AUTORIZADOS)                  */}
+      {/* F. BENEFÍCIOS VIP / PARCERIA (Apenas para Alunos VIP ou Influenciador) */}
       {/* ===================================================================== */}
-      {(isInfluencer || isVip) && (
+      {(isVip || isInfluencer) && (
         <StudentBenefitsSection
           consultancySlug={consultancySlug}
-          isInfluencer={isInfluencer}
           isVip={isVip}
+          isInfluencer={isInfluencer}
           missions={missions}
           totalMissions={totalMissions}
           referrerData={referrerData}

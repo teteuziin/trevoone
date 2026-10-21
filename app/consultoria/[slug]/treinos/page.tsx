@@ -5,6 +5,7 @@ import { DumbbellIcon as Dumbbell, ClockIcon as Clock } from "@/components/ui/ic
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveStudentModuleAccess } from "@/lib/consultancies/student-module-access";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
+import { resolveStudentDailyWorkout, type DailyWorkoutResolution } from "@/lib/training-v2/daily-workout-resolver";
 import {
   listStudentWorkoutCards,
   type StudentWorkoutCardDto,
@@ -91,11 +92,19 @@ export default async function StudentTreinosPage({ params }: PageProps) {
   // 1. Busca prescrições Training V2 para o aluno (autoridade exclusiva V2)
   const ctx = await resolveTrainingAccessContext(slug);
   let v2Assignments: StudentWorkoutCardDto[] = [];
+  let dailyWorkout: DailyWorkoutResolution | null = null;
   if (ctx && ctx.isStudent) {
     try {
-      v2Assignments = await listStudentWorkoutCards(ctx);
+      [v2Assignments, dailyWorkout] = await Promise.all([
+        listStudentWorkoutCards(ctx).catch(() => []),
+        resolveStudentDailyWorkout(ctx, {
+          consultancyTimezone: access.context.consultancyTimezone,
+          consultancySlug: slug,
+        }).catch(() => null),
+      ]);
     } catch {
       v2Assignments = [];
+      dailyWorkout = null;
     }
   }
 
@@ -190,6 +199,36 @@ export default async function StudentTreinosPage({ params }: PageProps) {
                 </p>
               </div>
             </div>
+
+            {/* DAILY WORKOUT FOCUSED SPOTLIGHT */}
+            {dailyWorkout && dailyWorkout.assignmentPublicId && (
+              <div className="p-5 sm:p-6 rounded-3xl bg-[#151619] border border-emerald-500/40 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-white">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                      {dailyWorkout.headlineTitle}
+                    </span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                    {dailyWorkout.divisionTitle}
+                  </h2>
+                  <p className="text-xs text-neutral-400">
+                    Ficha: <strong className="text-neutral-200 font-semibold">{dailyWorkout.routineTitle}</strong>
+                    {dailyWorkout.contextNote ? ` • ${dailyWorkout.contextNote}` : ""}
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <Link
+                    href={dailyWorkout.actionHref}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 shadow-sm transition-colors min-h-[44px]"
+                  >
+                    <span>{dailyWorkout.actionLabel}</span>
+                    <span>→</span>
+                  </Link>
+                </div>
+              </div>
+            )}
 
             {/* PRIMARY SPOTLIGHT WORKOUT CARD */}
             {primaryAssignment && (

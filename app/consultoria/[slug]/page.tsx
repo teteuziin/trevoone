@@ -25,6 +25,7 @@ import {
   type ChatConsultationDto,
 } from "@/lib/consultancies/trevo-chat";
 import { getActiveStudentWorkoutExecution } from "@/lib/training-v2/execution-repository";
+import { resolveStudentDailyWorkout } from "@/lib/training-v2/daily-workout-resolver";
 import { getConsultancyLocalDate } from "@/lib/consultancies/timezone";
 import { getStudentOwnProgressHistory } from "@/lib/consultancies/progress";
 import { getStudentPhotoEvaluationsData } from "@/lib/consultancies/photo-evaluations";
@@ -139,6 +140,22 @@ export default async function ConsultancyPage({ params }: PageProps) {
               difficultyLevel: c.difficultyLevel,
             })),
           };
+        } catch {
+          return null;
+        }
+      })()
+    : Promise.resolve(null);
+
+  // Student Training V2 daily workout resolution (shared authoritative decision)
+  const studentDailyWorkoutPromise = needStudentData
+    ? (async () => {
+        try {
+          const tCtx = await resolveTrainingAccessContext(slug);
+          if (!tCtx?.isStudent) return null;
+          return await resolveStudentDailyWorkout(tCtx, {
+            consultancyTimezone: context.consultancyTimezone,
+            consultancySlug: slug,
+          });
         } catch {
           return null;
         }
@@ -423,6 +440,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     nutritionistCockpitResult,
     studentConsultations,
     studentChats,
+    studentDailyWorkout,
   ] = await Promise.all([
     needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) ? getStudentOnboardingStatus(session.userId, slug).catch(() => null) : Promise.resolve(null),
     needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer)
@@ -464,6 +482,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     nutritionistCockpitPromise,
     studentConsultationsPromise,
     studentChatPromise,
+    studentDailyWorkoutPromise,
   ]);
 
   // Derived metrics for Nutritionist cockpit
@@ -709,6 +728,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
             missions={influencerMissionsResult?.items || []}
             totalMissions={influencerMissionsResult?.total || 0}
             referrerData={referrerData}
+            dailyWorkoutResolution={studentDailyWorkout}
           />
         )}
 
@@ -791,6 +811,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
             chatConversations={normalizedStudentChats}
             isInfluencer={false}
             isVip={false}
+            dailyWorkoutResolution={studentDailyWorkout}
           />
         )}
       </div>

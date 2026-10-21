@@ -350,6 +350,7 @@ type StudentWorkoutRendererProps = {
   role?: string;
   isPreview?: boolean;
   isDraft?: boolean;
+  initialSelectedBlockPublicId?: string | null;
 };
 
 export function StudentWorkoutRenderer({
@@ -362,6 +363,7 @@ export function StudentWorkoutRenderer({
   role: initialRole,
   isPreview = false,
   isDraft = false,
+  initialSelectedBlockPublicId = null,
 }: StudentWorkoutRendererProps) {
   const [activeSession, setActiveSession] = useState<WorkoutExecutionSessionDto | null>(
     initialExecution || null
@@ -552,7 +554,13 @@ export function StudentWorkoutRenderer({
   }
 
   const blocks = workout.blocks || [];
-  const [selectedBlockIndex, setSelectedBlockIndex] = useState<number | null>(null);
+  const [selectedBlockIndex, setSelectedBlockIndex] = useState<number | null>(() => {
+    if (initialSelectedBlockPublicId && blocks.length > 0) {
+      const foundIdx = blocks.findIndex((b) => b.publicId === initialSelectedBlockPublicId);
+      if (foundIdx !== -1) return foundIdx;
+    }
+    return null;
+  });
 
   const [isOffline, setIsOffline] = useState(() =>
     typeof navigator !== "undefined" ? !navigator.onLine : false

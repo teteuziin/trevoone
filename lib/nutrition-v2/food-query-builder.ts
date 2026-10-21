@@ -13,6 +13,9 @@ import type {
 
 export interface FoodListItemDto extends Omit<NutritionV2FoodDto, "id"> {
   portionsCount: number;
+  matchedAlias?: string | null;
+  preparationState?: string | null;
+  brandName?: string | null;
 }
 
 export interface ListFoodsResult {
@@ -246,6 +249,91 @@ export function getPortugueseWordRoots(word: string): string[] {
   return Array.from(roots);
 }
 
+export function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const v0 = new Array(b.length + 1);
+  const v1 = new Array(b.length + 1);
+  for (let i = 0; i <= b.length; i++) v0[i] = i;
+  for (let i = 0; i < a.length; i++) {
+    v1[0] = i + 1;
+    for (let j = 0; j < b.length; j++) {
+      const cost = a[i] === b[j] ? 0 : 1;
+      v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
+    }
+    for (let j = 0; j <= b.length; j++) v0[j] = v1[j];
+  }
+  return v1[b.length];
+}
+
+export const COMMON_FOOD_TYPOS: Readonly<Record<string, string>> = Object.freeze({
+  aroz: "arroz",
+  arrois: "arroz",
+  arros: "arroz",
+  fejao: "feijao",
+  fejoa: "feijao",
+  feijaoz: "feijao",
+  frago: "frango",
+  framgo: "frango",
+  frang: "frango",
+  batat: "batata",
+  batatdoce: "batata doce",
+  mucarela: "mussarela",
+  musarela: "mussarela",
+  muzzarella: "mussarela",
+  mozarela: "mussarela",
+  quejo: "queijo",
+  cosido: "cozido",
+  cosida: "cozida",
+  cozid: "cozido",
+  grelhad: "grelhado",
+  asado: "assado",
+  asad: "assado",
+  frit: "frito",
+  refogad: "refogado",
+  beringela: "berinjela",
+  xuxu: "chuchu",
+  tomtate: "tomate",
+  alfasce: "alface",
+  cenora: "cenoura",
+  brocolis: "brocolis",
+  brocolos: "brocolis",
+  abacaxi: "abacaxi",
+  abacachi: "abacaxi",
+  iorgute: "iogurte",
+  iogurt: "iogurte",
+  yogurt: "iogurte",
+  iogurti: "iogurte",
+  macc: "maca",
+  wey: "whey",
+  uhei: "whey",
+  whei: "whey",
+  creatina: "creatina",
+  cacetinho: "cacetinho",
+  mandioca: "mandioca",
+  aipim: "aipim",
+  macaxeira: "macaxeira",
+  tilapia: "tilapia",
+  salmao: "salmao",
+  patinho: "patinho",
+  alcatra: "alcatra",
+  aveia: "aveia",
+  leite: "leite",
+});
+
+export const CANONICAL_FOOD_VOCABULARY: readonly string[] = Object.freeze([
+  "arroz", "feijao", "frango", "batata", "ovo", "leite", "queijo", "carne", "peixe",
+  "pao", "aveia", "banana", "maca", "abacaxi", "laranja", "morango", "tomate",
+  "alface", "cenoura", "brocolis", "chuchu", "abobora", "mandioca", "patinho",
+  "alcatra", "mignon", "tilapia", "salmao", "atum", "iogurte", "manteiga", "azeite",
+  "whey", "creatina", "castanha", "amendoim", "nozes", "lentilha", "soja", "tofu",
+  "tapioca", "cuscuz", "milho", "ervilha", "palmito", "pepino", "espinafre", "couve",
+  "repolho", "berinjela", "abobrinha", "melancia", "melao", "mamao", "uva", "abacate",
+  "manga", "pera", "kiwi", "goiaba", "cacau", "cafe", "cha", "cozido", "grelhado",
+  "assado", "frito", "refogado", "cru", "integral", "desnatado", "moido", "desfiado"
+]);
+
 function getWordStem(word: string): string {
   if (word.length > 4 && word.endsWith("es")) return word.slice(0, -2);
   if (word.length > 3 && word.endsWith("s")) return word.slice(0, -1);
@@ -411,7 +499,11 @@ export const DISCOVERY_ALIASES: Readonly<Record<string, readonly string[]>> = Ob
 });
 
 export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
-  const allRoots = tokens.flatMap((t) => getPortugueseWordRoots(t));
+  const correctedTokens = tokens.map((t) => {
+    const norm = normalizeSearchText(t);
+    return COMMON_FOOD_TYPOS[norm] || norm;
+  });
+  const allRoots = correctedTokens.flatMap((t) => getPortugueseWordRoots(t));
   const hasAmendoim = allRoots.some((t) => t === "amendoim");
   const hasPao = allRoots.some((t) => t === "pao");
   const hasBatata = allRoots.some((t) => t === "batata");
@@ -428,6 +520,30 @@ export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
     }
 
     const normalized = normalizeSearchText(token);
+
+    // Direct typo dictionary correction
+    if (COMMON_FOOD_TYPOS[normalized]) {
+      const corrected = COMMON_FOOD_TYPOS[normalized];
+      variants.add(corrected);
+      for (const r of getPortugueseWordRoots(corrected)) {
+        variants.add(r);
+        roots.push(r);
+      }
+    }
+
+    // Levenshtein distance <= 1 typo tolerance against canonical vocabulary for words with length >= 4
+    if (normalized.length >= 4 && !CANONICAL_FOOD_VOCABULARY.includes(normalized)) {
+      for (const vocabWord of CANONICAL_FOOD_VOCABULARY) {
+        if (Math.abs(vocabWord.length - normalized.length) <= 1 && levenshteinDistance(normalized, vocabWord) === 1) {
+          variants.add(vocabWord);
+          for (const r of getPortugueseWordRoots(vocabWord)) {
+            variants.add(r);
+            roots.push(r);
+          }
+          break;
+        }
+      }
+    }
 
     // Phrase-aware handling: pasta / creme / manteiga de amendoim
     if (hasAmendoim && (normalized === "pasta" || normalized === "creme" || normalized === "manteiga")) {
@@ -644,6 +760,99 @@ export function cleanFoodDisplayName(name: string, sourceKey?: string | null): s
   return name.trim();
 }
 
+export function detectFoodPreparationAndBrand(
+  displayName: string,
+  name: string,
+  sourceKey?: string | null,
+  sourceType?: string | null
+): { preparationState: string | null; brandName: string | null } {
+  const combined = `${displayName} ${name}`.toLowerCase();
+  const norm = normalizeSearchText(combined);
+
+  // Brand detection (never invent: only if confirmed from source or verified brand name)
+  let brandName: string | null = null;
+  if (sourceKey === "GROWTH_SUPPLEMENTS" || norm.includes("growth supplements") || norm.includes("growth")) {
+    brandName = "Growth Supplements";
+  } else if (norm.includes("amafil")) {
+    brandName = "Amafil";
+  } else if (sourceType === "BRANDED" && sourceKey) {
+    brandName = sourceKey;
+  }
+
+  // Preparation state detection (never invent: only if explicitly present in name/display)
+  let preparationState: string | null = null;
+  if (norm.includes("grelhado") || norm.includes("grelhada")) {
+    preparationState = "Grelhado";
+  } else if (norm.includes("cozido") || norm.includes("cozida")) {
+    preparationState = "Cozido";
+  } else if (norm.includes("assado") || norm.includes("assada")) {
+    preparationState = "Assado";
+  } else if (norm.includes("frito") || norm.includes("frita")) {
+    preparationState = "Frito";
+  } else if (norm.includes("refogado") || norm.includes("refogada")) {
+    preparationState = "Refogado";
+  } else if (norm.includes("ao vapor") || norm.includes("vapor")) {
+    preparationState = "Ao vapor";
+  } else if (norm.includes("desfiado") || norm.includes("desfiada")) {
+    preparationState = "Desfiado";
+  } else if (norm.includes("moido") || norm.includes("moida")) {
+    preparationState = "Moído";
+  } else if (/\b(cru|crua)\b/.test(norm)) {
+    preparationState = "Cru";
+  } else if (norm.includes("torrado") || norm.includes("torrada")) {
+    preparationState = "Torrado";
+  } else if (norm.includes("defumado") || norm.includes("defumada")) {
+    preparationState = "Defumado";
+  } else if (norm.includes("desnatado") || norm.includes("desnatada")) {
+    preparationState = "Desnatado";
+  } else if (norm.includes("integral")) {
+    preparationState = "Integral";
+  }
+
+  return { preparationState, brandName };
+}
+
+export function detectMatchedAlias(
+  query: string | undefined | null,
+  displayName: string,
+  name: string
+): string | null {
+  if (!query || typeof query !== "string") return null;
+  const normQuery = normalizeSearchText(query);
+  if (!normQuery) return null;
+
+  const normFood = normalizeSearchText(`${displayName} ${name}`);
+
+  // Multi-word full query check in aliases (e.g., "pao de sal", "batata baroa")
+  const phraseTargets = USER_SEARCH_ALIASES[normQuery];
+  if (phraseTargets && phraseTargets.length > 0) {
+    if (!normFood.includes(normQuery)) {
+      for (const target of phraseTargets) {
+        if (normFood.includes(target)) {
+          return normQuery;
+        }
+      }
+    }
+  }
+
+  // Individual tokens check in aliases (e.g. "cacetinho" when querying "cacetinho integral")
+  const queryTokens = tokenizeSearchQuery(normQuery);
+  for (const token of queryTokens) {
+    const directTargets = USER_SEARCH_ALIASES[token];
+    if (directTargets && directTargets.length > 0) {
+      if (!normFood.includes(token)) {
+        for (const target of directTargets) {
+          if (normFood.includes(target)) {
+            return token;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 export function buildFoodSearchOrderClause(
   query: string,
   queryTokens: string[],
@@ -733,13 +942,6 @@ export function buildFoodSearchOrderClause(
       WHEN (${conflicts.length > 0 ? conflicts.join(" OR ") : "1=0"}) THEN 3
       ELSE 2
     END ASC,`;
-  } else {
-    prepOrderSql = `
-    CASE
-      WHEN (${targetCol} LIKE '% cru%' OR ${targetCol} LIKE '%, cru%' OR ${targetCol} LIKE 'cru,%' OR ${targetCol} = 'cru'
-           OR f.normalized_name LIKE '% raw%' OR f.normalized_name LIKE '%, raw%' OR f.normalized_name LIKE 'raw,%' OR f.normalized_name = 'raw') THEN 1
-      ELSE 2
-    END ASC,`;
   }
 
   // Base meat cut prioritization (peito, file, carne over linguiça/salsicha/coracao) when not explicitly queried
@@ -754,11 +956,15 @@ export function buildFoodSearchOrderClause(
       WHEN ${targetCol} LIKE '%linguica%' OR ${targetCol} LIKE '%salsicha%' OR ${targetCol} LIKE '%coracao%' THEN 3
       ELSE 2
     END ASC,`;
-  } else {
-    prepOrderSql = `
+  }
+
+  // Commercial branded product prioritization when brand term is in search query (e.g. growth)
+  const hasBrandQuery = queryTokens.some((t) => ["growth", "amafil", "suplemento", "suplementos"].includes(t));
+  let brandPrioritySql = "";
+  if (hasBrandQuery) {
+    brandPrioritySql = `
     CASE
-      WHEN (${targetCol} LIKE '% cru%' OR ${targetCol} LIKE '%, cru%' OR ${targetCol} LIKE 'cru,%' OR ${targetCol} = 'cru'
-           OR f.normalized_name LIKE '% raw%' OR f.normalized_name LIKE '%, raw%' OR f.normalized_name LIKE 'raw,%' OR f.normalized_name = 'raw') THEN 1
+      WHEN (f.source_key = 'GROWTH_SUPPLEMENTS' OR ${targetCol} LIKE '%growth%' OR f.normalized_name LIKE '%growth%') THEN 1
       ELSE 2
     END ASC,`;
   }
@@ -797,6 +1003,7 @@ export function buildFoodSearchOrderClause(
     END ASC,
     ${prepOrderSql}
     ${cutPrioritySql}
+    ${brandPrioritySql}
     -- Prioritize direct milk foods over dairy derivatives (yogurt, cheese) when querying milk / leite
     CASE
       WHEN (${isMilkQuery && !hasCheeseOrYogurtQuery ? "1=1" : "1=0"})
@@ -1229,7 +1436,7 @@ export function safeNullableString(val: unknown): string | null {
   return s.length === 0 ? null : s;
 }
 
-export function mapFoodRow(r: Record<string, unknown>): FoodListItemDto {
+export function mapFoodRow(r: Record<string, unknown>, userQuery?: string): FoodListItemDto {
   const publicId = typeof r.public_id === "string" ? r.public_id.trim() : "";
   if (!publicId) {
     throw new FoodLibraryMappingError("Missing mandatory public_id");
@@ -1299,6 +1506,9 @@ export function mapFoodRow(r: Record<string, unknown>): FoodListItemDto {
   const cleanedDisplay = cleanFoodDisplayName(rawDisplayName || name, sourceKey);
   const effectiveDisplayName = cleanedDisplay || name;
 
+  const { preparationState, brandName } = detectFoodPreparationAndBrand(effectiveDisplayName, name, sourceKey, rawSourceType);
+  const matchedAlias = detectMatchedAlias(userQuery, effectiveDisplayName, name);
+
   return {
     publicId,
     scope,
@@ -1332,5 +1542,8 @@ export function mapFoodRow(r: Record<string, unknown>): FoodListItemDto {
     updatedAt,
     deletedAt,
     portionsCount,
+    matchedAlias,
+    preparationState,
+    brandName,
   };
 }

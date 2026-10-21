@@ -24,6 +24,8 @@ import type {
 
 export interface FoodWithPortionsDto extends Omit<NutritionV2FoodDto, "id"> {
   portions: Omit<NutritionV2FoodPortionDto, "id" | "foodId">[];
+  preparationState?: string | null;
+  brandName?: string | null;
 }
 
 export type CreateFoodInput = {
@@ -86,6 +88,11 @@ import {
   tokenizeSearchQuery,
   COMMON_FOOD_SYNONYMS,
   expandSearchTokensWithSynonyms,
+  levenshteinDistance,
+  COMMON_FOOD_TYPOS,
+  CANONICAL_FOOD_VOCABULARY,
+  detectFoodPreparationAndBrand,
+  detectMatchedAlias,
   APPROVED_BR_SOURCE_KEYS,
   APPROVED_COMMERCIAL_SOURCE_KEYS,
   INTERNATIONAL_DATABASE_SOURCE_KEYS,
@@ -126,6 +133,11 @@ export {
   tokenizeSearchQuery,
   COMMON_FOOD_SYNONYMS,
   expandSearchTokensWithSynonyms,
+  levenshteinDistance,
+  COMMON_FOOD_TYPOS,
+  CANONICAL_FOOD_VOCABULARY,
+  detectFoodPreparationAndBrand,
+  detectMatchedAlias,
   APPROVED_BR_SOURCE_KEYS,
   APPROVED_COMMERCIAL_SOURCE_KEYS,
   INTERNATIONAL_DATABASE_SOURCE_KEYS,
@@ -218,7 +230,7 @@ export async function listUnifiedFoodsForNutritionist(
     // 3. Mapeamento defensivo estrito sem falsos defaults semânticos
     let items: FoodListItemDto[];
     try {
-      items = (rows as RowDataPacket[]).map((r) => mapFoodRow(r as Record<string, unknown>));
+      items = (rows as RowDataPacket[]).map((r) => mapFoodRow(r as Record<string, unknown>, filter.query));
     } catch (mappingErr) {
       console.error(
         `[Food Library] stage=MAPPING error=${mappingErr instanceof Error ? mappingErr.message : String(mappingErr)}`
@@ -266,7 +278,7 @@ export async function listGlobalFoodsForAdmin(
     const [rows] = await connection.query<RowDataPacket[]>(builtQuery.fullSql, builtQuery.selectParams);
 
     const items: FoodListItemDto[] = (rows as RowDataPacket[]).map((r) =>
-      mapFoodRow(r as Record<string, unknown>)
+      mapFoodRow(r as Record<string, unknown>, filter.query)
     );
 
     return {
@@ -346,6 +358,9 @@ export async function getFoodWithPortions(
       }
     }
 
+    const effectiveDisplay = cleanFoodDisplayName(safeNullableString(f.display_name_pt_br) || safeString(f.name), safeNullableString(f.source_key)) || safeString(f.name);
+    const { preparationState, brandName } = detectFoodPreparationAndBrand(effectiveDisplay, safeString(f.name), safeNullableString(f.source_key), safeString(f.source_type, "MANUAL"));
+
     return {
       publicId: safeString(f.public_id),
       scope: (f.scope === "CONSULTANCY" ? "CONSULTANCY" : "GLOBAL") as NutritionV2FoodScope,
@@ -377,6 +392,8 @@ export async function getFoodWithPortions(
       createdAt: safeIsoString(f.created_at, new Date(0).toISOString())!,
       updatedAt: safeIsoString(f.updated_at, new Date(0).toISOString())!,
       deletedAt: safeIsoString(f.deleted_at, null),
+      preparationState,
+      brandName,
       portions: (portions as RowDataPacket[]).map((p) => ({
         publicId: safeString(p.public_id),
         label: safeString(p.label, "Porção"),

@@ -110,6 +110,7 @@ export function NutritionistFoodLibrary({
   const [scopeFilter, setScopeFilter] = useState<"ALL" | "GLOBAL" | "CONSULTANCY">("ALL");
   const [statusFilter, setStatusFilter] = useState<"ACTIVE" | "ARCHIVED" | "ALL">("ACTIVE");
   const [isPending, startTransition] = useTransition();
+  const requestIdRef = React.useRef(0);
 
   // Selected food for details / portions
   const [selectedFood, setSelectedFood] = useState<FoodWithPortionsDto | null>(null);
@@ -137,6 +138,7 @@ export function NutritionistFoodLibrary({
     currentStatus = statusFilter,
     currentTab = sourceTab
   ) {
+    const currentRequestId = ++requestIdRef.current;
     startTransition(async () => {
       const res = await listUnifiedFoodsAction(slug, {
         query: currentQuery,
@@ -146,6 +148,7 @@ export function NutritionistFoodLibrary({
         page: targetPage,
         pageSize: 20,
       });
+      if (currentRequestId !== requestIdRef.current) return;
       if (res.success && res.data) {
         setData(res.data as ListFoodsResult);
       } else {
@@ -398,15 +401,19 @@ export function NutritionistFoodLibrary({
       <div className="p-4 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 depth-surface">
         <div className="flex flex-col sm:flex-row gap-2.5">
           <div className="flex-1 relative">
+            <label htmlFor="food-library-search" className="sr-only">
+              Buscar alimento
+            </label>
             <SearchIcon className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none" />
             <input
+              id="food-library-search"
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") fetchFoods(1, query);
               }}
-              placeholder="Buscar por nome do alimento (ex: arroz, maçã, peito de frango)..."
+              placeholder="Nome, marca ou preparo (ex: arroz cozido, whey growth, pão francês)..."
               className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
             />
           </div>
@@ -478,13 +485,29 @@ export function NutritionistFoodLibrary({
         </div>
 
         {data.items.length === 0 ? (
-          <div className="p-12 text-center bg-[var(--surface)] border border-dashed border-[var(--border-default)] rounded-xl space-y-2 shadow-xs depth-surface">
-            <p className="text-sm font-bold text-[var(--text-primary)]">
-              Nenhum alimento encontrado
-            </p>
-            <p className="text-xs text-[var(--text-secondary)]">
-              Tente ajustar o termo de busca ou selecionar outros filtros.
-            </p>
+          <div className="p-10 text-center bg-[var(--surface)] border border-dashed border-[var(--border-default)] rounded-2xl space-y-3 shadow-xs depth-surface">
+            <div className="space-y-1">
+              <p className="text-sm font-bold text-[var(--text-primary)]">
+                Nenhum alimento encontrado
+              </p>
+              <p className="text-xs text-[var(--text-secondary)] max-w-md mx-auto">
+                Tente ajustar o termo de busca, verificar erros de digitação ou cadastrar uma preparação personalizada para a sua consultoria.
+              </p>
+            </div>
+            {canAuthorNutrition && (
+              <div className="pt-2 flex justify-center">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setIsCreateOpen(true)}
+                  className="font-bold min-h-[38px] text-xs shadow-xs"
+                >
+                  <PlusIcon className="w-3.5 h-3.5 mr-1.5" />
+                  <span>Cadastrar novo alimento na biblioteca</span>
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -498,9 +521,33 @@ export function NutritionistFoodLibrary({
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-0.5 min-w-0">
-                        <h3 className="font-bold text-sm sm:text-base text-[var(--text-primary)] leading-snug truncate">
-                          {food.displayNamePtBr || food.name}
-                        </h3>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h3 className="font-bold text-sm sm:text-base text-[var(--text-primary)] leading-snug truncate">
+                            {food.displayNamePtBr || food.name}
+                          </h3>
+                          {food.preparationState && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                              {food.preparationState}
+                            </span>
+                          )}
+                          {food.brandName && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
+                              {food.brandName}
+                            </span>
+                          )}
+                          {(food.caloriesKcal == null || food.proteinG == null || food.carbohydrateG == null || food.fatG == null) && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                              Dados incompletos
+                            </span>
+                          )}
+                        </div>
+                        {food.matchedAlias && (
+                          <div className="pt-0.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                              Também encontrado como: {food.matchedAlias}
+                            </span>
+                          </div>
+                        )}
                         {food.category && (
                           <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
                             {food.category}
@@ -632,7 +679,13 @@ export function NutritionistFoodLibrary({
                 <div className="flex items-start justify-between border-b border-[var(--border-subtle)] pb-3">
                   <div className="space-y-0.5 min-w-0">
                     <h2 className="text-lg font-bold text-[var(--text-primary)] truncate">{selectedFood.displayNamePtBr || selectedFood.name}</h2>
-                    <p className="text-xs text-[var(--text-secondary)] font-medium">{selectedFood.category || "Sem categoria"}</p>
+                    <div className="flex items-center gap-2 flex-wrap text-xs text-[var(--text-secondary)]">
+                      <span>Categoria: {selectedFood.category || "Não informado"}</span>
+                      <span>•</span>
+                      <span>Preparo: {selectedFood.preparationState || "Não informado"}</span>
+                      <span>•</span>
+                      <span>Marca: {selectedFood.brandName || "Não informada"}</span>
+                    </div>
                   </div>
                   <button
                     type="button"

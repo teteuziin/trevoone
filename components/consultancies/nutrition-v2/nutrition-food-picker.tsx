@@ -272,7 +272,7 @@ export function NutritionFoodPicker({
                       setQuery(e.target.value);
                       setPage(1);
                     }}
-                    placeholder="Buscar no catálogo (ex: Arroz, Frango, Maçã)..."
+                    placeholder="Nome, marca ou preparo (ex: arroz cozido, whey growth, pão francês)..."
                     className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
                   />
                   <svg className="w-4 h-4 absolute left-3 top-3 text-[var(--text-tertiary)] pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -401,10 +401,25 @@ export function NutritionFoodPicker({
                         className="p-3.5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] cursor-pointer transition-all flex items-center justify-between gap-3 depth-interactive"
                       >
                         <div className="space-y-1 min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] truncate">
                               {food.displayNamePtBr || food.name}
                             </span>
+                            {food.preparationState && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                                {food.preparationState}
+                              </span>
+                            )}
+                            {food.brandName && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
+                                {food.brandName}
+                              </span>
+                            )}
+                            {(food.caloriesKcal == null || food.proteinG == null || food.carbohydrateG == null || food.fatG == null) && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                                Dados incompletos
+                              </span>
+                            )}
                             <span
                               className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${
                                 food.scope === "GLOBAL"
@@ -439,6 +454,14 @@ export function NutritionFoodPicker({
                               );
                             })()}
                           </div>
+
+                          {food.matchedAlias && (
+                            <div className="pt-0.5">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                                Também encontrado como: {food.matchedAlias}
+                              </span>
+                            </div>
+                          )}
 
                           {hasDifferentEnglishName && (
                             <div className="text-[11px] text-[var(--text-tertiary)] italic truncate">

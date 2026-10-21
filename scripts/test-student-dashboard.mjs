@@ -51,9 +51,18 @@ const {
   parseScheduledWeekdays,
   formatScheduledWeekdaysLabel,
   resolveNextBlockInCycle,
+  buildStudentWorkoutExecutionUrl,
 } = await import("../lib/training-v2/daily-workout-resolver.ts");
 
 // 2. Unit Tests for Daily Workout Resolver Logic
+console.log("\n--- Testing Canonical URL Builder ---");
+const canonicalWithBlock = buildStudentWorkoutExecutionUrl("saiya-shape", "assign-123", "block-456");
+assert.strictEqual(canonicalWithBlock, "/consultoria/saiya-shape/treinos/assign-123?bloco=block-456", "Must format canonical execution URL with bloco");
+
+const canonicalWithoutBlock = buildStudentWorkoutExecutionUrl("saiya-shape", "assign-123");
+assert.strictEqual(canonicalWithoutBlock, "/consultoria/saiya-shape/treinos/assign-123", "Must format canonical execution URL without bloco");
+console.log("✓ Canonical URL Builder passed cleanly");
+
 console.log("\n--- Testing Weekday Schedule Parser ---");
 const monWedFri = parseScheduledWeekdays("Segunda, Quarta e Sexta — Peito");
 assert.deepStrictEqual(monWedFri, [1, 3, 5], "Must parse Segunda, Quarta, Sexta as [1, 3, 5]");
@@ -136,7 +145,7 @@ console.log("✓ Training focus section verified (division highlight, choose oth
 // Division picker modal verification
 assert(pickerCode.includes("A troca vale para esta sessão"), "Picker must clarify that swap applies only to this session");
 assert(pickerCode.includes("Fazer este treino"), "Picker CTA must be 'Fazer este treino'");
-assert(pickerCode.includes("?bloco="), "Picker must navigate to workout with bloco query param");
+assert(pickerCode.includes("buildStudentWorkoutExecutionUrl"), "Picker must navigate using buildStudentWorkoutExecutionUrl helper");
 console.log("✓ Workout division picker modal verified");
 
 // Post login welcome verification
@@ -150,7 +159,9 @@ console.log("✓ Post-login welcome screen verified (crisp logo, objective statu
 // Authoritative shared resolution verification
 assert(pageCode.includes("resolveStudentDailyWorkout"), "page.tsx must use resolveStudentDailyWorkout");
 assert(treinosPageCode.includes("resolveStudentDailyWorkout"), "treinos/page.tsx must use resolveStudentDailyWorkout");
+assert(treinosDetailCode.includes("getStudentWorkoutViewDetailed"), "treinos detail must call getStudentWorkoutViewDetailed");
+assert(treinosDetailCode.includes('result.status === "ENDED"'), "treinos detail must handle ENDED status gracefully");
 assert(treinosDetailCode.includes("initialSelectedBlockPublicId"), "treinos detail must pass initialSelectedBlockPublicId");
-console.log("✓ Shared authoritative resolution verified across dashboard and workout pages");
+console.log("✓ Shared authoritative resolution and graceful workout detail recovery verified");
 
 console.log("\n=== ALL 14 TEST SUITE ASSERTIONS PASSED WITH ZERO REGRESSIONS ===");

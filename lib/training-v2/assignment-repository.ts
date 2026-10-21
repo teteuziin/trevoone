@@ -4,7 +4,7 @@
  */
 
 import crypto from "node:crypto";
-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection, getDbPool } from "../db/mysql";
 import {
   TrainingAuthorizationError,
@@ -731,16 +731,58 @@ export async function listAssignmentsForStudent(
  * Uses frozen snapshots from the assigned version. Zero live joins to mutable exercise library rows.
  * Only ACTIVE assignments are visible to students (ENDED assignments return null for student callers).
  */
-export async function getStudentWorkoutView(
+export type StudentWorkoutAccessResult =
+  | {
+      status: "SUCCESS";
+      workoutView: StudentWorkoutViewContract;
+      resolvedAssignmentPublicId: string;
+      activeSessionPublicId?: string | null;
+      activeBlockPublicId?: string | null;
+      isSessionResumed: boolean;
+    }
+  | {
+      status: "ENDED";
+      message: string;
+      activeAssignmentPublicId?: string | null;
+      activeWorkoutTitle?: string | null;
+    }
+  | {
+      status: "NOT_FOUND";
+    };
+
+async function verifyUserMembershipOwnership(
+  connection: PoolConnection,
+  membershipId: number | string,
+  userId: number,
+  consultancyId?: number | null
+): Promise<boolean> {
+  if (!userId || !membershipId) return false;
+  const [rows] = await connection.execute(
+    `SELECT 1 FROM consultancy_members cm
+     WHERE cm.id = ? AND cm.user_id = ? AND cm.status = 'ACTIVE'
+       ${consultancyId ? "AND cm.consultancy_id = ?" : ""}
+     LIMIT 1;`,
+    consultancyId ? [membershipId, userId, consultancyId] : [membershipId, userId]
+  );
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+export async function getStudentWorkoutViewDetailed(
   ctx: TrainingAccessContext,
-  assignmentPublicId: string
-): Promise<StudentWorkoutViewContract | null> {
+  rawIdentifier: string,
+  preferredBlockPublicId?: string | null
+): Promise<StudentWorkoutAccessResult> {
   let connection;
   try {
     connection = await getDbConnection();
+    const cleanId = (rawIdentifier || "").trim();
+    if (!cleanId) return { status: "NOT_FOUND" };
 
-    // 1. Fetch assignment and verify ownership and status
-    const [assignRows] = await connection.execute<RowDataPacket[]>(
+    // 1. Resolve rawIdentifier to assignment row (Polymorphic: assignmentPublicId, sessionPublicId, workoutPublicId, versionPublicId)
+    let assignRows: RowDataPacket[] = [];
+
+    // Try direct wa.public_id first
+    const [byAssign] = await connection.execute<RowDataPacket[]>(
       `SELECT
         wa.id,
         wa.public_id,
@@ -751,53 +793,241 @@ export async function getStudentWorkoutView(
         DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
         DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
         wa.notes_for_student,
+        wv.id AS workout_version_id,
         wv.public_id AS workout_version_public_id,
         wv.version_number,
         wv.title,
         wv.subtitle,
         wv.objective,
         wv.estimated_duration_minutes,
-        wv.difficulty_level
+        wv.difficulty_level,
+        w.public_id AS workout_public_id
       FROM workout_assignments wa
       INNER JOIN consultancies c ON c.id = wa.consultancy_id
       INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
-      WHERE wa.public_id = ? AND wa.deleted_at IS NULL
+      INNER JOIN workouts w ON w.id = wv.workout_id
+      WHERE wa.public_id = ? AND wa.deleted_at IS NULL AND w.deleted_at IS NULL
       LIMIT 1;`,
-      [assignmentPublicId]
+      [cleanId]
     );
 
-    if (!assignRows || assignRows.length === 0) return null;
+    if (byAssign && byAssign.length > 0) {
+      assignRows = byAssign;
+    } else {
+      // Try resolving via execution session public_id
+      const [bySession] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          wa.id,
+          wa.public_id,
+          wa.status,
+          wa.consultancy_id,
+          c.name AS consultancy_name,
+          wa.student_membership_id,
+          DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
+          DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
+          wa.notes_for_student,
+          wv.id AS workout_version_id,
+          wv.public_id AS workout_version_public_id,
+          wv.version_number,
+          wv.title,
+          wv.subtitle,
+          wv.objective,
+          wv.estimated_duration_minutes,
+          wv.difficulty_level,
+          w.public_id AS workout_public_id
+        FROM workout_execution_sessions wes
+        INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
+        INNER JOIN consultancies c ON c.id = wa.consultancy_id
+        INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+        INNER JOIN workouts w ON w.id = wv.workout_id
+        WHERE wes.public_id = ? AND wa.deleted_at IS NULL AND w.deleted_at IS NULL
+        LIMIT 1;`,
+        [cleanId]
+      );
+      if (bySession && bySession.length > 0) {
+        assignRows = bySession;
+      } else {
+        // Try resolving via workout root public_id (routine ID)
+        const [byWorkout] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+            wa.id,
+            wa.public_id,
+            wa.status,
+            wa.consultancy_id,
+            c.name AS consultancy_name,
+            wa.student_membership_id,
+            DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
+            DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
+            wa.notes_for_student,
+            wv.id AS workout_version_id,
+            wv.public_id AS workout_version_public_id,
+            wv.version_number,
+            wv.title,
+            wv.subtitle,
+            wv.objective,
+            wv.estimated_duration_minutes,
+            wv.difficulty_level,
+            w.public_id AS workout_public_id
+          FROM workouts w
+          INNER JOIN workout_versions wv ON wv.workout_id = w.id
+          INNER JOIN workout_assignments wa ON wa.workout_version_id = wv.id
+          INNER JOIN consultancies c ON c.id = wa.consultancy_id
+          WHERE w.public_id = ? AND wa.consultancy_id = ?
+            AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+            AND wa.deleted_at IS NULL AND w.deleted_at IS NULL
+          ORDER BY (wa.status = 'ACTIVE') DESC, wa.starts_on DESC, wa.created_at DESC
+          LIMIT 1;`,
+          [cleanId, ctx.consultancyId!, ctx.membershipId!, ctx.userId, ctx.consultancyId!]
+        );
+        if (byWorkout && byWorkout.length > 0) {
+          assignRows = byWorkout;
+        } else {
+          // Try resolving via version public_id
+          const [byVersion] = await connection.execute<RowDataPacket[]>(
+            `SELECT
+              wa.id,
+              wa.public_id,
+              wa.status,
+              wa.consultancy_id,
+              c.name AS consultancy_name,
+              wa.student_membership_id,
+              DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
+              DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
+              wa.notes_for_student,
+              wv.id AS workout_version_id,
+              wv.public_id AS workout_version_public_id,
+              wv.version_number,
+              wv.title,
+              wv.subtitle,
+              wv.objective,
+              wv.estimated_duration_minutes,
+              wv.difficulty_level,
+              w.public_id AS workout_public_id
+            FROM workout_versions wv
+            INNER JOIN workout_assignments wa ON wa.workout_version_id = wv.id
+            INNER JOIN consultancies c ON c.id = wa.consultancy_id
+            INNER JOIN workouts w ON w.id = wv.workout_id
+            WHERE wv.public_id = ? AND wa.consultancy_id = ?
+              AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+              AND wa.deleted_at IS NULL AND w.deleted_at IS NULL
+            ORDER BY (wa.status = 'ACTIVE') DESC, wa.starts_on DESC, wa.created_at DESC
+            LIMIT 1;`,
+            [cleanId, ctx.consultancyId!, ctx.membershipId!, ctx.userId, ctx.consultancyId!]
+          );
+          if (byVersion && byVersion.length > 0) {
+            assignRows = byVersion;
+          }
+        }
+      }
+    }
+
+    if (!assignRows || assignRows.length === 0) {
+      return { status: "NOT_FOUND" };
+    }
+
     const a = assignRows[0];
 
-    // Tenancy check
+    // Tenancy verification
     if (ctx.consultancyId && Number(a.consultancy_id) !== ctx.consultancyId) {
-      return null;
+      return { status: "NOT_FOUND" };
     }
 
-    // Authorization: student owner or authorized consultancy coach
-    const isStudentOwner = ctx.membershipId && Number(a.student_membership_id) === ctx.membershipId;
-    const isConsultancyCoach = ctx.consultancyId && Number(a.consultancy_id) === ctx.consultancyId && ctx.canAuthorTraining;
+    // Student ownership or authorized coach
+    const isStudentOwner =
+      (ctx.membershipId && Number(a.student_membership_id) === ctx.membershipId) ||
+      (await verifyUserMembershipOwnership(connection, a.student_membership_id, ctx.userId, ctx.consultancyId));
+    const isConsultancyCoach =
+      ctx.consultancyId && Number(a.consultancy_id) === ctx.consultancyId && ctx.canAuthorTraining;
 
     if (!isStudentOwner && !isConsultancyCoach) {
-      return null;
+      return { status: "NOT_FOUND" };
     }
 
-    // For student callers: ENDED assignments are unavailable in active student experience
-    if (isStudentOwner && !isConsultancyCoach && a.status !== "ACTIVE") {
-      return null;
+    // 2. Check for an IN_PROGRESS execution session for this assignment / student
+    const [inProgressRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+         wes.id AS session_id,
+         wes.public_id AS session_public_id,
+         wes.workout_version_id,
+         wv.public_id AS session_version_public_id,
+         wv.version_number AS session_version_number,
+         wv.title AS session_title
+       FROM workout_execution_sessions wes
+       INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+       WHERE wes.workout_assignment_id = ?
+         AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+         AND wes.status = 'IN_PROGRESS'
+       ORDER BY wes.started_at DESC
+       LIMIT 1;`,
+      [a.id, a.student_membership_id, ctx.userId, ctx.consultancyId!]
+    );
+
+    const hasActiveSession = inProgressRows && inProgressRows.length > 0;
+    const activeSession = hasActiveSession ? inProgressRows[0] : null;
+
+    // 3. For student callers: if assignment is ENDED and there is NO active session in progress
+    if (isStudentOwner && !isConsultancyCoach && a.status !== "ACTIVE" && !hasActiveSession) {
+      // Find if student has any current ACTIVE assignment
+      const [latestActive] = await connection.execute<RowDataPacket[]>(
+        `SELECT wa.public_id, wv.title, wv.version_number
+         FROM workout_assignments wa
+         INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+         WHERE wa.consultancy_id = ?
+           AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+           AND wa.status = 'ACTIVE'
+           AND wa.deleted_at IS NULL
+         ORDER BY wa.starts_on DESC, wa.created_at DESC
+         LIMIT 1;`,
+        [ctx.consultancyId!, a.student_membership_id, ctx.userId, ctx.consultancyId!]
+      );
+      const activeItem = latestActive && latestActive.length > 0 ? latestActive[0] : null;
+
+      return {
+        status: "ENDED",
+        message: "Esta prescrição de treino já foi encerrada ou atualizada pelo seu treinador.",
+        activeAssignmentPublicId: activeItem ? String(activeItem.public_id) : null,
+        activeWorkoutTitle: activeItem ? String(activeItem.title) : null,
+      };
     }
 
-    // 2. Fetch the frozen version tree
-    const versionTree = await getWorkoutVersionTree(ctx, a.workout_version_public_id);
-    if (!versionTree) return null;
+    // 4. Determine effective version public ID to load
+    // If resuming an IN_PROGRESS session, load the session's exact version snapshot!
+    // Otherwise load the assignment's current assigned version.
+    const effectiveVersionPublicId = activeSession
+      ? String(activeSession.session_version_public_id)
+      : String(a.workout_version_public_id);
 
-    return {
+    // Fetch the version tree
+    const versionTree = await getWorkoutVersionTree(ctx, effectiveVersionPublicId);
+    if (!versionTree) {
+      return { status: "NOT_FOUND" };
+    }
+
+    // 5. Determine active block if resuming session and none explicitly selected
+    let activeBlockPublicId: string | null = preferredBlockPublicId || null;
+    if (activeSession && !activeBlockPublicId) {
+      const [lastSetRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT wb.public_id
+         FROM workout_execution_sets wex
+         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+         WHERE wex.execution_session_id = ?
+         ORDER BY wex.completed_at DESC, wex.set_number ASC
+         LIMIT 1;`,
+        [activeSession.session_id]
+      );
+      if (lastSetRows && lastSetRows.length > 0) {
+        activeBlockPublicId = String(lastSetRows[0].public_id);
+      }
+    }
+
+    const workoutView: StudentWorkoutViewContract = {
       assignmentPublicId: String(a.public_id),
       consultancyName: String(a.consultancy_name),
       startsOn: formatDateYmd(a.starts_on),
       endsOn: a.ends_on ? formatDateYmd(a.ends_on) : null,
-      versionNumber: Number(a.version_number),
-      title: String(a.title),
+      versionNumber: activeSession ? Number(activeSession.session_version_number) : Number(a.version_number),
+      title: activeSession ? String(activeSession.session_title) : String(a.title),
       subtitle: a.subtitle ? String(a.subtitle) : null,
       objective: a.objective ? String(a.objective) : null,
       estimatedDurationMinutes: a.estimated_duration_minutes != null ? Number(a.estimated_duration_minutes) : null,
@@ -805,9 +1035,26 @@ export async function getStudentWorkoutView(
       notesForStudent: a.notes_for_student ? String(a.notes_for_student) : null,
       blocks: versionTree.blocks,
     };
+
+    return {
+      status: "SUCCESS",
+      workoutView,
+      resolvedAssignmentPublicId: String(a.public_id),
+      activeSessionPublicId: activeSession ? String(activeSession.session_public_id) : null,
+      activeBlockPublicId,
+      isSessionResumed: Boolean(activeSession),
+    };
   } finally {
     if (connection) connection.release();
   }
+}
+
+export async function getStudentWorkoutView(
+  ctx: TrainingAccessContext,
+  assignmentPublicId: string
+): Promise<StudentWorkoutViewContract | null> {
+  const result = await getStudentWorkoutViewDetailed(ctx, assignmentPublicId);
+  return result.status === "SUCCESS" ? result.workoutView : null;
 }
 
 /**

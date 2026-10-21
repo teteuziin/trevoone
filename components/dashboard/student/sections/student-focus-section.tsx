@@ -112,8 +112,8 @@ export function StudentFocusSection({
                     {headlineTitle}
                   </h2>
                   <span className="text-xs text-zinc-500 dark:text-[#8E95A2]">
-                    {dailyWorkoutResolution?.todayWeekdayName ? `${dailyWorkoutResolution.todayWeekdayName} · ` : ""}
-                    Prescrição da consultoria
+                    {dailyWorkoutResolution?.todayWeekdayName ? `Hoje: ${dailyWorkoutResolution.todayWeekdayName} · ` : ""}
+                    {isSessionInProgress ? "Em andamento" : "Prescrição da consultoria"}
                   </span>
                 </div>
               </div>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { DailyWorkoutDivisionOption } from "@/lib/training-v2/daily-workout-resolver";
+import { buildStudentWorkoutExecutionUrl } from "@/lib/training-v2/route-helpers";
 
 export interface WorkoutDivisionPickerModalProps {
   isOpen: boolean;
@@ -52,7 +53,7 @@ export function WorkoutDivisionPickerModal({
     handleClose();
     // Navega para a página de execução com o parâmetro de query bloco selecionado
     router.push(
-      `/consultoria/${consultancySlug}/treinos/${assignmentPublicId}?bloco=${selectedPublicId}`
+      buildStudentWorkoutExecutionUrl(consultancySlug, assignmentPublicId, selectedPublicId)
     );
   };
 

@@ -5,7 +5,11 @@ import { DumbbellIcon as Dumbbell, ClockIcon as Clock } from "@/components/ui/ic
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveStudentModuleAccess } from "@/lib/consultancies/student-module-access";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
-import { resolveStudentDailyWorkout, type DailyWorkoutResolution } from "@/lib/training-v2/daily-workout-resolver";
+import {
+  resolveStudentDailyWorkout,
+  buildStudentWorkoutExecutionUrl,
+  type DailyWorkoutResolution,
+} from "@/lib/training-v2/daily-workout-resolver";
 import {
   listStudentWorkoutCards,
   type StudentWorkoutCardDto,
@@ -280,7 +284,7 @@ export default async function StudentTreinosPage({ params }: PageProps) {
 
                     <div className="shrink-0 pt-1 sm:pt-0">
                       <Link
-                        href={`/consultoria/${slug}/treinos/${primaryAssignment.assignmentPublicId}`}
+                        href={buildStudentWorkoutExecutionUrl(slug, primaryAssignment.assignmentPublicId)}
                         className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-bold text-sm text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] shadow-sm transition-all min-h-[48px] depth-interactive cursor-pointer"
                       >
                         Acessar treino completo →
@@ -410,7 +414,7 @@ export default async function StudentTreinosPage({ params }: PageProps) {
                         </div>
 
                         <Link
-                          href={`/consultoria/${slug}/treinos/${assignment.assignmentPublicId}`}
+                          href={buildStudentWorkoutExecutionUrl(slug, assignment.assignmentPublicId)}
                           className="w-full inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] shadow-xs transition-all min-h-[44px] depth-interactive cursor-pointer"
                         >
                           Acessar este treino →

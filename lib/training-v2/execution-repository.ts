@@ -5,7 +5,7 @@
  */
 
 import crypto from "node:crypto";
-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection, getDbPool } from "../db/mysql";
 import {
   TrainingAuthorizationError,
@@ -47,6 +47,108 @@ function mapExecutionSetRow(r: RowDataPacket): WorkoutExecutionSetDto {
   };
 }
 
+type ResolvedAssignmentRow = {
+  id: number;
+  public_id: string;
+  consultancy_id: number;
+  student_membership_id: number;
+  workout_version_id: number;
+  status: string;
+};
+
+async function verifyUserMembershipOwnership(
+  connection: PoolConnection,
+  membershipId: number | string,
+  userId: number,
+  consultancyId?: number | null
+): Promise<boolean> {
+  if (!userId || !membershipId) return false;
+  const [rows] = await connection.execute(
+    `SELECT 1 FROM consultancy_members cm
+     WHERE cm.id = ? AND cm.user_id = ? AND cm.status = 'ACTIVE'
+       ${consultancyId ? "AND cm.consultancy_id = ?" : ""}
+     LIMIT 1;`,
+    consultancyId ? [membershipId, userId, consultancyId] : [membershipId, userId]
+  );
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+async function resolveAssignmentForExecution(
+  connection: PoolConnection,
+  rawIdentifier: string,
+  consultancyId: number,
+  membershipId: number,
+  userId: number
+): Promise<ResolvedAssignmentRow | null> {
+  const cleanId = (rawIdentifier || "").trim();
+  if (!cleanId) return null;
+
+  // Direct assignment public_id
+  const [byAssign] = await connection.execute(
+    `SELECT wa.id, wa.public_id, wa.consultancy_id, wa.student_membership_id, wa.workout_version_id, wa.status
+     FROM workout_assignments wa
+     INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+     INNER JOIN workouts w ON w.id = wv.workout_id
+     WHERE wa.public_id = ? AND wa.deleted_at IS NULL AND w.deleted_at IS NULL
+     LIMIT 1;`,
+    [cleanId]
+  );
+  if (Array.isArray(byAssign) && byAssign.length > 0) {
+    return byAssign[0] as unknown as ResolvedAssignmentRow;
+  }
+
+  // Session public_id
+  const [bySession] = await connection.execute(
+    `SELECT wa.id, wa.public_id, wa.consultancy_id, wa.student_membership_id, wa.workout_version_id, wa.status
+     FROM workout_execution_sessions wes
+     INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
+     INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+     INNER JOIN workouts w ON w.id = wv.workout_id
+     WHERE wes.public_id = ? AND wa.deleted_at IS NULL AND w.deleted_at IS NULL
+     LIMIT 1;`,
+    [cleanId]
+  );
+  if (Array.isArray(bySession) && bySession.length > 0) {
+    return bySession[0] as unknown as ResolvedAssignmentRow;
+  }
+
+  // Workout root public_id
+  const [byWorkout] = await connection.execute(
+    `SELECT wa.id, wa.public_id, wa.consultancy_id, wa.student_membership_id, wa.workout_version_id, wa.status
+     FROM workouts w
+     INNER JOIN workout_versions wv ON wv.workout_id = w.id
+     INNER JOIN workout_assignments wa ON wa.workout_version_id = wv.id
+     WHERE w.public_id = ? AND wa.consultancy_id = ?
+       AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+       AND wa.deleted_at IS NULL AND w.deleted_at IS NULL
+     ORDER BY (wa.status = 'ACTIVE') DESC, wa.starts_on DESC, wa.created_at DESC
+     LIMIT 1;`,
+    [cleanId, consultancyId, membershipId, userId, consultancyId]
+  );
+  if (Array.isArray(byWorkout) && byWorkout.length > 0) {
+    return byWorkout[0] as unknown as ResolvedAssignmentRow;
+  }
+
+  // Version public_id
+  const [byVersion] = await connection.execute(
+    `SELECT wa.id, wa.public_id, wa.consultancy_id, wa.student_membership_id, wa.workout_version_id, wa.status
+     FROM workout_versions wv
+     INNER JOIN workout_assignments wa ON wa.workout_version_id = wv.id
+     INNER JOIN workouts w ON w.id = wv.workout_id
+     WHERE wv.public_id = ? AND wa.consultancy_id = ?
+       AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+       AND wa.deleted_at IS NULL AND w.deleted_at IS NULL
+     ORDER BY (wa.status = 'ACTIVE') DESC, wa.starts_on DESC, wa.created_at DESC
+     LIMIT 1;`,
+    [cleanId, consultancyId, membershipId, userId, consultancyId]
+  );
+  if (Array.isArray(byVersion) && byVersion.length > 0) {
+    return byVersion[0] as unknown as ResolvedAssignmentRow;
+  }
+
+  return null;
+}
+
 /**
  * Starts or resumes a student workout execution session.
  * Enforces:
@@ -67,6 +169,16 @@ export async function startOrResumeWorkoutExecution(
   try {
     await connection.beginTransaction();
 
+    // Resolve polymorphic identifier if needed (assignment, session, workout, version)
+    const resolved = await resolveAssignmentForExecution(
+      connection,
+      assignmentPublicId,
+      ctx.consultancyId!,
+      ctx.membershipId!,
+      ctx.userId
+    );
+    const assignTargetId = resolved ? resolved.id : null;
+
     // 1. Lock and validate assignment row
     const [assignRows] = await connection.execute<RowDataPacket[]>(
       `SELECT
@@ -79,10 +191,10 @@ export async function startOrResumeWorkoutExecution(
         wv.public_id AS version_public_id
        FROM workout_assignments wa
        INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
-       WHERE wa.public_id = ? AND wa.deleted_at IS NULL
+       WHERE ${assignTargetId ? "wa.id = ?" : "wa.public_id = ?"} AND wa.deleted_at IS NULL
        LIMIT 1
        FOR UPDATE;`,
-      [assignmentPublicId]
+      [assignTargetId ? assignTargetId : assignmentPublicId]
     );
 
     if (!assignRows || assignRows.length === 0) {
@@ -96,21 +208,16 @@ export async function startOrResumeWorkoutExecution(
       throw new TrainingAuthorizationError("Acesso negado: consultoria incompatível.", "FORBIDDEN", 403);
     }
 
-    // Student ownership
-    if (Number(a.student_membership_id) !== ctx.membershipId) {
+    // Student ownership with multi-membership verification
+    const isOwner =
+      Number(a.student_membership_id) === ctx.membershipId ||
+      (await verifyUserMembershipOwnership(connection, a.student_membership_id, ctx.userId, ctx.consultancyId));
+
+    if (!isOwner) {
       throw new TrainingAuthorizationError("Acesso negado: prescrição não pertence a este aluno.", "FORBIDDEN", 403);
     }
 
-    // Must be an active assignment
-    if (a.status !== "ACTIVE") {
-      throw new TrainingAuthorizationError(
-        "Apenas prescrições ativas podem ser iniciadas para execução.",
-        "INVALID_ASSIGNMENT_STATUS",
-        400
-      );
-    }
-
-    // 2. Check for an existing IN_PROGRESS execution session for this assignment
+    // 2. Check for an existing IN_PROGRESS execution session for this assignment FIRST
     const [existingSessions] = await connection.execute<RowDataPacket[]>(
       `SELECT
         wes.id,
@@ -123,8 +230,10 @@ export async function startOrResumeWorkoutExecution(
         wes.started_at,
         wes.completed_at,
         wes.created_at,
-        wes.updated_at
+        wes.updated_at,
+        wv.public_id AS session_version_public_id
        FROM workout_execution_sessions wes
+       INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
        WHERE wes.workout_assignment_id = ? AND wes.status = 'IN_PROGRESS'
        LIMIT 1
        FOR UPDATE;`,
@@ -168,7 +277,7 @@ export async function startOrResumeWorkoutExecution(
         consultancyId: Number(activeSession.consultancy_id),
         studentMembershipId: Number(activeSession.student_membership_id),
         workoutAssignmentPublicId: String(a.public_id),
-        workoutVersionPublicId: String(a.version_public_id),
+        workoutVersionPublicId: String(activeSession.session_version_public_id || a.version_public_id),
         status: activeSession.status as WorkoutExecutionSessionStatus,
         startedAt: new Date(activeSession.started_at),
         completedAt: activeSession.completed_at ? new Date(activeSession.completed_at) : null,
@@ -176,6 +285,15 @@ export async function startOrResumeWorkoutExecution(
         updatedAt: new Date(activeSession.updated_at),
         sets: setRows.map(mapExecutionSetRow),
       };
+    }
+
+    // 3. No IN_PROGRESS session: validate assignment is ACTIVE to start a new execution session
+    if (a.status !== "ACTIVE") {
+      throw new TrainingAuthorizationError(
+        "Apenas prescrições ativas podem ser iniciadas para execução.",
+        "INVALID_ASSIGNMENT_STATUS",
+        400
+      );
     }
 
     // 3. No IN_PROGRESS session: create a new session and snapshot all prescribed sets
@@ -480,6 +598,15 @@ export async function getActiveStudentWorkoutExecution(
   try {
     connection = await getDbConnection();
 
+    const resolved = await resolveAssignmentForExecution(
+      connection,
+      assignmentPublicId,
+      ctx.consultancyId || 0,
+      ctx.membershipId || 0,
+      ctx.userId
+    );
+    const assignTargetId = resolved ? resolved.id : null;
+
     const [sessionRows] = await connection.execute<RowDataPacket[]>(
       `SELECT
         wes.id,
@@ -496,11 +623,11 @@ export async function getActiveStudentWorkoutExecution(
        FROM workout_execution_sessions wes
        INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
        INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
-       WHERE wa.public_id = ?
+       WHERE ${assignTargetId ? "wa.id = ?" : "wa.public_id = ?"}
          AND wes.status = 'IN_PROGRESS'
          AND wa.deleted_at IS NULL
        LIMIT 1;`,
-      [assignmentPublicId]
+      [assignTargetId ? assignTargetId : assignmentPublicId]
     );
 
     if (!sessionRows || sessionRows.length === 0) return null;
@@ -512,7 +639,9 @@ export async function getActiveStudentWorkoutExecution(
     }
 
     // Ownership check: student owner or coach/admin in same consultancy
-    const isStudentOwner = ctx.membershipId && Number(s.student_membership_id) === ctx.membershipId;
+    const isStudentOwner =
+      (ctx.membershipId && Number(s.student_membership_id) === ctx.membershipId) ||
+      (await verifyUserMembershipOwnership(connection, s.student_membership_id, ctx.userId, ctx.consultancyId));
     const isCoachOrAdmin =
       ctx.consultancyId &&
       Number(s.consultancy_id) === ctx.consultancyId &&
@@ -580,6 +709,15 @@ export async function getActiveOrLatestStudentWorkoutExecution(
   try {
     connection = await getDbConnection();
 
+    const resolved = await resolveAssignmentForExecution(
+      connection,
+      assignmentPublicId,
+      ctx.consultancyId || 0,
+      ctx.membershipId || 0,
+      ctx.userId
+    );
+    const assignTargetId = resolved ? resolved.id : null;
+
     const [sessionRows] = await connection.execute<RowDataPacket[]>(
       `SELECT
         wes.id,
@@ -596,7 +734,7 @@ export async function getActiveOrLatestStudentWorkoutExecution(
        FROM workout_execution_sessions wes
        INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
        INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
-       WHERE wa.public_id = ?
+       WHERE ${assignTargetId ? "wa.id = ?" : "wa.public_id = ?"}
          AND wa.deleted_at IS NULL
          AND wes.status IN ('IN_PROGRESS', 'COMPLETED')
        ORDER BY
@@ -604,7 +742,7 @@ export async function getActiveOrLatestStudentWorkoutExecution(
          wes.completed_at DESC,
          wes.created_at DESC
        LIMIT 1;`,
-      [assignmentPublicId]
+      [assignTargetId ? assignTargetId : assignmentPublicId]
     );
 
     if (!sessionRows || sessionRows.length === 0) return null;
@@ -616,7 +754,9 @@ export async function getActiveOrLatestStudentWorkoutExecution(
     }
 
     // Ownership check: student owner or coach/admin in same consultancy
-    const isStudentOwner = ctx.membershipId && Number(s.student_membership_id) === ctx.membershipId;
+    const isStudentOwner =
+      (ctx.membershipId && Number(s.student_membership_id) === ctx.membershipId) ||
+      (await verifyUserMembershipOwnership(connection, s.student_membership_id, ctx.userId, ctx.consultancyId));
     const isCoachOrAdmin =
       ctx.consultancyId &&
       Number(s.consultancy_id) === ctx.consultancyId &&
@@ -670,7 +810,6 @@ export async function getActiveOrLatestStudentWorkoutExecution(
   }
 }
 
-
 /**
  * Fetches an execution session by its public_id.
  * Validates consultancy tenancy and student ownership (or authorized coach viewing).
@@ -713,7 +852,9 @@ export async function getStudentWorkoutExecution(
     }
 
     // Ownership check: student owner or coach/admin in same consultancy
-    const isStudentOwner = ctx.membershipId && Number(s.student_membership_id) === ctx.membershipId;
+    const isStudentOwner =
+      (ctx.membershipId && Number(s.student_membership_id) === ctx.membershipId) ||
+      (await verifyUserMembershipOwnership(connection, s.student_membership_id, ctx.userId, ctx.consultancyId));
     const isCoachOrAdmin = ctx.consultancyId && Number(s.consultancy_id) === ctx.consultancyId && (ctx.canAuthorTraining || ctx.canManageConsultancy);
 
     if (!isStudentOwner && !isCoachOrAdmin) {
@@ -857,7 +998,11 @@ export async function completeWorkoutExecutionSet(
       throw new TrainingAuthorizationError("Acesso negado: sessão de outra consultoria.", "FORBIDDEN", 403);
     }
 
-    if (Number(session.student_membership_id) !== ctx.membershipId) {
+    const isSessionOwner =
+      Number(session.student_membership_id) === ctx.membershipId ||
+      (await verifyUserMembershipOwnership(connection, session.student_membership_id, ctx.userId, ctx.consultancyId));
+
+    if (!isSessionOwner) {
       throw new TrainingAuthorizationError("Acesso negado: sessão pertence a outro aluno.", "FORBIDDEN", 403);
     }
 
@@ -1008,7 +1153,11 @@ export async function completeWorkoutExecution(
       throw new TrainingAuthorizationError("Acesso negado: sessão de outra consultoria.", "FORBIDDEN", 403);
     }
 
-    if (Number(s.student_membership_id) !== ctx.membershipId) {
+    const isSessionOwner =
+      Number(s.student_membership_id) === ctx.membershipId ||
+      (await verifyUserMembershipOwnership(connection, s.student_membership_id, ctx.userId, ctx.consultancyId));
+
+    if (!isSessionOwner) {
       throw new TrainingAuthorizationError("Acesso negado: sessão pertence a outro aluno.", "FORBIDDEN", 403);
     }
 
@@ -1154,13 +1303,22 @@ export async function listStudentWorkoutExecutionHistory(
   const connection = await pool.getConnection();
 
   try {
+    const resolved = await resolveAssignmentForExecution(
+      connection,
+      assignmentPublicId,
+      ctx.consultancyId || 0,
+      ctx.membershipId || 0,
+      ctx.userId
+    );
+    const assignTargetId = resolved ? resolved.id : null;
+
     // 1. Validate assignment ownership and tenancy
     const [assignRows] = await connection.execute<RowDataPacket[]>(
       `SELECT id, consultancy_id, student_membership_id
        FROM workout_assignments
-       WHERE public_id = ? AND deleted_at IS NULL
+       WHERE ${assignTargetId ? "id = ?" : "public_id = ?"} AND deleted_at IS NULL
        LIMIT 1;`,
-      [assignmentPublicId]
+      [assignTargetId ? assignTargetId : assignmentPublicId]
     );
 
     if (!assignRows || assignRows.length === 0) {
@@ -1180,7 +1338,11 @@ export async function listStudentWorkoutExecutionHistory(
       );
     }
 
-    if (Number(assign.student_membership_id) !== ctx.membershipId) {
+    const isAssignOwner =
+      Number(assign.student_membership_id) === ctx.membershipId ||
+      (await verifyUserMembershipOwnership(connection, assign.student_membership_id, ctx.userId, ctx.consultancyId));
+
+    if (!isAssignOwner) {
       throw new TrainingAuthorizationError(
         "Acesso negado: prescrição pertence a outro aluno.",
         "FORBIDDEN",

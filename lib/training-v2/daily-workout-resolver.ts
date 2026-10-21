@@ -54,6 +54,9 @@ export interface DailyWorkoutResolution {
   consultancyTimezone: string;
 }
 
+import { buildStudentWorkoutExecutionUrl } from "./route-helpers";
+export { buildStudentWorkoutExecutionUrl };
+
 const WEEKDAY_NAMES_PT = [
   "Domingo",
   "Segunda-feira",
@@ -203,17 +206,18 @@ export async function resolveStudentDailyWorkout(
          wes.workout_version_id,
          wes.started_at,
          wa.public_id AS assignment_public_id,
+         wa.status AS assignment_status,
          wv.title AS routine_title,
          wv.version_number
        FROM workout_execution_sessions wes
        INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
        INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
        WHERE wes.consultancy_id = ?
-         AND wes.student_membership_id = ?
+         AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
          AND wes.status = 'IN_PROGRESS'
          AND wa.deleted_at IS NULL
        LIMIT 1;`,
-      [ctx.consultancyId!, ctx.membershipId!]
+      [ctx.consultancyId!, ctx.membershipId!, ctx.userId, ctx.consultancyId!]
     );
 
     if (inProgressRows && inProgressRows.length > 0) {
@@ -275,9 +279,11 @@ export async function resolveStudentDailyWorkout(
         activeSessionPublicId: String(activeSession.session_public_id),
         targetBlockPublicId: activeBlock ? String(activeBlock.public_id) : null,
         targetBlockIndex: activeBlock ? availableDivisions.findIndex((d) => d.publicId === activeBlock.public_id) : 0,
-        actionHref: `/consultoria/${consultancySlug}/treinos/${activeSession.assignment_public_id}${
-          activeBlock ? `?bloco=${activeBlock.public_id}` : ""
-        }`,
+        actionHref: buildStudentWorkoutExecutionUrl(
+          consultancySlug,
+          String(activeSession.assignment_public_id),
+          activeBlock ? String(activeBlock.public_id) : null
+        ),
         actionLabel: "Continuar treino",
         canChangeDivision: availableDivisions.length > 1,
         contextNote: "Você possui uma sessão em andamento. Continue de onde parou.",
@@ -473,7 +479,11 @@ export async function resolveStudentDailyWorkout(
             assignmentPublicId: String(currentAssign.assignment_public_id),
             targetBlockPublicId: scheduledBlockToday.publicId,
             targetBlockIndex: blockIdx,
-            actionHref: `/consultoria/${consultancySlug}/treinos/${currentAssign.assignment_public_id}?bloco=${scheduledBlockToday.publicId}`,
+            actionHref: buildStudentWorkoutExecutionUrl(
+              consultancySlug,
+              String(currentAssign.assignment_public_id),
+              scheduledBlockToday.publicId
+            ),
             actionLabel: "Treinar novamente",
             canChangeDivision: availableDivisions.length > 1,
             contextNote: "Você já realizou este treino hoje. Sua programação semanal permanece mantida.",
@@ -496,7 +506,11 @@ export async function resolveStudentDailyWorkout(
           assignmentPublicId: String(currentAssign.assignment_public_id),
           targetBlockPublicId: scheduledBlockToday.publicId,
           targetBlockIndex: blockIdx,
-          actionHref: `/consultoria/${consultancySlug}/treinos/${currentAssign.assignment_public_id}?bloco=${scheduledBlockToday.publicId}`,
+          actionHref: buildStudentWorkoutExecutionUrl(
+            consultancySlug,
+            String(currentAssign.assignment_public_id),
+            scheduledBlockToday.publicId
+          ),
           actionLabel: "Iniciar treino",
           canChangeDivision: availableDivisions.length > 1,
           contextNote: `Programado para ${todayWeekdayName}.`,
@@ -520,7 +534,10 @@ export async function resolveStudentDailyWorkout(
         assignmentPublicId: String(currentAssign.assignment_public_id),
         targetBlockPublicId: availableDivisions[0]?.publicId || null,
         targetBlockIndex: 0,
-        actionHref: `/consultoria/${consultancySlug}/treinos/${currentAssign.assignment_public_id}`,
+        actionHref: buildStudentWorkoutExecutionUrl(
+          consultancySlug,
+          String(currentAssign.assignment_public_id)
+        ),
         actionLabel: "Escolher treino",
         canChangeDivision: availableDivisions.length > 0,
         contextNote: "Nenhum treino programado para hoje no seu calendário. Se desejar treinar, escolha uma divisão.",
@@ -581,7 +598,11 @@ export async function resolveStudentDailyWorkout(
       assignmentPublicId: String(currentAssign.assignment_public_id),
       targetBlockPublicId: targetBlock.publicId,
       targetBlockIndex: nextIndex,
-      actionHref: `/consultoria/${consultancySlug}/treinos/${currentAssign.assignment_public_id}?bloco=${targetBlock.publicId}`,
+      actionHref: buildStudentWorkoutExecutionUrl(
+        consultancySlug,
+        String(currentAssign.assignment_public_id),
+        targetBlock.publicId
+      ),
       actionLabel: isCompletedToday ? "Treinar novamente" : "Iniciar treino",
       canChangeDivision: availableDivisions.length > 1,
       contextNote: isCompletedToday

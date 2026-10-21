@@ -312,21 +312,39 @@ export async function getFoodWithPortions(
       }
     }
 
-    const [portions] = await connection.query<RowDataPacket[]>(
-      `SELECT public_id, label, equivalent_reference_amount, sort_order, status,
-              scope, consultancy_id, created_by_user_id, notes,
-              created_at, updated_at, deleted_at
-       FROM nutrition_v2_food_portions
-       WHERE food_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
-         AND (
-           scope = 'GLOBAL'
-           OR scope IS NULL
-           OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-           OR (scope = 'PERSONAL' AND created_by_user_id = ?)
-         )
-       ORDER BY sort_order ASC, label ASC`,
-      [f.id, ctx.consultancyId || 0, ctx.userId || 0]
-    );
+    let portions: RowDataPacket[] = [];
+    try {
+      const [res] = await connection.query<RowDataPacket[]>(
+        `SELECT public_id, label, equivalent_reference_amount, sort_order, status,
+                scope, consultancy_id, created_by_user_id, notes,
+                created_at, updated_at, deleted_at
+         FROM nutrition_v2_food_portions
+         WHERE food_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
+           AND (
+             scope = 'GLOBAL'
+             OR scope IS NULL
+             OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+             OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+           )
+         ORDER BY sort_order ASC, label ASC`,
+        [f.id, ctx.consultancyId || 0, ctx.userId || 0]
+      );
+      portions = res;
+    } catch (err: unknown) {
+      if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+        const [res] = await connection.query<RowDataPacket[]>(
+          `SELECT public_id, label, equivalent_reference_amount, sort_order, status,
+                  created_at, updated_at, deleted_at
+           FROM nutrition_v2_food_portions
+           WHERE food_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
+           ORDER BY sort_order ASC, label ASC`,
+          [f.id]
+        );
+        portions = res;
+      } else {
+        throw err;
+      }
+    }
 
     return {
       publicId: safeString(f.public_id),
@@ -851,21 +869,39 @@ export async function createFoodPortion(
     const sortOrder = Number(input.sortOrder) || 0;
     const notes = input.notes ? input.notes.trim() : null;
 
-    await connection.query(
-      `INSERT INTO nutrition_v2_food_portions (
-        public_id,
-        food_id,
-        label,
-        equivalent_reference_amount,
-        sort_order,
-        status,
-        scope,
-        consultancy_id,
-        created_by_user_id,
-        notes
-      ) VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?)`,
-      [portionPublicId, food.id, label, amount, sortOrder, effectiveScope, effectiveConsultancyId, effectiveCreatedByUserId, notes]
-    );
+    try {
+      await connection.query(
+        `INSERT INTO nutrition_v2_food_portions (
+          public_id,
+          food_id,
+          label,
+          equivalent_reference_amount,
+          sort_order,
+          status,
+          scope,
+          consultancy_id,
+          created_by_user_id,
+          notes
+        ) VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?)`,
+        [portionPublicId, food.id, label, amount, sortOrder, effectiveScope, effectiveConsultancyId, effectiveCreatedByUserId, notes]
+      );
+    } catch (err: unknown) {
+      if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+        await connection.query(
+          `INSERT INTO nutrition_v2_food_portions (
+            public_id,
+            food_id,
+            label,
+            equivalent_reference_amount,
+            sort_order,
+            status
+          ) VALUES (?, ?, ?, ?, ?, 'ACTIVE')`,
+          [portionPublicId, food.id, label, amount, sortOrder]
+        );
+      } else {
+        throw err;
+      }
+    }
 
     return { publicId: portionPublicId };
   } finally {
@@ -1025,18 +1061,34 @@ export async function findSimilarFoodPortion(
     if (foods.length === 0) return { exists: false };
     const foodId = foods[0].id;
 
-    const [portions] = await connection.query<RowDataPacket[]>(
-      `SELECT label, equivalent_reference_amount, scope, notes
-       FROM nutrition_v2_food_portions
-       WHERE food_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
-         AND (
-           scope = 'GLOBAL'
-           OR scope IS NULL
-           OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-           OR (scope = 'PERSONAL' AND created_by_user_id = ?)
-         )`,
-      [foodId, ctx.consultancyId || 0, ctx.userId || 0]
-    );
+    let portions: RowDataPacket[] = [];
+    try {
+      const [res] = await connection.query<RowDataPacket[]>(
+        `SELECT label, equivalent_reference_amount, scope, notes
+         FROM nutrition_v2_food_portions
+         WHERE food_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
+           AND (
+             scope = 'GLOBAL'
+             OR scope IS NULL
+             OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+             OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+           )`,
+        [foodId, ctx.consultancyId || 0, ctx.userId || 0]
+      );
+      portions = res;
+    } catch (err: unknown) {
+      if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+        const [res] = await connection.query<RowDataPacket[]>(
+          `SELECT label, equivalent_reference_amount
+           FROM nutrition_v2_food_portions
+           WHERE food_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'`,
+          [foodId]
+        );
+        portions = res;
+      } else {
+        throw err;
+      }
+    }
 
     const normInput = rawLabel
       .normalize("NFD")

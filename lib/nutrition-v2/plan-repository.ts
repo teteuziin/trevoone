@@ -783,49 +783,101 @@ export async function getPlanVersionTreeByPlanPublicId(
     let substitutions: RowDataPacket[] = [];
 
     if (mealIds.length > 0) {
-      // 4. Get all meal items
-      const [itemRows] = await connection.query<RowDataPacket[]>(
-        `SELECT
-          mi.*,
-          f.public_id AS food_public_id,
-          f.scope AS food_scope,
-          COALESCE(mi.portion_equivalent_amount, fp.equivalent_reference_amount) AS portion_equivalent_amount
-         FROM nutrition_v2_meal_items mi
-         LEFT JOIN nutrition_v2_foods f ON f.id = mi.food_id
-         LEFT JOIN (
-           SELECT food_id, LOWER(TRIM(label)) AS norm_label, MAX(equivalent_reference_amount) AS equivalent_reference_amount
-           FROM nutrition_v2_food_portions
-           WHERE deleted_at IS NULL AND status = 'ACTIVE'
-           GROUP BY food_id, LOWER(TRIM(label))
-         ) fp ON fp.food_id = mi.food_id AND fp.norm_label = LOWER(TRIM(mi.prescribed_unit_label))
-         WHERE mi.meal_id IN (?) AND mi.deleted_at IS NULL
-         ORDER BY mi.sort_order ASC, mi.id ASC`,
-        [mealIds]
-      );
-      items = itemRows;
-
-      const itemIds = items.map((i) => i.id);
-      if (itemIds.length > 0) {
-        // 5. Get all substitutions
-        const [subRows] = await connection.query<RowDataPacket[]>(
+      // 4. Get all meal items (with schema fallback if migration 056 is pending)
+      try {
+        const [itemRows] = await connection.query<RowDataPacket[]>(
           `SELECT
-            s.*,
+            mi.*,
             f.public_id AS food_public_id,
             f.scope AS food_scope,
-            COALESCE(s.portion_equivalent_amount, fp.equivalent_reference_amount) AS portion_equivalent_amount
-           FROM nutrition_v2_item_substitutions s
-           LEFT JOIN nutrition_v2_foods f ON f.id = s.food_id
+            COALESCE(mi.portion_equivalent_amount, fp.equivalent_reference_amount) AS portion_equivalent_amount
+           FROM nutrition_v2_meal_items mi
+           LEFT JOIN nutrition_v2_foods f ON f.id = mi.food_id
            LEFT JOIN (
              SELECT food_id, LOWER(TRIM(label)) AS norm_label, MAX(equivalent_reference_amount) AS equivalent_reference_amount
              FROM nutrition_v2_food_portions
              WHERE deleted_at IS NULL AND status = 'ACTIVE'
              GROUP BY food_id, LOWER(TRIM(label))
-           ) fp ON fp.food_id = s.food_id AND fp.norm_label = LOWER(TRIM(s.prescribed_unit_label))
-           WHERE s.meal_item_id IN (?) AND s.deleted_at IS NULL
-           ORDER BY s.sort_order ASC, s.id ASC`,
-          [itemIds]
+           ) fp ON fp.food_id = mi.food_id AND fp.norm_label = LOWER(TRIM(mi.prescribed_unit_label))
+           WHERE mi.meal_id IN (?) AND mi.deleted_at IS NULL
+           ORDER BY mi.sort_order ASC, mi.id ASC`,
+          [mealIds]
         );
-        substitutions = subRows;
+        items = itemRows;
+      } catch (err: unknown) {
+        if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+          const [itemRows] = await connection.query<RowDataPacket[]>(
+            `SELECT
+              mi.*,
+              f.public_id AS food_public_id,
+              f.scope AS food_scope,
+              fp.equivalent_reference_amount AS portion_equivalent_amount
+             FROM nutrition_v2_meal_items mi
+             LEFT JOIN nutrition_v2_foods f ON f.id = mi.food_id
+             LEFT JOIN (
+               SELECT food_id, LOWER(TRIM(label)) AS norm_label, MAX(equivalent_reference_amount) AS equivalent_reference_amount
+               FROM nutrition_v2_food_portions
+               WHERE deleted_at IS NULL AND status = 'ACTIVE'
+               GROUP BY food_id, LOWER(TRIM(label))
+             ) fp ON fp.food_id = mi.food_id AND fp.norm_label = LOWER(TRIM(mi.prescribed_unit_label))
+             WHERE mi.meal_id IN (?) AND mi.deleted_at IS NULL
+             ORDER BY mi.sort_order ASC, mi.id ASC`,
+            [mealIds]
+          );
+          items = itemRows;
+        } else {
+          throw err;
+        }
+      }
+
+      const itemIds = items.map((i) => i.id);
+      if (itemIds.length > 0) {
+        // 5. Get all substitutions (with schema fallback if migration 056 is pending)
+        try {
+          const [subRows] = await connection.query<RowDataPacket[]>(
+            `SELECT
+              s.*,
+              f.public_id AS food_public_id,
+              f.scope AS food_scope,
+              COALESCE(s.portion_equivalent_amount, fp.equivalent_reference_amount) AS portion_equivalent_amount
+             FROM nutrition_v2_item_substitutions s
+             LEFT JOIN nutrition_v2_foods f ON f.id = s.food_id
+             LEFT JOIN (
+               SELECT food_id, LOWER(TRIM(label)) AS norm_label, MAX(equivalent_reference_amount) AS equivalent_reference_amount
+               FROM nutrition_v2_food_portions
+               WHERE deleted_at IS NULL AND status = 'ACTIVE'
+               GROUP BY food_id, LOWER(TRIM(label))
+             ) fp ON fp.food_id = s.food_id AND fp.norm_label = LOWER(TRIM(s.prescribed_unit_label))
+             WHERE s.meal_item_id IN (?) AND s.deleted_at IS NULL
+             ORDER BY s.sort_order ASC, s.id ASC`,
+            [itemIds]
+          );
+          substitutions = subRows;
+        } catch (err: unknown) {
+          if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+            const [subRows] = await connection.query<RowDataPacket[]>(
+              `SELECT
+                s.*,
+                f.public_id AS food_public_id,
+                f.scope AS food_scope,
+                fp.equivalent_reference_amount AS portion_equivalent_amount
+               FROM nutrition_v2_item_substitutions s
+               LEFT JOIN nutrition_v2_foods f ON f.id = s.food_id
+               LEFT JOIN (
+                 SELECT food_id, LOWER(TRIM(label)) AS norm_label, MAX(equivalent_reference_amount) AS equivalent_reference_amount
+                 FROM nutrition_v2_food_portions
+                 WHERE deleted_at IS NULL AND status = 'ACTIVE'
+                 GROUP BY food_id, LOWER(TRIM(label))
+               ) fp ON fp.food_id = s.food_id AND fp.norm_label = LOWER(TRIM(s.prescribed_unit_label))
+               WHERE s.meal_item_id IN (?) AND s.deleted_at IS NULL
+               ORDER BY s.sort_order ASC, s.id ASC`,
+              [itemIds]
+            );
+            substitutions = subRows;
+          } else {
+            throw err;
+          }
+        }
       }
     }
 
@@ -1360,17 +1412,32 @@ export async function addMealItem(
       // Check portion if provided
       let portionEquivalentAmount: number | null = null;
       if (input.portionPublicId && input.portionPublicId.trim()) {
-        const [portions] = await connection.query<RowDataPacket[]>(
-          `SELECT * FROM nutrition_v2_food_portions
-           WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
-             AND (
-               scope = 'GLOBAL'
-               OR scope IS NULL
-               OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-               OR (scope = 'PERSONAL' AND created_by_user_id = ?)
-             )`,
-          [input.portionPublicId.trim(), foodId, ctx.consultancyId || 0, ctx.userId || 0]
-        );
+        let portions: RowDataPacket[] = [];
+        try {
+          const [res] = await connection.query<RowDataPacket[]>(
+            `SELECT * FROM nutrition_v2_food_portions
+             WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
+               AND (
+                 scope = 'GLOBAL'
+                 OR scope IS NULL
+                 OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+                 OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+               )`,
+            [input.portionPublicId.trim(), foodId, ctx.consultancyId || 0, ctx.userId || 0]
+          );
+          portions = res;
+        } catch (err: unknown) {
+          if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+            const [res] = await connection.query<RowDataPacket[]>(
+              `SELECT * FROM nutrition_v2_food_portions
+               WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL`,
+              [input.portionPublicId.trim(), foodId]
+            );
+            portions = res;
+          } else {
+            throw err;
+          }
+        }
 
         if (portions.length === 0) {
           throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
@@ -1730,17 +1797,32 @@ export async function updateMealItem(
       let portionEquivalentAmount: number | null = null;
       if (input.portionPublicId !== undefined) {
         if (input.portionPublicId && input.portionPublicId.trim()) {
-          const [portions] = await connection.query<RowDataPacket[]>(
-            `SELECT * FROM nutrition_v2_food_portions
-             WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
-               AND (
-                 scope = 'GLOBAL'
-                 OR scope IS NULL
-                 OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-                 OR (scope = 'PERSONAL' AND created_by_user_id = ?)
-               )`,
-            [input.portionPublicId.trim(), effectiveFoodId, ctx.consultancyId || 0, ctx.userId || 0]
-          );
+          let portions: RowDataPacket[] = [];
+          try {
+            const [res] = await connection.query<RowDataPacket[]>(
+              `SELECT * FROM nutrition_v2_food_portions
+               WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
+                 AND (
+                   scope = 'GLOBAL'
+                   OR scope IS NULL
+                   OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+                   OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+                 )`,
+              [input.portionPublicId.trim(), effectiveFoodId, ctx.consultancyId || 0, ctx.userId || 0]
+            );
+            portions = res;
+          } catch (err: unknown) {
+            if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+              const [res] = await connection.query<RowDataPacket[]>(
+                `SELECT * FROM nutrition_v2_food_portions
+                 WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL`,
+                [input.portionPublicId.trim(), effectiveFoodId]
+              );
+              portions = res;
+            } else {
+              throw err;
+            }
+          }
           if (portions.length === 0) {
             throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
           }
@@ -2185,17 +2267,32 @@ export async function addSubstitution(
 
       let portionEquivalentAmount: number | null = null;
       if (input.portionPublicId && input.portionPublicId.trim()) {
-        const [portions] = await connection.query<RowDataPacket[]>(
-          `SELECT * FROM nutrition_v2_food_portions
-           WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
-             AND (
-               scope = 'GLOBAL'
-               OR scope IS NULL
-               OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-               OR (scope = 'PERSONAL' AND created_by_user_id = ?)
-             )`,
-          [input.portionPublicId.trim(), foodId, ctx.consultancyId || 0, ctx.userId || 0]
-        );
+        let portions: RowDataPacket[] = [];
+        try {
+          const [res] = await connection.query<RowDataPacket[]>(
+            `SELECT * FROM nutrition_v2_food_portions
+             WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
+               AND (
+                 scope = 'GLOBAL'
+                 OR scope IS NULL
+                 OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+                 OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+               )`,
+            [input.portionPublicId.trim(), foodId, ctx.consultancyId || 0, ctx.userId || 0]
+          );
+          portions = res;
+        } catch (err: unknown) {
+          if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+            const [res] = await connection.query<RowDataPacket[]>(
+              `SELECT * FROM nutrition_v2_food_portions
+               WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL`,
+              [input.portionPublicId.trim(), foodId]
+            );
+            portions = res;
+          } else {
+            throw err;
+          }
+        }
 
         if (portions.length === 0) {
           throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
@@ -2590,17 +2687,32 @@ export async function updateSubstitution(
       let portionEquivalentAmount: number | null = null;
       if (input.portionPublicId !== undefined) {
         if (input.portionPublicId && input.portionPublicId.trim()) {
-          const [portions] = await connection.query<RowDataPacket[]>(
-            `SELECT * FROM nutrition_v2_food_portions
-             WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
-               AND (
-                 scope = 'GLOBAL'
-                 OR scope IS NULL
-                 OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-                 OR (scope = 'PERSONAL' AND created_by_user_id = ?)
-               )`,
-            [input.portionPublicId.trim(), effectiveFoodId, ctx.consultancyId || 0, ctx.userId || 0]
-          );
+          let portions: RowDataPacket[] = [];
+          try {
+            const [res] = await connection.query<RowDataPacket[]>(
+              `SELECT * FROM nutrition_v2_food_portions
+               WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
+                 AND (
+                   scope = 'GLOBAL'
+                   OR scope IS NULL
+                   OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+                   OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+                 )`,
+              [input.portionPublicId.trim(), effectiveFoodId, ctx.consultancyId || 0, ctx.userId || 0]
+            );
+            portions = res;
+          } catch (err: unknown) {
+            if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+              const [res] = await connection.query<RowDataPacket[]>(
+                `SELECT * FROM nutrition_v2_food_portions
+                 WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL`,
+                [input.portionPublicId.trim(), effectiveFoodId]
+              );
+              portions = res;
+            } else {
+              throw err;
+            }
+          }
           if (portions.length === 0) {
             throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
           }

@@ -10,6 +10,7 @@ import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { NutritionFoodPicker } from "./nutrition-food-picker";
 import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
 import { getFoodPortionsForPickerAction } from "@/app/consultoria/[slug]/planos-v2/actions";
+import { NutritionCustomMeasureModal } from "./nutrition-custom-measure-modal";
 import {
   EQUIVALENT_CRITERIA_SHORT_LABELS,
   generatePracticalRoundingSuggestions,
@@ -61,6 +62,7 @@ export function NutritionSubstitutionEditor({
   // Authoritative food portions loaded strictly from Food Library for this food
   const [availablePortions, setAvailablePortions] = useState<FoodPortionOption[]>([]);
   const [isLoadingPortions, setIsLoadingPortions] = useState(false);
+  const [isCustomMeasureModalOpen, setIsCustomMeasureModalOpen] = useState(false);
 
   // Autosave state
   const [saveStatus, setSaveStatus] = useState<AutosaveStatus>("idle");
@@ -194,6 +196,10 @@ export function NutritionSubstitutionEditor({
   };
 
   const handleUnitChange = (newUnitVal: string) => {
+    if (newUnitVal === "__CREATE_CUSTOM__") {
+      setIsCustomMeasureModalOpen(true);
+      return;
+    }
     let nextQty = quantity;
 
     // Smart scaling: switching from grams to a portion with large gram quantity
@@ -456,6 +462,9 @@ export function NutritionSubstitutionEditor({
                     {substitution.prescribedUnitLabel || substitution.prescribedUnitCode} (sem conversão cadastrada)
                   </option>
                 )}
+                {substitution.foodPublicId && (
+                  <option value="__CREATE_CUSTOM__">+ Cadastrar medida...</option>
+                )}
               </select>
             </div>
           </div>
@@ -575,6 +584,22 @@ export function NutritionSubstitutionEditor({
             setIsResolvePickerOpen(false);
           }}
           title={`Vincular Alimento para "${substitution.foodNameSnapshot}"`}
+        />
+      )}
+
+      {slug && substitution.foodPublicId && (
+        <NutritionCustomMeasureModal
+          isOpen={isCustomMeasureModalOpen}
+          onClose={() => setIsCustomMeasureModalOpen(false)}
+          slug={slug}
+          foodPublicId={substitution.foodPublicId}
+          foodName={substitution.foodNameSnapshot}
+          foodReferenceUnit="G"
+          existingPortions={availablePortions}
+          onMeasureCreated={(newPortion) => {
+            setAvailablePortions((prev) => [...prev.filter((p) => p.publicId !== newPortion.publicId), newPortion]);
+            handleUnitChange(newPortion.publicId);
+          }}
         />
       )}
     </div>

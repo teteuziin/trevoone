@@ -789,7 +789,7 @@ export async function getPlanVersionTreeByPlanPublicId(
           mi.*,
           f.public_id AS food_public_id,
           f.scope AS food_scope,
-          fp.equivalent_reference_amount AS portion_equivalent_amount
+          COALESCE(mi.portion_equivalent_amount, fp.equivalent_reference_amount) AS portion_equivalent_amount
          FROM nutrition_v2_meal_items mi
          LEFT JOIN nutrition_v2_foods f ON f.id = mi.food_id
          LEFT JOIN (
@@ -812,7 +812,7 @@ export async function getPlanVersionTreeByPlanPublicId(
             s.*,
             f.public_id AS food_public_id,
             f.scope AS food_scope,
-            fp.equivalent_reference_amount AS portion_equivalent_amount
+            COALESCE(s.portion_equivalent_amount, fp.equivalent_reference_amount) AS portion_equivalent_amount
            FROM nutrition_v2_item_substitutions s
            LEFT JOIN nutrition_v2_foods f ON f.id = s.food_id
            LEFT JOIN (
@@ -1362,8 +1362,14 @@ export async function addMealItem(
       if (input.portionPublicId && input.portionPublicId.trim()) {
         const [portions] = await connection.query<RowDataPacket[]>(
           `SELECT * FROM nutrition_v2_food_portions
-           WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL`,
-          [input.portionPublicId.trim(), foodId]
+           WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
+             AND (
+               scope = 'GLOBAL'
+               OR scope IS NULL
+               OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+               OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+             )`,
+          [input.portionPublicId.trim(), foodId, ctx.consultancyId || 0, ctx.userId || 0]
         );
 
         if (portions.length === 0) {
@@ -1726,8 +1732,14 @@ export async function updateMealItem(
         if (input.portionPublicId && input.portionPublicId.trim()) {
           const [portions] = await connection.query<RowDataPacket[]>(
             `SELECT * FROM nutrition_v2_food_portions
-             WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL`,
-            [input.portionPublicId.trim(), effectiveFoodId]
+             WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
+               AND (
+                 scope = 'GLOBAL'
+                 OR scope IS NULL
+                 OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+                 OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+               )`,
+            [input.portionPublicId.trim(), effectiveFoodId, ctx.consultancyId || 0, ctx.userId || 0]
           );
           if (portions.length === 0) {
             throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
@@ -2175,8 +2187,14 @@ export async function addSubstitution(
       if (input.portionPublicId && input.portionPublicId.trim()) {
         const [portions] = await connection.query<RowDataPacket[]>(
           `SELECT * FROM nutrition_v2_food_portions
-           WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL`,
-          [input.portionPublicId.trim(), foodId]
+           WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
+             AND (
+               scope = 'GLOBAL'
+               OR scope IS NULL
+               OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+               OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+             )`,
+          [input.portionPublicId.trim(), foodId, ctx.consultancyId || 0, ctx.userId || 0]
         );
 
         if (portions.length === 0) {
@@ -2574,8 +2592,14 @@ export async function updateSubstitution(
         if (input.portionPublicId && input.portionPublicId.trim()) {
           const [portions] = await connection.query<RowDataPacket[]>(
             `SELECT * FROM nutrition_v2_food_portions
-             WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL`,
-            [input.portionPublicId.trim(), effectiveFoodId]
+             WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
+               AND (
+                 scope = 'GLOBAL'
+                 OR scope IS NULL
+                 OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+                 OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+               )`,
+            [input.portionPublicId.trim(), effectiveFoodId, ctx.consultancyId || 0, ctx.userId || 0]
           );
           if (portions.length === 0) {
             throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);

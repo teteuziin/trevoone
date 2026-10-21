@@ -58,6 +58,8 @@ import {
 import {
   listUnifiedFoodsForNutritionist,
   getFoodWithPortions,
+  createFoodPortion,
+  findSimilarFoodPortion,
 } from "@/lib/nutrition-v2/food-repository";
 import {
   listEligibleStudentsForNutrition,
@@ -1465,5 +1467,68 @@ export async function saveNutritionBuilderPreferencesAction(
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao salvar preferências do painel.";
     return { success: false, error: message };
+  }
+}
+
+export async function createCustomMeasureAction(
+  slug: string,
+  foodPublicId: string,
+  input: {
+    label: string;
+    equivalentReferenceAmount: number;
+    notes?: string | null;
+    scope?: "PERSONAL" | "CONSULTANCY" | "GLOBAL";
+  }
+): Promise<ActionResult<{ publicId: string; label: string; equivalentReferenceAmount: number; scope: string; notes?: string | null }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const trimmedLabel = (input.label || "").trim();
+    if (!trimmedLabel) {
+      return { success: false, error: "O nome da medida é obrigatório.", code: "VALIDATION_ERROR" };
+    }
+    const amount = Number(input.equivalentReferenceAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { success: false, error: "O peso/equivalência da medida deve ser um número maior que zero.", code: "VALIDATION_ERROR" };
+    }
+
+    const res = await createFoodPortion(ctx, foodPublicId, {
+      label: trimmedLabel,
+      equivalentReferenceAmount: amount,
+      notes: input.notes ? input.notes.trim() : null,
+      scope: input.scope || "PERSONAL",
+    });
+
+    return {
+      success: true,
+      data: {
+        publicId: res.publicId,
+        label: trimmedLabel,
+        equivalentReferenceAmount: amount,
+        scope: input.scope || "PERSONAL",
+        notes: input.notes ? input.notes.trim() : null,
+      },
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao cadastrar medida.";
+    return { success: false, error: message };
+  }
+}
+
+export async function checkMeasureNameSimilarityAction(
+  slug: string,
+  foodPublicId: string,
+  label: string
+): Promise<ActionResult<{ exists: boolean; similar?: { label: string; equivalentReferenceAmount: number; scope: string } | null }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada." };
+
+    const res = await findSimilarFoodPortion(ctx, foodPublicId, label);
+    return { success: true, data: res };
+  } catch {
+    return { success: false, error: "Erro ao verificar similaridade." };
   }
 }

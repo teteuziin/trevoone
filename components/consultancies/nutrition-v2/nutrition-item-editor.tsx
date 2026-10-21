@@ -13,9 +13,14 @@ import { NutritionSubstitutionEditor } from "./nutrition-substitution-editor";
 import { NutritionSubstitutionCompareModal } from "./nutrition-substitution-compare-modal";
 import { NutritionFoodPicker } from "./nutrition-food-picker";
 import { NutritionEquivalentsModal } from "./nutrition-equivalents-modal";
+import {
+  NutritionCustomMeasureModal,
+  type FoodPortionOption,
+} from "./nutrition-custom-measure-modal";
 import type { FoodListItemDto } from "@/lib/nutrition-v2/food-repository";
 import { calculateMealMicronutrientTotals } from "@/lib/nutrition-v2/nutrient-calculator";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
+import { getFoodPortionsForPickerAction } from "@/app/consultoria/[slug]/planos-v2/actions";
 
 interface NutritionItemEditorProps {
   slug: string;
@@ -56,25 +61,49 @@ export function NutritionItemEditor({
 }: NutritionItemEditorProps) {
   // Inline quantity input state
   const [localQuantity, setLocalQuantity] = useState(
-    item.prescribedQuantity != null ? String(item.prescribedQuantity) : ""
+    item.prescribedQuantity != null ? formatNumberForDisplay(item.prescribedQuantity) : ""
   );
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notes, setNotes] = useState(item.notes || "");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [areSubsExpanded, setAreSubsExpanded] = useState(false);
 
+  // Available portions / measures loaded for this food
+  const [availablePortions, setAvailablePortions] = useState<FoodPortionOption[]>([]);
+  const [selectedMeasureKey, setSelectedMeasureKey] = useState<string>("G");
+  const [foodReferenceUnit, setFoodReferenceUnit] = useState<string>("G");
+  const [isCustomMeasureModalOpen, setIsCustomMeasureModalOpen] = useState(false);
+  const [practicalRoundingSuggestion, setPracticalRoundingSuggestion] = useState<{
+    roundedQty: number;
+    label: string;
+    gramsDiff: number;
+    percentDiff: number;
+  } | null>(null);
+
   // Sync external quantity when item changes outside inline editing using render-phase check
   const [prevItemSnapshot, setPrevItemSnapshot] = useState({
     qty: item.prescribedQuantity,
     notes: item.notes,
+    unitLabel: item.prescribedUnitLabel,
+    unitCode: item.prescribedUnitCode,
+    portionEquivalent: item.portionEquivalentAmount,
   });
 
-  if (prevItemSnapshot.qty !== item.prescribedQuantity || prevItemSnapshot.notes !== item.notes) {
+  if (
+    prevItemSnapshot.qty !== item.prescribedQuantity ||
+    prevItemSnapshot.notes !== item.notes ||
+    prevItemSnapshot.unitLabel !== item.prescribedUnitLabel ||
+    prevItemSnapshot.unitCode !== item.prescribedUnitCode ||
+    prevItemSnapshot.portionEquivalent !== item.portionEquivalentAmount
+  ) {
     setPrevItemSnapshot({
       qty: item.prescribedQuantity,
       notes: item.notes,
+      unitLabel: item.prescribedUnitLabel,
+      unitCode: item.prescribedUnitCode,
+      portionEquivalent: item.portionEquivalentAmount,
     });
-    setLocalQuantity(item.prescribedQuantity != null ? String(item.prescribedQuantity) : "");
+    setLocalQuantity(item.prescribedQuantity != null ? formatNumberForDisplay(item.prescribedQuantity) : "");
     setNotes(item.notes || "");
   }
 
@@ -103,6 +132,69 @@ export function NutritionItemEditor({
     };
   }, [isMenuOpen]);
 
+  // Load portions for this item's food
+  useEffect(() => {
+    let isCancelled = false;
+    if (!item.foodPublicId || !slug) return;
+
+    getFoodPortionsForPickerAction(slug, item.foodPublicId).then((res) => {
+      if (isCancelled) return;
+      if (res.success && res.data) {
+        const refUnit = (res.data.referenceUnitCode || "G").trim().toUpperCase();
+        setFoodReferenceUnit(refUnit);
+
+        const rawPortions = (res.data.portions || []) as Array<{
+          publicId: string;
+          label: string;
+          equivalentReferenceAmount: number;
+          status?: string;
+          scope?: "GLOBAL" | "CONSULTANCY" | "PERSONAL";
+          notes?: string | null;
+        }>;
+
+        const activePortions: FoodPortionOption[] = rawPortions
+          .filter((p) => (p.status || "ACTIVE") === "ACTIVE")
+          .map((p) => ({
+            publicId: p.publicId,
+            label: p.label,
+            equivalentReferenceAmount: Number(p.equivalentReferenceAmount),
+            scope: p.scope,
+            notes: p.notes,
+          }));
+
+        setAvailablePortions(activePortions);
+
+        // Resolve active measure key
+        if (item.prescribedUnitLabel) {
+          const match = activePortions.find(
+            (p) => p.label.trim().toLowerCase() === item.prescribedUnitLabel!.trim().toLowerCase()
+          );
+          if (match) {
+            setSelectedMeasureKey(match.publicId);
+            return;
+          }
+        }
+
+        const code = (item.prescribedUnitCode || "").trim().toUpperCase();
+        if (code === "ML" || code === "L" || refUnit === "ML") {
+          setSelectedMeasureKey("ML");
+        } else {
+          setSelectedMeasureKey("G");
+        }
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [slug, item.foodPublicId, item.prescribedUnitLabel, item.prescribedUnitCode]);
+
+  // Is volume-based food
+  const isVolumeFood = foodReferenceUnit === "ML" || foodReferenceUnit === "L";
+  const standardUnitLabel = isVolumeFood ? "Mililitros (ml)" : "Gramas (g)";
+  const standardUnitCode = isVolumeFood ? "ML" : "G";
+  const standardUnitShort = isVolumeFood ? "ml" : "g";
+
   // Dynamic preview calculation when typing quantity
   const parsedLocalQty = localQuantity ? parseFloat(localQuantity.replace(",", ".")) : null;
   const isCustomQtyValid = parsedLocalQty != null && Number.isFinite(parsedLocalQty) && parsedLocalQty > 0;
@@ -124,19 +216,26 @@ export function NutritionItemEditor({
     : null;
 
   // Portion weight calculation
-  const equivGrams = item.portionEquivalentAmount != null && item.portionEquivalentAmount > 0
-    ? Math.round((isCustomQtyValid ? parsedLocalQty : (item.prescribedQuantity || 0)) * item.portionEquivalentAmount * 10) / 10
+  // Active portion reference amount
+  const currentPortion = availablePortions.find((p) => p.publicId === selectedMeasureKey);
+  const activeEquivalent = currentPortion
+    ? currentPortion.equivalentReferenceAmount
+    : (item.portionEquivalentAmount != null && item.portionEquivalentAmount > 0 ? item.portionEquivalentAmount : null);
+
+  const equivGrams = activeEquivalent != null && activeEquivalent > 0
+    ? Math.round((isCustomQtyValid ? parsedLocalQty! : (item.prescribedQuantity || 0)) * activeEquivalent * 10) / 10
     : null;
 
   const isMissingPortionConversion = item.foodId != null &&
     item.prescribedUnitCode &&
     !["G", "KG", "ML", "L"].includes(item.prescribedUnitCode.trim().toUpperCase()) &&
-    (item.portionEquivalentAmount == null || item.portionEquivalentAmount <= 0) &&
+    (activeEquivalent == null || activeEquivalent <= 0) &&
     item.caloriesKcalSnapshot == null;
 
   // Debounced quantity save + live synchronous propagation
   const handleQuantityChange = (newVal: string) => {
     setLocalQuantity(newVal);
+    setPracticalRoundingSuggestion(null);
     const parsed = newVal ? parseFloat(newVal.replace(",", ".")) : null;
     const validQty = parsed != null && Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 
@@ -147,9 +246,111 @@ export function NutritionItemEditor({
 
     debounceTimerRef.current = setTimeout(async () => {
       if (validQty != null) {
-        await onUpdateItem({ prescribedQuantity: validQty });
+        let portionPublicId: string | null = null;
+        let unitCode = standardUnitCode;
+        let unitLabel = standardUnitLabel;
+
+        if (selectedMeasureKey !== "G" && selectedMeasureKey !== "ML") {
+          const pt = availablePortions.find((p) => p.publicId === selectedMeasureKey);
+          if (pt) {
+            portionPublicId = pt.publicId;
+            unitCode = "PORCAO";
+            unitLabel = pt.label;
+          }
+        }
+
+        await onUpdateItem({
+          prescribedQuantity: validQty,
+          portionPublicId,
+          prescribedUnitCode: unitCode,
+          prescribedUnitLabel: unitLabel,
+        });
       }
     }, 600);
+  };
+
+  // Smart switching of measure while preserving physical quantity (Section 4)
+  const handleMeasureChange = async (newKey: string) => {
+    if (newKey === "__CREATE_CUSTOM__") {
+      setIsCustomMeasureModalOpen(true);
+      return;
+    }
+
+    const currentQtyNum = localQuantity ? parseFloat(localQuantity.replace(",", ".")) : (item.prescribedQuantity || 0);
+
+    // Determine previous physical amount
+    let prevEq = 1;
+    if (selectedMeasureKey !== "G" && selectedMeasureKey !== "ML") {
+      const prevPt = availablePortions.find((p) => p.publicId === selectedMeasureKey);
+      if (prevPt && prevPt.equivalentReferenceAmount > 0) {
+        prevEq = prevPt.equivalentReferenceAmount;
+      } else if (item.portionEquivalentAmount && item.portionEquivalentAmount > 0) {
+        prevEq = item.portionEquivalentAmount;
+      }
+    }
+
+    // Determine new equivalent
+    let newEq = 1;
+    let newPortionPublicId: string | null = null;
+    let newUnitLabel = standardUnitLabel;
+    let newUnitCode = standardUnitCode;
+
+    if (newKey !== "G" && newKey !== "ML") {
+      const targetPt = availablePortions.find((p) => p.publicId === newKey);
+      if (targetPt && targetPt.equivalentReferenceAmount > 0) {
+        newEq = targetPt.equivalentReferenceAmount;
+        newPortionPublicId = targetPt.publicId;
+        newUnitLabel = targetPt.label;
+        newUnitCode = "PORCAO";
+      }
+    } else if (newKey === "ML") {
+      newUnitLabel = "Mililitros (ml)";
+      newUnitCode = "ML";
+    }
+
+    // Convert quantity preserving physical quantity
+    let convertedQty = currentQtyNum;
+    if (Number.isFinite(currentQtyNum) && currentQtyNum > 0 && prevEq > 0 && newEq > 0) {
+      const physicalAmount = currentQtyNum * prevEq;
+      convertedQty = physicalAmount / newEq;
+
+      // Check if long decimal fraction merits practical rounding suggestion
+      if (newKey !== "G" && newKey !== "ML") {
+        const nearestHalf = Math.round(convertedQty * 2) / 2;
+        const diffFromPractical = Math.abs(convertedQty - nearestHalf);
+        if (diffFromPractical > 0.04 && nearestHalf > 0) {
+          const gramsDelta = Math.round((nearestHalf * newEq - physicalAmount) * 10) / 10;
+          const pctDelta = Math.round((gramsDelta / physicalAmount) * 1000) / 10;
+          setPracticalRoundingSuggestion({
+            roundedQty: nearestHalf,
+            label: `${formatNumberForDisplay(nearestHalf)} ${newUnitLabel}`,
+            gramsDiff: gramsDelta,
+            percentDiff: pctDelta,
+          });
+        } else {
+          setPracticalRoundingSuggestion(null);
+        }
+      } else {
+        setPracticalRoundingSuggestion(null);
+      }
+    }
+
+    setSelectedMeasureKey(newKey);
+    const formatted = formatNumberForDisplay(convertedQty);
+    setLocalQuantity(formatted);
+    onLiveQuantityChange?.(item.publicId, convertedQty);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
+    await onUpdateItem({
+      prescribedQuantity: convertedQty,
+      portionPublicId: newPortionPublicId,
+      prescribedUnitCode: newUnitCode,
+      prescribedUnitLabel: newUnitLabel,
+    });
   };
 
   // Immediate flush of pending quantity changes and opening of equivalents modal
@@ -165,6 +366,15 @@ export function NutritionItemEditor({
     }
     setSubstitutionToReview(null);
     setIsEquivalentsOpen(true);
+  };
+
+  // Callback when a new custom measure is created in modal
+  const handleCustomMeasureCreated = async (newPortion: FoodPortionOption) => {
+    setAvailablePortions((prev) => {
+      const filtered = prev.filter((p) => p.publicId !== newPortion.publicId);
+      return [...filtered, newPortion];
+    });
+    await handleMeasureChange(newPortion.publicId);
   };
 
   // Save notes
@@ -199,11 +409,11 @@ export function NutritionItemEditor({
       className="p-2 sm:p-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] shadow-2xs hover:border-[var(--brand)]/40 transition-all space-y-2 w-full max-w-full min-w-0"
     >
       {/* ========================================================================= */}
-      {/* DESKTOP LAYOUT (Single clean horizontal row)                              */}
+      {/* DESKTOP LAYOUT (Clean unified row)                                       */}
       {/* ========================================================================= */}
       <div className="hidden sm:flex sm:items-center sm:justify-between gap-3 w-full min-w-0">
         {/* Left: Food name & status indicator */}
-        <div className="flex items-center gap-2 min-w-0 flex-1 max-w-[40%]">
+        <div className="flex items-center gap-2 min-w-0 flex-1 max-w-[32%]">
           <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate" title={item.foodNameSnapshot}>
             {item.foodNameSnapshot}
           </span>
@@ -228,44 +438,77 @@ export function NutritionItemEditor({
           ) : null}
         </div>
 
-        {/* Middle: Inline Quantity Input + Unit & Macros */}
+        {/* Middle: Quantity + Measure Selector + Conversion + Macros */}
         <div className="flex items-center gap-2 shrink-0 text-xs">
-          {/* Direct quantity input */}
-          <div className="flex items-center gap-1">
-            {!readOnly ? (
-              <input
-                data-item-input={item.publicId}
-                type="text"
-                inputMode="decimal"
-                value={localQuantity}
-                onChange={(e) => handleQuantityChange(e.target.value)}
-                placeholder="100"
-                className="w-14 px-1.5 py-0.5 text-xs text-center font-bold rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors"
-                title="Editar quantidade prescrita"
-              />
-            ) : (
-              <span className="font-bold text-[var(--text-primary)]">
-                {localQuantity}
-              </span>
-            )}
-            <span className="text-xs text-[var(--text-secondary)] font-medium truncate max-w-[150px] inline-flex items-center gap-1">
-              <span>{item.prescribedUnitLabel || item.prescribedUnitCode || "g"}</span>
-              {equivGrams != null && (
-                <span className="text-[11px] text-[var(--text-muted)] font-normal">
-                  ({equivGrams}g)
-                </span>
-              )}
-              {isMissingPortionConversion && (
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20">
-                  Medida sem equivalência cadastrada
-                </span>
-              )}
+          {/* Quantity Input */}
+          {!readOnly ? (
+            <input
+              data-item-input={item.publicId}
+              type="text"
+              inputMode="decimal"
+              value={localQuantity}
+              onChange={(e) => handleQuantityChange(e.target.value)}
+              placeholder="100"
+              className="w-14 px-1.5 py-1 text-xs text-center font-bold rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[32px]"
+              title="Quantidade prescrita"
+            />
+          ) : (
+            <span className="font-bold text-[var(--text-primary)] px-1">
+              {localQuantity}
             </span>
-          </div>
+          )}
+
+          {/* Measure Selector Dropdown */}
+          {!readOnly && item.foodPublicId ? (
+            <select
+              value={selectedMeasureKey}
+              onChange={(e) => handleMeasureChange(e.target.value)}
+              className="text-xs font-semibold px-2 py-1 rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[32px] max-w-[170px] truncate cursor-pointer"
+              title="Selecione a medida deste alimento"
+            >
+              <optgroup label="Unidade Padrão">
+                <option value={isVolumeFood ? "ML" : "G"}>
+                  {standardUnitLabel}
+                </option>
+              </optgroup>
+
+              {availablePortions.length > 0 && (
+                <optgroup label="Medidas do Alimento">
+                  {availablePortions.map((p) => (
+                    <option key={p.publicId} value={p.publicId}>
+                      {p.label} · {p.equivalentReferenceAmount} {standardUnitShort}
+                      {p.scope === "PERSONAL" ? " (Pessoal)" : p.scope === "CONSULTANCY" ? " (Consultoria)" : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+
+              <optgroup label="Personalização">
+                <option value="__CREATE_CUSTOM__">+ Cadastrar medida...</option>
+              </optgroup>
+            </select>
+          ) : (
+            <span className="text-xs font-semibold text-[var(--text-secondary)]">
+              {item.prescribedUnitLabel || item.prescribedUnitCode || standardUnitShort}
+            </span>
+          )}
+
+          {/* Corresponding Conversion Display */}
+          {selectedMeasureKey !== "G" && selectedMeasureKey !== "ML" && equivGrams != null && (
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20 whitespace-nowrap" title="Equivalência física correspondente">
+              = {equivGrams} {standardUnitShort}
+            </span>
+          )}
+
+          {isMissingPortionConversion && (
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded-md border border-amber-500/20 whitespace-nowrap">
+              Conversão não cadastrada para esta medida.
+            </span>
+          )}
 
           <span className="text-[var(--text-tertiary)]">•</span>
 
-          {/* Macros snapshot / scaled preview */}
+          {/* Macros snapshot / preview */}
           <div className="flex items-center gap-1.5 font-mono text-[11px] text-[var(--text-secondary)]">
             <span className="font-bold text-[var(--brand)]">
               {displayKcal != null ? `${displayKcal} kcal` : "— kcal"}
@@ -326,7 +569,7 @@ export function NutritionItemEditor({
               <button
                 type="button"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer"
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center"
                 title="Mais opções do alimento"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -336,7 +579,7 @@ export function NutritionItemEditor({
 
               {/* Dropdown Menu */}
               {isMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-52 rounded-xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-lg py-1 z-30 text-xs">
+                <div className="absolute right-0 top-full mt-1 w-56 rounded-xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-lg py-1 z-30 text-xs">
                   <button
                     type="button"
                     onClick={() => {
@@ -355,15 +598,26 @@ export function NutritionItemEditor({
                     type="button"
                     onClick={() => {
                       setIsMenuOpen(false);
+                      setIsCustomMeasureModalOpen(true);
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Cadastrar nova medida</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
                       setSubstitutionToReview(null);
                       setIsEquivalentsOpen(true);
                     }}
                     className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
                   >
-                    <svg className="w-3.5 h-3.5 text-[var(--brand)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span>Adicionar substituição</span>
+                    <span>+ Adicionar substituição</span>
                   </button>
 
                   <button
@@ -374,10 +628,7 @@ export function NutritionItemEditor({
                     }}
                     className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
                   >
-                    <svg className="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                    </svg>
-                    <span>{item.notes ? "Editar observação" : "Adicionar observação"}</span>
+                    <span>{item.notes ? "Editar nota de preparo" : "Adicionar nota"}</span>
                   </button>
 
                   {item.micronutrientsSnapshotJson && (
@@ -395,20 +646,6 @@ export function NutritionItemEditor({
                       <span>{showMicro ? "Ocultar micros" : "Ver micronutrientes"}</span>
                     </button>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      setIsResolvePickerOpen(true);
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
-                  >
-                    <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <span>{item.foodId == null ? "Vincular à tabela" : "Trocar medida/porção"}</span>
-                  </button>
 
                   {onMoveUp && !isFirst && (
                     <button
@@ -464,11 +701,48 @@ export function NutritionItemEditor({
         </div>
       </div>
 
+      {/* Practical Rounding Banner (Desktop & Mobile) */}
+      {practicalRoundingSuggestion && !readOnly && (
+        <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-sky-500/10 border border-sky-500/25 text-xs text-sky-900 dark:text-sky-200 animate-in fade-in duration-150">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <svg className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="truncate">
+              Fração longa convertida. Deseja arredondar para porção prática?
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={async () => {
+                const targetQty = practicalRoundingSuggestion.roundedQty;
+                setPracticalRoundingSuggestion(null);
+                setLocalQuantity(formatNumberForDisplay(targetQty));
+                onLiveQuantityChange?.(item.publicId, targetQty);
+                await onUpdateItem({ prescribedQuantity: targetQty });
+              }}
+              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-2xs cursor-pointer transition-colors"
+            >
+              Arredondar para {practicalRoundingSuggestion.label} ({practicalRoundingSuggestion.gramsDiff > 0 ? "+" : ""}{practicalRoundingSuggestion.gramsDiff}{standardUnitShort})
+            </button>
+            <button
+              type="button"
+              onClick={() => setPracticalRoundingSuggestion(null)}
+              className="p-1 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 rounded-md cursor-pointer"
+              title="Ignorar sugestão"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* SMARTPHONE LAYOUT (Clean 3-line layout)                                    */}
       {/* ========================================================================= */}
-      <div className="flex sm:hidden flex-col gap-1.5 w-full min-w-0">
-        {/* Line 1: Food name + Warnings + Action Menu ⋮ (No empty bottom row!) */}
+      <div className="flex sm:hidden flex-col gap-2 w-full min-w-0">
+        {/* Line 1: Food name + Warnings + Action Menu ⋮ */}
         <div className="flex items-start justify-between gap-2 min-w-0 w-full">
           <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
             <span className="font-bold text-xs text-[var(--text-primary)] leading-snug break-words">
@@ -477,14 +751,14 @@ export function NutritionItemEditor({
             {item.foodId == null ? (
               <span
                 onClick={() => setIsResolvePickerOpen(true)}
-                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0"
+                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0 cursor-pointer"
               >
                 Sem vínculo
               </span>
             ) : hasIssues ? (
               <span
                 onClick={() => setIsResolvePickerOpen(true)}
-                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0"
+                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0 cursor-pointer"
               >
                 Revisar
               </span>
@@ -497,16 +771,16 @@ export function NutritionItemEditor({
               <button
                 type="button"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                 </svg>
               </button>
 
               {/* Mobile Dropdown Menu */}
               {isMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-xl py-1 z-30 text-xs">
+                <div className="absolute right-0 top-full mt-1 w-52 rounded-xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-xl py-1 z-30 text-xs">
                   <button
                     type="button"
                     onClick={() => {
@@ -520,6 +794,18 @@ export function NutritionItemEditor({
                     </svg>
                     <span>Equivalência nutricional</span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setIsCustomMeasureModalOpen(true);
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2"
+                  >
+                    <span>+ Cadastrar nova medida</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -531,6 +817,7 @@ export function NutritionItemEditor({
                   >
                     <span>+ Adicionar substituição</span>
                   </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -541,41 +828,9 @@ export function NutritionItemEditor({
                   >
                     <span>{item.notes ? "Editar nota" : "Adicionar nota"}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      setIsResolvePickerOpen(true);
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2"
-                  >
-                    <span>{item.foodId == null ? "Vincular à tabela" : "Trocar medida"}</span>
-                  </button>
-                  {onMoveUp && !isFirst && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        onMoveUp();
-                      }}
-                      className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2"
-                    >
-                      <span>Mover para cima</span>
-                    </button>
-                  )}
-                  {onMoveDown && !isLast && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        onMoveDown();
-                      }}
-                      className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2"
-                    >
-                      <span>Mover para baixo</span>
-                    </button>
-                  )}
+
                   <div className="border-t border-[var(--border-subtle)] my-1" />
+
                   <button
                     type="button"
                     onClick={() => {
@@ -592,8 +847,9 @@ export function NutritionItemEditor({
           )}
         </div>
 
-        {/* Line 2: Inline Quantity Input + Measure & Weight */}
-        <div className="flex items-center gap-2 text-xs flex-wrap">
+        {/* Line 2: Quantity Input + Measure Selector + Conversion Display */}
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          {/* Quantity Input */}
           {!readOnly ? (
             <input
               data-item-input={item.publicId}
@@ -602,24 +858,57 @@ export function NutritionItemEditor({
               value={localQuantity}
               onChange={(e) => handleQuantityChange(e.target.value)}
               placeholder="100"
-              className="w-16 px-2 py-2 text-base sm:text-xs text-center font-bold rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] min-h-[44px]"
+              className="w-16 px-2 py-2 text-base text-center font-bold rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] min-h-[44px]"
             />
           ) : (
-            <span className="font-bold text-sm text-[var(--text-primary)]">{localQuantity}</span>
+            <span className="font-bold text-sm text-[var(--text-primary)] px-2">{localQuantity}</span>
           )}
-          <span className="text-[var(--text-secondary)]">
-            {item.prescribedUnitLabel || item.prescribedUnitCode || "g"}
-            {equivGrams != null && (
-              <span className="text-[11px] text-[var(--text-muted)] font-normal ml-1">
-                ({equivGrams}g)
-              </span>
-            )}
-            {isMissingPortionConversion && (
-              <span className="block text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20 mt-0.5">
-                Medida sem equivalência cadastrada
-              </span>
-            )}
-          </span>
+
+          {/* Measure Selector Dropdown Mobile */}
+          {!readOnly && item.foodPublicId ? (
+            <select
+              value={selectedMeasureKey}
+              onChange={(e) => handleMeasureChange(e.target.value)}
+              className="text-sm font-semibold px-2.5 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] min-h-[44px] flex-1 min-w-[130px] truncate"
+            >
+              <optgroup label="Unidade Padrão">
+                <option value={isVolumeFood ? "ML" : "G"}>
+                  {standardUnitLabel}
+                </option>
+              </optgroup>
+
+              {availablePortions.length > 0 && (
+                <optgroup label="Medidas do Alimento">
+                  {availablePortions.map((p) => (
+                    <option key={p.publicId} value={p.publicId}>
+                      {p.label} · {p.equivalentReferenceAmount} {standardUnitShort}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+
+              <optgroup label="Personalização">
+                <option value="__CREATE_CUSTOM__">+ Cadastrar medida...</option>
+              </optgroup>
+            </select>
+          ) : (
+            <span className="text-xs font-semibold text-[var(--text-secondary)]">
+              {item.prescribedUnitLabel || item.prescribedUnitCode || standardUnitShort}
+            </span>
+          )}
+
+          {/* Corresponding Conversion Display */}
+          {selectedMeasureKey !== "G" && selectedMeasureKey !== "ML" && equivGrams != null && (
+            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 whitespace-nowrap">
+              = {equivGrams} {standardUnitShort}
+            </span>
+          )}
+
+          {isMissingPortionConversion && (
+            <span className="block w-full text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20 mt-0.5">
+              Conversão não cadastrada para esta medida.
+            </span>
+          )}
         </div>
 
         {/* Line 3: Macros + Equivalentes + Substitutions toggle */}
@@ -641,10 +930,10 @@ export function NutritionItemEditor({
               <button
                 type="button"
                 onClick={handleOpenEquivalents}
-                className="inline-flex items-center gap-1 px-2 py-0.5 min-h-[30px] rounded-lg text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 min-h-[36px] rounded-lg text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 shrink-0 cursor-pointer"
                 title="Calcular equivalentes nutricionais"
               >
-                <svg className="w-3 h-3 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
                 <span>Equivalentes</span>
@@ -655,7 +944,7 @@ export function NutritionItemEditor({
               <button
                 type="button"
                 onClick={() => setAreSubsExpanded(!areSubsExpanded)}
-                className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0"
+                className="px-2.5 py-1 min-h-[36px] rounded-lg text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0 cursor-pointer"
               >
                 {item.substitutions.length} subs {areSubsExpanded ? "▲" : "▼"}
               </button>
@@ -672,7 +961,7 @@ export function NutritionItemEditor({
             <button
               type="button"
               onClick={() => setIsEditingNotes(true)}
-              className="text-[10px] text-[var(--brand)] hover:underline ml-2"
+              className="text-[10px] text-[var(--brand)] hover:underline ml-2 cursor-pointer"
             >
               editar
             </button>
@@ -696,14 +985,14 @@ export function NutritionItemEditor({
             <button
               type="button"
               onClick={() => setIsEditingNotes(false)}
-              className="px-2.5 py-1 text-xs rounded-lg border border-[var(--border)] text-[var(--text-secondary)]"
+              className="px-2.5 py-1 text-xs rounded-lg border border-[var(--border)] text-[var(--text-secondary)] cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleSaveNotes}
-              className="px-3 py-1 text-xs rounded-lg bg-[var(--brand)] text-white font-medium hover:opacity-90"
+              className="px-3 py-1 text-xs rounded-lg bg-[var(--brand)] text-white font-medium hover:opacity-90 cursor-pointer"
             >
               Salvar nota
             </button>
@@ -712,7 +1001,7 @@ export function NutritionItemEditor({
       )}
 
       {/* ========================================================================= */}
-      {/* SUBSTITUTIONS SUB-TREE (Collapsed by default!)                           */}
+      {/* SUBSTITUTIONS SUB-TREE (Collapsed by default)                             */}
       {/* ========================================================================= */}
       {areSubsExpanded && item.substitutions.length > 0 && (
         <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle)] animate-in fade-in duration-150">
@@ -814,6 +1103,18 @@ export function NutritionItemEditor({
         initialFoods={initialFoodsForEquivalents}
       />
 
+      {/* Custom Measure Modal */}
+      <NutritionCustomMeasureModal
+        isOpen={isCustomMeasureModalOpen}
+        onClose={() => setIsCustomMeasureModalOpen(false)}
+        slug={slug}
+        foodPublicId={item.foodPublicId || ""}
+        foodName={item.foodNameSnapshot}
+        foodReferenceUnit={foodReferenceUnit}
+        existingPortions={availablePortions}
+        onMeasureCreated={handleCustomMeasureCreated}
+      />
+
       {/* Side-by-side Compare Modal */}
       {substitutionToCompare && (
         <NutritionSubstitutionCompareModal
@@ -825,7 +1126,7 @@ export function NutritionItemEditor({
         />
       )}
 
-      {/* Food Picker for Resolving Pending Item or Choosing Registered Portions */}
+      {/* Food Picker for Resolving Pending Item */}
       <NutritionFoodPicker
         slug={slug}
         isOpen={isResolvePickerOpen}
@@ -846,6 +1147,14 @@ export function NutritionItemEditor({
       />
     </div>
   );
+}
+
+function formatNumberForDisplay(num: number): string {
+  if (!Number.isFinite(num)) return "";
+  if (Number.isInteger(num)) return String(num);
+  // Round to at most 2 decimal places cleanly
+  const rounded = Math.round(num * 100) / 100;
+  return String(rounded).replace(".", ",");
 }
 
 function extractCleanFoodQuery(raw: string): string {

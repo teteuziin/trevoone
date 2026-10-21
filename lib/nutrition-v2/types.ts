@@ -9,6 +9,12 @@
 // ============================================================================
 
 export type NutritionV2FoodScope = "GLOBAL" | "CONSULTANCY";
+export type NutritionV2PortionScope = "GLOBAL" | "CONSULTANCY" | "PERSONAL";
+export const ALL_NUTRITION_V2_PORTION_SCOPES: readonly NutritionV2PortionScope[] = [
+  "GLOBAL",
+  "CONSULTANCY",
+  "PERSONAL",
+] as const;
 export const ALL_NUTRITION_V2_FOOD_SCOPES: readonly NutritionV2FoodScope[] = [
   "GLOBAL",
   "CONSULTANCY",
@@ -125,6 +131,10 @@ export interface NutritionV2FoodPortionDto {
   equivalentReferenceAmount: number;
   sortOrder: number;
   status: string;
+  scope?: NutritionV2PortionScope;
+  consultancyId?: string | null;
+  createdByUserId?: string | null;
+  notes?: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;

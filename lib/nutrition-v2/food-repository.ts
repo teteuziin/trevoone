@@ -17,6 +17,7 @@ import {
 import type {
   NutritionV2FoodDto,
   NutritionV2FoodPortionDto,
+  NutritionV2PortionScope,
   NutritionV2FoodScope,
   NutritionV2FoodStatus,
 } from "./types";
@@ -47,6 +48,8 @@ export type CreatePortionInput = {
   label: string;
   equivalentReferenceAmount: number;
   sortOrder?: number;
+  notes?: string | null;
+  scope?: NutritionV2PortionScope;
 };
 
 export type UpdatePortionInput = Partial<CreatePortionInput>;
@@ -310,11 +313,19 @@ export async function getFoodWithPortions(
     }
 
     const [portions] = await connection.query<RowDataPacket[]>(
-      `SELECT public_id, label, equivalent_reference_amount, sort_order, status, created_at, updated_at, deleted_at
+      `SELECT public_id, label, equivalent_reference_amount, sort_order, status,
+              scope, consultancy_id, created_by_user_id, notes,
+              created_at, updated_at, deleted_at
        FROM nutrition_v2_food_portions
        WHERE food_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
+         AND (
+           scope = 'GLOBAL'
+           OR scope IS NULL
+           OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+           OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+         )
        ORDER BY sort_order ASC, label ASC`,
-      [f.id]
+      [f.id, ctx.consultancyId || 0, ctx.userId || 0]
     );
 
     return {
@@ -354,6 +365,10 @@ export async function getFoodWithPortions(
         equivalentReferenceAmount: safeNumber(p.equivalent_reference_amount, 100),
         sortOrder: safeNumber(p.sort_order, 0),
         status: safeString(p.status, "ACTIVE"),
+        scope: (p.scope || "GLOBAL") as NutritionV2PortionScope,
+        consultancyId: p.consultancy_id != null ? String(p.consultancy_id) : null,
+        createdByUserId: p.created_by_user_id != null ? String(p.created_by_user_id) : null,
+        notes: safeNullableString(p.notes),
         createdAt: safeIsoString(p.created_at, new Date(0).toISOString())!,
         updatedAt: safeIsoString(p.updated_at, new Date(0).toISOString())!,
         deletedAt: safeIsoString(p.deleted_at, null),
@@ -772,6 +787,7 @@ export async function createFoodPortion(
   foodPublicId: string,
   input: CreatePortionInput
 ): Promise<{ publicId: string }> {
+  assertCanAuthorNutrition(ctx);
   let connection;
   try {
     connection = await getDbConnection();
@@ -789,27 +805,51 @@ export async function createFoodPortion(
 
     // Ownership & authority check
     if (food.scope === "CONSULTANCY") {
-      if (!ctx.canAuthorNutrition || !ctx.consultancyId || Number(food.consultancy_id) !== ctx.consultancyId) {
+      if (!ctx.consultancyId || Number(food.consultancy_id) !== ctx.consultancyId) {
         throw new NutritionAuthorizationError(
           "Acesso negado: apenas Nutricionistas da consultoria podem gerenciar porções deste alimento.",
           "FORBIDDEN_PORTION_CREATION",
           403
         );
       }
-    } else if (food.scope === "GLOBAL") {
+    }
+
+    let effectiveScope: NutritionV2PortionScope = "PERSONAL";
+    let effectiveConsultancyId: number | null = ctx.consultancyId || null;
+    let effectiveCreatedByUserId: number | null = ctx.userId || null;
+
+    if (input.scope === "GLOBAL") {
       if (!ctx.canManageGlobal) {
         throw new NutritionAuthorizationError(
-          "Apenas o Administrador da Plataforma pode gerenciar porções de alimentos globais.",
+          "Apenas o Administrador da Plataforma pode cadastrar medidas oficiais globais.",
           "FORBIDDEN_GLOBAL_PORTION_CREATION",
           403
         );
       }
+      effectiveScope = "GLOBAL";
+      effectiveConsultancyId = null;
+      effectiveCreatedByUserId = ctx.userId || null;
+    } else if (input.scope === "CONSULTANCY") {
+      effectiveScope = "CONSULTANCY";
+      effectiveConsultancyId = ctx.consultancyId || null;
+      effectiveCreatedByUserId = ctx.userId || null;
+    } else {
+      effectiveScope = "PERSONAL";
+      effectiveConsultancyId = ctx.consultancyId || null;
+      effectiveCreatedByUserId = ctx.userId || null;
     }
 
     const portionPublicId = crypto.randomUUID();
     const label = input.label.trim();
+    if (!label) {
+      throw new NutritionAuthorizationError("O nome da medida é obrigatório.", "INVALID_PORTION_LABEL", 400);
+    }
     const amount = Number(input.equivalentReferenceAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new NutritionAuthorizationError("O peso/equivalência da medida deve ser um número maior que zero.", "INVALID_PORTION_AMOUNT", 400);
+    }
     const sortOrder = Number(input.sortOrder) || 0;
+    const notes = input.notes ? input.notes.trim() : null;
 
     await connection.query(
       `INSERT INTO nutrition_v2_food_portions (
@@ -818,9 +858,13 @@ export async function createFoodPortion(
         label,
         equivalent_reference_amount,
         sort_order,
-        status
-      ) VALUES (?, ?, ?, ?, ?, 'ACTIVE')`,
-      [portionPublicId, food.id, label, amount, sortOrder]
+        status,
+        scope,
+        consultancy_id,
+        created_by_user_id,
+        notes
+      ) VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?)`,
+      [portionPublicId, food.id, label, amount, sortOrder, effectiveScope, effectiveConsultancyId, effectiveCreatedByUserId, notes]
     );
 
     return { publicId: portionPublicId };
@@ -839,7 +883,8 @@ export async function updateFoodPortion(
     connection = await getDbConnection();
 
     const [rows] = await connection.query<RowDataPacket[]>(
-      `SELECT fp.id, fp.food_id, f.scope, f.consultancy_id
+      `SELECT fp.id, fp.food_id, fp.scope AS portion_scope, fp.consultancy_id AS portion_consultancy_id,
+              fp.created_by_user_id AS portion_user_id, f.scope AS food_scope, f.consultancy_id AS food_consultancy_id
        FROM nutrition_v2_food_portions fp
        INNER JOIN nutrition_v2_foods f ON f.id = fp.food_id
        WHERE fp.public_id = ? AND fp.deleted_at IS NULL`,
@@ -851,28 +896,25 @@ export async function updateFoodPortion(
     }
 
     const p = rows[0];
+    const portionScope = p.portion_scope || (p.food_scope === "CONSULTANCY" ? "CONSULTANCY" : "GLOBAL");
 
-    // Authorization check
-    if (p.scope === "CONSULTANCY") {
-      if (!ctx.canAuthorNutrition || !ctx.consultancyId || Number(p.consultancy_id) !== ctx.consultancyId) {
-        throw new NutritionAuthorizationError(
-          "Acesso negado: você não tem permissão para editar esta porção.",
-          "FORBIDDEN_PORTION_MUTATION",
-          403
-        );
+    // Scoped authorization check
+    if (portionScope === "PERSONAL") {
+      if (!ctx.canManageGlobal && (!ctx.userId || Number(p.portion_user_id) !== ctx.userId)) {
+        throw new NutritionAuthorizationError("Acesso negado: apenas o autor pode editar esta medida pessoal.", "FORBIDDEN_PORTION_MUTATION", 403);
       }
-    } else if (p.scope === "GLOBAL") {
+    } else if (portionScope === "CONSULTANCY") {
+      if (!ctx.canAuthorNutrition || !ctx.consultancyId || Number(p.portion_consultancy_id || p.food_consultancy_id) !== ctx.consultancyId) {
+        throw new NutritionAuthorizationError("Acesso negado: você não tem permissão para editar esta porção da consultoria.", "FORBIDDEN_PORTION_MUTATION", 403);
+      }
+    } else if (portionScope === "GLOBAL") {
       if (!ctx.canManageGlobal) {
-        throw new NutritionAuthorizationError(
-          "Apenas o Administrador da Plataforma pode editar porções de alimentos globais.",
-          "FORBIDDEN_GLOBAL_PORTION_MUTATION",
-          403
-        );
+        throw new NutritionAuthorizationError("Apenas o Administrador da Plataforma pode editar porções de alimentos globais.", "FORBIDDEN_GLOBAL_PORTION_MUTATION", 403);
       }
     }
 
     const updates: string[] = [];
-    const params: (string | number)[] = [];
+    const params: (string | number | null)[] = [];
 
     if (input.label !== undefined) {
       updates.push("label = ?");
@@ -887,6 +929,11 @@ export async function updateFoodPortion(
     if (input.sortOrder !== undefined) {
       updates.push("sort_order = ?");
       params.push(Number(input.sortOrder));
+    }
+
+    if (input.notes !== undefined) {
+      updates.push("notes = ?");
+      params.push(input.notes ? input.notes.trim() : null);
     }
 
     if (updates.length === 0) return { success: true };
@@ -912,7 +959,8 @@ export async function archiveFoodPortion(
     connection = await getDbConnection();
 
     const [rows] = await connection.query<RowDataPacket[]>(
-      `SELECT fp.id, fp.food_id, f.scope, f.consultancy_id
+      `SELECT fp.id, fp.food_id, fp.scope AS portion_scope, fp.consultancy_id AS portion_consultancy_id,
+              fp.created_by_user_id AS portion_user_id, f.scope AS food_scope, f.consultancy_id AS food_consultancy_id
        FROM nutrition_v2_food_portions fp
        INNER JOIN nutrition_v2_foods f ON f.id = fp.food_id
        WHERE fp.public_id = ? AND fp.deleted_at IS NULL`,
@@ -924,23 +972,20 @@ export async function archiveFoodPortion(
     }
 
     const p = rows[0];
+    const portionScope = p.portion_scope || (p.food_scope === "CONSULTANCY" ? "CONSULTANCY" : "GLOBAL");
 
-    // Authorization check
-    if (p.scope === "CONSULTANCY") {
-      if (!ctx.canAuthorNutrition || !ctx.consultancyId || Number(p.consultancy_id) !== ctx.consultancyId) {
-        throw new NutritionAuthorizationError(
-          "Acesso negado: você não tem permissão para arquivar esta porção.",
-          "FORBIDDEN_PORTION_MUTATION",
-          403
-        );
+    // Scoped authorization check
+    if (portionScope === "PERSONAL") {
+      if (!ctx.canManageGlobal && (!ctx.userId || Number(p.portion_user_id) !== ctx.userId)) {
+        throw new NutritionAuthorizationError("Acesso negado: apenas o autor pode arquivar esta medida pessoal.", "FORBIDDEN_PORTION_MUTATION", 403);
       }
-    } else if (p.scope === "GLOBAL") {
+    } else if (portionScope === "CONSULTANCY") {
+      if (!ctx.canAuthorNutrition || !ctx.consultancyId || Number(p.portion_consultancy_id || p.food_consultancy_id) !== ctx.consultancyId) {
+        throw new NutritionAuthorizationError("Acesso negado: você não tem permissão para arquivar esta porção da consultoria.", "FORBIDDEN_PORTION_MUTATION", 403);
+      }
+    } else if (portionScope === "GLOBAL") {
       if (!ctx.canManageGlobal) {
-        throw new NutritionAuthorizationError(
-          "Apenas o Administrador da Plataforma pode arquivar porções de alimentos globais.",
-          "FORBIDDEN_GLOBAL_PORTION_MUTATION",
-          403
-        );
+        throw new NutritionAuthorizationError("Apenas o Administrador da Plataforma pode arquivar porções de alimentos globais.", "FORBIDDEN_GLOBAL_PORTION_MUTATION", 403);
       }
     }
 
@@ -950,6 +995,78 @@ export async function archiveFoodPortion(
     );
 
     return { success: true };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+
+export async function findSimilarFoodPortion(
+  ctx: NutritionAccessContext,
+  foodPublicId: string,
+  rawLabel: string
+): Promise<{
+  exists: boolean;
+  similar?: {
+    label: string;
+    equivalentReferenceAmount: number;
+    scope: string;
+    notes?: string | null;
+  } | null;
+}> {
+  let connection;
+  try {
+    connection = await getDbConnection();
+
+    const [foods] = await connection.query<RowDataPacket[]>(
+      `SELECT id FROM nutrition_v2_foods WHERE public_id = ? AND deleted_at IS NULL`,
+      [foodPublicId]
+    );
+    if (foods.length === 0) return { exists: false };
+    const foodId = foods[0].id;
+
+    const [portions] = await connection.query<RowDataPacket[]>(
+      `SELECT label, equivalent_reference_amount, scope, notes
+       FROM nutrition_v2_food_portions
+       WHERE food_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
+         AND (
+           scope = 'GLOBAL'
+           OR scope IS NULL
+           OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+           OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+         )`,
+      [foodId, ctx.consultancyId || 0, ctx.userId || 0]
+    );
+
+    const normInput = rawLabel
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, " ")
+      .trim();
+
+    for (const p of portions) {
+      const normP = String(p.label)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, " ")
+        .trim();
+
+      if (normInput === normP || (normInput.length >= 4 && (normP.includes(normInput) || normInput.includes(normP)))) {
+        return {
+          exists: true,
+          similar: {
+            label: String(p.label),
+            equivalentReferenceAmount: Number(p.equivalent_reference_amount),
+            scope: String(p.scope || "GLOBAL"),
+            notes: p.notes ? String(p.notes) : null,
+          },
+        };
+      }
+    }
+
+    return { exists: false };
   } finally {
     if (connection) connection.release();
   }

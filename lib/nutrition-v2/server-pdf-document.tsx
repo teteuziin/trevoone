@@ -443,19 +443,116 @@ export function ServerPdfDocument({ plan }: ServerPdfDocumentProps) {
           </View>
         )}
 
-        {/* Guidance (if present) */}
-        {plan.generalGuidance && (
-          <View style={styles.noticeBox}>
-            <Text style={styles.noticeTitle}>Orientações Gerais do Nutricionista</Text>
-            <Text style={styles.noticeText}>{plan.generalGuidance}</Text>
+        {/* Structured Guidance: Recomendações */}
+        {plan.guidance?.hasRecommendations && plan.guidance.recommendations.length > 0 && (
+          <View style={styles.noticeBox} wrap={false}>
+            <Text style={styles.noticeTitle}>Recomendações e Hábitos</Text>
+            {plan.guidance.recommendations.map((rec) => (
+              <View key={rec.id} style={{ marginBottom: 4 }}>
+                {rec.title ? (
+                  <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: "#0f172a" }}>
+                    • {rec.title}
+                  </Text>
+                ) : null}
+                <Text style={styles.noticeText}>
+                  {rec.title ? "  " : "• "}{rec.text}
+                </Text>
+              </View>
+            ))}
           </View>
         )}
 
-        {/* Personal Note for Student (if present) */}
-        {plan.notesForStudent && (
+        {/* Structured Guidance: Suplementação */}
+        {plan.guidance?.hasSupplements && plan.guidance.supplements.length > 0 && (
+          <View style={[styles.noticeBox, { borderLeftColor: "#3b82f6" }]} wrap={false}>
+            <Text style={[styles.noticeTitle, { color: "#1d4ed8" }]}>Suplementação Prescrita</Text>
+            {plan.guidance.supplements.map((item) => (
+              <View key={item.id} style={{ marginBottom: 4, paddingBottom: 3, borderBottomWidth: 0.5, borderBottomColor: "#e2e8f0" }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ fontSize: 8.5, fontFamily: "Helvetica-Bold", color: "#0f172a" }}>
+                    • {item.name} {item.presentation ? `(${item.presentation})` : ""}
+                  </Text>
+                  {item.doseFormatted && (
+                    <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: "#2563eb" }}>
+                      {item.doseFormatted}
+                    </Text>
+                  )}
+                </View>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 1, gap: 4 }}>
+                  {item.frequency && (
+                    <Text style={{ fontSize: 7.5, color: "#475569" }}>
+                      Horário: {item.frequency}
+                    </Text>
+                  )}
+                  {item.route && (
+                    <Text style={{ fontSize: 7.5, color: "#475569" }}>
+                      • Via: {item.route}
+                    </Text>
+                  )}
+                  {item.duration && (
+                    <Text style={{ fontSize: 7.5, color: "#475569" }}>
+                      • Duração: {item.duration}
+                    </Text>
+                  )}
+                </View>
+                {item.notes && (
+                  <Text style={{ fontSize: 7.5, color: "#64748b", fontStyle: "italic", marginTop: 1 }}>
+                    Obs: {item.notes}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Structured Guidance: Fitoterápicos */}
+        {plan.guidance?.hasPhytotherapeutics && plan.guidance.phytotherapeutics.length > 0 && (
+          <View style={[styles.noticeBox, { borderLeftColor: "#8b5cf6" }]} wrap={false}>
+            <Text style={[styles.noticeTitle, { color: "#6d28d9" }]}>Fitoterápicos e Botânicos</Text>
+            {plan.guidance.phytotherapeutics.map((item) => (
+              <View key={item.id} style={{ marginBottom: 4, paddingBottom: 3, borderBottomWidth: 0.5, borderBottomColor: "#e2e8f0" }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ fontSize: 8.5, fontFamily: "Helvetica-Bold", color: "#0f172a" }}>
+                    • {item.name} {item.presentation ? `(${item.presentation})` : ""}
+                  </Text>
+                  {item.doseFormatted && (
+                    <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: "#7c3aed" }}>
+                      {item.doseFormatted}
+                    </Text>
+                  )}
+                </View>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 1, gap: 4 }}>
+                  {item.frequency && (
+                    <Text style={{ fontSize: 7.5, color: "#475569" }}>
+                      Horário: {item.frequency}
+                    </Text>
+                  )}
+                  {item.route && (
+                    <Text style={{ fontSize: 7.5, color: "#475569" }}>
+                      • Via: {item.route}
+                    </Text>
+                  )}
+                  {item.duration && (
+                    <Text style={{ fontSize: 7.5, color: "#475569" }}>
+                      • Duração: {item.duration}
+                    </Text>
+                  )}
+                </View>
+                {item.notes && (
+                  <Text style={{ fontSize: 7.5, color: "#64748b", fontStyle: "italic", marginTop: 1 }}>
+                    Obs: {item.notes}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Legacy Guidance Fallback (only if structured guidance was not present) */}
+        {!plan.guidance?.hasAny && plan.generalGuidance && (
           <View style={styles.noticeBox}>
-            <Text style={styles.noticeTitle}>Instruções Específicas da Prescrição</Text>
-            <Text style={styles.noticeText}>{plan.notesForStudent}</Text>
+            <Text style={styles.noticeTitle}>Orientações Gerais do Nutricionista</Text>
+            <Text style={styles.noticeText}>{plan.generalGuidance}</Text>
           </View>
         )}
 

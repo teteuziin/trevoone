@@ -54,6 +54,11 @@ import {
   type FoodNutrientStatus,
 } from "./nutrient-calculator";
 import {
+  type PlanStructuredGuidance,
+  parseStructuredGuidance,
+  summarizeGuidanceToText,
+} from "./guidance-types";
+import {
   parseMicronutrientsSnapshot,
   buildMicronutrientsSnapshotEnvelope,
   type MicronutrientsSnapshotEnvelope,
@@ -121,6 +126,7 @@ export interface PlanVersionTreeDto {
     subtitle: string | null;
     objective: string | null;
     generalGuidance: string | null;
+    guidanceJson?: PlanStructuredGuidance | null;
     notes: string | null;
     publishedAt: string | null;
     createdAt: string;
@@ -312,6 +318,7 @@ export type CreatePlanInput = {
   subtitle?: string | null;
   objective?: string | null;
   generalGuidance?: string | null;
+  guidanceJson?: PlanStructuredGuidance | null;
   notes?: string | null;
 };
 
@@ -320,6 +327,7 @@ export type UpdateVersionMetadataInput = {
   subtitle?: string | null;
   objective?: string | null;
   generalGuidance?: string | null;
+  guidanceJson?: PlanStructuredGuidance | null;
   notes?: string | null;
 };
 
@@ -481,7 +489,10 @@ export async function createPlanWithDraftVersion(
   const versionPublicId = crypto.randomUUID();
   const subtitle = input.subtitle ? input.subtitle.trim() : null;
   const objective = input.objective ? input.objective.trim() : null;
-  const generalGuidance = input.generalGuidance ? input.generalGuidance.trim() : null;
+  const generalGuidance = input.generalGuidance !== undefined
+    ? (input.generalGuidance ? input.generalGuidance.trim() : null)
+    : (input.guidanceJson ? summarizeGuidanceToText(input.guidanceJson) : null);
+  const guidanceJsonStr = input.guidanceJson ? JSON.stringify(input.guidanceJson) : null;
   const notes = input.notes ? input.notes.trim() : null;
 
   let connection;
@@ -503,30 +514,67 @@ export async function createPlanWithDraftVersion(
     const planId = planRes.insertId;
 
     // 2. Insert version 1 (DRAFT)
-    await connection.query(
-      `INSERT INTO nutrition_v2_plan_versions (
-        public_id,
-        nutrition_plan_id,
-        version_number,
-        status,
-        title,
-        subtitle,
-        objective,
-        general_guidance,
-        notes,
-        created_by_membership_id
-      ) VALUES (?, ?, 1, 'DRAFT', ?, ?, ?, ?, ?, ?)`,
-      [
-        versionPublicId,
-        planId,
-        title,
-        subtitle,
-        objective,
-        generalGuidance,
-        notes,
-        ctx.membershipId!,
-      ]
-    );
+    try {
+      await connection.query(
+        `INSERT INTO nutrition_v2_plan_versions (
+          public_id,
+          nutrition_plan_id,
+          version_number,
+          status,
+          title,
+          subtitle,
+          objective,
+          general_guidance,
+          guidance_json,
+          notes,
+          created_by_membership_id
+        ) VALUES (?, ?, 1, 'DRAFT', ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          versionPublicId,
+          planId,
+          title,
+          subtitle,
+          objective,
+          generalGuidance,
+          guidanceJsonStr,
+          notes,
+          ctx.membershipId!,
+        ]
+      );
+    } catch (insertErr: unknown) {
+      if (
+        insertErr &&
+        typeof insertErr === "object" &&
+        ("code" in insertErr && ((insertErr as { code?: string }).code === "ER_BAD_FIELD_ERROR" || (insertErr as { errno?: number }).errno === 1054))
+      ) {
+        await connection.query(
+          `INSERT INTO nutrition_v2_plan_versions (
+            public_id,
+            nutrition_plan_id,
+            version_number,
+            status,
+            title,
+            subtitle,
+            objective,
+            general_guidance,
+            notes,
+            created_by_membership_id
+          ) VALUES (?, ?, 1, 'DRAFT', ?, ?, ?, ?, ?, ?)`,
+          [
+            versionPublicId,
+            planId,
+            title,
+            subtitle,
+            objective,
+            generalGuidance,
+            notes,
+            ctx.membershipId!,
+          ]
+        );
+      } else {
+        throw insertErr;
+      }
+    }
 
     await recordConsultancyActivity({
       consultancyId: ctx.consultancyId!,
@@ -726,12 +774,13 @@ export async function getPlanVersionTreeByPlanPublicId(
 ): Promise<PlanVersionTreeDto | null> {
   assertCanAuthorNutrition(ctx);
 
-  let connection;
+  let connection: PoolConnection | null = null;
   try {
-    connection = await getDbConnection();
+    const conn = await getDbConnection();
+    connection = conn;
 
     // 1. Get plan root
-    const [plans] = await connection.query<RowDataPacket[]>(
+    const [plans] = await conn.query<RowDataPacket[]>(
       `SELECT id, public_id, consultancy_id, is_template, status
        FROM nutrition_v2_plans
        WHERE public_id = ? AND deleted_at IS NULL`,
@@ -745,24 +794,34 @@ export async function getPlanVersionTreeByPlanPublicId(
       throw new NutritionAuthorizationError("Acesso negado a este plano.", "FORBIDDEN_TENANT_PLAN", 403);
     }
 
-    // 2. Get target version or latest version
+    // 2. Get target version or latest version (with defensive guidance_json fallback)
     let versions: RowDataPacket[];
-    if (versionPublicId) {
-      const [vRows] = await connection.query<RowDataPacket[]>(
-        `SELECT id, public_id, version_number, status, title, subtitle, objective, general_guidance, notes, published_at, created_at, updated_at
-         FROM nutrition_v2_plan_versions
-         WHERE public_id = ? AND nutrition_plan_id = ? AND deleted_at IS NULL`,
-        [versionPublicId, p.id]
-      );
-      versions = vRows;
-    } else {
-      const [vRows] = await connection.query<RowDataPacket[]>(
-        `SELECT id, public_id, version_number, status, title, subtitle, objective, general_guidance, notes, published_at, created_at, updated_at
+    const colsWithGuidance = "id, public_id, version_number, status, title, subtitle, objective, general_guidance, guidance_json, notes, published_at, created_at, updated_at";
+    const colsFallback = "id, public_id, version_number, status, title, subtitle, objective, general_guidance, notes, published_at, created_at, updated_at";
+
+    const fetchVersionRows = async (cols: string) => {
+      if (versionPublicId) {
+        return conn.query<RowDataPacket[]>(
+          `SELECT ${cols}
+           FROM nutrition_v2_plan_versions
+           WHERE public_id = ? AND nutrition_plan_id = ? AND deleted_at IS NULL`,
+          [versionPublicId, p.id]
+        );
+      }
+      return conn.query<RowDataPacket[]>(
+        `SELECT ${cols}
          FROM nutrition_v2_plan_versions
          WHERE nutrition_plan_id = ? AND deleted_at IS NULL
          ORDER BY version_number DESC LIMIT 1`,
         [p.id]
       );
+    };
+
+    try {
+      const [vRows] = await fetchVersionRows(colsWithGuidance);
+      versions = vRows;
+    } catch {
+      const [vRows] = await fetchVersionRows(colsFallback);
       versions = vRows;
     }
 
@@ -994,6 +1053,10 @@ export async function getPlanVersionTreeByPlanPublicId(
         subtitle: v.subtitle ? String(v.subtitle) : null,
         objective: v.objective ? String(v.objective) : null,
         generalGuidance: v.general_guidance ? String(v.general_guidance) : null,
+        guidanceJson: parseStructuredGuidance(
+          v.guidance_json,
+          v.general_guidance ? String(v.general_guidance) : null
+        ),
         notes: v.notes ? String(v.notes) : null,
         publishedAt: v.published_at ? new Date(v.published_at).toISOString() : null,
         createdAt: new Date(v.created_at).toISOString(),
@@ -1046,6 +1109,18 @@ export async function updatePlanVersionMetadata(
       params.push(input.objective ? input.objective.trim() : null);
     }
 
+    let guidanceJsonIncluded = false;
+
+    if (input.guidanceJson !== undefined) {
+      guidanceJsonIncluded = true;
+      updates.push("guidance_json = ?");
+      params.push(input.guidanceJson ? JSON.stringify(input.guidanceJson) : null);
+      if (input.generalGuidance === undefined && input.guidanceJson) {
+        updates.push("general_guidance = ?");
+        params.push(summarizeGuidanceToText(input.guidanceJson));
+      }
+    }
+
     if (input.generalGuidance !== undefined) {
       updates.push("general_guidance = ?");
       params.push(input.generalGuidance ? input.generalGuidance.trim() : null);
@@ -1058,10 +1133,55 @@ export async function updatePlanVersionMetadata(
 
     if (updates.length > 0) {
       params.push(version.versionId);
-      await connection.query(
-        `UPDATE nutrition_v2_plan_versions SET ${updates.join(", ")} WHERE id = ?`,
-        params
-      );
+      try {
+        await connection.query(
+          `UPDATE nutrition_v2_plan_versions SET ${updates.join(", ")} WHERE id = ?`,
+          params
+        );
+      } catch (updateErr: unknown) {
+        if (
+          guidanceJsonIncluded &&
+          updateErr &&
+          typeof updateErr === "object" &&
+          ("code" in updateErr && ((updateErr as { code?: string }).code === "ER_BAD_FIELD_ERROR" || (updateErr as { errno?: number }).errno === 1054))
+        ) {
+          // Graceful fallback if guidance_json column is not yet present in database
+          const safeUpdates: string[] = [];
+          const safeParams: (string | null | number)[] = [];
+          if (input.title !== undefined) {
+            safeUpdates.push("title = ?");
+            safeParams.push(input.title.trim());
+          }
+          if (input.subtitle !== undefined) {
+            safeUpdates.push("subtitle = ?");
+            safeParams.push(input.subtitle ? input.subtitle.trim() : null);
+          }
+          if (input.objective !== undefined) {
+            safeUpdates.push("objective = ?");
+            safeParams.push(input.objective ? input.objective.trim() : null);
+          }
+          if (input.generalGuidance !== undefined) {
+            safeUpdates.push("general_guidance = ?");
+            safeParams.push(input.generalGuidance ? input.generalGuidance.trim() : null);
+          } else if (input.guidanceJson) {
+            safeUpdates.push("general_guidance = ?");
+            safeParams.push(summarizeGuidanceToText(input.guidanceJson));
+          }
+          if (input.notes !== undefined) {
+            safeUpdates.push("notes = ?");
+            safeParams.push(input.notes ? input.notes.trim() : null);
+          }
+          if (safeUpdates.length > 0) {
+            safeParams.push(version.versionId);
+            await connection.query(
+              `UPDATE nutrition_v2_plan_versions SET ${safeUpdates.join(", ")} WHERE id = ?`,
+              safeParams
+            );
+          }
+        } else {
+          throw updateErr;
+        }
+      }
     }
 
     await connection.commit();
@@ -3324,32 +3444,76 @@ export async function createNextDraftVersion(
     const newVersionPublicId = crypto.randomUUID();
 
     // 5. Insert new DRAFT version row (published_at NULL, status DRAFT)
-    const [vInsertRes] = await connection.query<ResultSetHeader>(
-      `INSERT INTO nutrition_v2_plan_versions (
-        public_id,
-        nutrition_plan_id,
-        version_number,
-        status,
-        title,
-        subtitle,
-        objective,
-        general_guidance,
-        notes,
-        created_by_membership_id
-      ) VALUES (?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?)`,
-      [
-        newVersionPublicId,
-        plan.id,
-        nextVersionNumber,
-        sourceVersion.title,
-        sourceVersion.subtitle,
-        sourceVersion.objective,
-        sourceVersion.general_guidance,
-        sourceVersion.notes,
-        ctx.membershipId!,
-      ]
-    );
-    const newVersionId = vInsertRes.insertId;
+    let newVersionId: number;
+    const sourceGuidanceJson = sourceVersion.guidance_json !== undefined
+      ? (typeof sourceVersion.guidance_json === "string" ? sourceVersion.guidance_json : JSON.stringify(sourceVersion.guidance_json))
+      : null;
+
+    try {
+      const [vInsertRes] = await connection.query<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_plan_versions (
+          public_id,
+          nutrition_plan_id,
+          version_number,
+          status,
+          title,
+          subtitle,
+          objective,
+          general_guidance,
+          guidance_json,
+          notes,
+          created_by_membership_id
+        ) VALUES (?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newVersionPublicId,
+          plan.id,
+          nextVersionNumber,
+          sourceVersion.title,
+          sourceVersion.subtitle,
+          sourceVersion.objective,
+          sourceVersion.general_guidance,
+          sourceGuidanceJson,
+          sourceVersion.notes,
+          ctx.membershipId!,
+        ]
+      );
+      newVersionId = vInsertRes.insertId;
+    } catch (draftErr: unknown) {
+      if (
+        draftErr &&
+        typeof draftErr === "object" &&
+        ("code" in draftErr && ((draftErr as { code?: string }).code === "ER_BAD_FIELD_ERROR" || (draftErr as { errno?: number }).errno === 1054))
+      ) {
+        const [vInsertRes] = await connection.query<ResultSetHeader>(
+          `INSERT INTO nutrition_v2_plan_versions (
+            public_id,
+            nutrition_plan_id,
+            version_number,
+            status,
+            title,
+            subtitle,
+            objective,
+            general_guidance,
+            notes,
+            created_by_membership_id
+          ) VALUES (?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?)`,
+          [
+            newVersionPublicId,
+            plan.id,
+            nextVersionNumber,
+            sourceVersion.title,
+            sourceVersion.subtitle,
+            sourceVersion.objective,
+            sourceVersion.general_guidance,
+            sourceVersion.notes,
+            ctx.membershipId!,
+          ]
+        );
+        newVersionId = vInsertRes.insertId;
+      } else {
+        throw draftErr;
+      }
+    }
 
     if (testHook === "FAIL_AFTER_VERSION") {
       throw new Error("TEST_HOOK_FAIL_AFTER_VERSION");

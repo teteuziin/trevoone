@@ -1,3 +1,8 @@
+import {
+  type PresentedGuidance,
+  parseStructuredGuidance,
+  presentStructuredGuidance,
+} from "./guidance-types";
 /**
  * TREVO ONE — Nutrition Plan Pure Presentation Mapper
  *
@@ -63,6 +68,7 @@ export interface PresentedNutritionPlan {
   subtitle: string | null;
   objective: string | null;
   generalGuidance: string | null;
+  guidance?: PresentedGuidance | null;
   notesForStudent: string | null;
   prescriberName: string | null;
   studentName?: string | null;
@@ -193,7 +199,7 @@ export function presentNutritionPlan(
   assignedPlan: StudentAssignedPlanTreeDto,
   options: PresentationOptions
 ): PresentedNutritionPlan {
-  const { version, meals, totals, notesForStudent, startsOn, endsOn, assignmentPublicId } = assignedPlan;
+  const { version, meals, totals, startsOn, endsOn, assignmentPublicId } = assignedPlan;
 
   // Format period
   const startBr = formatDateBr(startsOn);
@@ -276,13 +282,23 @@ export function presentNutritionPlan(
     }
   }
 
+  const rawGuidance =
+    (assignedPlan as unknown as { version_guidance_json?: unknown; guidanceJson?: unknown }).version_guidance_json ||
+    (assignedPlan as unknown as { guidanceJson?: unknown }).guidanceJson;
+  const parsedGuidance = parseStructuredGuidance(
+    rawGuidance,
+    version.generalGuidance ? version.generalGuidance.trim() : null
+  );
+  const presentedGuidance = presentStructuredGuidance(parsedGuidance);
+
   return {
     assignmentPublicId,
     title: version.title.trim(),
     subtitle: version.subtitle ? version.subtitle.trim() : null,
     objective: version.objective ? version.objective.trim() : null,
     generalGuidance: version.generalGuidance ? version.generalGuidance.trim() : null,
-    notesForStudent: notesForStudent ? notesForStudent.trim() : null,
+    guidance: presentedGuidance.hasAny ? presentedGuidance : null,
+    notesForStudent: null, // STRICT: internal clinical notes are never exposed to student/PDF
     prescriberName: assignedPlan.prescriberName || options.prescriberName || null,
     studentName: options.studentName ? options.studentName.trim() : null,
     consultancyName: options.consultancyName.trim(),
@@ -410,13 +426,21 @@ export function presentNutritionPlanFromVersionTree(
     }
   }
 
+  const rawTreeGuidance = (tree.version as unknown as { guidanceJson?: unknown }).guidanceJson;
+  const parsedTreeGuidance = parseStructuredGuidance(
+    rawTreeGuidance,
+    version.generalGuidance ? version.generalGuidance.trim() : null
+  );
+  const presentedTreeGuidance = presentStructuredGuidance(parsedTreeGuidance);
+
   return {
     assignmentPublicId: tree.plan.publicId,
     title: version.title.trim(),
     subtitle: version.subtitle ? version.subtitle.trim() : null,
     objective: version.objective ? version.objective.trim() : null,
     generalGuidance: version.generalGuidance ? version.generalGuidance.trim() : null,
-    notesForStudent: version.notes ? version.notes.trim() : null,
+    guidance: presentedTreeGuidance.hasAny ? presentedTreeGuidance : null,
+    notesForStudent: null, // STRICT: internal clinical notes are never exposed to student/PDF
     prescriberName: options.prescriberName || null,
     studentName: options.studentName?.trim() || null,
     consultancyName: options.consultancyName.trim(),

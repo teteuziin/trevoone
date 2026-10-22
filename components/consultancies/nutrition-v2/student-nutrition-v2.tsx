@@ -362,16 +362,92 @@ export function StudentNutritionV2({
           </div>
         )}
 
-        {/* Guidance and Notes (if present) */}
-        {(plan.objective || plan.generalGuidance || plan.notesForStudent) && (
-          <div className="space-y-2">
+        {/* Guidance and Clinical Prescriptions */}
+        {(plan.objective || plan.guidance?.hasAny || plan.generalGuidance || plan.notesForStudent) && (
+          <div className="space-y-2.5">
             {plan.objective && (
               <div className="p-3 bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-xl text-xs text-[var(--text-secondary)] space-y-1">
                 <strong className="text-[var(--text-primary)] font-semibold block">Objetivo do Plano</strong>
                 <p>{plan.objective}</p>
               </div>
             )}
-            {plan.generalGuidance && (
+            {plan.guidance?.hasRecommendations && plan.guidance.recommendations.length > 0 && (
+              <div className="p-3.5 bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-xl space-y-2 text-xs">
+                <div className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                  <span>💡</span>
+                  <span>Recomendações e Hábitos</span>
+                </div>
+                <div className="space-y-2">
+                  {plan.guidance.recommendations.map((rec) => (
+                    <div key={rec.id} className="text-[var(--text-secondary)] leading-relaxed">
+                      {rec.title && <strong className="text-[var(--text-primary)] block font-semibold">{rec.title}</strong>}
+                      <p className="whitespace-pre-line">{rec.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {plan.guidance?.hasSupplements && plan.guidance.supplements.length > 0 && (
+              <div className="p-3.5 bg-blue-500/5 border border-blue-500/20 rounded-xl space-y-2 text-xs">
+                <div className="font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
+                  <span>💊</span>
+                  <span>Suplementação Prescrita</span>
+                </div>
+                <div className="divide-y divide-blue-500/10">
+                  {plan.guidance.supplements.map((item) => (
+                    <div key={item.id} className="py-2 first:pt-0 last:pb-0 space-y-1">
+                      <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                        <span className="font-bold text-[var(--text-primary)]">
+                          {item.name} {item.presentation ? <span className="font-normal text-[var(--text-secondary)] text-[11px]">({item.presentation})</span> : null}
+                        </span>
+                        {item.doseFormatted && (
+                          <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded text-[11px]">
+                            {item.doseFormatted}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+                        {item.frequency && <span><strong>Horário:</strong> {item.frequency}</span>}
+                        {item.route && <span><strong>Via:</strong> {item.route}</span>}
+                        {item.duration && <span><strong>Duração:</strong> {item.duration}</span>}
+                      </div>
+                      {item.notes && <p className="text-[11px] text-[var(--text-tertiary)] italic">{item.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {plan.guidance?.hasPhytotherapeutics && plan.guidance.phytotherapeutics.length > 0 && (
+              <div className="p-3.5 bg-purple-500/5 border border-purple-500/20 rounded-xl space-y-2 text-xs">
+                <div className="font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
+                  <span>🌿</span>
+                  <span>Fitoterápicos e Botânicos</span>
+                </div>
+                <div className="divide-y divide-purple-500/10">
+                  {plan.guidance.phytotherapeutics.map((item) => (
+                    <div key={item.id} className="py-2 first:pt-0 last:pb-0 space-y-1">
+                      <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                        <span className="font-bold text-[var(--text-primary)]">
+                          {item.name} {item.presentation ? <span className="font-normal text-[var(--text-secondary)] text-[11px]">({item.presentation})</span> : null}
+                        </span>
+                        {item.doseFormatted && (
+                          <span className="font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded text-[11px]">
+                            {item.doseFormatted}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+                        {item.frequency && <span><strong>Horário:</strong> {item.frequency}</span>}
+                        {item.route && <span><strong>Via:</strong> {item.route}</span>}
+                        {item.duration && <span><strong>Duração:</strong> {item.duration}</span>}
+                      </div>
+                      {item.notes && <p className="text-[11px] text-[var(--text-tertiary)] italic">{item.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {!plan.guidance?.hasAny && plan.generalGuidance && (
               <div className="p-3 bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-xl text-xs text-[var(--text-secondary)] space-y-1">
                 <strong className="text-[var(--text-primary)] font-semibold block">Orientações do Nutricionista</strong>
                 <p className="whitespace-pre-line leading-relaxed">{plan.generalGuidance}</p>
@@ -611,15 +687,97 @@ export function StudentNutritionV2({
             </details>
           )}
 
-          {/* Orientações do Nutricionista (Subtle box, only if present) */}
-          {plan.generalGuidance && (
+          {/* Structured Guidance: Recomendações */}
+          {plan.guidance?.hasRecommendations && plan.guidance.recommendations.length > 0 && (
+            <div className="p-3.5 bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-lg space-y-2 text-xs">
+              <div className="font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                <span>💡</span>
+                <span>Recomendações e Hábitos</span>
+              </div>
+              <div className="space-y-2">
+                {plan.guidance.recommendations.map((rec) => (
+                  <div key={rec.id} className="text-[var(--text-secondary)] leading-relaxed">
+                    {rec.title && <strong className="text-[var(--text-primary)] block font-semibold">{rec.title}</strong>}
+                    <p className="whitespace-pre-line">{rec.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Structured Guidance: Suplementação */}
+          {plan.guidance?.hasSupplements && plan.guidance.supplements.length > 0 && (
+            <div className="p-3.5 bg-blue-500/5 border border-blue-500/20 rounded-lg space-y-2 text-xs">
+              <div className="font-semibold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
+                <span>💊</span>
+                <span>Suplementação Prescrita</span>
+              </div>
+              <div className="divide-y divide-blue-500/10">
+                {plan.guidance.supplements.map((item) => (
+                  <div key={item.id} className="py-2 first:pt-0 last:pb-0 space-y-1">
+                    <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                      <span className="font-bold text-[var(--text-primary)]">
+                        {item.name} {item.presentation ? <span className="font-normal text-[var(--text-secondary)] text-[11px]">({item.presentation})</span> : null}
+                      </span>
+                      {item.doseFormatted && (
+                        <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded text-[11px]">
+                          {item.doseFormatted}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+                      {item.frequency && <span><strong>Horário:</strong> {item.frequency}</span>}
+                      {item.route && <span><strong>Via:</strong> {item.route}</span>}
+                      {item.duration && <span><strong>Duração:</strong> {item.duration}</span>}
+                    </div>
+                    {item.notes && <p className="text-[11px] text-[var(--text-tertiary)] italic">{item.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Structured Guidance: Fitoterápicos */}
+          {plan.guidance?.hasPhytotherapeutics && plan.guidance.phytotherapeutics.length > 0 && (
+            <div className="p-3.5 bg-purple-500/5 border border-purple-500/20 rounded-lg space-y-2 text-xs">
+              <div className="font-semibold text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
+                <span>🌿</span>
+                <span>Fitoterápicos e Botânicos</span>
+              </div>
+              <div className="divide-y divide-purple-500/10">
+                {plan.guidance.phytotherapeutics.map((item) => (
+                  <div key={item.id} className="py-2 first:pt-0 last:pb-0 space-y-1">
+                    <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                      <span className="font-bold text-[var(--text-primary)]">
+                        {item.name} {item.presentation ? <span className="font-normal text-[var(--text-secondary)] text-[11px]">({item.presentation})</span> : null}
+                      </span>
+                      {item.doseFormatted && (
+                        <span className="font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded text-[11px]">
+                          {item.doseFormatted}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+                      {item.frequency && <span><strong>Horário:</strong> {item.frequency}</span>}
+                      {item.route && <span><strong>Via:</strong> {item.route}</span>}
+                      {item.duration && <span><strong>Duração:</strong> {item.duration}</span>}
+                    </div>
+                    {item.notes && <p className="text-[11px] text-[var(--text-tertiary)] italic">{item.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Legacy Guidance */}
+          {!plan.guidance?.hasAny && plan.generalGuidance && (
             <div className="p-3.5 bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-lg space-y-1 text-xs text-[var(--text-secondary)]">
               <div className="font-semibold text-[var(--text-primary)]">Orientações do Nutricionista</div>
               <p className="whitespace-pre-line leading-relaxed">{plan.generalGuidance}</p>
             </div>
           )}
 
-          {/* Observações da Prescrição (Subtle amber box, only if present) */}
+          {/* Observações da Prescrição (only if present) */}
           {plan.notesForStudent && (
             <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-800 dark:text-amber-300">
               <strong className="text-amber-800 dark:text-amber-200 font-semibold">Observações: </strong>

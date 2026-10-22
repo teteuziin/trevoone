@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import type { PlanVersionTreeDto } from "@/lib/nutrition-v2/plan-repository";
 import { formatQuantity, formatMacroGram, formatCaloriesKcal } from "@/lib/nutrition-v2/nutrition-plan-presentation";
+import { presentStructuredGuidance } from "@/lib/nutrition-v2/guidance-types";
 
 interface NutritionPatientPreviewModalProps {
   isOpen: boolean;
@@ -254,17 +255,103 @@ export function NutritionPatientPreviewModal({
             ))}
           </div>
 
-          {/* General Guidance Section */}
-          {version.generalGuidance && (
-            <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-1.5">
-              <h4 className="text-xs font-bold text-[var(--text-primary)]">
-                Orientações Gerais do Nutricionista
-              </h4>
-              <p className="text-xs text-[var(--text-secondary)] whitespace-pre-line leading-relaxed">
-                {version.generalGuidance}
-              </p>
-            </div>
-          )}
+          {/* Structured Guidance Preview */}
+          {(() => {
+            const guidance = version.guidanceJson ? presentStructuredGuidance(version.guidanceJson) : null;
+            return (
+              <div className="space-y-3">
+                {guidance?.hasRecommendations && guidance.recommendations.length > 0 && (
+                  <div className="p-3.5 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl space-y-2 text-xs">
+                    <h4 className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                      <span>💡</span>
+                      <span>Recomendações e Hábitos</span>
+                    </h4>
+                    <div className="space-y-2">
+                      {guidance.recommendations.map((rec) => (
+                        <div key={rec.id} className="text-[var(--text-secondary)] leading-relaxed">
+                          {rec.title && <strong className="text-[var(--text-primary)] block font-semibold">{rec.title}</strong>}
+                          <p className="whitespace-pre-line">{rec.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {guidance?.hasSupplements && guidance.supplements.length > 0 && (
+                  <div className="p-3.5 bg-blue-500/5 border border-blue-500/20 rounded-xl space-y-2 text-xs">
+                    <h4 className="text-xs font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
+                      <span>💊</span>
+                      <span>Suplementação Prescrita</span>
+                    </h4>
+                    <div className="divide-y divide-blue-500/10">
+                      {guidance.supplements.map((item) => (
+                        <div key={item.id} className="py-2 first:pt-0 last:pb-0 space-y-1">
+                          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                            <span className="font-bold text-[var(--text-primary)]">
+                              {item.name} {item.presentation ? <span className="font-normal text-[var(--text-secondary)] text-[11px]">({item.presentation})</span> : null}
+                            </span>
+                            {item.doseFormatted && (
+                              <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded text-[11px]">
+                                {item.doseFormatted}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+                            {item.frequency && <span><strong>Horário:</strong> {item.frequency}</span>}
+                            {item.route && <span><strong>Via:</strong> {item.route}</span>}
+                            {item.duration && <span><strong>Duração:</strong> {item.duration}</span>}
+                          </div>
+                          {item.notes && <p className="text-[11px] text-[var(--text-tertiary)] italic">{item.notes}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {guidance?.hasPhytotherapeutics && guidance.phytotherapeutics.length > 0 && (
+                  <div className="p-3.5 bg-purple-500/5 border border-purple-500/20 rounded-xl space-y-2 text-xs">
+                    <h4 className="text-xs font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
+                      <span>🌿</span>
+                      <span>Fitoterápicos e Botânicos</span>
+                    </h4>
+                    <div className="divide-y divide-purple-500/10">
+                      {guidance.phytotherapeutics.map((item) => (
+                        <div key={item.id} className="py-2 first:pt-0 last:pb-0 space-y-1">
+                          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                            <span className="font-bold text-[var(--text-primary)]">
+                              {item.name} {item.presentation ? <span className="font-normal text-[var(--text-secondary)] text-[11px]">({item.presentation})</span> : null}
+                            </span>
+                            {item.doseFormatted && (
+                              <span className="font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded text-[11px]">
+                                {item.doseFormatted}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+                            {item.frequency && <span><strong>Horário:</strong> {item.frequency}</span>}
+                            {item.route && <span><strong>Via:</strong> {item.route}</span>}
+                            {item.duration && <span><strong>Duração:</strong> {item.duration}</span>}
+                          </div>
+                          {item.notes && <p className="text-[11px] text-[var(--text-tertiary)] italic">{item.notes}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {!guidance?.hasAny && version.generalGuidance && (
+                  <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-1.5">
+                    <h4 className="text-xs font-bold text-[var(--text-primary)]">
+                      Orientações Gerais do Nutricionista
+                    </h4>
+                    <p className="text-xs text-[var(--text-secondary)] whitespace-pre-line leading-relaxed">
+                      {version.generalGuidance}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Modal Bottom Footer */}

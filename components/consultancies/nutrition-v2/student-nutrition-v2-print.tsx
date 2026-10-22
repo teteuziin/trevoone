@@ -221,15 +221,84 @@ export function StudentNutritionV2Print({
               </div>
             )}
 
-            {/* General Guidance */}
-            {plan.generalGuidance && (
+            {/* Structured Guidance: Recomendações */}
+            {plan.guidance?.hasRecommendations && plan.guidance.recommendations.length > 0 && (
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs text-slate-700">
+                <div className="font-bold text-slate-900">Recomendações e Hábitos</div>
+                <div className="space-y-1.5">
+                  {plan.guidance.recommendations.map((rec) => (
+                    <div key={rec.id} className="leading-relaxed">
+                      {rec.title && <strong className="text-slate-900 block font-semibold">{rec.title}</strong>}
+                      <p className="whitespace-pre-line">{rec.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Structured Guidance: Suplementação */}
+            {plan.guidance?.hasSupplements && plan.guidance.supplements.length > 0 && (
+              <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2 text-xs text-slate-800">
+                <div className="font-bold text-blue-950">Suplementação Prescrita</div>
+                <div className="divide-y divide-blue-200/60">
+                  {plan.guidance.supplements.map((item) => (
+                    <div key={item.id} className="py-1.5 first:pt-0 last:pb-0 space-y-0.5">
+                      <div className="flex justify-between items-baseline">
+                        <span className="font-bold text-slate-900">
+                          {item.name} {item.presentation ? <span className="font-normal text-slate-600">({item.presentation})</span> : null}
+                        </span>
+                        {item.doseFormatted && (
+                          <span className="font-bold text-blue-800">{item.doseFormatted}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 text-[11px] text-slate-600">
+                        {item.frequency && <span><strong>Horário:</strong> {item.frequency}</span>}
+                        {item.route && <span><strong>Via:</strong> {item.route}</span>}
+                        {item.duration && <span><strong>Duração:</strong> {item.duration}</span>}
+                      </div>
+                      {item.notes && <p className="text-[11px] text-slate-500 italic">{item.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Structured Guidance: Fitoterápicos */}
+            {plan.guidance?.hasPhytotherapeutics && plan.guidance.phytotherapeutics.length > 0 && (
+              <div className="p-3.5 bg-purple-50/60 border border-purple-200 rounded-xl space-y-2 text-xs text-slate-800">
+                <div className="font-bold text-purple-950">Fitoterápicos e Botânicos</div>
+                <div className="divide-y divide-purple-200/60">
+                  {plan.guidance.phytotherapeutics.map((item) => (
+                    <div key={item.id} className="py-1.5 first:pt-0 last:pb-0 space-y-0.5">
+                      <div className="flex justify-between items-baseline">
+                        <span className="font-bold text-slate-900">
+                          {item.name} {item.presentation ? <span className="font-normal text-slate-600">({item.presentation})</span> : null}
+                        </span>
+                        {item.doseFormatted && (
+                          <span className="font-bold text-purple-800">{item.doseFormatted}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 text-[11px] text-slate-600">
+                        {item.frequency && <span><strong>Horário:</strong> {item.frequency}</span>}
+                        {item.route && <span><strong>Via:</strong> {item.route}</span>}
+                        {item.duration && <span><strong>Duração:</strong> {item.duration}</span>}
+                      </div>
+                      {item.notes && <p className="text-[11px] text-slate-500 italic">{item.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Legacy Fallback */}
+            {!plan.guidance?.hasAny && plan.generalGuidance && (
               <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs text-slate-700">
                 <div className="font-bold text-slate-900">Orientações do Nutricionista</div>
                 <p className="whitespace-pre-line leading-relaxed">{plan.generalGuidance}</p>
               </div>
             )}
 
-            {/* Notes for student */}
+            {/* Notes for student (only if present) */}
             {plan.notesForStudent && (
               <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-950">
                 <strong className="text-amber-900">Observações: </strong>

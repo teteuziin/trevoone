@@ -36,6 +36,8 @@ import { NutritionAssignModal } from "./nutrition-assign-modal";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { NutritionPatientPreviewModal } from "./nutrition-patient-preview-modal";
 import { NutritionBuilderPreferencesDrawer } from "./nutrition-builder-preferences-drawer";
+import { NutritionGuidanceEditor } from "./nutrition-guidance-editor";
+import type { PlanStructuredGuidance } from "@/lib/nutrition-v2/guidance-types";
 import {
   type NutritionBuilderPreferences,
   DEFAULT_NUTRITION_BUILDER_PREFERENCES,
@@ -185,7 +187,7 @@ export function NutritionPlanBuilder({
   const [title, setTitle] = useState(tree.version.title);
   const subtitle = tree.version.subtitle || "";
   const objective = tree.version.objective || "";
-  const [generalGuidance, setGeneralGuidance] = useState(tree.version.generalGuidance || "");
+  const generalGuidance = tree.version.generalGuidance || "";
   const [notes, setNotes] = useState(tree.version.notes || "");
 
   // Add meal state
@@ -325,6 +327,7 @@ export function NutritionPlanBuilder({
       subtitle?: string | null;
       objective?: string | null;
       generalGuidance?: string | null;
+      guidanceJson?: PlanStructuredGuidance | null;
       notes?: string | null;
     }) => {
       const nextTitle = overrideData?.title ?? title;
@@ -336,11 +339,17 @@ export function NutritionPlanBuilder({
       setAutosaveStatus("saving");
       setAutosaveError(null);
 
+      const nextGuidanceJson =
+        overrideData?.guidanceJson !== undefined
+          ? overrideData.guidanceJson
+          : tree.version.guidanceJson;
+
       const res = await updatePlanMetadataAction(slug, tree.plan.publicId, tree.version.publicId, {
         title: nextTitle.trim(),
         subtitle: overrideData?.subtitle !== undefined ? overrideData.subtitle : (subtitle.trim() || null),
         objective: overrideData?.objective !== undefined ? overrideData.objective : (objective.trim() || null),
         generalGuidance: overrideData?.generalGuidance !== undefined ? overrideData.generalGuidance : (generalGuidance.trim() || null),
+        guidanceJson: nextGuidanceJson,
         notes: overrideData?.notes !== undefined ? overrideData.notes : (notes.trim() || null),
       });
 
@@ -355,6 +364,7 @@ export function NutritionPlanBuilder({
             subtitle: overrideData?.subtitle !== undefined ? overrideData.subtitle : (subtitle.trim() || null),
             objective: overrideData?.objective !== undefined ? overrideData.objective : (objective.trim() || null),
             generalGuidance: overrideData?.generalGuidance !== undefined ? overrideData.generalGuidance : (generalGuidance.trim() || null),
+            guidanceJson: nextGuidanceJson,
             notes: overrideData?.notes !== undefined ? overrideData.notes : (notes.trim() || null),
           },
         }));
@@ -364,7 +374,7 @@ export function NutritionPlanBuilder({
         setAutosaveError(res.error || "Erro ao salvar alterações.");
       }
     },
-    [slug, tree.plan.publicId, tree.version.publicId, title, subtitle, objective, generalGuidance, notes]
+    [slug, tree.plan.publicId, tree.version.publicId, title, subtitle, objective, generalGuidance, notes, tree.version.guidanceJson]
   );
 
   // Add meal
@@ -1570,57 +1580,20 @@ export function NutritionPlanBuilder({
         {/* TAB 3: ORIENTAÇÕES E RECOMENDAÇÕES                                       */}
         {/* ========================================================================= */}
         {activeTab === "GUIDANCE" && (
-          <div className="p-4 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 depth-surface">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-                Orientações Clínicas e Recomendações
-              </h2>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Instruções personalizadas, recomendações hídricas e notas que o paciente visualiza no app.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
-                  Orientações Gerais do Nutricionista
-                </label>
-                <textarea
-                  rows={6}
-                  value={generalGuidance}
-                  onChange={(e) => setGeneralGuidance(e.target.value)}
-                  placeholder="Ex: Ingerir de 2,5 a 3 litros de água diariamente. Evitar frituras e açúcares refinados. Priorizar consumo de vegetais nas duas principais refeições..."
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
-                  Notas Clínicas Internas (Visíveis apenas para a equipe)
-                </label>
-                <textarea
-                  rows={3}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ex: Paciente relata desconforto com lactose. Acompanhar adesão na próxima semana..."
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] resize-none"
-                />
-              </div>
-
-              {!isReadOnly && (
-                <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => handleSaveMetadata()}
-                    className="font-bold min-h-[36px] shadow-sm text-xs"
-                  >
-                    Salvar Orientações
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
+          <NutritionGuidanceEditor
+            initialGuidance={tree.version.guidanceJson}
+            initialNotes={notes}
+            readOnly={isReadOnly}
+            onSaveGuidance={async (newGuidance, newNotes) => {
+              setNotes(newNotes || "");
+              await handleSaveMetadata({
+                guidanceJson: newGuidance,
+                notes: newNotes,
+              });
+            }}
+            autosaveStatus={autosaveStatus}
+            autosaveError={autosaveError}
+          />
         )}
 
         {/* ========================================================================= */}

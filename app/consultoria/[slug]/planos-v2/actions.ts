@@ -26,6 +26,7 @@ import {
 import type {
   NutritionV2PlanTemplateListItemDto,
 } from "@/lib/nutrition-v2/types";
+import type { PlanStructuredGuidance } from "@/lib/nutrition-v2/guidance-types";
 
 import { revalidatePath } from "next/cache";
 import { resolveNutritionAccessContext, assertCanAuthorNutrition, assertCanViewNutrition, NutritionAuthorizationError } from "@/lib/nutrition-v2/access";
@@ -147,6 +148,7 @@ export async function updatePlanMetadataAction(
     subtitle?: string | null;
     objective?: string | null;
     generalGuidance?: string | null;
+    guidanceJson?: PlanStructuredGuidance | null;
     notes?: string | null;
   }
 ): Promise<ActionResult> {

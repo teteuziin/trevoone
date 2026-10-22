@@ -620,6 +620,15 @@ export function PersonalStudentList({
                         )
                       )}
 
+                      {isEffectiveNutritionist && (
+                        <Link
+                          href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`}
+                          className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 transition-colors min-h-[40px] inline-flex items-center gap-1 shrink-0"
+                        >
+                          <span>Prontuário</span>
+                        </Link>
+                      )}
+
                       <Link
                         href={studentDetailHref}
                         className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#F9FAFB] hover:bg-[#F3F4F6] dark:bg-[#1B1D21] dark:hover:bg-[#25282F] text-[#17191D] dark:text-[#F3F4F6] border border-[#E5E7EB] dark:border-[#303238] transition-colors min-h-[44px] inline-flex items-center gap-1.5 shrink-0"

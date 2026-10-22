@@ -42,6 +42,7 @@ interface PersonalStudentDetailViewProps {
 
 type TabKey =
   | "visao-geral"
+  | "prontuario"
   | "treinos"
   | "fotos"
   | "anamnese"
@@ -234,6 +235,12 @@ export function PersonalStudentDetailView({
   }> = isEffectiveNutritionist
     ? [
         { key: "visao-geral", label: "Visão geral", icon: DuotoneOverviewIcon },
+        {
+          key: "prontuario",
+          label: "Registro Geral (Prontuário)",
+          icon: DuotoneAnamnesisIcon,
+          badge: "Etapa 9",
+        },
         { key: "planos", label: "Planos alimentares", icon: DuotoneNutritionIcon, count: nutrition.length },
         { key: "evolucao", label: "Evolução", icon: DuotonePhotosIcon, count: photos.length + measurements.length },
         {
@@ -324,6 +331,16 @@ export function PersonalStudentDetailView({
 
           {/* Ações do Cabeçalho: CTA Contextual Único + Menu Secundário */}
           <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t border-[#303238] sm:border-0">
+            {isEffectiveNutritionist && (
+              <Link
+                href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-emerald-400 bg-[#222429] hover:bg-[#2A2D33] border border-emerald-500/30 transition-colors min-h-[44px] shadow-xs cursor-pointer"
+              >
+                <DuotoneAnamnesisIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Prontuário &amp; Registro Geral</span>
+                <span className="sm:hidden">Prontuário</span>
+              </Link>
+            )}
             {activeTab === "planos" || (activeTab === "nutricao" || (effectiveMode === "NUTRITIONIST" && !activeWorkout) || (isNutritionist && !isPersonal)) ? (
               activeNutritionPlan ? (
                 <Link
@@ -469,6 +486,23 @@ export function PersonalStudentDetailView({
             {desktopTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.key;
+
+              if (tab.key === "prontuario") {
+                return (
+                  <Link
+                    key={tab.key}
+                    href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[44px] cursor-pointer text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/25"
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span>{tab.label}</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                      Abrir →
+                    </span>
+                  </Link>
+                );
+              }
+
               return (
                 <button
                   key={tab.key}
@@ -563,6 +597,25 @@ export function PersonalStudentDetailView({
               {mobileSections.map((sec) => {
                 const SecIcon = sec.icon;
                 const isSelected = activeTab === sec.id;
+
+                if (sec.id === "prontuario") {
+                  return (
+                    <Link
+                      key={sec.id}
+                      href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`}
+                      className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 min-h-[44px]"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <SecIcon className="w-4 h-4" />
+                        <span>{sec.label}</span>
+                      </div>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                        Abrir →
+                      </span>
+                    </Link>
+                  );
+                }
+
                 return (
                   <button
                     key={sec.id}
@@ -787,18 +840,26 @@ export function PersonalStudentDetailView({
                 {/* Coluna 2: Objetivo Nutricional + Dados Pessoais + Alergias + Registros */}
                 <div className="space-y-5">
                   <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-4">
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500 block">
-                        Objetivo Nutricional
-                      </span>
-                      <p className="font-heading text-base font-bold text-[var(--text-primary)]">
-                        {overview.nutritionGoal || overview.objective || "Não informado"}
-                      </p>
-                      {!overview.nutritionGoal && !overview.objective && (
-                        <p className="text-[11px] text-[var(--text-tertiary)]">
-                          O paciente ainda não informou sua meta na anamnese nutricional.
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500 block">
+                          Objetivo Nutricional
+                        </span>
+                        <p className="font-heading text-base font-bold text-[var(--text-primary)]">
+                          {overview.nutritionGoal || overview.objective || "Não informado"}
                         </p>
-                      )}
+                        {!overview.nutritionGoal && !overview.objective && (
+                          <p className="text-[11px] text-[var(--text-tertiary)]">
+                            O paciente ainda não informou sua meta na anamnese nutricional.
+                          </p>
+                        )}
+                      </div>
+                      <Link
+                        href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-colors shrink-0 cursor-pointer"
+                      >
+                        <span>Prontuário Geral →</span>
+                      </Link>
                     </div>
 
                     <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">

@@ -372,7 +372,7 @@ export function AnthropometricModal({
                     required
                     value={measurementDate}
                     onChange={(e) => setMeasurementDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm text-[var(--text-primary)] font-semibold min-h-[44px]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm text-[var(--text-primary)] font-semibold min-h-[44px]"
                   />
                 </div>
 
@@ -389,7 +389,7 @@ export function AnthropometricModal({
                       placeholder="Ex: 72.5"
                       value={weightKg}
                       onChange={(e) => setWeightKg(e.target.value)}
-                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm text-[var(--text-primary)] font-semibold min-h-[44px]"
+                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm text-[var(--text-primary)] font-semibold min-h-[44px]"
                     />
                     <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--text-tertiary)]">
                       kg
@@ -410,7 +410,7 @@ export function AnthropometricModal({
                       placeholder="Ex: 175"
                       value={heightCm}
                       onChange={(e) => setHeightCm(e.target.value)}
-                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm text-[var(--text-primary)] font-semibold min-h-[44px]"
+                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm text-[var(--text-primary)] font-semibold min-h-[44px]"
                     />
                     <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--text-tertiary)]">
                       cm
@@ -428,7 +428,7 @@ export function AnthropometricModal({
                   <select
                     value={sourceType}
                     onChange={(e) => setSourceType(e.target.value as AnthropometricSourceType)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm text-[var(--text-primary)] font-semibold min-h-[44px]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm text-[var(--text-primary)] font-semibold min-h-[44px]"
                   >
                     <option value="PROFESSIONAL_RECORDED">Avaliação Profissional (Nutricionista)</option>
                     <option value="PATIENT_REPORTED">Informado pelo Paciente (Anamnese / Autoavaliação)</option>
@@ -444,7 +444,7 @@ export function AnthropometricModal({
                     placeholder="Ex: Balança Filizola, Bioimpedância InBody 270..."
                     value={equipmentMethod}
                     onChange={(e) => setEquipmentMethod(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm text-[var(--text-primary)] font-medium min-h-[44px]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm text-[var(--text-primary)] font-medium min-h-[44px]"
                   />
                 </div>
               </div>
@@ -510,7 +510,7 @@ export function AnthropometricModal({
                       placeholder={item.placeholder}
                       value={item.val}
                       onChange={(e) => item.set(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm font-semibold min-h-[44px]"
+                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm font-semibold min-h-[44px]"
                     />
                   </div>
                 ))}
@@ -545,7 +545,7 @@ export function AnthropometricModal({
                 <select
                   value={skinfoldProtocol}
                   onChange={(e) => setSkinfoldProtocol(e.target.value as SkinfoldProtocol)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-xs sm:text-sm font-semibold min-h-[44px]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-base sm:text-sm font-semibold min-h-[44px]"
                 >
                   {Object.entries(SKINFOLD_PROTOCOL_LABELS).map(([k, label]) => (
                     <option key={k} value={k}>
@@ -582,7 +582,7 @@ export function AnthropometricModal({
                       placeholder="Ex: 14.5"
                       value={item.val}
                       onChange={(e) => item.set(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm font-semibold min-h-[44px]"
+                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm font-semibold min-h-[44px]"
                     />
                   </div>
                 ))}
@@ -643,7 +643,7 @@ export function AnthropometricModal({
                     placeholder="Ex: 18.5"
                     value={bodyFatPct}
                     onChange={(e) => setBodyFatPct(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm font-semibold min-h-[44px]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm font-semibold min-h-[44px]"
                   />
                 </div>
 
@@ -659,7 +659,7 @@ export function AnthropometricModal({
                     placeholder="Ex: 58.2"
                     value={leanMassKg}
                     onChange={(e) => setLeanMassKg(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm font-semibold min-h-[44px]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm font-semibold min-h-[44px]"
                   />
                 </div>
 
@@ -675,7 +675,7 @@ export function AnthropometricModal({
                     placeholder="Ex: 33.5"
                     value={muscleMassKg}
                     onChange={(e) => setMuscleMassKg(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm font-semibold min-h-[44px]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm font-semibold min-h-[44px]"
                   />
                 </div>
 
@@ -691,7 +691,7 @@ export function AnthropometricModal({
                     placeholder="Ex: 14.3"
                     value={fatMassKg}
                     onChange={(e) => setFatMassKg(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm font-semibold min-h-[44px]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm font-semibold min-h-[44px]"
                   />
                 </div>
 
@@ -707,7 +707,7 @@ export function AnthropometricModal({
                     placeholder="Ex: 57.0"
                     value={bodyWaterPct}
                     onChange={(e) => setBodyWaterPct(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm font-semibold min-h-[44px]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm font-semibold min-h-[44px]"
                   />
                 </div>
 
@@ -723,7 +723,7 @@ export function AnthropometricModal({
                     placeholder="Ex: 41.5"
                     value={bodyWaterKg}
                     onChange={(e) => setBodyWaterKg(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm font-semibold min-h-[44px]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm font-semibold min-h-[44px]"
                   />
                 </div>
               </div>
@@ -750,7 +750,7 @@ export function AnthropometricModal({
                       placeholder="Ex: 3.20"
                       value={boneMassValue}
                       onChange={(e) => setBoneMassValue(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm font-semibold min-h-[44px]"
+                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm font-semibold min-h-[44px]"
                     />
                   </div>
 
@@ -763,7 +763,7 @@ export function AnthropometricModal({
                       placeholder="Ex: kg ou g/cm²"
                       value={boneMassUnit}
                       onChange={(e) => setBoneMassUnit(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm font-semibold min-h-[44px]"
+                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm font-semibold min-h-[44px]"
                     />
                   </div>
 
@@ -776,7 +776,7 @@ export function AnthropometricModal({
                       placeholder="Ex: Bioimpedância InBody, DEXA..."
                       value={boneMassMethod}
                       onChange={(e) => setBoneMassMethod(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm font-semibold min-h-[44px]"
+                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm font-semibold min-h-[44px]"
                     />
                   </div>
                 </div>
@@ -798,7 +798,7 @@ export function AnthropometricModal({
                     placeholder="Ex: Erro de digitação no peso; valor corrigido após calibração da balança..."
                     value={editReason}
                     onChange={(e) => setEditReason(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-amber-500/40 bg-[var(--surface)] text-xs sm:text-sm font-medium min-h-[44px]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-amber-500/40 bg-[var(--surface)] text-base sm:text-sm font-medium min-h-[44px]"
                   />
                   <p className="text-[11px] text-amber-800 dark:text-amber-300">
                     O histórico anterior não será apagado. Esta justificativa será gravada na trilha de auditoria clínica.
@@ -815,7 +815,7 @@ export function AnthropometricModal({
                   placeholder="Anotações sobre retenção hídrica, fase do ciclo menstrual, condições de jejum, horário da pesagem..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs sm:text-sm font-medium resize-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-base sm:text-sm font-medium resize-none"
                 />
               </div>
             </div>

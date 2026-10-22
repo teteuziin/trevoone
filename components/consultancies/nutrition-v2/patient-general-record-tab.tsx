@@ -448,7 +448,7 @@ export function PatientGeneralRecordTab({
                 value={clinicalForm.mainObjective ?? detail.onboardingReference.mainObjective ?? ""}
                 onChange={(e) => onUpdateField("mainObjective", e.target.value)}
                 placeholder="Ex: Emagrecimento, hipertrofia, saúde intestinal, performance..."
-                className="w-full text-sm font-semibold rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] min-h-[44px]"
+                className="w-full text-base sm:text-sm font-semibold rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] min-h-[44px]"
               />
             </div>
 
@@ -463,7 +463,7 @@ export function PatientGeneralRecordTab({
                 value={clinicalForm.followUpReason ?? ""}
                 onChange={(e) => onUpdateField("followUpReason", e.target.value)}
                 placeholder="Queixa principal, histórico de tentativas anteriores ou encaminhamento médico..."
-                className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
+                className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
               />
             </div>
           </div>
@@ -508,7 +508,7 @@ export function PatientGeneralRecordTab({
                 value={clinicalForm.diagnosedConditions ?? detail.onboardingReference.healthConditions ?? ""}
                 onChange={(e) => onUpdateField("diagnosedConditions", e.target.value)}
                 placeholder="Ex: Diabetes tipo 2, hipotireoidismo, hipertensão, SOP, gastrite..."
-                className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
+                className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
               />
             </div>
 
@@ -524,7 +524,7 @@ export function PatientGeneralRecordTab({
                   value={clinicalForm.familyHistory ?? ""}
                   onChange={(e) => onUpdateField("familyHistory", e.target.value)}
                   placeholder="Doenças cardiovasculares, diabetes, neoplasias em parentes de 1º grau..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
+                  className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
                 />
               </div>
 
@@ -539,7 +539,7 @@ export function PatientGeneralRecordTab({
                   value={clinicalForm.previousSurgeries ?? detail.onboardingReference.surgeries ?? ""}
                   onChange={(e) => onUpdateField("previousSurgeries", e.target.value)}
                   placeholder="Cirurgias prévias (bariátrica, vesícula, cesárea...) ou internações relevantes..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
+                  className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
                 />
               </div>
             </div>
@@ -582,7 +582,7 @@ export function PatientGeneralRecordTab({
                   value={clinicalForm.currentMedications ?? detail.onboardingReference.medications ?? ""}
                   onChange={(e) => onUpdateField("currentMedications", e.target.value)}
                   placeholder="Nome do fármaco, dosagem e horário (ex: Levotiroxina 50mcg em jejum)..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
+                  className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
                 />
               </div>
 
@@ -597,7 +597,7 @@ export function PatientGeneralRecordTab({
                   value={clinicalForm.supplements ?? ""}
                   onChange={(e) => onUpdateField("supplements", e.target.value)}
                   placeholder="Suplementos que o paciente já toma rotineiramente (ex: Creatina 5g, Vitamina D 2000UI)..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
+                  className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
                 />
               </div>
             </div>
@@ -637,7 +637,7 @@ export function PatientGeneralRecordTab({
                   value={clinicalForm.hydrationNotes ?? detail.onboardingReference.waterIntake ?? ""}
                   onChange={(e) => onUpdateField("hydrationNotes", e.target.value)}
                   placeholder="Ex: 2 a 2.5 litros/dia, dificuldade à noite..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-2.5 text-[var(--text-primary)] min-h-[44px]"
+                  className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-2.5 text-[var(--text-primary)] min-h-[44px]"
                 />
               </div>
 
@@ -653,7 +653,7 @@ export function PatientGeneralRecordTab({
                   value={clinicalForm.sleepNotes ?? detail.onboardingReference.sleepQuality ?? ""}
                   onChange={(e) => onUpdateField("sleepNotes", e.target.value)}
                   placeholder="Ex: 7h/noite, sono reparador, acorda 1x..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-2.5 text-[var(--text-primary)] min-h-[44px]"
+                  className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-2.5 text-[var(--text-primary)] min-h-[44px]"
                 />
               </div>
 
@@ -672,7 +672,7 @@ export function PatientGeneralRecordTab({
                     onUpdateField("gastrointestinalNotes", e.target.value);
                   }}
                   placeholder="Ex: Diário (Bristol 3-4), constipado, distensão..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-2.5 text-[var(--text-primary)] min-h-[44px]"
+                  className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-2.5 text-[var(--text-primary)] min-h-[44px]"
                 />
               </div>
 
@@ -688,7 +688,7 @@ export function PatientGeneralRecordTab({
                   value={clinicalForm.smokingStatus ?? detail.onboardingReference.smoking ?? ""}
                   onChange={(e) => onUpdateField("smokingStatus", e.target.value)}
                   placeholder="Ex: Não fumante, ex-fumante, 5 cigarros/dia..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-2.5 text-[var(--text-primary)] min-h-[44px]"
+                  className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-2.5 text-[var(--text-primary)] min-h-[44px]"
                 />
               </div>
 
@@ -704,7 +704,7 @@ export function PatientGeneralRecordTab({
                   value={clinicalForm.alcoholNotes ?? detail.onboardingReference.alcoholFrequency ?? ""}
                   onChange={(e) => onUpdateField("alcoholNotes", e.target.value)}
                   placeholder="Ex: Não consome, socialmente aos sábados (vinho)..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-2.5 text-[var(--text-primary)] min-h-[44px]"
+                  className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-2.5 text-[var(--text-primary)] min-h-[44px]"
                 />
               </div>
 
@@ -720,7 +720,7 @@ export function PatientGeneralRecordTab({
                   value={clinicalForm.physicalActivityNotes ?? detail.onboardingReference.physicalActivity ?? ""}
                   onChange={(e) => onUpdateField("physicalActivityNotes", e.target.value)}
                   placeholder="Ex: Musculação 4x/sem, corrida aos domingos..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-2.5 text-[var(--text-primary)] min-h-[44px]"
+                  className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-2.5 text-[var(--text-primary)] min-h-[44px]"
                 />
               </div>
             </div>
@@ -764,7 +764,7 @@ export function PatientGeneralRecordTab({
                   value={clinicalForm.allergies ?? detail.onboardingReference.foodAllergies ?? ""}
                   onChange={(e) => onUpdateField("allergies", e.target.value)}
                   placeholder="Reações alérgicas IgE mediadas (ex: amendoim, frutos do mar, leite, ovos)..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-red-500/30 bg-[var(--surface)] p-3 text-[var(--text-primary)] resize-none"
+                  className="w-full text-base sm:text-sm rounded-xl border border-red-500/30 bg-[var(--surface)] p-3 text-[var(--text-primary)] resize-none"
                 />
                 <span className="text-[10px] text-red-600/80 dark:text-red-400/80 block">
                   Alergias envolvem resposta imunológica e risco de anafilaxia.
@@ -789,7 +789,7 @@ export function PatientGeneralRecordTab({
                     onUpdateField("foodAllergiesIntolerances", e.target.value);
                   }}
                   placeholder="Dificuldades enzimáticas ou digestivas (ex: lactose, sensibilidade ao glúten, FODMAPs)..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-amber-500/30 bg-[var(--surface)] p-3 text-[var(--text-primary)] resize-none"
+                  className="w-full text-base sm:text-sm rounded-xl border border-amber-500/30 bg-[var(--surface)] p-3 text-[var(--text-primary)] resize-none"
                 />
                 <span className="text-[10px] text-amber-700/80 dark:text-amber-400/80 block">
                   Intolerâncias alimentares são digestivas/enzimáticas, separadas das alergias.
@@ -810,7 +810,7 @@ export function PatientGeneralRecordTab({
                   value={clinicalForm.foodPreferences ?? detail.onboardingReference.preferredFoods ?? ""}
                   onChange={(e) => onUpdateField("foodPreferences", e.target.value)}
                   placeholder="Alimentos que facilitam a adesão e o paciente gosta de comer..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
+                  className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
                 />
               </div>
 
@@ -825,7 +825,7 @@ export function PatientGeneralRecordTab({
                   value={clinicalForm.dislikedFoods ?? detail.onboardingReference.dislikedFoods ?? ""}
                   onChange={(e) => onUpdateField("dislikedFoods", e.target.value)}
                   placeholder="Alimentos com má palatabilidade, aversão sensorial ou náusea..."
-                  className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
+                  className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
                 />
               </div>
             </div>
@@ -1199,7 +1199,7 @@ export function PatientGeneralRecordTab({
                     value={newNoteContent}
                     onChange={(e) => setNewNoteContent(e.target.value)}
                     placeholder="Relato clínico, sintomas referidos, evolução da queixa principal..."
-                    className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-3 text-[var(--text-primary)] resize-none"
+                    className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-3 text-[var(--text-primary)] resize-none"
                   />
                 </div>
 
@@ -1210,7 +1210,7 @@ export function PatientGeneralRecordTab({
                     value={newNoteConduct}
                     onChange={(e) => setNewNoteConduct(e.target.value)}
                     placeholder="Conduta prescrita, ajustes na rotina, orientações complementares..."
-                    className="w-full text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-3 text-[var(--text-primary)] resize-none"
+                    className="w-full text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-3 text-[var(--text-primary)] resize-none"
                   />
                 </div>
 

@@ -686,7 +686,7 @@ export function PatientRecordView({
         <button
           type="button"
           onClick={() => handleTabChange("visao-geral")}
-          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer min-h-[44px] ${
             activeTab === "visao-geral"
               ? "bg-[#222429] text-white font-extrabold shadow-2xs border border-[#3A3D45]"
               : "text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] border border-transparent"
@@ -698,7 +698,7 @@ export function PatientRecordView({
         <button
           type="button"
           onClick={() => handleTabChange("planejamento")}
-          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer min-h-[44px] ${
             activeTab === "planejamento" || activeTab === "evolucao"
               ? "bg-[#222429] text-white font-extrabold shadow-2xs border border-[#3A3D45]"
               : "text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] border border-transparent"
@@ -706,14 +706,14 @@ export function PatientRecordView({
         >
           <span>Planejamento</span>
           <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-400">
-            Evolução
+            Evolução ({sortedAnthros.length})
           </span>
         </button>
 
         <button
           type="button"
           onClick={() => handleTabChange("registro-geral")}
-          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer min-h-[44px] ${
             activeTab === "registro-geral"
               ? "bg-[#222429] text-white font-extrabold shadow-2xs border border-[#3A3D45]"
               : "text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] border border-transparent"
@@ -728,7 +728,7 @@ export function PatientRecordView({
         <button
           type="button"
           onClick={() => handleTabChange("acompanhamento")}
-          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer min-h-[44px] ${
             activeTab === "acompanhamento"
               ? "bg-[#222429] text-white font-extrabold shadow-2xs border border-[#3A3D45]"
               : "text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] border border-transparent"
@@ -740,32 +740,12 @@ export function PatientRecordView({
           </span>
         </button>
 
-        <a
-          href="#sec-plano"
-          onClick={() => handleTabChange("visao-geral")}
-          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-1.5 whitespace-nowrap border border-transparent"
-        >
-          <span>Planos alimentares</span>
-          <span className="w-5 h-5 rounded-full bg-[#222429] text-zinc-300 border border-[#3A3D45] text-[10px] font-bold flex items-center justify-center">
-            {activePlan ? 1 : 0}
-          </span>
-        </a>
-        <button
-          type="button"
-          onClick={() => handleTabChange("planejamento")}
-          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-transparent"
-        >
-          <span>Evolução</span>
-          <span className="w-5 h-5 rounded-full bg-[#222429] text-zinc-300 border border-[#3A3D45] text-[10px] font-bold flex items-center justify-center">
-            {sortedAnthros.length}
-          </span>
-        </button>
         <button
           type="button"
           onClick={() => {
             setIsAnamneseDrawerOpen(true);
           }}
-          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer border border-transparent"
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer border border-transparent min-h-[44px]"
         >
           <span>Anamnese</span>
           {isAnswered ? (
@@ -778,20 +758,22 @@ export function PatientRecordView({
             </span>
           )}
         </button>
+
         <a
           href="#sec-acompanhamento"
           onClick={() => handleTabChange("visao-geral")}
-          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-1.5 whitespace-nowrap border border-transparent"
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-1.5 whitespace-nowrap border border-transparent min-h-[44px]"
         >
-          <span>Formulários</span>
+          <span>Check-ins</span>
           <span className="w-5 h-5 rounded-full bg-[#222429] text-zinc-300 border border-[#3A3D45] text-[10px] font-bold flex items-center justify-center">
             {checkinsCount}
           </span>
         </a>
+
         <a
           href="#sec-historico"
           onClick={() => handleTabChange("visao-geral")}
-          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-1.5 whitespace-nowrap border border-transparent"
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-1.5 whitespace-nowrap border border-transparent min-h-[44px]"
         >
           <span>Histórico</span>
         </a>

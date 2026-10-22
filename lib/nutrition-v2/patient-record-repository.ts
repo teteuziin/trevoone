@@ -1,6 +1,6 @@
 /**
  * TREVO ONE — NUTRITION V2 PATIENT RECORD REPOSITORY
- * Clinical history, lifestyle, historical anthropometrics, pregnancy, and onboarding integration.
+ * Clinical history, lifestyle, historical anthropometrics, pregnancy, clinical notes, provenance, and field audit.
  */
 
 import crypto from "node:crypto";
@@ -17,13 +17,21 @@ import {
   type UpdatePregnancyInput,
   type BiologicalSex,
   type UpdatePatientPhysiologicalInput,
+  type ClinicalFieldProvenance,
+  type PatientClinicalNoteDto,
+  type SaveClinicalNoteInput,
+  type PatientRecordAuditEntryDto,
+  type ClinicalNoteContextType,
+  type ClinicalNoteStatus,
+  CLINICAL_NOTE_CONTEXT_LABELS,
+  CLINICAL_NOTE_STATUS_LABELS,
 } from "./patient-record-types";
 import {
   validatePatientRecordInput,
   validateAnthropometricEntryInput,
   validatePregnancyInput,
   validatePhysiologicalInput,
-  PatientRecordValidationError,
+  validateClinicalNoteInput,
 } from "./patient-record-validation";
 
 function normalizeBioSex(raw: unknown): BiologicalSex | null {
@@ -75,6 +83,9 @@ function mapRowToPatientRecord(row: RowDataPacket): PatientRecord {
     hospitalizations: row.hospitalizations ? String(row.hospitalizations) : null,
     allergies: row.allergies ? String(row.allergies) : null,
     foodAllergiesIntolerances: row.food_allergies_intolerances ? String(row.food_allergies_intolerances) : null,
+    foodIntolerances: row.food_intolerances
+      ? String(row.food_intolerances)
+      : (row.food_allergies_intolerances ? String(row.food_allergies_intolerances) : null),
     currentMedications: row.current_medications ? String(row.current_medications) : null,
     supplements: row.supplements ? String(row.supplements) : null,
     familyHistory: row.family_history ? String(row.family_history) : null,
@@ -94,6 +105,9 @@ function mapRowToPatientRecord(row: RowDataPacket): PatientRecord {
     alcoholNotes: row.alcohol_notes ? String(row.alcohol_notes) : null,
     sleepRoutine: row.sleep_routine ? String(row.sleep_routine) : null,
     workStudyRoutine: row.work_study_routine ? String(row.work_study_routine) : null,
+    fieldProvenanceJson: row.field_provenance_json
+      ? (typeof row.field_provenance_json === "string" ? row.field_provenance_json : JSON.stringify(row.field_provenance_json))
+      : null,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
     deletedAt: row.deleted_at ? new Date(row.deleted_at).toISOString() : null,
@@ -129,6 +143,11 @@ function mapRowToPregnancyRecord(row: RowDataPacket): PatientPregnancyRecord {
     pregnancyStatus: row.pregnancy_status as PatientPregnancyRecord["pregnancyStatus"],
     estimatedDueDate: row.estimated_due_date ? (typeof row.estimated_due_date === "string" ? row.estimated_due_date : new Date(row.estimated_due_date).toISOString().slice(0, 10)) : null,
     gestationalWeeks: row.gestational_weeks !== null && row.gestational_weeks !== undefined ? Number(row.gestational_weeks) : null,
+    gestationalReferenceDate: row.gestational_reference_date
+      ? (typeof row.gestational_reference_date === "string"
+          ? row.gestational_reference_date.slice(0, 10)
+          : new Date(row.gestational_reference_date).toISOString().slice(0, 10))
+      : (row.updated_at ? new Date(row.updated_at).toISOString().slice(0, 10) : null),
     lastMenstrualPeriodDate: row.last_menstrual_period_date ? (typeof row.last_menstrual_period_date === "string" ? row.last_menstrual_period_date : new Date(row.last_menstrual_period_date).toISOString().slice(0, 10)) : null,
     prePregnancyWeightKg: row.pre_pregnancy_weight_kg !== null && row.pre_pregnancy_weight_kg !== undefined ? Number(row.pre_pregnancy_weight_kg) : null,
     currentPregnancyWeightKg: row.current_pregnancy_weight_kg !== null && row.current_pregnancy_weight_kg !== undefined ? Number(row.current_pregnancy_weight_kg) : null,
@@ -144,9 +163,185 @@ function mapRowToPregnancyRecord(row: RowDataPacket): PatientPregnancyRecord {
   };
 }
 
+function mapRowToClinicalNote(row: RowDataPacket, currentAuthorMembershipId?: number): PatientClinicalNoteDto {
+  const contextType = (row.context_type as ClinicalNoteContextType) || "ROUTINE";
+  const status = (row.status as ClinicalNoteStatus) || "DRAFT";
+  return {
+    publicId: String(row.public_id),
+    noteDate: typeof row.note_date === "string" ? row.note_date.slice(0, 10) : new Date(row.note_date).toISOString().slice(0, 10),
+    contextType,
+    contextTypeLabel: CLINICAL_NOTE_CONTEXT_LABELS[contextType] || "Observação clínica",
+    status,
+    statusLabel: CLINICAL_NOTE_STATUS_LABELS[status] || "Rascunho",
+    conduct: row.conduct ? String(row.conduct) : null,
+    content: String(row.content || ""),
+    authorName: row.author_name ? String(row.author_name) : "Profissional Responsável",
+    authorMembershipPublicId: row.author_membership_public_id ? String(row.author_membership_public_id) : "",
+    isAuthor: currentAuthorMembershipId ? Number(row.author_membership_id) === currentAuthorMembershipId : false,
+    confidentialInternal: Boolean(row.confidential_internal ?? 1),
+    finalizedAt: row.finalized_at ? new Date(row.finalized_at).toISOString() : null,
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+    updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
+  };
+}
+
+function mapRowToAuditEntry(row: RowDataPacket): PatientRecordAuditEntryDto {
+  const fieldLabels: Record<string, string> = {
+    mainObjective: "Objetivo nutricional",
+    diagnosedConditions: "Patologias relatadas",
+    previousSurgeries: "Cirurgias prévias",
+    hospitalizations: "Internações",
+    allergies: "Alergias",
+    foodAllergiesIntolerances: "Alergias e intolerâncias",
+    foodIntolerances: "Intolerâncias alimentares",
+    currentMedications: "Medicamentos de uso contínuo",
+    supplements: "Suplementação habitual",
+    familyHistory: "Histórico familiar",
+    gastrointestinalNotes: "Função intestinal",
+    bowelHabit: "Hábito intestinal",
+    sleepNotes: "Qualidade do sono",
+    hydrationNotes: "Ingestão de água",
+    foodPreferences: "Alimentos preferidos",
+    dislikedFoods: "Alimentos mal aceitos",
+    dietaryRestrictions: "Restrições alimentares",
+    usualEatingRoutine: "Rotina alimentar",
+    mealScheduleNotes: "Horários das refeições",
+    appetiteNotes: "Apetite",
+    difficultiesAdherenceNotes: "Dificuldades de adesão",
+    physicalActivityNotes: "Atividade física",
+    smokingStatus: "Tabagismo",
+    alcoholNotes: "Consumo alcoólico",
+    sleepRoutine: "Rotina de sono",
+    workStudyRoutine: "Rotina de trabalho/estudos",
+    clinicalObservations: "Observações clínicas",
+  };
+
+  const rawField = String(row.field_name);
+  return {
+    publicId: String(row.public_id),
+    fieldName: rawField,
+    fieldLabel: fieldLabels[rawField] || rawField,
+    previousValue: row.previous_value ? String(row.previous_value) : null,
+    newValue: row.new_value ? String(row.new_value) : null,
+    changeSource: String(row.change_source || "PROFESSIONAL_EDIT"),
+    changedByName: row.changed_by_name ? String(row.changed_by_name) : "Profissional",
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+  };
+}
+
 /**
- * Extracts read-only reference data from canonical onboarding intake submissions and progress entries.
- * Strictly non-mutating: does not alter onboarding submissions or user identity.
+ * Resolves Clinical Data Origin & Provenance (Release Etapa 9).
+ * Distinguishes:
+ * - Informação relatada pelo paciente
+ * - Informação registrada pelo profissional
+ * - Informação revisada pelo profissional
+ * - Não informado (campo vazio NUNCA significa "não")
+ * - Não se aplica (ex: gestação para sexo masculino)
+ */
+export function resolveClinicalFieldsProvenance(
+  record: PatientRecord,
+  onboarding: OnboardingReferenceData,
+  pregnancy: PatientPregnancyRecord | null
+): Record<string, ClinicalFieldProvenance> {
+  let explicitProvenance: Record<string, { origin?: string; reviewedBy?: string; note?: string }> = {};
+  if (record.fieldProvenanceJson) {
+    try {
+      explicitProvenance = JSON.parse(record.fieldProvenanceJson);
+    } catch {}
+  }
+
+  const resolveField = (
+    fieldName: string,
+    recordVal?: string | null,
+    onboardingVal?: string | null,
+    isNotApplicable = false
+  ): ClinicalFieldProvenance => {
+    if (isNotApplicable) {
+      return { origin: "NOT_APPLICABLE", label: "Não se aplica" };
+    }
+
+    const explicit = explicitProvenance[fieldName];
+    if (explicit?.origin === "PROFESSIONAL_REVIEWED") {
+      return {
+        origin: "PROFESSIONAL_REVIEWED",
+        label: "Revisado pelo profissional",
+        reviewedBy: explicit.reviewedBy || null,
+        note: explicit.note || null,
+      };
+    }
+    if (explicit?.origin === "PROFESSIONAL_RECORDED") {
+      return { origin: "PROFESSIONAL_RECORDED", label: "Registrado pelo profissional" };
+    }
+    if (explicit?.origin === "NOT_APPLICABLE") {
+      return { origin: "NOT_APPLICABLE", label: "Não se aplica" };
+    }
+
+    const hasRecord = Boolean(recordVal && recordVal.trim().length > 0);
+    const hasOnboarding = Boolean(onboardingVal && onboardingVal.trim().length > 0);
+
+    if (hasRecord) {
+      if (hasOnboarding && recordVal?.trim() === onboardingVal?.trim()) {
+        return {
+          origin: "PATIENT_REPORTED",
+          label: "Relatado pelo paciente",
+          sourceDate: onboarding.submittedAt ? onboarding.submittedAt.slice(0, 10) : null,
+        };
+      }
+      return { origin: "PROFESSIONAL_RECORDED", label: "Registrado pelo profissional" };
+    }
+
+    if (hasOnboarding) {
+      return {
+        origin: "PATIENT_REPORTED",
+        label: "Relatado pelo paciente",
+        sourceDate: onboarding.submittedAt ? onboarding.submittedAt.slice(0, 10) : null,
+      };
+    }
+
+    // EMPTY NEVER MEANS "NO" — STRICT TRI-STATE INVARIANT
+    return { origin: "NOT_INFORMED", label: "Não informado" };
+  };
+
+  const isMale = record.biologicalSex === "MALE" || onboarding.sex === "MALE";
+  const isNotPregnant =
+    pregnancy?.pregnancyStatus === "NOT_APPLICABLE" || pregnancy?.pregnancyStatus === "NOT_PREGNANT";
+
+  return {
+    mainObjective: resolveField("mainObjective", record.mainObjective, onboarding.mainObjective),
+    diagnosedConditions: resolveField("diagnosedConditions", record.diagnosedConditions, onboarding.healthConditions),
+    familyHistory: resolveField("familyHistory", record.familyHistory, null),
+    currentMedications: resolveField("currentMedications", record.currentMedications, onboarding.medications),
+    supplements: resolveField("supplements", record.supplements, null),
+    hydrationNotes: resolveField("hydrationNotes", record.hydrationNotes, onboarding.waterIntake),
+    sleepNotes: resolveField("sleepNotes", record.sleepNotes, onboarding.sleepQuality),
+    bowelHabit: resolveField("bowelHabit", record.bowelHabit || record.gastrointestinalNotes, onboarding.bowelHabit),
+    smokingStatus: resolveField("smokingStatus", record.smokingStatus, onboarding.smoking),
+    alcoholNotes: resolveField("alcoholNotes", record.alcoholNotes, onboarding.alcoholFrequency),
+    dislikedFoods: resolveField("dislikedFoods", record.dislikedFoods, onboarding.dislikedFoods),
+    foodPreferences: resolveField("foodPreferences", record.foodPreferences, onboarding.preferredFoods),
+    allergies: resolveField("allergies", record.allergies, onboarding.foodAllergies),
+    foodIntolerances: resolveField(
+      "foodIntolerances",
+      record.foodIntolerances || record.foodAllergiesIntolerances,
+      onboarding.foodIntolerances
+    ),
+    pregnancyStatus: resolveField(
+      "pregnancyStatus",
+      pregnancy ? pregnancy.pregnancyStatus : null,
+      null,
+      isMale
+    ),
+    gestationalWeeks: resolveField(
+      "gestationalWeeks",
+      pregnancy?.gestationalWeeks ? String(pregnancy.gestationalWeeks) : null,
+      null,
+      isMale || isNotPregnant
+    ),
+  };
+}
+
+/**
+ * Non-mutating read-only onboarding reference extractor.
  */
 export async function getOnboardingReferenceData(
   connection: PoolConnection,
@@ -267,7 +462,6 @@ export async function getOrCreatePatientRecord(
   }
 
   // 3. Create new patient record if absent (clinical fields remain strictly NULL)
-  // Onboarding data is exposed through onboardingReference as canonical read-only reference.
   const publicId = crypto.randomUUID();
 
   await connection.execute<ResultSetHeader>(
@@ -294,7 +488,8 @@ export async function getOrCreatePatientRecord(
 }
 
 /**
- * Returns full patient record detail including pregnancy, anthropometrics, and onboarding reference data.
+ * Returns full patient record detail including pregnancy, anthropometrics, onboarding reference,
+ * clinical provenance map, clinical notes, and recent field audit trail.
  */
 export async function getPatientRecordDetail(
   consultancyId: number,
@@ -377,6 +572,52 @@ export async function getPatientRecordDetail(
     const biologicalSexProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING" =
       recordSex ? "PATIENT_RECORD" : onboardingSex ? "ONBOARDING" : "MISSING";
 
+    // 6. Clinical Field Provenance Map (Etapa 9)
+    const fieldProvenance = resolveClinicalFieldsProvenance(record, onboardingReference, pregnancy);
+
+    // 7. Clinical Notes & Audit Trail (Etapa 9)
+    let clinicalNotes: PatientClinicalNoteDto[] = [];
+    try {
+      const [noteRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          n.*,
+          u.full_name AS author_name,
+          cm.public_id AS author_membership_public_id
+        FROM nutrition_v2_patient_clinical_notes n
+        INNER JOIN consultancy_members cm ON cm.id = n.author_membership_id
+        INNER JOIN users u ON u.id = cm.user_id
+        WHERE n.consultancy_id = ? AND n.student_membership_id = ?
+        ORDER BY n.note_date DESC, n.id DESC
+        LIMIT 50;`,
+        [consultancyId, studentMembershipId]
+      );
+      clinicalNotes = (Array.isArray(noteRows) ? noteRows : []).map((r) =>
+        mapRowToClinicalNote(r, authorMembershipId)
+      );
+    } catch {
+      // Table may not yet be migrated
+      clinicalNotes = [];
+    }
+
+    let recentAuditTrail: PatientRecordAuditEntryDto[] = [];
+    try {
+      const [auditRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          a.*,
+          u.full_name AS changed_by_name
+        FROM nutrition_v2_patient_record_audit a
+        INNER JOIN consultancy_members cm ON cm.id = a.changed_by_membership_id
+        INNER JOIN users u ON u.id = cm.user_id
+        WHERE a.consultancy_id = ? AND a.patient_record_id = ?
+        ORDER BY a.created_at DESC
+        LIMIT 20;`,
+        [consultancyId, record.id]
+      );
+      recentAuditTrail = (Array.isArray(auditRows) ? auditRows : []).map(mapRowToAuditEntry);
+    } catch {
+      recentAuditTrail = [];
+    }
+
     return {
       record,
       student: studentInfo,
@@ -387,6 +628,9 @@ export async function getPatientRecordDetail(
       resolvedBiologicalSex,
       birthDateProvenance,
       biologicalSexProvenance,
+      fieldProvenance,
+      clinicalNotes,
+      recentAuditTrail,
     };
   } finally {
     connection.release();
@@ -394,7 +638,48 @@ export async function getPatientRecordDetail(
 }
 
 /**
- * Updates patient clinical and lifestyle record.
+ * Logs changes to patient record audit trail for historical traceability.
+ */
+async function logPatientRecordAudit(
+  connection: PoolConnection,
+  consultancyId: number,
+  patientRecordId: number,
+  authorMembershipId: number,
+  changedFields: Array<{ fieldName: string; previousValue: string | null; newValue: string | null }>
+) {
+  if (changedFields.length === 0) return;
+  try {
+    for (const change of changedFields) {
+      const publicId = crypto.randomUUID();
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_patient_record_audit (
+          public_id,
+          consultancy_id,
+          patient_record_id,
+          changed_by_membership_id,
+          field_name,
+          previous_value,
+          new_value,
+          change_source
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PROFESSIONAL_EDIT');`,
+        [
+          publicId,
+          consultancyId,
+          patientRecordId,
+          authorMembershipId,
+          change.fieldName,
+          change.previousValue,
+          change.newValue,
+        ]
+      );
+    }
+  } catch {
+    // Non-blocking: table might not be migrated yet in all environments
+  }
+}
+
+/**
+ * Updates patient clinical record with full field audit traceability.
  */
 export async function updatePatientRecord(
   consultancyId: number,
@@ -413,72 +698,203 @@ export async function updatePatientRecord(
       authorMembershipId
     );
 
-    await connection.execute<ResultSetHeader>(
-      `UPDATE nutrition_v2_patient_records
-       SET
-         occupation = ?,
-         routine_notes = ?,
-         follow_up_reason = ?,
-         main_objective = ?,
-         clinical_observations = ?,
-         diagnosed_conditions = ?,
-         previous_surgeries = ?,
-         hospitalizations = ?,
-         allergies = ?,
-         food_allergies_intolerances = ?,
-         current_medications = ?,
-         supplements = ?,
-         family_history = ?,
-         gastrointestinal_notes = ?,
-         bowel_habit = ?,
-         sleep_notes = ?,
-         hydration_notes = ?,
-         food_preferences = ?,
-         disliked_foods = ?,
-         dietary_restrictions = ?,
-         usual_eating_routine = ?,
-         meal_schedule_notes = ?,
-         appetite_notes = ?,
-         difficulties_adherence_notes = ?,
-         physical_activity_notes = ?,
-         smoking_status = ?,
-         alcohol_notes = ?,
-         sleep_routine = ?,
-         work_study_routine = ?
-       WHERE id = ? AND consultancy_id = ?;`,
-      [
-        validated.occupation ?? null,
-        validated.routineNotes ?? null,
-        validated.followUpReason ?? null,
-        validated.mainObjective ?? null,
-        validated.clinicalObservations ?? null,
-        validated.diagnosedConditions ?? null,
-        validated.previousSurgeries ?? null,
-        validated.hospitalizations ?? null,
-        validated.allergies ?? null,
-        validated.foodAllergiesIntolerances ?? null,
-        validated.currentMedications ?? null,
-        validated.supplements ?? null,
-        validated.familyHistory ?? null,
-        validated.gastrointestinalNotes ?? null,
-        validated.bowelHabit ?? null,
-        validated.sleepNotes ?? null,
-        validated.hydrationNotes ?? null,
-        validated.foodPreferences ?? null,
-        validated.dislikedFoods ?? null,
-        validated.dietaryRestrictions ?? null,
-        validated.usualEatingRoutine ?? null,
-        validated.mealScheduleNotes ?? null,
-        validated.appetiteNotes ?? null,
-        validated.difficultiesAdherenceNotes ?? null,
-        validated.physicalActivityNotes ?? null,
-        validated.smokingStatus ?? null,
-        validated.alcoholNotes ?? null,
-        validated.sleepRoutine ?? null,
-        validated.workStudyRoutine ?? null,
-        record.id,
-        consultancyId,
-      ]
+    // Compute changed fields for audit logging
+    const changedFields: Array<{ fieldName: string; previousValue: string | null; newValue: string | null }> = [];
+    const checkChange = (fieldName: keyof PatientRecord, newVal: unknown) => {
+      if (newVal === undefined) return;
+      const prev = record[fieldName] ?? null;
+      const next = (newVal ?? null) as string | null;
+      if (prev !== next) {
+        changedFields.push({
+          fieldName: String(fieldName),
+          previousValue: prev !== null ? String(prev) : null,
+          newValue: next !== null ? String(next) : null,
+        });
+      }
+    };
+
+    checkChange("occupation", validated.occupation);
+    checkChange("routineNotes", validated.routineNotes);
+    checkChange("followUpReason", validated.followUpReason);
+    checkChange("mainObjective", validated.mainObjective);
+    checkChange("clinicalObservations", validated.clinicalObservations);
+    checkChange("diagnosedConditions", validated.diagnosedConditions);
+    checkChange("previousSurgeries", validated.previousSurgeries);
+    checkChange("hospitalizations", validated.hospitalizations);
+    checkChange("allergies", validated.allergies);
+    checkChange("foodAllergiesIntolerances", validated.foodAllergiesIntolerances);
+    checkChange("foodIntolerances", validated.foodIntolerances);
+    checkChange("currentMedications", validated.currentMedications);
+    checkChange("supplements", validated.supplements);
+    checkChange("familyHistory", validated.familyHistory);
+    checkChange("gastrointestinalNotes", validated.gastrointestinalNotes);
+    checkChange("bowelHabit", validated.bowelHabit);
+    checkChange("sleepNotes", validated.sleepNotes);
+    checkChange("hydrationNotes", validated.hydrationNotes);
+    checkChange("foodPreferences", validated.foodPreferences);
+    checkChange("dislikedFoods", validated.dislikedFoods);
+    checkChange("dietaryRestrictions", validated.dietaryRestrictions);
+    checkChange("usualEatingRoutine", validated.usualEatingRoutine);
+    checkChange("mealScheduleNotes", validated.mealScheduleNotes);
+    checkChange("appetiteNotes", validated.appetiteNotes);
+    checkChange("difficultiesAdherenceNotes", validated.difficultiesAdherenceNotes);
+    checkChange("physicalActivityNotes", validated.physicalActivityNotes);
+    checkChange("smokingStatus", validated.smokingStatus);
+    checkChange("alcoholNotes", validated.alcoholNotes);
+    checkChange("sleepRoutine", validated.sleepRoutine);
+    checkChange("workStudyRoutine", validated.workStudyRoutine);
+
+    // Attempt primary UPDATE with new columns (Migration 060)
+    try {
+      await connection.execute<ResultSetHeader>(
+        `UPDATE nutrition_v2_patient_records
+         SET
+           occupation = ?,
+           routine_notes = ?,
+           follow_up_reason = ?,
+           main_objective = ?,
+           clinical_observations = ?,
+           diagnosed_conditions = ?,
+           previous_surgeries = ?,
+           hospitalizations = ?,
+           allergies = ?,
+           food_allergies_intolerances = ?,
+           food_intolerances = ?,
+           current_medications = ?,
+           supplements = ?,
+           family_history = ?,
+           gastrointestinal_notes = ?,
+           bowel_habit = ?,
+           sleep_notes = ?,
+           hydration_notes = ?,
+           food_preferences = ?,
+           disliked_foods = ?,
+           dietary_restrictions = ?,
+           usual_eating_routine = ?,
+           meal_schedule_notes = ?,
+           appetite_notes = ?,
+           difficulties_adherence_notes = ?,
+           physical_activity_notes = ?,
+           smoking_status = ?,
+           alcohol_notes = ?,
+           sleep_routine = ?,
+           work_study_routine = ?,
+           field_provenance_json = COALESCE(?, field_provenance_json)
+         WHERE id = ? AND consultancy_id = ?;`,
+        [
+          validated.occupation ?? null,
+          validated.routineNotes ?? null,
+          validated.followUpReason ?? null,
+          validated.mainObjective ?? null,
+          validated.clinicalObservations ?? null,
+          validated.diagnosedConditions ?? null,
+          validated.previousSurgeries ?? null,
+          validated.hospitalizations ?? null,
+          validated.allergies ?? null,
+          validated.foodAllergiesIntolerances ?? null,
+          validated.foodIntolerances ?? null,
+          validated.currentMedications ?? null,
+          validated.supplements ?? null,
+          validated.familyHistory ?? null,
+          validated.gastrointestinalNotes ?? null,
+          validated.bowelHabit ?? null,
+          validated.sleepNotes ?? null,
+          validated.hydrationNotes ?? null,
+          validated.foodPreferences ?? null,
+          validated.dislikedFoods ?? null,
+          validated.dietaryRestrictions ?? null,
+          validated.usualEatingRoutine ?? null,
+          validated.mealScheduleNotes ?? null,
+          validated.appetiteNotes ?? null,
+          validated.difficultiesAdherenceNotes ?? null,
+          validated.physicalActivityNotes ?? null,
+          validated.smokingStatus ?? null,
+          validated.alcoholNotes ?? null,
+          validated.sleepRoutine ?? null,
+          validated.workStudyRoutine ?? null,
+          validated.fieldProvenanceJson ?? null,
+          record.id,
+          consultancyId,
+        ]
+      );
+    } catch {
+      // Fallback for pre-060 schema without food_intolerances or field_provenance_json
+      await connection.execute<ResultSetHeader>(
+        `UPDATE nutrition_v2_patient_records
+         SET
+           occupation = ?,
+           routine_notes = ?,
+           follow_up_reason = ?,
+           main_objective = ?,
+           clinical_observations = ?,
+           diagnosed_conditions = ?,
+           previous_surgeries = ?,
+           hospitalizations = ?,
+           allergies = ?,
+           food_allergies_intolerances = ?,
+           current_medications = ?,
+           supplements = ?,
+           family_history = ?,
+           gastrointestinal_notes = ?,
+           bowel_habit = ?,
+           sleep_notes = ?,
+           hydration_notes = ?,
+           food_preferences = ?,
+           disliked_foods = ?,
+           dietary_restrictions = ?,
+           usual_eating_routine = ?,
+           meal_schedule_notes = ?,
+           appetite_notes = ?,
+           difficulties_adherence_notes = ?,
+           physical_activity_notes = ?,
+           smoking_status = ?,
+           alcohol_notes = ?,
+           sleep_routine = ?,
+           work_study_routine = ?
+         WHERE id = ? AND consultancy_id = ?;`,
+        [
+          validated.occupation ?? null,
+          validated.routineNotes ?? null,
+          validated.followUpReason ?? null,
+          validated.mainObjective ?? null,
+          validated.clinicalObservations ?? null,
+          validated.diagnosedConditions ?? null,
+          validated.previousSurgeries ?? null,
+          validated.hospitalizations ?? null,
+          validated.allergies ?? null,
+          validated.foodAllergiesIntolerances ?? null,
+          validated.currentMedications ?? null,
+          validated.supplements ?? null,
+          validated.familyHistory ?? null,
+          validated.gastrointestinalNotes ?? null,
+          validated.bowelHabit ?? null,
+          validated.sleepNotes ?? null,
+          validated.hydrationNotes ?? null,
+          validated.foodPreferences ?? null,
+          validated.dislikedFoods ?? null,
+          validated.dietaryRestrictions ?? null,
+          validated.usualEatingRoutine ?? null,
+          validated.mealScheduleNotes ?? null,
+          validated.appetiteNotes ?? null,
+          validated.difficultiesAdherenceNotes ?? null,
+          validated.physicalActivityNotes ?? null,
+          validated.smokingStatus ?? null,
+          validated.alcoholNotes ?? null,
+          validated.sleepRoutine ?? null,
+          validated.workStudyRoutine ?? null,
+          record.id,
+          consultancyId,
+        ]
+      );
+    }
+
+    // Record audit trail asynchronously
+    await logPatientRecordAudit(
+      connection,
+      consultancyId,
+      record.id,
+      authorMembershipId,
+      changedFields
     );
 
     const [updatedRows] = await connection.execute<RowDataPacket[]>(
@@ -494,8 +910,6 @@ export async function updatePatientRecord(
 
 /**
  * Updates or sets patient canonical physiological data (Release 3.1).
- * Creates the patient record lazily if it does not yet exist.
- * Preserves student onboarding responses as immutable historical reference.
  */
 export async function updatePatientPhysiologicalData(
   consultancyId: number,
@@ -580,7 +994,7 @@ export async function updatePatientPhysiologicalData(
 }
 
 /**
- * Adds an anthropometric measurement entry to the patient record.
+ * Adds an anthropometric measurement entry for a patient record.
  */
 export async function addAnthropometricEntry(
   consultancyId: number,
@@ -646,42 +1060,40 @@ export async function addAnthropometricEntry(
 }
 
 /**
- * Deletes an anthropometric measurement entry.
+ * Deletes an anthropometric entry safely scoped by consultancy and student.
  */
 export async function deleteAnthropometricEntry(
   consultancyId: number,
   studentMembershipId: number,
-  authorMembershipId: number,
-  anthropometricPublicId: string
-): Promise<{ success: boolean }> {
+  _authorMembershipId: number,
+  entryPublicId: string
+): Promise<void> {
   const connection = await getDbConnection();
-
   try {
-    const record = await getOrCreatePatientRecord(
-      connection,
-      consultancyId,
-      studentMembershipId,
-      authorMembershipId
+    const [entryRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT pa.id, pr.consultancy_id
+       FROM nutrition_v2_patient_anthropometrics pa
+       INNER JOIN nutrition_v2_patient_records pr ON pr.id = pa.patient_record_id
+       WHERE pa.public_id = ? AND pr.consultancy_id = ? AND pr.student_membership_id = ?;`,
+      [entryPublicId, consultancyId, studentMembershipId]
     );
 
-    const [res] = await connection.execute<ResultSetHeader>(
-      `DELETE FROM nutrition_v2_patient_anthropometrics
-       WHERE public_id = ? AND patient_record_id = ?;`,
-      [anthropometricPublicId, record.id]
-    );
-
-    if (res.affectedRows === 0) {
-      throw new PatientRecordValidationError("Medição antropométrica não encontrada.", "MEASUREMENT_NOT_FOUND", 404);
+    if (!Array.isArray(entryRows) || entryRows.length === 0) {
+      throw new Error("Medição não encontrada ou acesso não autorizado.");
     }
 
-    return { success: true };
+    await connection.execute(
+      `DELETE FROM nutrition_v2_patient_anthropometrics WHERE id = ?;`,
+      [entryRows[0].id]
+    );
   } finally {
     connection.release();
   }
 }
 
 /**
- * Upserts pregnancy/gestation and postpartum information for the patient record.
+ * Upserts a pregnancy record for a patient.
+ * Preserves the gestational reference date when gestational age is informed.
  */
 export async function upsertPregnancyRecord(
   consultancyId: number,
@@ -701,83 +1113,171 @@ export async function upsertPregnancyRecord(
     );
 
     const [existing] = await connection.execute<RowDataPacket[]>(
-      `SELECT id FROM nutrition_v2_patient_pregnancy WHERE patient_record_id = ?;`,
+      `SELECT * FROM nutrition_v2_patient_pregnancy WHERE patient_record_id = ?;`,
       [record.id]
     );
 
+    const effectiveRefDate =
+      validated.gestationalReferenceDate ||
+      (validated.gestationalWeeks !== null
+        ? new Date().toISOString().slice(0, 10)
+        : null);
+
     if (Array.isArray(existing) && existing.length > 0) {
-      await connection.execute<ResultSetHeader>(
-        `UPDATE nutrition_v2_patient_pregnancy
-         SET
-           pregnancy_status = ?,
-           estimated_due_date = ?,
-           gestational_weeks = ?,
-           last_menstrual_period_date = ?,
-           pre_pregnancy_weight_kg = ?,
-           current_pregnancy_weight_kg = ?,
-           pregnancy_type = ?,
-           pregnancy_notes = ?,
-           obstetric_notes = ?,
-           supplementation_notes = ?,
-           delivery_date = ?,
-           breastfeeding_status = ?,
-           postpartum_notes = ?
-         WHERE patient_record_id = ?;`,
-        [
-          validated.pregnancyStatus,
-          validated.estimatedDueDate ?? null,
-          validated.gestationalWeeks ?? null,
-          validated.lastMenstrualPeriodDate ?? null,
-          validated.prePregnancyWeightKg ?? null,
-          validated.currentPregnancyWeightKg ?? null,
-          validated.pregnancyType ?? null,
-          validated.pregnancyNotes ?? null,
-          validated.obstetricNotes ?? null,
-          validated.supplementationNotes ?? null,
-          validated.deliveryDate ?? null,
-          validated.breastfeedingStatus ?? null,
-          validated.postpartumNotes ?? null,
-          record.id,
-        ]
-      );
+      try {
+        await connection.execute<ResultSetHeader>(
+          `UPDATE nutrition_v2_patient_pregnancy
+           SET
+             pregnancy_status = ?,
+             estimated_due_date = ?,
+             gestational_weeks = ?,
+             gestational_reference_date = ?,
+             last_menstrual_period_date = ?,
+             pre_pregnancy_weight_kg = ?,
+             current_pregnancy_weight_kg = ?,
+             pregnancy_type = ?,
+             pregnancy_notes = ?,
+             obstetric_notes = ?,
+             supplementation_notes = ?,
+             delivery_date = ?,
+             breastfeeding_status = ?,
+             postpartum_notes = ?
+           WHERE patient_record_id = ?;`,
+          [
+            validated.pregnancyStatus,
+            validated.estimatedDueDate ?? null,
+            validated.gestationalWeeks ?? null,
+            effectiveRefDate,
+            validated.lastMenstrualPeriodDate ?? null,
+            validated.prePregnancyWeightKg ?? null,
+            validated.currentPregnancyWeightKg ?? null,
+            validated.pregnancyType ?? null,
+            validated.pregnancyNotes ?? null,
+            validated.obstetricNotes ?? null,
+            validated.supplementationNotes ?? null,
+            validated.deliveryDate ?? null,
+            validated.breastfeedingStatus ?? null,
+            validated.postpartumNotes ?? null,
+            record.id,
+          ]
+        );
+      } catch {
+        // Fallback for pre-060 schema without gestational_reference_date
+        await connection.execute<ResultSetHeader>(
+          `UPDATE nutrition_v2_patient_pregnancy
+           SET
+             pregnancy_status = ?,
+             estimated_due_date = ?,
+             gestational_weeks = ?,
+             last_menstrual_period_date = ?,
+             pre_pregnancy_weight_kg = ?,
+             current_pregnancy_weight_kg = ?,
+             pregnancy_type = ?,
+             pregnancy_notes = ?,
+             obstetric_notes = ?,
+             supplementation_notes = ?,
+             delivery_date = ?,
+             breastfeeding_status = ?,
+             postpartum_notes = ?
+           WHERE patient_record_id = ?;`,
+          [
+            validated.pregnancyStatus,
+            validated.estimatedDueDate ?? null,
+            validated.gestationalWeeks ?? null,
+            validated.lastMenstrualPeriodDate ?? null,
+            validated.prePregnancyWeightKg ?? null,
+            validated.currentPregnancyWeightKg ?? null,
+            validated.pregnancyType ?? null,
+            validated.pregnancyNotes ?? null,
+            validated.obstetricNotes ?? null,
+            validated.supplementationNotes ?? null,
+            validated.deliveryDate ?? null,
+            validated.breastfeedingStatus ?? null,
+            validated.postpartumNotes ?? null,
+            record.id,
+          ]
+        );
+      }
     } else {
       const publicId = crypto.randomUUID();
-      await connection.execute<ResultSetHeader>(
-        `INSERT INTO nutrition_v2_patient_pregnancy (
-          public_id,
-          patient_record_id,
-          pregnancy_status,
-          estimated_due_date,
-          gestational_weeks,
-          last_menstrual_period_date,
-          pre_pregnancy_weight_kg,
-          current_pregnancy_weight_kg,
-          pregnancy_type,
-          pregnancy_notes,
-          obstetric_notes,
-          supplementation_notes,
-          delivery_date,
-          breastfeeding_status,
-          postpartum_notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        [
-          publicId,
-          record.id,
-          validated.pregnancyStatus,
-          validated.estimatedDueDate ?? null,
-          validated.gestationalWeeks ?? null,
-          validated.lastMenstrualPeriodDate ?? null,
-          validated.prePregnancyWeightKg ?? null,
-          validated.currentPregnancyWeightKg ?? null,
-          validated.pregnancyType ?? null,
-          validated.pregnancyNotes ?? null,
-          validated.obstetricNotes ?? null,
-          validated.supplementationNotes ?? null,
-          validated.deliveryDate ?? null,
-          validated.breastfeedingStatus ?? null,
-          validated.postpartumNotes ?? null,
-        ]
-      );
+      try {
+        await connection.execute<ResultSetHeader>(
+          `INSERT INTO nutrition_v2_patient_pregnancy (
+            public_id,
+            patient_record_id,
+            pregnancy_status,
+            estimated_due_date,
+            gestational_weeks,
+            gestational_reference_date,
+            last_menstrual_period_date,
+            pre_pregnancy_weight_kg,
+            current_pregnancy_weight_kg,
+            pregnancy_type,
+            pregnancy_notes,
+            obstetric_notes,
+            supplementation_notes,
+            delivery_date,
+            breastfeeding_status,
+            postpartum_notes
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          [
+            publicId,
+            record.id,
+            validated.pregnancyStatus,
+            validated.estimatedDueDate ?? null,
+            validated.gestationalWeeks ?? null,
+            effectiveRefDate,
+            validated.lastMenstrualPeriodDate ?? null,
+            validated.prePregnancyWeightKg ?? null,
+            validated.currentPregnancyWeightKg ?? null,
+            validated.pregnancyType ?? null,
+            validated.pregnancyNotes ?? null,
+            validated.obstetricNotes ?? null,
+            validated.supplementationNotes ?? null,
+            validated.deliveryDate ?? null,
+            validated.breastfeedingStatus ?? null,
+            validated.postpartumNotes ?? null,
+          ]
+        );
+      } catch {
+        // Fallback for pre-060 schema without gestational_reference_date
+        await connection.execute<ResultSetHeader>(
+          `INSERT INTO nutrition_v2_patient_pregnancy (
+            public_id,
+            patient_record_id,
+            pregnancy_status,
+            estimated_due_date,
+            gestational_weeks,
+            last_menstrual_period_date,
+            pre_pregnancy_weight_kg,
+            current_pregnancy_weight_kg,
+            pregnancy_type,
+            pregnancy_notes,
+            obstetric_notes,
+            supplementation_notes,
+            delivery_date,
+            breastfeeding_status,
+            postpartum_notes
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          [
+            publicId,
+            record.id,
+            validated.pregnancyStatus,
+            validated.estimatedDueDate ?? null,
+            validated.gestationalWeeks ?? null,
+            validated.lastMenstrualPeriodDate ?? null,
+            validated.prePregnancyWeightKg ?? null,
+            validated.currentPregnancyWeightKg ?? null,
+            validated.pregnancyType ?? null,
+            validated.pregnancyNotes ?? null,
+            validated.obstetricNotes ?? null,
+            validated.supplementationNotes ?? null,
+            validated.deliveryDate ?? null,
+            validated.breastfeedingStatus ?? null,
+            validated.postpartumNotes ?? null,
+          ]
+        );
+      }
     }
 
     const [updatedRows] = await connection.execute<RowDataPacket[]>(
@@ -786,6 +1286,320 @@ export async function upsertPregnancyRecord(
     );
 
     return mapRowToPregnancyRecord(updatedRows[0]);
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Saves a patient clinical note (Draft autosave or Finalize).
+ * Enforces historical immutability on finalized notes.
+ */
+export async function savePatientClinicalNote(
+  consultancyId: number,
+  studentMembershipId: number,
+  authorMembershipId: number,
+  input: SaveClinicalNoteInput
+): Promise<PatientClinicalNoteDto> {
+  const validated = validateClinicalNoteInput(input);
+  const connection = await getDbConnection();
+
+  try {
+    const record = await getOrCreatePatientRecord(
+      connection,
+      consultancyId,
+      studentMembershipId,
+      authorMembershipId
+    );
+
+    if (validated.publicId) {
+      // Update existing draft
+      const [existingRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT * FROM nutrition_v2_patient_clinical_notes
+         WHERE public_id = ? AND consultancy_id = ?;`,
+        [validated.publicId, consultancyId]
+      );
+
+      if (!Array.isArray(existingRows) || existingRows.length === 0) {
+        throw new Error("Anotação clínica não encontrada.");
+      }
+
+      const existing = existingRows[0];
+      if (existing.status === "FINALIZED") {
+        throw new Error("Anotações clínicas finalizadas são imutáveis e auditadas.");
+      }
+
+      await connection.execute<ResultSetHeader>(
+        `UPDATE nutrition_v2_patient_clinical_notes
+         SET
+           note_date = ?,
+           context_type = ?,
+           content = ?,
+           conduct = ?,
+           status = ?,
+           finalized_at = CASE WHEN ? = 'FINALIZED' THEN CURRENT_TIMESTAMP(3) ELSE finalized_at END
+         WHERE id = ? AND consultancy_id = ?;`,
+        [
+          validated.noteDate,
+          validated.contextType,
+          validated.content,
+          validated.conduct ?? null,
+          validated.status ?? "DRAFT",
+          validated.status ?? "DRAFT",
+          existing.id,
+          consultancyId,
+        ]
+      );
+
+      const [updatedRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          n.*,
+          u.full_name AS author_name,
+          cm.public_id AS author_membership_public_id
+        FROM nutrition_v2_patient_clinical_notes n
+        INNER JOIN consultancy_members cm ON cm.id = n.author_membership_id
+        INNER JOIN users u ON u.id = cm.user_id
+        WHERE n.id = ?;`,
+        [existing.id]
+      );
+
+      return mapRowToClinicalNote(updatedRows[0], authorMembershipId);
+    } else {
+      // Create new clinical note
+      const publicId = crypto.randomUUID();
+      const isFinalized = validated.status === "FINALIZED";
+
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_patient_clinical_notes (
+          public_id,
+          consultancy_id,
+          student_membership_id,
+          author_membership_id,
+          patient_record_id,
+          note_date,
+          context_type,
+          status,
+          conduct,
+          content,
+          confidential_internal,
+          finalized_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?);`,
+        [
+          publicId,
+          consultancyId,
+          studentMembershipId,
+          authorMembershipId,
+          record.id,
+          validated.noteDate,
+          validated.contextType,
+          validated.status ?? "DRAFT",
+          validated.conduct ?? null,
+          validated.content,
+          isFinalized ? new Date() : null,
+        ]
+      );
+
+      const [createdRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          n.*,
+          u.full_name AS author_name,
+          cm.public_id AS author_membership_public_id
+        FROM nutrition_v2_patient_clinical_notes n
+        INNER JOIN consultancy_members cm ON cm.id = n.author_membership_id
+        INNER JOIN users u ON u.id = cm.user_id
+        WHERE n.public_id = ?;`,
+        [publicId]
+      );
+
+      return mapRowToClinicalNote(createdRows[0], authorMembershipId);
+    }
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Lists clinical notes for a patient.
+ * Patient-facing requests are strictly blocked from receiving confidential internal notes.
+ */
+export async function listPatientClinicalNotes(
+  consultancyId: number,
+  studentMembershipId: number,
+  isInternalProfessionalViewer: boolean,
+  authorMembershipId?: number
+): Promise<PatientClinicalNoteDto[]> {
+  if (!isInternalProfessionalViewer) {
+    // Zero confidential leaks: patient or non-authorized views receive empty list
+    return [];
+  }
+
+  const connection = await getDbConnection();
+  try {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        n.*,
+        u.full_name AS author_name,
+        cm.public_id AS author_membership_public_id
+      FROM nutrition_v2_patient_clinical_notes n
+      INNER JOIN consultancy_members cm ON cm.id = n.author_membership_id
+      INNER JOIN users u ON u.id = cm.user_id
+      WHERE n.consultancy_id = ? AND n.student_membership_id = ?
+      ORDER BY n.note_date DESC, n.id DESC;`,
+      [consultancyId, studentMembershipId]
+    );
+
+    return (Array.isArray(rows) ? rows : []).map((r) =>
+      mapRowToClinicalNote(r, authorMembershipId)
+    );
+  } catch {
+    return [];
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Finalizes an existing draft clinical note.
+ */
+export async function finalizePatientClinicalNote(
+  consultancyId: number,
+  studentMembershipId: number,
+  authorMembershipId: number,
+  notePublicId: string
+): Promise<PatientClinicalNoteDto> {
+  const connection = await getDbConnection();
+  try {
+    const [existingRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT * FROM nutrition_v2_patient_clinical_notes
+       WHERE public_id = ? AND consultancy_id = ? AND student_membership_id = ?;`,
+      [notePublicId, consultancyId, studentMembershipId]
+    );
+
+    if (!Array.isArray(existingRows) || existingRows.length === 0) {
+      throw new Error("Anotação clínica não encontrada.");
+    }
+
+    const existing = existingRows[0];
+    if (existing.status === "FINALIZED") {
+      return mapRowToClinicalNote(existing, authorMembershipId);
+    }
+
+    await connection.execute<ResultSetHeader>(
+      `UPDATE nutrition_v2_patient_clinical_notes
+       SET
+         status = 'FINALIZED',
+         finalized_at = CURRENT_TIMESTAMP(3)
+       WHERE id = ? AND consultancy_id = ?;`,
+      [existing.id, consultancyId]
+    );
+
+    const [updatedRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        n.*,
+        u.full_name AS author_name,
+        cm.public_id AS author_membership_public_id
+      FROM nutrition_v2_patient_clinical_notes n
+      INNER JOIN consultancy_members cm ON cm.id = n.author_membership_id
+      INNER JOIN users u ON u.id = cm.user_id
+      WHERE n.id = ?;`,
+      [existing.id]
+    );
+
+    return mapRowToClinicalNote(updatedRows[0], authorMembershipId);
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Deletes a draft clinical note. Finalized notes CANNOT be deleted (immutable).
+ */
+export async function deletePatientClinicalNote(
+  consultancyId: number,
+  studentMembershipId: number,
+  _authorMembershipId: number,
+  notePublicId: string
+): Promise<boolean> {
+  const connection = await getDbConnection();
+  try {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status FROM nutrition_v2_patient_clinical_notes
+       WHERE public_id = ? AND consultancy_id = ? AND student_membership_id = ?;`,
+      [notePublicId, consultancyId, studentMembershipId]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      throw new Error("Anotação não encontrada.");
+    }
+
+    if (rows[0].status === "FINALIZED") {
+      throw new Error("Registros clínicos finalizados não podem ser excluídos.");
+    }
+
+    await connection.execute(
+      `DELETE FROM nutrition_v2_patient_clinical_notes WHERE id = ?;`,
+      [rows[0].id]
+    );
+    return true;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Marks a patient-reported field as reviewed and verified by the professional.
+ */
+export async function markPatientFieldReviewed(
+  consultancyId: number,
+  studentMembershipId: number,
+  authorMembershipId: number,
+  fieldName: string,
+  reviewerName: string
+): Promise<void> {
+  const connection = await getDbConnection();
+  try {
+    const record = await getOrCreatePatientRecord(
+      connection,
+      consultancyId,
+      studentMembershipId,
+      authorMembershipId
+    );
+
+    let provMap: Record<string, { origin: string; reviewedBy?: string; reviewedAt?: string }> = {};
+    if (record.fieldProvenanceJson) {
+      try {
+        provMap = JSON.parse(record.fieldProvenanceJson);
+      } catch {}
+    }
+
+    provMap[fieldName] = {
+      origin: "PROFESSIONAL_REVIEWED",
+      reviewedBy: reviewerName,
+      reviewedAt: new Date().toISOString(),
+    };
+
+    const newJson = JSON.stringify(provMap);
+
+    await connection.execute(
+      `UPDATE nutrition_v2_patient_records
+       SET field_provenance_json = ?
+       WHERE id = ? AND consultancy_id = ?;`,
+      [newJson, record.id, consultancyId]
+    );
+
+    await logPatientRecordAudit(
+      connection,
+      consultancyId,
+      record.id,
+      authorMembershipId,
+      [
+        {
+          fieldName,
+          previousValue: "PATIENT_REPORTED",
+          newValue: `PROFESSIONAL_REVIEWED (por ${reviewerName})`,
+        },
+      ]
+    );
   } finally {
     connection.release();
   }

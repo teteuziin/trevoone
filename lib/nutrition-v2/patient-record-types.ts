@@ -1,9 +1,84 @@
 export type BiologicalSex = "MALE" | "FEMALE";
 
 /**
- * TREVO ONE ? NUTRITION V2 PATIENT RECORD & PREGNANCY TYPES
- * Authoritative types for clinical health history, lifestyle, anthropometrics, and pregnancy.
+ * TREVO ONE — NUTRITION V2 PATIENT RECORD & PREGNANCY TYPES
+ * Authoritative types for clinical health history, lifestyle, anthropometrics, pregnancy, and clinical notes.
  */
+
+export type ClinicalDataOrigin =
+  | "PATIENT_REPORTED"
+  | "PROFESSIONAL_RECORDED"
+  | "PROFESSIONAL_REVIEWED"
+  | "NOT_INFORMED"
+  | "NOT_APPLICABLE";
+
+export interface ClinicalFieldProvenance {
+  origin: ClinicalDataOrigin;
+  label: string;
+  sourceDate?: string | null;
+  reviewedBy?: string | null;
+  note?: string | null;
+}
+
+export type ClinicalNoteContextType =
+  | "INITIAL"
+  | "FOLLOW_UP"
+  | "ROUTINE"
+  | "SPONTANEOUS"
+  | "INTERDISCIPLINARY";
+
+export const CLINICAL_NOTE_CONTEXT_LABELS: Record<ClinicalNoteContextType, string> = {
+  INITIAL: "Consulta inicial",
+  FOLLOW_UP: "Retorno / Acompanhamento",
+  ROUTINE: "Observação de rotina",
+  SPONTANEOUS: "Contato espontâneo / Dúvida",
+  INTERDISCIPLINARY: "Alinhamento interdisciplinar",
+};
+
+export type ClinicalNoteStatus = "DRAFT" | "FINALIZED";
+
+export const CLINICAL_NOTE_STATUS_LABELS: Record<ClinicalNoteStatus, string> = {
+  DRAFT: "Rascunho",
+  FINALIZED: "Finalizado",
+};
+
+export interface PatientClinicalNoteDto {
+  publicId: string;
+  noteDate: string; // YYYY-MM-DD
+  contextType: ClinicalNoteContextType;
+  contextTypeLabel: string;
+  status: ClinicalNoteStatus;
+  statusLabel: string;
+  conduct: string | null;
+  content: string;
+  authorName: string;
+  authorMembershipPublicId: string;
+  isAuthor: boolean;
+  confidentialInternal: boolean;
+  finalizedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaveClinicalNoteInput {
+  publicId?: string | null;
+  noteDate: string; // YYYY-MM-DD
+  contextType: ClinicalNoteContextType;
+  conduct?: string | null;
+  content: string;
+  status?: ClinicalNoteStatus;
+}
+
+export interface PatientRecordAuditEntryDto {
+  publicId: string;
+  fieldName: string;
+  fieldLabel: string;
+  previousValue: string | null;
+  newValue: string | null;
+  changeSource: string;
+  changedByName: string;
+  createdAt: string;
+}
 
 export type PregnancyStatus =
   | "NOT_APPLICABLE"
@@ -50,6 +125,7 @@ export type PatientRecord = {
   hospitalizations: string | null;
   allergies: string | null;
   foodAllergiesIntolerances: string | null;
+  foodIntolerances: string | null;
   currentMedications: string | null;
   supplements: string | null;
   familyHistory: string | null;
@@ -73,6 +149,9 @@ export type PatientRecord = {
   alcoholNotes: string | null;
   sleepRoutine: string | null;
   workStudyRoutine: string | null;
+
+  // Provenance JSON (Release Etapa 9)
+  fieldProvenanceJson: string | null;
 
   createdAt: string;
   updatedAt: string;
@@ -105,6 +184,7 @@ export type PatientPregnancyRecord = {
   pregnancyStatus: PregnancyStatus;
   estimatedDueDate: string | null;
   gestationalWeeks: number | null;
+  gestationalReferenceDate: string | null; // Reference date when gestational weeks were reported/recorded
   lastMenstrualPeriodDate: string | null;
   prePregnancyWeightKg: number | null;
   currentPregnancyWeightKg: number | null;
@@ -166,6 +246,13 @@ export type PatientRecordDetail = {
   resolvedBiologicalSex: BiologicalSex | null;
   birthDateProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
   biologicalSexProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
+
+  // Tri-State / Clinical Provenance Map for the 16 items (Etapa 9)
+  fieldProvenance: Record<string, ClinicalFieldProvenance>;
+
+  // Clinical Notes & History (Etapa 9)
+  clinicalNotes: PatientClinicalNoteDto[];
+  recentAuditTrail: PatientRecordAuditEntryDto[];
 };
 
 export type UpdatePatientRecordInput = {
@@ -181,6 +268,7 @@ export type UpdatePatientRecordInput = {
   hospitalizations?: string | null;
   allergies?: string | null;
   foodAllergiesIntolerances?: string | null;
+  foodIntolerances?: string | null;
   currentMedications?: string | null;
   supplements?: string | null;
   familyHistory?: string | null;
@@ -200,6 +288,7 @@ export type UpdatePatientRecordInput = {
   alcoholNotes?: string | null;
   sleepRoutine?: string | null;
   workStudyRoutine?: string | null;
+  fieldProvenanceJson?: string | null;
 };
 
 export type AddAnthropometricEntryInput = {
@@ -219,6 +308,7 @@ export type UpdatePregnancyInput = {
   pregnancyStatus: PregnancyStatus;
   estimatedDueDate?: string | null;
   gestationalWeeks?: number | null;
+  gestationalReferenceDate?: string | null;
   lastMenstrualPeriodDate?: string | null;
   prePregnancyWeightKg?: number | null;
   currentPregnancyWeightKg?: number | null;

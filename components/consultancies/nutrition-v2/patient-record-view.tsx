@@ -41,6 +41,7 @@ import { NutritionPlanChoiceModal, type NutritionPlanCreationChoice } from "./nu
 import { PatientAnamneseDrawer } from "./patient-anamnese-drawer";
 import { PatientCadastralModal } from "./patient-cadastral-modal";
 import { NutritionWorkspaceNav } from "./nutrition-workspace-nav";
+import { PatientGeneralRecordTab } from "./patient-general-record-tab";
 import type { PatientConsultationHubSummaryDto } from "@/lib/nutrition-v2/clinical-consultation-types";
 import type { PatientCheckinsHubSummaryDto } from "@/lib/nutrition-v2/checkin-types";
 import type { PatientFollowupHubSummaryDto } from "@/lib/nutrition-v2/followup-types";
@@ -375,12 +376,23 @@ export function PatientRecordView({
     }
   }, [canAuthorNutrition, flushPendingSave]);
 
-  const [, setActiveTab] = useState(initialTab || "visao-geral");
+  const [activeTab, setActiveTab] = useState(initialTab || "visao-geral");
 
   const handleTabChange = (newTab: string) => {
     flushPendingSave();
     setActiveTab(newTab);
   };
+
+  const handleUpdateClinicalFormField = useCallback(
+    (field: keyof UpdatePatientRecordInput, value: string | null) => {
+      setClinicalForm((prev) => {
+        const next = { ...prev, [field]: value };
+        executeAutosave(next);
+        return next;
+      });
+    },
+    [executeAutosave]
+  );
 
   const handleRetryAutosave = useCallback(() => {
     executeAutosave(latestFormRef.current);
@@ -684,16 +696,36 @@ export function PatientRecordView({
       {/* QUICK JUMP NAVIGATION BAR ("IR PARA")                              */}
       {/* =================================================================== */}
       <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-2xs">
-        <a
-          href="#sec-visao-geral"
+        <button
+          type="button"
           onClick={() => handleTabChange("visao-geral")}
-          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
+          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+            activeTab === "visao-geral"
+              ? "bg-[var(--surface-subtle)] text-[var(--text-primary)] font-extrabold shadow-2xs"
+              : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+          }`}
         >
           <span>Visão geral</span>
-        </a>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange("registro-geral")}
+          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+            activeTab === "registro-geral"
+              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
+              : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+          }`}
+        >
+          <span>Registro geral</span>
+          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+            Prontuário
+          </span>
+        </button>
+
         <a
           href="#sec-plano"
-          onClick={() => handleTabChange("plano")}
+          onClick={() => handleTabChange("visao-geral")}
           className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
         >
           <span>Planos alimentares</span>
@@ -703,7 +735,7 @@ export function PatientRecordView({
         </a>
         <a
           href="#sec-evolucao"
-          onClick={() => handleTabChange("evolucao")}
+          onClick={() => handleTabChange("visao-geral")}
           className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
         >
           <span>Evolução</span>
@@ -714,7 +746,6 @@ export function PatientRecordView({
         <button
           type="button"
           onClick={() => {
-            handleTabChange("anamnese");
             setIsAnamneseDrawerOpen(true);
           }}
           className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer"
@@ -732,7 +763,7 @@ export function PatientRecordView({
         </button>
         <a
           href="#sec-acompanhamento"
-          onClick={() => handleTabChange("acompanhamento")}
+          onClick={() => handleTabChange("visao-geral")}
           className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
         >
           <span>Formulários</span>
@@ -742,7 +773,7 @@ export function PatientRecordView({
         </a>
         <a
           href="#sec-historico"
-          onClick={() => handleTabChange("historico")}
+          onClick={() => handleTabChange("visao-geral")}
           className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
         >
           <span>Histórico</span>
@@ -750,9 +781,22 @@ export function PatientRecordView({
       </div>
 
       {/* =================================================================== */}
-      {/* MAIN TWO-COLUMN WORKSPACE                                           */}
+      {/* CONDITIONAL WORKSPACE: REGISTRO GERAL vs VISÃO GERAL COCKPIT        */}
       {/* =================================================================== */}
-      <div id="sec-visao-geral" onBlur={handleFieldBlur} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {activeTab === "registro-geral" ? (
+        <PatientGeneralRecordTab
+          slug={slug}
+          detail={detail}
+          clinicalForm={clinicalForm}
+          canAuthorNutrition={canAuthorNutrition}
+          onUpdateField={handleUpdateClinicalFormField}
+          autosaveStatus={autosaveStatus}
+          autosaveError={autosaveError}
+          onRetryAutosave={handleRetryAutosave}
+          onBackToOverview={() => handleTabChange("visao-geral")}
+        />
+      ) : (
+        <div id="sec-visao-geral" onBlur={handleFieldBlur} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ================================================================= */}
         {/* LEFT COLUMN: PLANO ALIMENTAR + ACOMPANHAMENTO + HISTÓRICO        */}
         {/* Section id: "resumo"                                             */}
@@ -1087,13 +1131,22 @@ export function PatientRecordView({
             id="sec-objetivo"
             className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3"
           >
-            <div>
-              <span className="text-[10px] uppercase font-extrabold text-emerald-600 dark:text-emerald-400 tracking-wider block">
-                Objetivo Nutricional
-              </span>
-              <h3 className="text-lg font-extrabold text-[var(--text-primary)]">
-                {clinicalForm.mainObjective || detail.onboardingReference?.mainObjective || "Massa Magra + Definição"}
-              </h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-extrabold text-emerald-600 dark:text-emerald-400 tracking-wider block">
+                  Objetivo Nutricional
+                </span>
+                <h3 className="text-lg font-extrabold text-[var(--text-primary)]">
+                  {clinicalForm.mainObjective || detail.onboardingReference?.mainObjective || "Massa Magra + Definição"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleTabChange("registro-geral")}
+                className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer shrink-0"
+              >
+                Prontuário Geral →
+              </button>
             </div>
 
             <div className="pt-2 border-t border-[var(--border-subtle)] space-y-1">
@@ -1211,7 +1264,18 @@ export function PatientRecordView({
             <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] tracking-wider block">
               Registros & Documentos
             </span>
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleTabChange("registro-geral")}
+                className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500/15 transition-colors block text-center space-y-1 cursor-pointer"
+              >
+                <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300 block">Registro Geral</span>
+                <span className="text-[11px] font-semibold text-emerald-600/90 dark:text-emerald-400/90 block">
+                  Prontuário (16 itens)
+                </span>
+              </button>
+
               <a
                 href="#sec-evolucao"
                 className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] transition-colors block text-center space-y-1"
@@ -1350,6 +1414,7 @@ export function PatientRecordView({
           </section>
         </div>
       </div>
+      )}
 
       {/* =================================================================== */}
       {/* MODALS & DRAWERS                                                    */}

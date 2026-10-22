@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
 import type { RowDataPacket } from "mysql2/promise";
@@ -11,6 +11,11 @@ import {
   deleteAnthropometricEntry,
   upsertPregnancyRecord,
   listPatientsForConsultancy,
+  savePatientClinicalNote,
+  listPatientClinicalNotes,
+  finalizePatientClinicalNote,
+  deletePatientClinicalNote,
+  markPatientFieldReviewed,
   StudentNotFoundError,
 } from "@/lib/nutrition-v2/patient-record-repository";
 import type {
@@ -18,6 +23,8 @@ import type {
   AddAnthropometricEntryInput,
   UpdatePregnancyInput,
   PatientRecordDetail,
+  SaveClinicalNoteInput,
+  PatientClinicalNoteDto,
 } from "@/lib/nutrition-v2/patient-record-types";
 
 async function resolveProfessionalStudentContext(
@@ -137,6 +144,109 @@ export async function updatePregnancyAction(
     return { success: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao atualizar dados gestacionais.";
+    return { success: false, error: message };
+  }
+}
+
+export async function savePatientClinicalNoteAction(
+  slug: string,
+  studentPublicId: string,
+  input: SaveClinicalNoteInput
+): Promise<{ success: boolean; error?: string; note?: PatientClinicalNoteDto }> {
+  try {
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, true);
+    const note = await savePatientClinicalNote(ctx.consultancyId!, studentMembershipId, ctx.membershipId!, input);
+    revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
+    return { success: true, note };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao salvar anotação clínica.";
+    return { success: false, error: message };
+  }
+}
+
+export async function finalizePatientClinicalNoteAction(
+  slug: string,
+  studentPublicId: string,
+  notePublicId: string
+): Promise<{ success: boolean; error?: string; note?: PatientClinicalNoteDto }> {
+  try {
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, true);
+    const note = await finalizePatientClinicalNote(ctx.consultancyId!, studentMembershipId, ctx.membershipId!, notePublicId);
+    revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
+    return { success: true, note };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao finalizar anotação clínica.";
+    return { success: false, error: message };
+  }
+}
+
+export async function deletePatientClinicalNoteAction(
+  slug: string,
+  studentPublicId: string,
+  notePublicId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, true);
+    await deletePatientClinicalNote(ctx.consultancyId!, studentMembershipId, ctx.membershipId!, notePublicId);
+    revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao excluir anotação.";
+    return { success: false, error: message };
+  }
+}
+
+export async function listPatientClinicalNotesAction(
+  slug: string,
+  studentPublicId: string
+): Promise<{ success: boolean; error?: string; notes?: PatientClinicalNoteDto[] }> {
+  try {
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, false);
+    const notes = await listPatientClinicalNotes(
+      ctx.consultancyId!,
+      studentMembershipId,
+      ctx.canAuthorNutrition || ctx.canManageConsultancy || ctx.isPlatformAdmin,
+      ctx.membershipId!
+    );
+    return { success: true, notes };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao listar anotações clínicas.";
+    return { success: false, error: message };
+  }
+}
+
+export async function markPatientFieldReviewedAction(
+  slug: string,
+  studentPublicId: string,
+  fieldName: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, true);
+    const connection = await getDbConnection();
+    let reviewerName = "Nutricionista Responsável";
+    try {
+      const [uRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT u.full_name FROM users u WHERE u.id = ?;`,
+        [ctx.userId]
+      );
+      if (Array.isArray(uRows) && uRows.length > 0 && uRows[0].full_name) {
+        reviewerName = String(uRows[0].full_name);
+      }
+    } finally {
+      connection.release();
+    }
+
+    await markPatientFieldReviewed(
+      ctx.consultancyId!,
+      studentMembershipId,
+      ctx.membershipId!,
+      fieldName,
+      reviewerName
+    );
+    revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao marcar campo como revisado.";
     return { success: false, error: message };
   }
 }

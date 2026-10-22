@@ -1,4 +1,10 @@
-import type { BiologicalSex, UpdatePatientPhysiologicalInput } from "./patient-record-types";
+import type {
+  BiologicalSex,
+  UpdatePatientPhysiologicalInput,
+  SaveClinicalNoteInput,
+  ClinicalNoteContextType,
+  ClinicalNoteStatus,
+} from "./patient-record-types";
 
 export type PregnancyStatus =
   | "NOT_APPLICABLE"
@@ -27,6 +33,7 @@ export type UpdatePatientRecordInput = {
   hospitalizations?: string | null;
   allergies?: string | null;
   foodAllergiesIntolerances?: string | null;
+  foodIntolerances?: string | null;
   currentMedications?: string | null;
   supplements?: string | null;
   familyHistory?: string | null;
@@ -53,6 +60,7 @@ export type UpdatePatientRecordInput = {
   alcoholNotes?: string | null;
   sleepRoutine?: string | null;
   workStudyRoutine?: string | null;
+  fieldProvenanceJson?: string | null;
 };
 
 export type AddAnthropometricEntryInput = {
@@ -72,6 +80,7 @@ export type UpdatePregnancyInput = {
   pregnancyStatus: PregnancyStatus;
   estimatedDueDate?: string | null;
   gestationalWeeks?: number | null;
+  gestationalReferenceDate?: string | null;
   lastMenstrualPeriodDate?: string | null;
   prePregnancyWeightKg?: number | null;
   currentPregnancyWeightKg?: number | null;
@@ -85,10 +94,9 @@ export type UpdatePregnancyInput = {
 };
 
 /**
- * TREVO ONE ? NUTRITION V2 PATIENT RECORD VALIDATION
+ * TREVO ONE — NUTRITION V2 PATIENT RECORD VALIDATION
  * Validation rules for patient clinical data, anthropometric measurements, and pregnancy history.
  */
-
 
 export class PatientRecordValidationError extends Error {
   public readonly code: string;
@@ -103,43 +111,30 @@ export class PatientRecordValidationError extends Error {
 }
 
 /**
- * Validates a numeric anthropometric or physiological measurement.
- * Rules:
- * - null, undefined, or empty string remains NULL (never coerced to 0).
- * - Must be a finite number.
- * - Must be strictly greater than 0.
- * - Must be within technically plausible anatomical/physical bounds.
+ * Validates a numeric measurement field with allowed range bounds.
  */
 export function validateNumericMeasurement(
   val: unknown,
   fieldName: string,
-  min = 1,
-  max = 500
+  min: number,
+  max: number
 ): number | null {
   if (val === null || val === undefined || val === "") {
     return null;
   }
 
-  const num = typeof val === "number" ? val : Number(val);
-
-  if (typeof num !== "number" || Number.isNaN(num) || !Number.isFinite(num)) {
+  const num = typeof val === "number" ? val : Number(String(val).replace(",", "."));
+  if (isNaN(num)) {
     throw new PatientRecordValidationError(
-      `O valor de ${fieldName} deve ser um n?mero v?lido e finito.`,
+      `O valor de ${fieldName} deve ser um número válido.`,
       "INVALID_NUMERIC_VALUE"
-    );
-  }
-
-  if (num <= 0) {
-    throw new PatientRecordValidationError(
-      `O valor de ${fieldName} deve ser maior que zero.`,
-      "NON_POSITIVE_MEASUREMENT"
     );
   }
 
   if (num < min || num > max) {
     throw new PatientRecordValidationError(
-      `O valor de ${fieldName} (${num}) est? fora dos limites plaus?veis (${min} a ${max}).`,
-      "MEASUREMENT_OUT_OF_BOUNDS"
+      `O valor de ${fieldName} deve estar entre ${min} e ${max}.`,
+      "VALUE_OUT_OF_RANGE"
     );
   }
 
@@ -156,7 +151,7 @@ export function validateDate(val: unknown, fieldName: string): string | null {
 
   if (typeof val !== "string") {
     throw new PatientRecordValidationError(
-      `A data de ${fieldName} deve ser uma string v?lida.`,
+      `A data de ${fieldName} deve ser uma string válida.`,
       "INVALID_DATE_FORMAT"
     );
   }
@@ -181,7 +176,7 @@ export function validateDate(val: unknown, fieldName: string): string | null {
 
   if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1900 || year > 2100) {
     throw new PatientRecordValidationError(
-      `A data de ${fieldName} ? inv?lida.`,
+      `A data de ${fieldName} é inválida.`,
       "INVALID_DATE_VALUE"
     );
   }
@@ -193,7 +188,7 @@ export function validateDate(val: unknown, fieldName: string): string | null {
     dateObj.getUTCDate() !== day
   ) {
     throw new PatientRecordValidationError(
-      `A data de ${fieldName} ? um calend?rio inv?lido.`,
+      `A data de ${fieldName} é um calendário inválido.`,
       "INVALID_DATE_VALUE"
     );
   }
@@ -253,62 +248,68 @@ export function sanitizeOptionalText(val: unknown, maxLength = 65535): string | 
   if (val === null || val === undefined) {
     return null;
   }
-  const str = String(val).trim();
-  if (!str) {
+  const s = String(val).trim();
+  if (s.length === 0) {
     return null;
   }
-  return str.length > maxLength ? str.slice(0, maxLength) : str;
+  if (s.length > maxLength) {
+    return s.slice(0, maxLength);
+  }
+  return s;
 }
 
 /**
  * Validates anthropometric entry input.
  */
-export function validateAnthropometricEntryInput(
-  input: unknown
-): AddAnthropometricEntryInput {
+export function validateAnthropometricEntryInput(input: unknown): AddAnthropometricEntryInput {
   if (!input || typeof input !== "object") {
     throw new PatientRecordValidationError(
-      "Dados de medidas antropom?tricas inv?lidos.",
+      "Dados antropométricos inválidos.",
       "INVALID_PAYLOAD"
     );
   }
 
   const raw = input as Record<string, unknown>;
 
-  const measurementDate = validateDate(raw.measurementDate, "data da medi??o");
-  if (!measurementDate) {
+  if (!raw.measurementDate) {
     throw new PatientRecordValidationError(
-      "A data da medi??o ? obrigat?ria.",
-      "MISSING_MEASUREMENT_DATE"
+      "A data da medição é obrigatória.",
+      "REQUIRED_MEASUREMENT_DATE"
     );
   }
 
-  const weightKg = validateNumericMeasurement(raw.weightKg, "peso (kg)", 10, 500);
-  const heightCm = validateNumericMeasurement(raw.heightCm, "altura (cm)", 40, 260);
-  const waistCm = validateNumericMeasurement(raw.waistCm, "cintura (cm)", 20, 300);
-  const hipCm = validateNumericMeasurement(raw.hipCm, "quadril (cm)", 20, 300);
-  const armCm = validateNumericMeasurement(raw.armCm, "bra?o (cm)", 10, 150);
-  const thighCm = validateNumericMeasurement(raw.thighCm, "coxa (cm)", 10, 150);
-  const calfCm = validateNumericMeasurement(raw.calfCm, "panturrilha (cm)", 10, 100);
-  const chestCm = validateNumericMeasurement(raw.chestCm, "t?rax (cm)", 20, 300);
+  const measurementDate = validateDate(raw.measurementDate, "medição");
+  if (!measurementDate) {
+    throw new PatientRecordValidationError(
+      "A data da medição é obrigatória e deve ser válida.",
+      "REQUIRED_MEASUREMENT_DATE"
+    );
+  }
+
+  const weightKg = validateNumericMeasurement(raw.weightKg, "peso", 20, 500);
+  const heightCm = validateNumericMeasurement(raw.heightCm, "altura", 50, 300);
+  const waistCm = validateNumericMeasurement(raw.waistCm, "cintura", 20, 300);
+  const hipCm = validateNumericMeasurement(raw.hipCm, "quadril", 20, 300);
+  const armCm = validateNumericMeasurement(raw.armCm, "braço", 10, 150);
+  const thighCm = validateNumericMeasurement(raw.thighCm, "coxa", 10, 150);
+  const calfCm = validateNumericMeasurement(raw.calfCm, "panturrilha", 10, 150);
+  const chestCm = validateNumericMeasurement(raw.chestCm, "peitoral/tórax", 20, 300);
   const notes = sanitizeOptionalText(raw.notes, 500);
 
-  // At least one measurement or note must be present
-  const hasMeasurement =
-    weightKg !== null ||
-    heightCm !== null ||
-    waistCm !== null ||
-    hipCm !== null ||
-    armCm !== null ||
-    thighCm !== null ||
-    calfCm !== null ||
-    chestCm !== null ||
-    notes !== null;
-
-  if (!hasMeasurement) {
+  if (
+    weightKg === null &&
+    heightCm === null &&
+    waistCm === null &&
+    hipCm === null &&
+    armCm === null &&
+    thighCm === null &&
+    calfCm === null &&
+    chestCm === null &&
+    notes === null
+  ) {
     throw new PatientRecordValidationError(
-      "Pelo menos uma medi??o ou observa??o deve ser informada.",
-      "EMPTY_MEASUREMENT_ENTRY"
+      "Informe ao menos uma medição antropométrica ou observação.",
+      "EMPTY_ANTHROPOMETRICS"
     );
   }
 
@@ -332,33 +333,34 @@ export function validateAnthropometricEntryInput(
 export function validatePregnancyInput(input: unknown): UpdatePregnancyInput {
   if (!input || typeof input !== "object") {
     throw new PatientRecordValidationError(
-      "Dados de gesta??o inv?lidos.",
+      "Dados de gestação inválidos.",
       "INVALID_PAYLOAD"
     );
   }
 
   const raw = input as Record<string, unknown>;
 
-  const statusRaw = String(raw.pregnancyStatus || "NOT_APPLICABLE").toUpperCase();
+  const statusRaw = String(raw.pregnancyStatus || "").trim().toUpperCase();
   if (!ALL_PREGNANCY_STATUSES.includes(statusRaw as PregnancyStatus)) {
     throw new PatientRecordValidationError(
-      `Status gestacional inv?lido: '${raw.pregnancyStatus}'. Valores permitidos: ${ALL_PREGNANCY_STATUSES.join(", ")}.`,
+      `Status gestacional inválido. Valores aceitos: ${ALL_PREGNANCY_STATUSES.join(", ")}.`,
       "INVALID_PREGNANCY_STATUS"
     );
   }
 
   const pregnancyStatus = statusRaw as PregnancyStatus;
 
-  const estimatedDueDate = validateDate(raw.estimatedDueDate, "data prov?vel do parto");
-  const lastMenstrualPeriodDate = validateDate(raw.lastMenstrualPeriodDate, "data da ?ltima menstrua??o (DUM)");
+  const estimatedDueDate = validateDate(raw.estimatedDueDate, "data provável do parto");
+  const lastMenstrualPeriodDate = validateDate(raw.lastMenstrualPeriodDate, "data da última menstruação (DUM)");
   const deliveryDate = validateDate(raw.deliveryDate, "data do parto");
+  const gestationalReferenceDate = validateDate(raw.gestationalReferenceDate, "data de referência gestacional");
 
   let gestationalWeeks: number | null = null;
   if (raw.gestationalWeeks !== null && raw.gestationalWeeks !== undefined && raw.gestationalWeeks !== "") {
     const gw = Number(raw.gestationalWeeks);
     if (!Number.isInteger(gw) || gw < 1 || gw > 45) {
       throw new PatientRecordValidationError(
-        "A semana gestacional deve ser um n?mero inteiro entre 1 e 45.",
+        "A semana gestacional deve ser um número inteiro entre 1 e 45.",
         "INVALID_GESTATIONAL_WEEKS"
       );
     }
@@ -367,7 +369,7 @@ export function validatePregnancyInput(input: unknown): UpdatePregnancyInput {
 
   const prePregnancyWeightKg = validateNumericMeasurement(
     raw.prePregnancyWeightKg,
-    "peso pr?-gestacional",
+    "peso pré-gestacional",
     20,
     300
   );
@@ -389,6 +391,7 @@ export function validatePregnancyInput(input: unknown): UpdatePregnancyInput {
     pregnancyStatus,
     estimatedDueDate,
     gestationalWeeks,
+    gestationalReferenceDate,
     lastMenstrualPeriodDate,
     prePregnancyWeightKg,
     currentPregnancyWeightKg,
@@ -408,7 +411,7 @@ export function validatePregnancyInput(input: unknown): UpdatePregnancyInput {
 export function validatePatientRecordInput(input: unknown): UpdatePatientRecordInput {
   if (!input || typeof input !== "object") {
     throw new PatientRecordValidationError(
-      "Dados do prontu?rio inv?lidos.",
+      "Dados do prontuário inválidos.",
       "INVALID_PAYLOAD"
     );
   }
@@ -428,6 +431,7 @@ export function validatePatientRecordInput(input: unknown): UpdatePatientRecordI
     hospitalizations: sanitizeOptionalText(raw.hospitalizations),
     allergies: sanitizeOptionalText(raw.allergies),
     foodAllergiesIntolerances: sanitizeOptionalText(raw.foodAllergiesIntolerances),
+    foodIntolerances: sanitizeOptionalText(raw.foodIntolerances),
     currentMedications: sanitizeOptionalText(raw.currentMedications),
     supplements: sanitizeOptionalText(raw.supplements),
     familyHistory: sanitizeOptionalText(raw.familyHistory),
@@ -447,6 +451,7 @@ export function validatePatientRecordInput(input: unknown): UpdatePatientRecordI
     alcoholNotes: sanitizeOptionalText(raw.alcoholNotes),
     sleepRoutine: sanitizeOptionalText(raw.sleepRoutine),
     workStudyRoutine: sanitizeOptionalText(raw.workStudyRoutine),
+    fieldProvenanceJson: sanitizeOptionalText(raw.fieldProvenanceJson),
   };
 }
 
@@ -474,6 +479,63 @@ export function validatePhysiologicalInput(input: unknown): UpdatePatientPhysiol
   }
 
   return result;
+}
+
+/**
+ * Validates clinical note input for clinical records.
+ */
+export function validateClinicalNoteInput(input: unknown): SaveClinicalNoteInput {
+  if (!input || typeof input !== "object") {
+    throw new PatientRecordValidationError(
+      "Dados da anotação clínica inválidos.",
+      "INVALID_PAYLOAD"
+    );
+  }
+
+  const raw = input as Record<string, unknown>;
+  const publicId = raw.publicId ? String(raw.publicId).trim() : null;
+
+  const noteDate = validateDate(raw.noteDate, "data da anotação");
+  if (!noteDate) {
+    throw new PatientRecordValidationError(
+      "Data da anotação clínica é obrigatória.",
+      "REQUIRED_NOTE_DATE"
+    );
+  }
+
+  const validContexts: ClinicalNoteContextType[] = [
+    "INITIAL",
+    "FOLLOW_UP",
+    "ROUTINE",
+    "SPONTANEOUS",
+    "INTERDISCIPLINARY",
+  ];
+  const contextTypeRaw = String(raw.contextType || "ROUTINE").trim().toUpperCase();
+  const contextType = validContexts.includes(contextTypeRaw as ClinicalNoteContextType)
+    ? (contextTypeRaw as ClinicalNoteContextType)
+    : "ROUTINE";
+
+  const content = sanitizeOptionalText(raw.content, 65535);
+  if (!content) {
+    throw new PatientRecordValidationError(
+      "O conteúdo da anotação clínica é obrigatório.",
+      "REQUIRED_NOTE_CONTENT"
+    );
+  }
+
+  const conduct = sanitizeOptionalText(raw.conduct, 65535);
+
+  const statusRaw = String(raw.status || "DRAFT").trim().toUpperCase();
+  const status: ClinicalNoteStatus = statusRaw === "FINALIZED" ? "FINALIZED" : "DRAFT";
+
+  return {
+    publicId,
+    noteDate,
+    contextType,
+    content,
+    conduct,
+    status,
+  };
 }
 
 /**

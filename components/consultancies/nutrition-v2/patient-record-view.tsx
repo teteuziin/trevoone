@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useTransition, useMemo, useEffect, useRef, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type {
   PatientRecordDetail,
   UpdatePatientRecordInput,
-  AddAnthropometricEntryInput,
 } from "@/lib/nutrition-v2/patient-record-types";
 import {
   calculateAgeFromBirthDate,
@@ -15,7 +14,6 @@ import {
 } from "@/lib/nutrition-v2/clinical-calculations";
 import {
   updatePatientRecordAction,
-  addAnthropometricEntryAction,
 } from "@/app/consultoria/[slug]/planos-v2/patient-actions";
 import {
   startPatientPlanEditAction,
@@ -42,6 +40,8 @@ import { PatientAnamneseDrawer } from "./patient-anamnese-drawer";
 import { PatientCadastralModal } from "./patient-cadastral-modal";
 import { NutritionWorkspaceNav } from "./nutrition-workspace-nav";
 import { PatientGeneralRecordTab } from "./patient-general-record-tab";
+import { PlanningEvolutionTab } from "./planning-evolution-tab";
+import { AnthropometricModal } from "./anthropometric-modal";
 import type { PatientConsultationHubSummaryDto } from "@/lib/nutrition-v2/clinical-consultation-types";
 import type { PatientCheckinsHubSummaryDto } from "@/lib/nutrition-v2/checkin-types";
 import type { PatientFollowupHubSummaryDto } from "@/lib/nutrition-v2/followup-types";
@@ -166,13 +166,14 @@ export function PatientRecordView({
   activePlan,
   draftPlan,
   initialTab,
+  initialPlanning = null,
+  initialStaleStatus = null,
   initialConsultationsSummary = null,
   initialCheckinsSummary = null,
   canAuthorNutrition = true,
 }: PatientRecordViewProps) {
   const router = useRouter();
   const [detail, setDetail] = useState<PatientRecordDetail>(initialDetail);
-  const [isPending, startTransition] = useTransition();
   const [isStartingEdit, setIsStartingEdit] = useState(false);
   const [isCreatingScratch, setIsCreatingScratch] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -221,19 +222,6 @@ export function PatientRecordView({
     alcoholNotes: detail.record.alcoholNotes,
     sleepRoutine: detail.record.sleepRoutine,
     workStudyRoutine: detail.record.workStudyRoutine,
-  });
-
-  const [newAnthro, setNewAnthro] = useState<AddAnthropometricEntryInput>({
-    measurementDate: new Date().toISOString().slice(0, 10),
-    weightKg: null,
-    heightCm: null,
-    waistCm: null,
-    hipCm: null,
-    armCm: null,
-    thighCm: null,
-    calfCm: null,
-    chestCm: null,
-    notes: null,
   });
 
   // Autosave states & refs with SERIALIZED SERVER WRITES
@@ -444,21 +432,6 @@ export function PatientRecordView({
     } else if (choice === "ai-import") {
       setIsAiImportModalOpen(true);
     }
-  };
-
-  const handleAddAnthropometric = (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage(null);
-    startTransition(async () => {
-      const res = await addAnthropometricEntryAction(slug, detail.student.membershipPublicId, newAnthro);
-      if (res.success) {
-        setShowAddAnthro(false);
-        setMessage({ type: "success", text: "Nova medição registrada com sucesso!" });
-        window.location.reload();
-      } else {
-        setMessage({ type: "error", text: res.error || "Erro ao adicionar medição." });
-      }
-    });
   };
 
   // Anthropometrics & physiological calculations
@@ -710,6 +683,21 @@ export function PatientRecordView({
 
         <button
           type="button"
+          onClick={() => handleTabChange("planejamento")}
+          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+            activeTab === "planejamento" || activeTab === "evolucao"
+              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
+              : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+          }`}
+        >
+          <span>Planejamento</span>
+          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+            Evolução
+          </span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => handleTabChange("registro-geral")}
           className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
             activeTab === "registro-geral"
@@ -733,16 +721,16 @@ export function PatientRecordView({
             {activePlan ? 1 : 0}
           </span>
         </a>
-        <a
-          href="#sec-evolucao"
-          onClick={() => handleTabChange("visao-geral")}
-          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
+        <button
+          type="button"
+          onClick={() => handleTabChange("planejamento")}
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
         >
           <span>Evolução</span>
           <span className="w-5 h-5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold flex items-center justify-center">
             {sortedAnthros.length}
           </span>
-        </a>
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -781,7 +769,7 @@ export function PatientRecordView({
       </div>
 
       {/* =================================================================== */}
-      {/* CONDITIONAL WORKSPACE: REGISTRO GERAL vs VISÃO GERAL COCKPIT        */}
+      {/* CONDITIONAL WORKSPACE: REGISTRO GERAL vs PLANEJAMENTO vs VISÃO GERAL */}
       {/* =================================================================== */}
       {activeTab === "registro-geral" ? (
         <PatientGeneralRecordTab
@@ -794,6 +782,19 @@ export function PatientRecordView({
           autosaveError={autosaveError}
           onRetryAutosave={handleRetryAutosave}
           onBackToOverview={() => handleTabChange("visao-geral")}
+        />
+      ) : activeTab === "planejamento" || activeTab === "evolucao" ? (
+        <PlanningEvolutionTab
+          slug={slug}
+          detail={detail}
+          initialPlanning={initialPlanning}
+          initialStaleStatus={initialStaleStatus}
+          activePlan={activePlan}
+          draftPlan={draftPlan}
+          canAuthorNutrition={canAuthorNutrition}
+          onBackToOverview={() => handleTabChange("visao-geral")}
+          onStartEditPlan={handleStartEditPlan}
+          isStartingEditPlan={isStartingEdit}
         />
       ) : (
         <div id="sec-visao-geral" onBlur={handleFieldBlur} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -1276,15 +1277,16 @@ export function PatientRecordView({
                 </span>
               </button>
 
-              <a
-                href="#sec-evolucao"
-                className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] transition-colors block text-center space-y-1"
+              <button
+                type="button"
+                onClick={() => handleTabChange("planejamento")}
+                className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] transition-colors block text-center space-y-1 cursor-pointer"
               >
-                <span className="text-xs font-bold text-[var(--text-primary)] block">Evolução</span>
+                <span className="text-xs font-bold text-[var(--text-primary)] block">Planejamento</span>
                 <span className="text-[11px] text-[var(--text-secondary)] block">
                   {sortedAnthros.length} registro(s)
                 </span>
-              </a>
+              </button>
 
               <button
                 type="button"
@@ -1314,7 +1316,7 @@ export function PatientRecordView({
             id="sec-evolucao"
             className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] flex-wrap gap-2">
               <div>
                 <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
                   Histórico Corporal
@@ -1323,13 +1325,22 @@ export function PatientRecordView({
                   Evolução Antropométrica
                 </h3>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowAddAnthro(true)}
-                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
-              >
-                + Nova Medição
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("planejamento")}
+                  className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                >
+                  Ver planejamento completo →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddAnthro(true)}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                >
+                  + Nova Medição
+                </button>
+              </div>
             </div>
 
             {sortedAnthros.length > 0 ? (
@@ -1448,87 +1459,20 @@ export function PatientRecordView({
         />
       )}
 
-      {/* 4. Modal: Nova Medição Antropométrica */}
-      {showAddAnthro && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-[var(--border-subtle)] pb-3">
-              <h4 className="font-extrabold text-[var(--text-primary)] text-base">Nova Medição Antropométrica</h4>
-              <button
-                type="button"
-                onClick={() => setShowAddAnthro(false)}
-                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-sm cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleAddAnthropometric} className="space-y-3.5 text-xs">
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Data da Medição *</label>
-                <input
-                  type="date"
-                  required
-                  value={newAnthro.measurementDate}
-                  onChange={(e) => setNewAnthro({ ...newAnthro, measurementDate: e.target.value })}
-                  className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-2.5 mt-1 text-sm font-semibold text-[var(--text-primary)]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Peso (kg) *</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    required
-                    value={newAnthro.weightKg ?? ""}
-                    onChange={(e) =>
-                      setNewAnthro({
-                        ...newAnthro,
-                        weightKg: e.target.value ? parseFloat(e.target.value) : null,
-                      })
-                    }
-                    className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-2.5 mt-1 text-sm font-semibold text-[var(--text-primary)]"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Altura (cm)</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={newAnthro.heightCm ?? ""}
-                    onChange={(e) =>
-                      setNewAnthro({
-                        ...newAnthro,
-                        heightCm: e.target.value ? parseFloat(e.target.value) : null,
-                      })
-                    }
-                    className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-2.5 mt-1 text-sm font-semibold text-[var(--text-primary)]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => setShowAddAnthro(false)}
-                  className="px-4 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  {isPending ? "Salvando..." : "Salvar Medição"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* 4. Modal: Nova Medição Antropométrica (Completo V2) */}
+      <AnthropometricModal
+        isOpen={showAddAnthro}
+        onClose={() => setShowAddAnthro(false)}
+        slug={slug}
+        studentMembershipPublicId={detail.student.membershipPublicId}
+        patientAgeYears={ageYears}
+        patientSex={bioSex}
+        onSuccess={() => {
+          setShowAddAnthro(false);
+          setMessage({ type: "success", text: "Nova medição registrada com sucesso!" });
+          window.location.reload();
+        }}
+      />
 
       {/* 5. Modais de IA */}
       {isAiGenerateModalOpen && (

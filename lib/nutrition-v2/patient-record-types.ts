@@ -158,6 +158,32 @@ export type PatientRecord = {
   deletedAt: string | null;
 };
 
+export type SkinfoldProtocol =
+  | "POLLOCK_3"
+  | "POLLOCK_7"
+  | "FAULKNER_4"
+  | "PETROSKI_4"
+  | "DURNIN_WOMERSLEY_4"
+  | "NONE";
+
+export const SKINFOLD_PROTOCOL_LABELS: Record<SkinfoldProtocol, string> = {
+  POLLOCK_3: "Pollock 3 dobras (Jackson & Pollock)",
+  POLLOCK_7: "Pollock 7 dobras (Jackson & Pollock)",
+  FAULKNER_4: "Faulkner 4 dobras",
+  PETROSKI_4: "Petroski 4 dobras",
+  DURNIN_WOMERSLEY_4: "Durnin & Womersley 4 dobras",
+  NONE: "Medidas isoladas (Sem protocolo)",
+};
+
+export type AnthropometricSourceType =
+  | "PROFESSIONAL_RECORDED"
+  | "PATIENT_REPORTED";
+
+export const ANTHROPOMETRIC_SOURCE_LABELS: Record<AnthropometricSourceType, string> = {
+  PROFESSIONAL_RECORDED: "Avaliação Profissional",
+  PATIENT_REPORTED: "Informado pelo Paciente",
+};
+
 export type PatientAnthropometricEntry = {
   id: number;
   publicId: string;
@@ -171,8 +197,46 @@ export type PatientAnthropometricEntry = {
   thighCm: number | null;
   calfCm: number | null;
   chestCm: number | null;
+
+  // Circunferências adicionais (cm)
+  neckCm: number | null;
+  forearmCm: number | null;
+  abdomenCm: number | null;
+  relaxedArmCm: number | null;
+  contractedArmCm: number | null;
+
+  // Dobras cutâneas (mm)
+  tricepsMm: number | null;
+  bicepsMm: number | null;
+  subscapularMm: number | null;
+  suprailiacMm: number | null;
+  abdominalFoldMm: number | null;
+  chestFoldMm: number | null;
+  thighFoldMm: number | null;
+  midaxillaryMm: number | null;
+  calfFoldMm: number | null;
+  skinfoldProtocol: SkinfoldProtocol | null;
+
+  // Composição corporal informada ou medida
+  bodyFatPct: number | null;
+  fatMassKg: number | null;
+  leanMassKg: number | null;
+  muscleMassKg: number | null;
+  bodyWaterPct: number | null;
+  bodyWaterKg: number | null;
+  boneMassValue: number | null;
+  boneMassUnit: string | null;
+  boneMassMethod: string | null;
+
+  // Metadados clínicos
+  sourceType: AnthropometricSourceType;
+  equipmentMethod: string | null;
   notes: string | null;
   createdByMembershipId: number;
+  createdByName?: string | null;
+  updatedByMembershipId?: number | null;
+  updatedByName?: string | null;
+  editReason?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -323,8 +387,53 @@ export type AddAnthropometricEntryInput = {
   thighCm?: number | null;
   calfCm?: number | null;
   chestCm?: number | null;
+
+  neckCm?: number | null;
+  forearmCm?: number | null;
+  abdomenCm?: number | null;
+  relaxedArmCm?: number | null;
+  contractedArmCm?: number | null;
+
+  tricepsMm?: number | null;
+  bicepsMm?: number | null;
+  subscapularMm?: number | null;
+  suprailiacMm?: number | null;
+  abdominalFoldMm?: number | null;
+  chestFoldMm?: number | null;
+  thighFoldMm?: number | null;
+  midaxillaryMm?: number | null;
+  calfFoldMm?: number | null;
+  skinfoldProtocol?: SkinfoldProtocol | null;
+
+  bodyFatPct?: number | null;
+  fatMassKg?: number | null;
+  leanMassKg?: number | null;
+  muscleMassKg?: number | null;
+  bodyWaterPct?: number | null;
+  bodyWaterKg?: number | null;
+  boneMassValue?: number | null;
+  boneMassUnit?: string | null;
+  boneMassMethod?: string | null;
+
+  sourceType?: AnthropometricSourceType;
+  equipmentMethod?: string | null;
   notes?: string | null;
 };
+
+export type UpdateAnthropometricEntryInput = AddAnthropometricEntryInput & {
+  entryPublicId: string;
+  editReason: string;
+};
+
+export interface AnthropometricAuditEntryDto {
+  publicId: string;
+  fieldName: string;
+  previousValue: string | null;
+  newValue: string | null;
+  editReason: string | null;
+  changedByName: string;
+  createdAt: string;
+}
 
 export type UpdatePregnancyInput = {
   pregnancyStatus: PregnancyStatus;

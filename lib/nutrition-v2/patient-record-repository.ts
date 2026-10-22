@@ -14,6 +14,9 @@ import {
   type OnboardingReferenceData,
   type UpdatePatientRecordInput,
   type AddAnthropometricEntryInput,
+  type UpdateAnthropometricEntryInput,
+  type SkinfoldProtocol,
+  type AnthropometricSourceType,
   type UpdatePregnancyInput,
   type BiologicalSex,
   type UpdatePatientPhysiologicalInput,
@@ -30,6 +33,7 @@ import {
 import {
   validatePatientRecordInput,
   validateAnthropometricEntryInput,
+  validateUpdateAnthropometricEntryInput,
   validatePregnancyInput,
   validatePhysiologicalInput,
   validateClinicalNoteInput,
@@ -116,21 +120,65 @@ function mapRowToPatientRecord(row: RowDataPacket): PatientRecord {
 }
 
 function mapRowToAnthropometricEntry(row: RowDataPacket): PatientAnthropometricEntry {
+  const getNum = (val: unknown): number | null => {
+    if (val === null || val === undefined || val === "") return null;
+    const n = Number(val);
+    return isNaN(n) ? null : n;
+  };
+
   return {
     id: Number(row.id),
     publicId: String(row.public_id),
     patientRecordId: Number(row.patient_record_id),
     measurementDate: typeof row.measurement_date === "string" ? row.measurement_date : new Date(row.measurement_date).toISOString().slice(0, 10),
-    weightKg: row.weight_kg !== null && row.weight_kg !== undefined ? Number(row.weight_kg) : null,
-    heightCm: row.height_cm !== null && row.height_cm !== undefined ? Number(row.height_cm) : null,
-    waistCm: row.waist_cm !== null && row.waist_cm !== undefined ? Number(row.waist_cm) : null,
-    hipCm: row.hip_cm !== null && row.hip_cm !== undefined ? Number(row.hip_cm) : null,
-    armCm: row.arm_cm !== null && row.arm_cm !== undefined ? Number(row.arm_cm) : null,
-    thighCm: row.thigh_cm !== null && row.thigh_cm !== undefined ? Number(row.thigh_cm) : null,
-    calfCm: row.calf_cm !== null && row.calf_cm !== undefined ? Number(row.calf_cm) : null,
-    chestCm: row.chest_cm !== null && row.chest_cm !== undefined ? Number(row.chest_cm) : null,
+    weightKg: getNum(row.weight_kg),
+    heightCm: getNum(row.height_cm),
+    waistCm: getNum(row.waist_cm),
+    hipCm: getNum(row.hip_cm),
+    armCm: getNum(row.arm_cm),
+    thighCm: getNum(row.thigh_cm),
+    calfCm: getNum(row.calf_cm),
+    chestCm: getNum(row.chest_cm),
+
+    // Circunferências adicionais (cm)
+    neckCm: getNum(row.neck_cm),
+    forearmCm: getNum(row.forearm_cm),
+    abdomenCm: getNum(row.abdomen_cm),
+    relaxedArmCm: getNum(row.relaxed_arm_cm),
+    contractedArmCm: getNum(row.contracted_arm_cm),
+
+    // Dobras cutâneas (mm)
+    tricepsMm: getNum(row.triceps_mm),
+    bicepsMm: getNum(row.biceps_mm),
+    subscapularMm: getNum(row.subscapular_mm),
+    suprailiacMm: getNum(row.suprailiac_mm),
+    abdominalFoldMm: getNum(row.abdominal_fold_mm),
+    chestFoldMm: getNum(row.chest_fold_mm),
+    thighFoldMm: getNum(row.thigh_fold_mm),
+    midaxillaryMm: getNum(row.midaxillary_mm),
+    calfFoldMm: getNum(row.calf_fold_mm),
+    skinfoldProtocol: row.skinfold_protocol ? (String(row.skinfold_protocol) as SkinfoldProtocol) : null,
+
+    // Composição corporal informada ou medida
+    bodyFatPct: getNum(row.body_fat_pct),
+    fatMassKg: getNum(row.fat_mass_kg),
+    leanMassKg: getNum(row.lean_mass_kg),
+    muscleMassKg: getNum(row.muscle_mass_kg),
+    bodyWaterPct: getNum(row.body_water_pct),
+    bodyWaterKg: getNum(row.body_water_kg),
+    boneMassValue: getNum(row.bone_mass_value),
+    boneMassUnit: row.bone_mass_unit ? String(row.bone_mass_unit) : null,
+    boneMassMethod: row.bone_mass_method ? String(row.bone_mass_method) : null,
+
+    // Metadados clínicos
+    sourceType: (row.source_type || "PROFESSIONAL_RECORDED") as AnthropometricSourceType,
+    equipmentMethod: row.equipment_method ? String(row.equipment_method) : null,
     notes: row.notes ? String(row.notes) : null,
     createdByMembershipId: Number(row.created_by_membership_id),
+    createdByName: row.created_by_name ? String(row.created_by_name) : null,
+    updatedByMembershipId: row.updated_by_membership_id ? Number(row.updated_by_membership_id) : null,
+    updatedByName: row.updated_by_name ? String(row.updated_by_name) : null,
+    editReason: row.edit_reason ? String(row.edit_reason) : null,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
   };
@@ -547,12 +595,33 @@ export async function getPatientRecordDetail(
       : null;
 
     // 4. Get anthropometrics history
-    const [anthroRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT * FROM nutrition_v2_patient_anthropometrics
-       WHERE patient_record_id = ?
-       ORDER BY measurement_date DESC, id DESC;`,
-      [record.id]
-    );
+    let anthroRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          pa.*,
+          u_cr.full_name AS created_by_name,
+          u_up.full_name AS updated_by_name
+         FROM nutrition_v2_patient_anthropometrics pa
+         LEFT JOIN consultancy_members cm_cr ON cm_cr.id = pa.created_by_membership_id
+         LEFT JOIN users u_cr ON u_cr.id = cm_cr.user_id
+         LEFT JOIN consultancy_members cm_up ON cm_up.id = pa.updated_by_membership_id
+         LEFT JOIN users u_up ON u_up.id = cm_up.user_id
+         WHERE pa.patient_record_id = ?
+         ORDER BY pa.measurement_date DESC, pa.id DESC;`,
+        [record.id]
+      );
+      anthroRows = Array.isArray(rows) ? rows : [];
+    } catch {
+      // Fallback query if updated_by columns not yet applied
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT * FROM nutrition_v2_patient_anthropometrics
+         WHERE patient_record_id = ?
+         ORDER BY measurement_date DESC, id DESC;`,
+        [record.id]
+      );
+      anthroRows = Array.isArray(rows) ? rows : [];
+    }
 
     const anthropometrics = (Array.isArray(anthroRows) ? anthroRows : []).map(mapRowToAnthropometricEntry);
 
@@ -1066,45 +1135,360 @@ export async function addAnthropometricEntry(
 
     const publicId = crypto.randomUUID();
 
-    await connection.execute<ResultSetHeader>(
-      `INSERT INTO nutrition_v2_patient_anthropometrics (
-        public_id,
-        patient_record_id,
-        measurement_date,
-        weight_kg,
-        height_cm,
-        waist_cm,
-        hip_cm,
-        arm_cm,
-        thigh_cm,
-        calf_cm,
-        chest_cm,
-        notes,
-        created_by_membership_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-      [
-        publicId,
-        record.id,
-        validated.measurementDate,
-        validated.weightKg ?? null,
-        validated.heightCm ?? null,
-        validated.waistCm ?? null,
-        validated.hipCm ?? null,
-        validated.armCm ?? null,
-        validated.thighCm ?? null,
-        validated.calfCm ?? null,
-        validated.chestCm ?? null,
-        validated.notes ?? null,
-        authorMembershipId,
-      ]
-    );
+    try {
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_patient_anthropometrics (
+          public_id,
+          patient_record_id,
+          measurement_date,
+          weight_kg,
+          height_cm,
+          waist_cm,
+          hip_cm,
+          arm_cm,
+          thigh_cm,
+          calf_cm,
+          chest_cm,
+          neck_cm,
+          forearm_cm,
+          abdomen_cm,
+          relaxed_arm_cm,
+          contracted_arm_cm,
+          triceps_mm,
+          biceps_mm,
+          subscapular_mm,
+          suprailiac_mm,
+          abdominal_fold_mm,
+          chest_fold_mm,
+          thigh_fold_mm,
+          midaxillary_mm,
+          calf_fold_mm,
+          skinfold_protocol,
+          body_fat_pct,
+          fat_mass_kg,
+          lean_mass_kg,
+          muscle_mass_kg,
+          body_water_pct,
+          body_water_kg,
+          bone_mass_value,
+          bone_mass_unit,
+          bone_mass_method,
+          source_type,
+          equipment_method,
+          notes,
+          created_by_membership_id
+        ) VALUES (
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?
+        );`,
+        [
+          publicId,
+          record.id,
+          validated.measurementDate,
+          validated.weightKg ?? null,
+          validated.heightCm ?? null,
+          validated.waistCm ?? null,
+          validated.hipCm ?? null,
+          validated.armCm ?? null,
+          validated.thighCm ?? null,
+          validated.calfCm ?? null,
+          validated.chestCm ?? null,
+          validated.neckCm ?? null,
+          validated.forearmCm ?? null,
+          validated.abdomenCm ?? null,
+          validated.relaxedArmCm ?? null,
+          validated.contractedArmCm ?? null,
+          validated.tricepsMm ?? null,
+          validated.bicepsMm ?? null,
+          validated.subscapularMm ?? null,
+          validated.suprailiacMm ?? null,
+          validated.abdominalFoldMm ?? null,
+          validated.chestFoldMm ?? null,
+          validated.thighFoldMm ?? null,
+          validated.midaxillaryMm ?? null,
+          validated.calfFoldMm ?? null,
+          validated.skinfoldProtocol ?? null,
+          validated.bodyFatPct ?? null,
+          validated.fatMassKg ?? null,
+          validated.leanMassKg ?? null,
+          validated.muscleMassKg ?? null,
+          validated.bodyWaterPct ?? null,
+          validated.bodyWaterKg ?? null,
+          validated.boneMassValue ?? null,
+          validated.boneMassUnit ?? null,
+          validated.boneMassMethod ?? null,
+          validated.sourceType ?? "PROFESSIONAL_RECORDED",
+          validated.equipmentMethod ?? null,
+          validated.notes ?? null,
+          authorMembershipId,
+        ]
+      );
+    } catch {
+      // Fallback for pre-062 schema without expanded skinfolds / composition columns
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_patient_anthropometrics (
+          public_id,
+          patient_record_id,
+          measurement_date,
+          weight_kg,
+          height_cm,
+          waist_cm,
+          hip_cm,
+          arm_cm,
+          thigh_cm,
+          calf_cm,
+          chest_cm,
+          notes,
+          created_by_membership_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          publicId,
+          record.id,
+          validated.measurementDate,
+          validated.weightKg ?? null,
+          validated.heightCm ?? null,
+          validated.waistCm ?? null,
+          validated.hipCm ?? null,
+          validated.armCm ?? null,
+          validated.thighCm ?? null,
+          validated.calfCm ?? null,
+          validated.chestCm ?? null,
+          validated.notes ?? null,
+          authorMembershipId,
+        ]
+      );
+    }
 
     const [createdRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT * FROM nutrition_v2_patient_anthropometrics WHERE public_id = ?;`,
+      `SELECT
+        pa.*,
+        u_cr.full_name AS created_by_name
+       FROM nutrition_v2_patient_anthropometrics pa
+       LEFT JOIN consultancy_members cm_cr ON cm_cr.id = pa.created_by_membership_id
+       LEFT JOIN users u_cr ON u_cr.id = cm_cr.user_id
+       WHERE pa.public_id = ?;`,
       [publicId]
     );
 
     return mapRowToAnthropometricEntry(createdRows[0]);
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Updates an anthropometric entry with clinical audit tracking.
+ */
+export async function updateAnthropometricEntry(
+  consultancyId: number,
+  studentMembershipId: number,
+  authorMembershipId: number,
+  input: UpdateAnthropometricEntryInput
+): Promise<PatientAnthropometricEntry> {
+  const validated = validateUpdateAnthropometricEntryInput(input);
+  const connection = await getDbConnection();
+
+  try {
+    // 1. Verify existence and authorization
+    const [existingRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT pa.*, pr.id AS record_id
+       FROM nutrition_v2_patient_anthropometrics pa
+       INNER JOIN nutrition_v2_patient_records pr ON pr.id = pa.patient_record_id
+       WHERE pa.public_id = ? AND pr.consultancy_id = ? AND pr.student_membership_id = ?;`,
+      [validated.entryPublicId, consultancyId, studentMembershipId]
+    );
+
+    if (!Array.isArray(existingRows) || existingRows.length === 0) {
+      throw new Error("Medição não encontrada ou acesso não autorizado.");
+    }
+
+    const current = existingRows[0];
+    const previousEntry = mapRowToAnthropometricEntry(current);
+
+    // 2. Perform UPDATE with fallback
+    try {
+      await connection.execute<ResultSetHeader>(
+        `UPDATE nutrition_v2_patient_anthropometrics
+         SET
+           measurement_date = ?,
+           weight_kg = ?,
+           height_cm = ?,
+           waist_cm = ?,
+           hip_cm = ?,
+           arm_cm = ?,
+           thigh_cm = ?,
+           calf_cm = ?,
+           chest_cm = ?,
+           neck_cm = ?,
+           forearm_cm = ?,
+           abdomen_cm = ?,
+           relaxed_arm_cm = ?,
+           contracted_arm_cm = ?,
+           triceps_mm = ?,
+           biceps_mm = ?,
+           subscapular_mm = ?,
+           suprailiac_mm = ?,
+           abdominal_fold_mm = ?,
+           chest_fold_mm = ?,
+           thigh_fold_mm = ?,
+           midaxillary_mm = ?,
+           calf_fold_mm = ?,
+           skinfold_protocol = ?,
+           body_fat_pct = ?,
+           fat_mass_kg = ?,
+           lean_mass_kg = ?,
+           muscle_mass_kg = ?,
+           body_water_pct = ?,
+           body_water_kg = ?,
+           bone_mass_value = ?,
+           bone_mass_unit = ?,
+           bone_mass_method = ?,
+           source_type = ?,
+           equipment_method = ?,
+           notes = ?,
+           updated_by_membership_id = ?,
+           edit_reason = ?,
+           updated_at = NOW(3)
+         WHERE id = ?;`,
+        [
+          validated.measurementDate,
+          validated.weightKg ?? null,
+          validated.heightCm ?? null,
+          validated.waistCm ?? null,
+          validated.hipCm ?? null,
+          validated.armCm ?? null,
+          validated.thighCm ?? null,
+          validated.calfCm ?? null,
+          validated.chestCm ?? null,
+          validated.neckCm ?? null,
+          validated.forearmCm ?? null,
+          validated.abdomenCm ?? null,
+          validated.relaxedArmCm ?? null,
+          validated.contractedArmCm ?? null,
+          validated.tricepsMm ?? null,
+          validated.bicepsMm ?? null,
+          validated.subscapularMm ?? null,
+          validated.suprailiacMm ?? null,
+          validated.abdominalFoldMm ?? null,
+          validated.chestFoldMm ?? null,
+          validated.thighFoldMm ?? null,
+          validated.midaxillaryMm ?? null,
+          validated.calfFoldMm ?? null,
+          validated.skinfoldProtocol ?? null,
+          validated.bodyFatPct ?? null,
+          validated.fatMassKg ?? null,
+          validated.leanMassKg ?? null,
+          validated.muscleMassKg ?? null,
+          validated.bodyWaterPct ?? null,
+          validated.bodyWaterKg ?? null,
+          validated.boneMassValue ?? null,
+          validated.boneMassUnit ?? null,
+          validated.boneMassMethod ?? null,
+          validated.sourceType ?? "PROFESSIONAL_RECORDED",
+          validated.equipmentMethod ?? null,
+          validated.notes ?? null,
+          authorMembershipId,
+          validated.editReason,
+          current.id,
+        ]
+      );
+    } catch {
+      // Fallback update
+      await connection.execute<ResultSetHeader>(
+        `UPDATE nutrition_v2_patient_anthropometrics
+         SET
+           measurement_date = ?,
+           weight_kg = ?,
+           height_cm = ?,
+           waist_cm = ?,
+           hip_cm = ?,
+           arm_cm = ?,
+           thigh_cm = ?,
+           calf_cm = ?,
+           chest_cm = ?,
+           notes = ?,
+           updated_at = NOW(3)
+         WHERE id = ?;`,
+        [
+          validated.measurementDate,
+          validated.weightKg ?? null,
+          validated.heightCm ?? null,
+          validated.waistCm ?? null,
+          validated.hipCm ?? null,
+          validated.armCm ?? null,
+          validated.thighCm ?? null,
+          validated.calfCm ?? null,
+          validated.chestCm ?? null,
+          validated.notes ?? null,
+          current.id,
+        ]
+      );
+    }
+
+    // 3. Log audit trail for changed fields
+    try {
+      const auditFields: Array<{ field: string; prev: unknown; next: unknown }> = [
+        { field: "weightKg", prev: previousEntry.weightKg, next: validated.weightKg },
+        { field: "heightCm", prev: previousEntry.heightCm, next: validated.heightCm },
+        { field: "waistCm", prev: previousEntry.waistCm, next: validated.waistCm },
+        { field: "hipCm", prev: previousEntry.hipCm, next: validated.hipCm },
+        { field: "bodyFatPct", prev: previousEntry.bodyFatPct, next: validated.bodyFatPct },
+        { field: "measurementDate", prev: previousEntry.measurementDate, next: validated.measurementDate },
+      ];
+
+      for (const item of auditFields) {
+        const prevStr = item.prev !== undefined && item.prev !== null ? String(item.prev) : null;
+        const nextStr = item.next !== undefined && item.next !== null ? String(item.next) : null;
+        if (prevStr !== nextStr) {
+          const auditPublicId = crypto.randomUUID();
+          await connection.execute<ResultSetHeader>(
+            `INSERT INTO nutrition_v2_patient_anthropometrics_audit (
+              public_id,
+              consultancy_id,
+              patient_record_id,
+              anthropometric_id,
+              changed_by_membership_id,
+              field_name,
+              previous_value,
+              new_value,
+              edit_reason
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [
+              auditPublicId,
+              consultancyId,
+              current.record_id,
+              current.id,
+              authorMembershipId,
+              item.field,
+              prevStr,
+              nextStr,
+              validated.editReason,
+            ]
+          );
+        }
+      }
+    } catch {
+      // Non-blocking if audit table is still syncing
+    }
+
+    // 4. Return updated entry
+    const [updatedRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        pa.*,
+        u_cr.full_name AS created_by_name,
+        u_up.full_name AS updated_by_name
+       FROM nutrition_v2_patient_anthropometrics pa
+       LEFT JOIN consultancy_members cm_cr ON cm_cr.id = pa.created_by_membership_id
+       LEFT JOIN users u_cr ON u_cr.id = cm_cr.user_id
+       LEFT JOIN consultancy_members cm_up ON cm_up.id = pa.updated_by_membership_id
+       LEFT JOIN users u_up ON u_up.id = cm_up.user_id
+       WHERE pa.id = ?;`,
+      [current.id]
+    );
+
+    return mapRowToAnthropometricEntry(updatedRows[0]);
   } finally {
     connection.release();
   }

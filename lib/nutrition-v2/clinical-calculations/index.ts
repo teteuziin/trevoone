@@ -17,6 +17,8 @@ export * from "./types";
 export * from "./validation";
 export * from "./formulas/bmi";
 export * from "./formulas/bmr";
+export * from "./formulas/skinfolds";
+export * from "./formulas/composition";
 export * from "./formulas/stubs";
 export * from "./registry";
 export * from "./engine";

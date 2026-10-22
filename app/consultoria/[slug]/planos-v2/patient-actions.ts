@@ -8,6 +8,7 @@ import {
   getPatientRecordDetail,
   updatePatientRecord,
   addAnthropometricEntry,
+  updateAnthropometricEntry,
   deleteAnthropometricEntry,
   upsertPregnancyRecord,
   listPatientsForConsultancy,
@@ -21,6 +22,7 @@ import {
 import type {
   UpdatePatientRecordInput,
   AddAnthropometricEntryInput,
+  UpdateAnthropometricEntryInput,
   UpdatePregnancyInput,
   PatientRecordDetail,
   SaveClinicalNoteInput,
@@ -112,6 +114,22 @@ export async function addAnthropometricEntryAction(
     return { success: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao adicionar medição antropométrica.";
+    return { success: false, error: message };
+  }
+}
+
+export async function updateAnthropometricEntryAction(
+  slug: string,
+  studentPublicId: string,
+  input: UpdateAnthropometricEntryInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, true);
+    await updateAnthropometricEntry(ctx.consultancyId!, studentMembershipId, ctx.membershipId!, input);
+    revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao atualizar medição antropométrica.";
     return { success: false, error: message };
   }
 }

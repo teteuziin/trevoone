@@ -9,6 +9,8 @@ import { BMI_STANDARD_FORMULA } from "./formulas/bmi";
 import {
   BMR_MIFFLIN_ST_JEOR_FORMULA,
   BMR_HARRIS_BENEDICT_REVISED_FORMULA,
+  BMR_FAO_OMS_FORMULA,
+  BMR_KATCH_MCARDLE_FORMULA,
 } from "./formulas/bmr";
 import { SPEC_REQUIRED_FORMULAS } from "./formulas/stubs";
 
@@ -20,6 +22,8 @@ class FormulaRegistry {
     this.register(BMI_STANDARD_FORMULA);
     this.register(BMR_MIFFLIN_ST_JEOR_FORMULA);
     this.register(BMR_HARRIS_BENEDICT_REVISED_FORMULA);
+    this.register(BMR_FAO_OMS_FORMULA);
+    this.register(BMR_KATCH_MCARDLE_FORMULA);
 
     // Register spec-required stubs for calculations awaiting approval
     for (const stub of SPEC_REQUIRED_FORMULAS) {

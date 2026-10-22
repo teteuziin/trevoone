@@ -4,6 +4,10 @@ import type {
   SaveClinicalNoteInput,
   ClinicalNoteContextType,
   ClinicalNoteStatus,
+  AddAnthropometricEntryInput,
+  UpdateAnthropometricEntryInput,
+  SkinfoldProtocol,
+  AnthropometricSourceType,
 } from "./patient-record-types";
 
 export type PregnancyStatus =
@@ -63,18 +67,7 @@ export type UpdatePatientRecordInput = {
   fieldProvenanceJson?: string | null;
 };
 
-export type AddAnthropometricEntryInput = {
-  measurementDate: string;
-  weightKg?: number | null;
-  heightCm?: number | null;
-  waistCm?: number | null;
-  hipCm?: number | null;
-  armCm?: number | null;
-  thighCm?: number | null;
-  calfCm?: number | null;
-  chestCm?: number | null;
-  notes?: string | null;
-};
+export type { AddAnthropometricEntryInput };
 
 export type UpdatePregnancyInput = {
   pregnancyStatus: PregnancyStatus;
@@ -286,27 +279,95 @@ export function validateAnthropometricEntryInput(input: unknown): AddAnthropomet
     );
   }
 
-  const weightKg = validateNumericMeasurement(raw.weightKg, "peso", 20, 500);
-  const heightCm = validateNumericMeasurement(raw.heightCm, "altura", 50, 300);
-  const waistCm = validateNumericMeasurement(raw.waistCm, "cintura", 20, 300);
-  const hipCm = validateNumericMeasurement(raw.hipCm, "quadril", 20, 300);
-  const armCm = validateNumericMeasurement(raw.armCm, "braço", 10, 150);
+  const weightKg = validateNumericMeasurement(raw.weightKg, "peso", 10, 500);
+  const heightCm = validateNumericMeasurement(raw.heightCm, "altura", 40, 300);
+  const waistCm = validateNumericMeasurement(raw.waistCm, "cintura", 10, 300);
+  const hipCm = validateNumericMeasurement(raw.hipCm, "quadril", 10, 300);
+  const armCm = validateNumericMeasurement(raw.armCm, "braço", 5, 150);
   const thighCm = validateNumericMeasurement(raw.thighCm, "coxa", 10, 150);
   const calfCm = validateNumericMeasurement(raw.calfCm, "panturrilha", 10, 150);
-  const chestCm = validateNumericMeasurement(raw.chestCm, "peitoral/tórax", 20, 300);
+  const chestCm = validateNumericMeasurement(raw.chestCm, "peitoral/tórax", 10, 300);
+
+  // Additional circumferences
+  const neckCm = validateNumericMeasurement(raw.neckCm, "pescoço", 10, 100);
+  const forearmCm = validateNumericMeasurement(raw.forearmCm, "antebraço", 5, 100);
+  const abdomenCm = validateNumericMeasurement(raw.abdomenCm, "abdômen", 10, 300);
+  const relaxedArmCm = validateNumericMeasurement(raw.relaxedArmCm, "braço relaxado", 5, 150);
+  const contractedArmCm = validateNumericMeasurement(raw.contractedArmCm, "braço contraído", 5, 150);
+
+  // Skinfolds (mm)
+  const tricepsMm = validateNumericMeasurement(raw.tricepsMm, "dobra tríceps", 1, 80);
+  const bicepsMm = validateNumericMeasurement(raw.bicepsMm, "dobra bíceps", 1, 80);
+  const subscapularMm = validateNumericMeasurement(raw.subscapularMm, "dobra subescapular", 1, 80);
+  const suprailiacMm = validateNumericMeasurement(raw.suprailiacMm, "dobra suprailíaca", 1, 80);
+  const abdominalFoldMm = validateNumericMeasurement(raw.abdominalFoldMm, "dobra abdominal", 1, 80);
+  const chestFoldMm = validateNumericMeasurement(raw.chestFoldMm, "dobra peitoral", 1, 80);
+  const thighFoldMm = validateNumericMeasurement(raw.thighFoldMm, "dobra coxa", 1, 80);
+  const midaxillaryMm = validateNumericMeasurement(raw.midaxillaryMm, "dobra axilar média", 1, 80);
+  const calfFoldMm = validateNumericMeasurement(raw.calfFoldMm, "dobra panturrilha", 1, 80);
+
+  const rawProtocol = String(raw.skinfoldProtocol || "").trim().toUpperCase();
+  const skinfoldProtocol: SkinfoldProtocol | null =
+    rawProtocol === "POLLOCK_3" ||
+    rawProtocol === "POLLOCK_7" ||
+    rawProtocol === "FAULKNER_4" ||
+    rawProtocol === "PETROSKI_4" ||
+    rawProtocol === "DURNIN_WOMERSLEY_4" ||
+    rawProtocol === "NONE"
+      ? (rawProtocol as SkinfoldProtocol)
+      : null;
+
+  // Body Composition
+  const bodyFatPct = validateNumericMeasurement(raw.bodyFatPct, "% gordura", 1, 75);
+  const fatMassKg = validateNumericMeasurement(raw.fatMassKg, "massa gorda", 0.5, 300);
+  const leanMassKg = validateNumericMeasurement(raw.leanMassKg, "massa livre de gordura", 5, 300);
+  const muscleMassKg = validateNumericMeasurement(raw.muscleMassKg, "massa muscular", 5, 300);
+  const bodyWaterPct = validateNumericMeasurement(raw.bodyWaterPct, "água corporal (%)", 10, 85);
+  const bodyWaterKg = validateNumericMeasurement(raw.bodyWaterKg, "água corporal (kg)", 5, 200);
+  const boneMassValue = validateNumericMeasurement(raw.boneMassValue, "massa óssea", 0.1, 50);
+  const boneMassUnit = sanitizeOptionalText(raw.boneMassUnit, 20);
+  const boneMassMethod = sanitizeOptionalText(raw.boneMassMethod, 100);
+
+  // Metadata
+  const rawSource = String(raw.sourceType || "").trim().toUpperCase();
+  const sourceType: AnthropometricSourceType =
+    rawSource === "PATIENT_REPORTED" ? "PATIENT_REPORTED" : "PROFESSIONAL_RECORDED";
+  const equipmentMethod = sanitizeOptionalText(raw.equipmentMethod, 150);
   const notes = sanitizeOptionalText(raw.notes, 500);
 
-  if (
-    weightKg === null &&
-    heightCm === null &&
-    waistCm === null &&
-    hipCm === null &&
-    armCm === null &&
-    thighCm === null &&
-    calfCm === null &&
-    chestCm === null &&
-    notes === null
-  ) {
+  const hasAnyMeasurement =
+    weightKg !== null ||
+    heightCm !== null ||
+    waistCm !== null ||
+    hipCm !== null ||
+    armCm !== null ||
+    thighCm !== null ||
+    calfCm !== null ||
+    chestCm !== null ||
+    neckCm !== null ||
+    forearmCm !== null ||
+    abdomenCm !== null ||
+    relaxedArmCm !== null ||
+    contractedArmCm !== null ||
+    tricepsMm !== null ||
+    bicepsMm !== null ||
+    subscapularMm !== null ||
+    suprailiacMm !== null ||
+    abdominalFoldMm !== null ||
+    chestFoldMm !== null ||
+    thighFoldMm !== null ||
+    midaxillaryMm !== null ||
+    calfFoldMm !== null ||
+    bodyFatPct !== null ||
+    fatMassKg !== null ||
+    leanMassKg !== null ||
+    muscleMassKg !== null ||
+    bodyWaterPct !== null ||
+    bodyWaterKg !== null ||
+    boneMassValue !== null ||
+    notes !== null;
+
+  if (!hasAnyMeasurement) {
     throw new PatientRecordValidationError(
       "Informe ao menos uma medição antropométrica ou observação.",
       "EMPTY_ANTHROPOMETRICS"
@@ -323,7 +384,72 @@ export function validateAnthropometricEntryInput(input: unknown): AddAnthropomet
     thighCm,
     calfCm,
     chestCm,
+    neckCm,
+    forearmCm,
+    abdomenCm,
+    relaxedArmCm,
+    contractedArmCm,
+    tricepsMm,
+    bicepsMm,
+    subscapularMm,
+    suprailiacMm,
+    abdominalFoldMm,
+    chestFoldMm,
+    thighFoldMm,
+    midaxillaryMm,
+    calfFoldMm,
+    skinfoldProtocol,
+    bodyFatPct,
+    fatMassKg,
+    leanMassKg,
+    muscleMassKg,
+    bodyWaterPct,
+    bodyWaterKg,
+    boneMassValue,
+    boneMassUnit,
+    boneMassMethod,
+    sourceType,
+    equipmentMethod,
     notes,
+  };
+}
+
+/**
+ * Validates update input for an existing anthropometric entry.
+ */
+export function validateUpdateAnthropometricEntryInput(
+  input: unknown
+): UpdateAnthropometricEntryInput {
+  if (!input || typeof input !== "object") {
+    throw new PatientRecordValidationError(
+      "Dados de atualização de medição inválidos.",
+      "INVALID_PAYLOAD"
+    );
+  }
+
+  const raw = input as Record<string, unknown>;
+  const entryPublicId = String(raw.entryPublicId || "").trim();
+  if (!entryPublicId) {
+    throw new PatientRecordValidationError(
+      "O identificador da medição é obrigatório.",
+      "REQUIRED_ENTRY_PUBLIC_ID"
+    );
+  }
+
+  const editReason = String(raw.editReason || "").trim();
+  if (!editReason || editReason.length < 3) {
+    throw new PatientRecordValidationError(
+      "Informe uma justificativa para a correção da medição (mínimo de 3 caracteres).",
+      "REQUIRED_EDIT_REASON"
+    );
+  }
+
+  const baseValidated = validateAnthropometricEntryInput(input);
+
+  return {
+    ...baseValidated,
+    entryPublicId,
+    editReason: editReason.slice(0, 255),
   };
 }
 

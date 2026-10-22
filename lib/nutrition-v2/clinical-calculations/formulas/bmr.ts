@@ -350,3 +350,244 @@ export const BMR_HARRIS_BENEDICT_REVISED_FORMULA: FormulaDefinition = {
     };
   },
 };
+
+/**
+ * FAO / OMS / UNU (2004) - Equações de TMB por faixas etárias
+ */
+export function calculateFaoOms(
+  weightKg: number,
+  ageYears: number,
+  sex: BiologicalSex
+): number {
+  let bmr: number;
+  if (sex === "MALE") {
+    if (ageYears < 30) {
+      bmr = 15.057 * weightKg + 692.2;
+    } else if (ageYears <= 60) {
+      bmr = 11.472 * weightKg + 873.1;
+    } else {
+      bmr = 11.711 * weightKg + 587.7;
+    }
+  } else {
+    if (ageYears < 30) {
+      bmr = 14.818 * weightKg + 486.6;
+    } else if (ageYears <= 60) {
+      bmr = 8.126 * weightKg + 845.6;
+    } else {
+      bmr = 9.082 * weightKg + 658.5;
+    }
+  }
+  return Number(bmr.toFixed(2));
+}
+
+/**
+ * Katch-McArdle (1996) - GER baseado em Massa Livre de Gordura (FFM)
+ * BMR = 370 + (21.6 * FFM_kg)
+ */
+export function calculateKatchMcArdle(leanMassKg: number): number {
+  const ger = 370 + 21.6 * leanMassKg;
+  return Number(ger.toFixed(2));
+}
+
+/**
+ * Cunningham (1980) - GER baseado em Massa Livre de Gordura (FFM)
+ * BMR = 500 + (22 * FFM_kg)
+ */
+export function calculateCunningham(leanMassKg: number): number {
+  const ger = 500 + 22 * leanMassKg;
+  return Number(ger.toFixed(2));
+}
+
+export const BMR_FAO_OMS_FORMULA: FormulaDefinition = {
+  code: "FAO_OMS_UNU_2004_V1",
+  calculationCode: "BMR",
+  name: "Taxa Metabólica Basal — FAO/OMS/UNU (2004)",
+  version: "1.0",
+  description:
+    "Equação de predição de TMB por faixas etárias baseada no relatório conjunto FAO/WHO/UNU Human Energy Requirements (2004).",
+  status: "APPROVED",
+  requiredInputs: ["weightKg", "ageYears", "biologicalSex"],
+  optionalInputs: [],
+  outputUnit: "kcal/dia",
+  applicability: "Adultos de 18 a 60+ anos para estimativa da taxa metabólica basal.",
+  sourceReference: "FAO/WHO/UNU. Human energy requirements. Technical Report Series 1, 2004.",
+
+  execute(inputs: CalculationInputs): ClinicalCalculationResult {
+    const calculatedAt = new Date().toISOString();
+    const missing: string[] = [];
+
+    const weightInput = inputs.weightKg;
+    const ageInput = inputs.ageYears;
+    const sexInput = inputs.biologicalSex;
+
+    if (!weightInput || weightInput.value === null || weightInput.value === undefined) {
+      missing.push("peso corporal (kg)");
+    }
+    if (!ageInput || ageInput.value === null || ageInput.value === undefined) {
+      missing.push("idade (anos)");
+    }
+    if (!sexInput || sexInput.value === null || sexInput.value === undefined) {
+      missing.push("sexo biológico");
+    }
+
+    if (missing.length > 0) {
+      const msg = `Não calculado — dados insuficientes: ${missing.join(", ")}.`;
+      return {
+        calculationCode: "BMR",
+        formulaCode: "FAO_OMS_UNU_2004_V1",
+        formulaVersion: "1.0",
+        calculatedAt,
+        inputs,
+        result: null,
+        unit: "kcal/dia",
+        formattedResult: msg,
+        assumptions: [],
+        warnings: missing.map((m) => `${m} é obrigatório`),
+        status: "MISSING_INPUT",
+        errorMessage: msg,
+      };
+    }
+
+    const sex = normalizeBiologicalSex(sexInput.value);
+    if (!sex) {
+      const msg = "Sexo biológico não reconhecido.";
+      return {
+        calculationCode: "BMR",
+        formulaCode: "FAO_OMS_UNU_2004_V1",
+        formulaVersion: "1.0",
+        calculatedAt,
+        inputs,
+        result: null,
+        unit: "kcal/dia",
+        formattedResult: `Não calculado — ${msg}`,
+        assumptions: [],
+        warnings: [msg],
+        status: "INVALID_INPUT",
+        errorMessage: msg,
+      };
+    }
+
+    let weightKg: number;
+    let ageYears: number;
+    try {
+      weightKg = validateNumericInput(weightInput.value, "peso (kg)", 10, 500, "kg");
+      ageYears = validateNumericInput(ageInput.value, "idade (anos)", 1, 130, "anos");
+    } catch (err) {
+      const msg = err instanceof CalculationValidationError ? err.message : "Entrada inválida.";
+      return {
+        calculationCode: "BMR",
+        formulaCode: "FAO_OMS_UNU_2004_V1",
+        formulaVersion: "1.0",
+        calculatedAt,
+        inputs,
+        result: null,
+        unit: "kcal/dia",
+        formattedResult: `Não calculado — ${msg}`,
+        assumptions: [],
+        warnings: [msg],
+        status: "INVALID_INPUT",
+        errorMessage: msg,
+      };
+    }
+
+    const bmrRaw = calculateFaoOms(weightKg, ageYears, sex);
+    const assumptions = [
+      `Fórmula: FAO/OMS/UNU (2004) para sexo ${sex === "MALE" ? "Masculino" : "Feminino"} e idade ${ageYears} anos`,
+      `Entradas validadas: Peso ${weightKg} kg | Idade ${ageYears} anos`,
+    ];
+
+    return {
+      calculationCode: "BMR",
+      formulaCode: "FAO_OMS_UNU_2004_V1",
+      formulaVersion: "1.0",
+      calculatedAt,
+      inputs,
+      result: bmrRaw,
+      unit: "kcal/dia",
+      formattedResult: `${Math.round(bmrRaw).toLocaleString("pt-BR")} kcal/dia`,
+      assumptions,
+      warnings: [],
+      status: "SUCCESS",
+    };
+  },
+};
+
+export const BMR_KATCH_MCARDLE_FORMULA: FormulaDefinition = {
+  code: "KATCH_MCARDLE_1996_V1",
+  calculationCode: "BMR",
+  name: "Gasto Energético de Repouso — Katch-McArdle (1996)",
+  version: "1.0",
+  description:
+    "Equação de predição de GER baseada estritamente na Massa Livre de Gordura (FFM): 370 + (21,6 × FFM_kg). Requer composição corporal avaliada.",
+  status: "APPROVED",
+  requiredInputs: ["leanMassKg"],
+  optionalInputs: [],
+  outputUnit: "kcal/dia",
+  applicability: "Indivíduos com composição corporal avaliada, atletas e praticantes de musculação.",
+  sourceReference: "Katch FI, McArdle WD. Introduction to Nutrition, Exercise, and Sports. 1996.",
+
+  execute(inputs: CalculationInputs): ClinicalCalculationResult {
+    const calculatedAt = new Date().toISOString();
+    const leanInput = inputs.leanMassKg;
+
+    if (!leanInput || leanInput.value === null || leanInput.value === undefined) {
+      const msg = "Não calculado — requer massa livre de gordura (FFM) medida ou calculada na avaliação física.";
+      return {
+        calculationCode: "BMR",
+        formulaCode: "KATCH_MCARDLE_1996_V1",
+        formulaVersion: "1.0",
+        calculatedAt,
+        inputs,
+        result: null,
+        unit: "kcal/dia",
+        formattedResult: msg,
+        assumptions: [],
+        warnings: ["Massa livre de gordura (FFM em kg) não informada nesta avaliação."],
+        status: "MISSING_INPUT",
+        errorMessage: msg,
+      };
+    }
+
+    let leanMassKg: number;
+    try {
+      leanMassKg = validateNumericInput(leanInput.value, "massa livre de gordura (kg)", 10, 300, "kg");
+    } catch (err) {
+      const msg = err instanceof CalculationValidationError ? err.message : "Entrada inválida.";
+      return {
+        calculationCode: "BMR",
+        formulaCode: "KATCH_MCARDLE_1996_V1",
+        formulaVersion: "1.0",
+        calculatedAt,
+        inputs,
+        result: null,
+        unit: "kcal/dia",
+        formattedResult: `Não calculado — ${msg}`,
+        assumptions: [],
+        warnings: [msg],
+        status: "INVALID_INPUT",
+        errorMessage: msg,
+      };
+    }
+
+    const gerRaw = calculateKatchMcArdle(leanMassKg);
+    const assumptions = [
+      "Grandeza estimada: Gasto Energético de Repouso (GER / REE).",
+      `Fórmula: Katch-McArdle (1996): 370 + (21,6 × ${leanMassKg} kg)`,
+      "Independe de sexo ou idade cronológica direta, pois fundamenta-se no tecido metabolicamente ativo.",
+    ];
+
+    return {
+      calculationCode: "BMR",
+      formulaCode: "KATCH_MCARDLE_1996_V1",
+      formulaVersion: "1.0",
+      calculatedAt,
+      inputs,
+      result: gerRaw,
+      unit: "kcal/dia",
+      formattedResult: `${Math.round(gerRaw).toLocaleString("pt-BR")} kcal/dia`,
+      assumptions,
+      warnings: [],
+      status: "SUCCESS",
+    };
+  },
+};

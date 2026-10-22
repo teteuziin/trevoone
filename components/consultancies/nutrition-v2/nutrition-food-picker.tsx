@@ -273,7 +273,7 @@ export function NutritionFoodPicker({
                       setPage(1);
                     }}
                     placeholder="Nome, marca ou preparo (ex: arroz cozido, whey growth, pão francês)..."
-                    className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                    className="w-full pl-9 pr-3 py-2.5 text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors min-h-[44px]"
                   />
                   <svg className="w-4 h-4 absolute left-3 top-3 text-[var(--text-tertiary)] pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -516,7 +516,7 @@ export function NutritionFoodPicker({
                     size="sm"
                     disabled={page <= 1}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="min-h-[32px]"
+                    className="min-h-[44px]"
                   >
                     Anterior
                   </Button>
@@ -529,7 +529,7 @@ export function NutritionFoodPicker({
                     size="sm"
                     disabled={page >= totalPages}
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    className="min-h-[32px]"
+                    className="min-h-[44px]"
                   >
                     Próxima
                   </Button>
@@ -717,7 +717,7 @@ export function NutritionFoodPicker({
                         inputMode="decimal"
                         value={quantity}
                         onChange={(e) => setQuantity(e.target.value)}
-                        className="flex-1 px-3 py-2 text-center text-sm font-bold rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors min-h-[44px]"
+                        className="flex-1 px-3 py-2 text-center text-base sm:text-sm font-bold rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors min-h-[44px]"
                       />
                       <button
                         type="button"
@@ -740,7 +740,7 @@ export function NutritionFoodPicker({
                       <select
                         value={unitCode}
                         onChange={(e) => setUnitCode(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                        className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors min-h-[44px]"
                       >
                         {safeStandardUnits.map((u) => (
                           <option key={u.code} value={u.code}>
@@ -823,7 +823,7 @@ export function NutritionFoodPicker({
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Ex: sem sal, cozido no vapor, picado..."
-                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors min-h-[44px]"
                   />
                 </div>
               </div>
@@ -842,7 +842,7 @@ export function NutritionFoodPicker({
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
                   placeholder="Ex: Suco verde detox, Panqueca de aveia caseira..."
-                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                  className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors min-h-[44px]"
                 />
               </div>
 
@@ -857,7 +857,7 @@ export function NutritionFoodPicker({
                     value={customQuantity}
                     onChange={(e) => setCustomQuantity(e.target.value)}
                     placeholder="Ex: 1, 200..."
-                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors min-h-[44px]"
                   />
                 </div>
                 <div>
@@ -865,7 +865,7 @@ export function NutritionFoodPicker({
                   <select
                     value={customUnitCode}
                     onChange={(e) => setCustomUnitCode(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors min-h-[44px]"
                   >
                     {CANONICAL_UNITS.map((u) => (
                       <option key={u.code} value={u.code}>
@@ -885,7 +885,7 @@ export function NutritionFoodPicker({
                   value={customNotes}
                   onChange={(e) => setCustomNotes(e.target.value)}
                   placeholder="Ex: 1 folha de couve, 1/2 maçã, 200ml água de coco..."
-                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors resize-none"
+                  className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors resize-none min-h-[44px]"
                 />
               </div>
             </div>

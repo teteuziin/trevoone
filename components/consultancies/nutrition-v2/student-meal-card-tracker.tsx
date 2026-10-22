@@ -151,7 +151,7 @@ export function StudentMealCardTracker({
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-2xs cursor-pointer flex items-center gap-1"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-2xs cursor-pointer min-h-[36px] flex items-center gap-1"
               >
                 <span>✓</span>
                 <span>Fiz</span>
@@ -160,7 +160,7 @@ export function StudentMealCardTracker({
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white transition-all shadow-2xs cursor-pointer flex items-center gap-1"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white transition-all shadow-2xs cursor-pointer min-h-[36px] flex items-center gap-1"
               >
                 <span>⇄</span>
                 <span>Com alterações</span>
@@ -169,7 +169,7 @@ export function StudentMealCardTracker({
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--surface-elevated)] hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-default)] transition-all cursor-pointer flex items-center gap-1"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--surface-elevated)] hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-default)] transition-all cursor-pointer min-h-[36px] flex items-center gap-1"
               >
                 <span>✕</span>
                 <span>Não fiz</span>

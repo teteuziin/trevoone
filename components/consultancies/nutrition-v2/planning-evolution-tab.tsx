@@ -268,7 +268,7 @@ export function PlanningEvolutionTab({
             <button
               type="button"
               onClick={onBackToOverview}
-              className="px-3 py-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-secondary)] transition-colors cursor-pointer inline-flex items-center gap-1.5"
+              className="px-3 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-secondary)] transition-colors cursor-pointer inline-flex items-center gap-1.5 min-h-[44px]"
             >
               <span>← Voltar à visão geral</span>
             </button>
@@ -286,7 +286,7 @@ export function PlanningEvolutionTab({
                 setEditingEntry(null);
                 setIsAddModalOpen(true);
               }}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer inline-flex items-center gap-2"
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer inline-flex items-center gap-2 min-h-[44px]"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -430,7 +430,7 @@ export function PlanningEvolutionTab({
         <button
           type="button"
           onClick={() => setSubTab("evolucao")}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer min-h-[44px] ${
             subTab === "evolucao"
               ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
               : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
@@ -445,7 +445,7 @@ export function PlanningEvolutionTab({
         <button
           type="button"
           onClick={() => setSubTab("calculos")}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer min-h-[44px] ${
             subTab === "calculos"
               ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
               : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
@@ -460,7 +460,7 @@ export function PlanningEvolutionTab({
         <button
           type="button"
           onClick={() => setSubTab("metas")}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer min-h-[44px] ${
             subTab === "metas"
               ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
               : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"

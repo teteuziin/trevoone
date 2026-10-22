@@ -401,14 +401,14 @@ export function NutritionBuilderPreferencesDrawer({
                   <button
                     type="button"
                     onClick={handleConfirmRestore}
-                    className="px-3 py-1.5 rounded-lg bg-amber-600 text-white font-bold text-xs hover:bg-amber-700 transition-colors cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-amber-600 text-white font-bold text-xs hover:bg-amber-700 transition-colors cursor-pointer min-h-[44px] flex items-center justify-center"
                   >
                     Confirmar restauração
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowRestoreConfirm(false)}
-                    className="px-3 py-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-secondary)] font-semibold text-xs hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-secondary)] font-semibold text-xs hover:text-[var(--text-primary)] transition-colors cursor-pointer min-h-[44px] flex items-center justify-center"
                   >
                     Não alterar
                   </button>

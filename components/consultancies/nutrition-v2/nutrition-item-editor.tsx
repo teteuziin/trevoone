@@ -979,20 +979,20 @@ export function NutritionItemEditor({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Ex: sem sal, grelhado sem óleo..."
-            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+            className="w-full px-2.5 py-1.5 text-base sm:text-xs min-h-[44px] sm:min-h-[36px] rounded-lg border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
           />
           <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={() => setIsEditingNotes(false)}
-              className="px-2.5 py-1 text-xs rounded-lg border border-[var(--border)] text-[var(--text-secondary)] cursor-pointer"
+              className="px-2.5 py-1 text-xs rounded-lg border border-[var(--border)] text-[var(--text-secondary)] cursor-pointer min-h-[44px] sm:min-h-[32px] flex items-center"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleSaveNotes}
-              className="px-3 py-1 text-xs rounded-lg bg-[var(--brand)] text-white font-medium hover:opacity-90 cursor-pointer"
+              className="px-3 py-1 text-xs rounded-lg bg-[var(--brand)] text-white font-medium hover:opacity-90 cursor-pointer min-h-[44px] sm:min-h-[32px] flex items-center"
             >
               Salvar nota
             </button>

@@ -131,7 +131,7 @@ export function PatientMealTrackingTab({
             <button
               type="button"
               onClick={() => applyPeriod("today")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                 periodFilter === "today"
                   ? "bg-white dark:bg-zinc-800 text-[var(--text-primary)] shadow-2xs font-bold"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -142,7 +142,7 @@ export function PatientMealTrackingTab({
             <button
               type="button"
               onClick={() => applyPeriod("7d")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                 periodFilter === "7d"
                   ? "bg-white dark:bg-zinc-800 text-[var(--text-primary)] shadow-2xs font-bold"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -153,7 +153,7 @@ export function PatientMealTrackingTab({
             <button
               type="button"
               onClick={() => applyPeriod("14d")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                 periodFilter === "14d"
                   ? "bg-white dark:bg-zinc-800 text-[var(--text-primary)] shadow-2xs font-bold"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -164,7 +164,7 @@ export function PatientMealTrackingTab({
             <button
               type="button"
               onClick={() => applyPeriod("30d")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                 periodFilter === "30d"
                   ? "bg-white dark:bg-zinc-800 text-[var(--text-primary)] shadow-2xs font-bold"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -175,7 +175,7 @@ export function PatientMealTrackingTab({
             <button
               type="button"
               onClick={() => setPeriodFilter("custom")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                 periodFilter === "custom"
                   ? "bg-white dark:bg-zinc-800 text-[var(--text-primary)] shadow-2xs font-bold"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -195,7 +195,7 @@ export function PatientMealTrackingTab({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)]"
+                className="px-3 py-2 text-base sm:text-xs rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] min-h-[44px]"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -204,7 +204,7 @@ export function PatientMealTrackingTab({
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)]"
+                className="px-3 py-2 text-base sm:text-xs rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] min-h-[44px]"
               />
             </div>
             <button
@@ -214,7 +214,7 @@ export function PatientMealTrackingTab({
                 setErrorMessage(null);
                 setFilterEpoch((prev) => prev + 1);
               }}
-              className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-2xs cursor-pointer"
+              className="px-4 py-2 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-2xs cursor-pointer min-h-[44px] flex items-center"
             >
               Filtrar
             </button>

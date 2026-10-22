@@ -403,7 +403,7 @@ export function StudentNutritionV2({
             <button
               type="button"
               onClick={() => scrollToMeal(nextMeal.id)}
-              className="w-full mt-2 py-2 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-emerald-500/30 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-zinc-700/50 transition-colors flex items-center justify-center gap-1.5"
+              className="w-full mt-2 py-2 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-emerald-500/30 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-zinc-700/50 transition-colors flex items-center justify-center gap-1.5 min-h-[44px]"
             >
               <span>Ver detalhes no cardápio</span>
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -425,7 +425,7 @@ export function StudentNutritionV2({
                   key={meal.id}
                   type="button"
                   onClick={() => scrollToMeal(meal.id)}
-                  className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-elevated)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-emerald-600 hover:border-emerald-500/40 active:scale-95 transition-all flex items-center gap-1.5"
+                  className="shrink-0 px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--surface-elevated)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-emerald-600 hover:border-emerald-500/40 active:scale-95 transition-all flex items-center gap-1.5 min-h-[40px]"
                 >
                   <span>{meal.title}</span>
                   {meal.timeFormatted && (

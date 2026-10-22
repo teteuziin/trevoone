@@ -231,7 +231,7 @@ function StudentMealTrackingModalContent({
               <button
                 type="button"
                 onClick={() => setStatus("COMPLETED")}
-                className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1 cursor-pointer min-h-[44px] ${
                   status === "COMPLETED"
                     ? "bg-emerald-600 border-emerald-500 text-white shadow-xs"
                     : "bg-[var(--surface-subtle)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -244,7 +244,7 @@ function StudentMealTrackingModalContent({
               <button
                 type="button"
                 onClick={() => setStatus("COMPLETED_WITH_CHANGES")}
-                className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1 cursor-pointer min-h-[44px] ${
                   status === "COMPLETED_WITH_CHANGES"
                     ? "bg-amber-600 border-amber-500 text-white shadow-xs"
                     : "bg-[var(--surface-subtle)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -257,7 +257,7 @@ function StudentMealTrackingModalContent({
               <button
                 type="button"
                 onClick={() => setStatus("NOT_DONE")}
-                className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1 cursor-pointer min-h-[44px] ${
                   status === "NOT_DONE"
                     ? "bg-zinc-700 dark:bg-zinc-600 border-zinc-500 text-white shadow-xs"
                     : "bg-[var(--surface-subtle)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -290,7 +290,7 @@ function StudentMealTrackingModalContent({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Ex: Troquei a proteína por ovos cozidos, comi um pouco mais de salada..."
-                  className="w-full px-3 py-2 rounded-xl border border-amber-500/30 bg-[var(--surface-elevated)] text-[var(--text-primary)] text-xs focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                  className="w-full px-3 py-2 rounded-xl border border-amber-500/30 bg-[var(--surface-elevated)] text-[var(--text-primary)] text-base sm:text-xs min-h-[44px] focus:outline-hidden focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 
@@ -387,7 +387,7 @@ function StudentMealTrackingModalContent({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Se quiser, conte para o nutricionista o que aconteceu..."
-                  className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-elevated)] text-[var(--text-primary)] text-xs focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-elevated)] text-[var(--text-primary)] text-base sm:text-xs min-h-[44px] focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
@@ -408,7 +408,7 @@ function StudentMealTrackingModalContent({
                   type="time"
                   value={consumedAtTime}
                   onChange={(e) => setConsumedAtTime(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] text-xs font-semibold"
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] text-base sm:text-xs font-semibold min-h-[44px]"
                 />
               </div>
 
@@ -422,7 +422,7 @@ function StudentMealTrackingModalContent({
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Ex: Refeição saborosa, sem fome após"
-                    className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] text-xs"
+                    className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] text-base sm:text-xs min-h-[44px]"
                   />
                 </div>
               )}

@@ -8,6 +8,10 @@ import {
   type PresentedNutritionPlan,
 } from "@/lib/nutrition-v2/nutrition-plan-presentation";
 import { StudentFollowupTrigger } from "./student-followup-trigger";
+import { StudentMealDateNavigator } from "./student-meal-date-navigator";
+import { StudentMealCardTracker } from "./student-meal-card-tracker";
+import { getStudentMealTrackingForDateAction } from "@/app/consultoria/[slug]/nutricao/refeicoes/actions";
+import type { MealTrackingLogDto } from "@/lib/nutrition-v2/meal-tracking-types";
 
 interface Props {
   consultancySlug: string;
@@ -125,6 +129,58 @@ export function StudentNutritionV2({
     }
     return plan.meals[0];
   }, [plan.meals]);
+
+  // Meal Tracking State (Etapa 12)
+  const [selectedDate, setSelectedDate] = React.useState<string>(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  });
+  const [trackingLogs, setTrackingLogs] = React.useState<Record<string, MealTrackingLogDto>>({});
+
+  React.useEffect(() => {
+    let isCancelled = false;
+    getStudentMealTrackingForDateAction(consultancySlug, selectedDate)
+      .then((res) => {
+        if (!isCancelled && res.success && res.logs) {
+          const map: Record<string, MealTrackingLogDto> = {};
+          for (const log of res.logs) {
+            map[log.mealPublicId] = log;
+          }
+          setTrackingLogs(map);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [consultancySlug, selectedDate]);
+
+  const handleLogUpdated = (log: MealTrackingLogDto) => {
+    setTrackingLogs((prev) => ({
+      ...prev,
+      [log.mealPublicId]: log,
+    }));
+  };
+
+  const getSubstitutionsForMeal = (mealPublicId: string) => {
+    const rawMeal = assignedPlan.meals.find((m) => m.publicId === mealPublicId);
+    if (!rawMeal) return [];
+    return rawMeal.items
+      .filter((it) => it.substitutions && it.substitutions.length > 0)
+      .map((it) => ({
+        originalFoodName: it.foodNameSnapshot,
+        options: it.substitutions.map((sub) => ({
+          foodName: sub.foodNameSnapshot,
+          quantityFormatted: sub.prescribedQuantity
+            ? `${sub.prescribedQuantity} ${sub.prescribedUnitLabel || ""}`.trim()
+            : undefined,
+        })),
+      }));
+  };
 
   const scrollToMeal = (id: string) => {
     const el = document.getElementById(`meal-mobile-${id}`);
@@ -483,6 +539,12 @@ export function StudentNutritionV2({
           </div>
         )}
 
+        {/* Meal Tracking Date Navigator (Etapa 12) */}
+        <StudentMealDateNavigator
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+        />
+
         {/* All Meals Cards */}
         <div className="space-y-3 pt-1">
           {plan.meals.length === 0 ? (
@@ -572,6 +634,22 @@ export function StudentNutritionV2({
                     </div>
                   ))}
                 </div>
+
+                {/* Meal Check-in & Tracking (Etapa 12) */}
+                <StudentMealCardTracker
+                  consultancySlug={consultancySlug}
+                  mealDate={selectedDate}
+                  mealPublicId={meal.id}
+                  mealTitle={meal.title}
+                  mealScheduledTime={meal.timeFormatted}
+                  planId={null}
+                  planVersionId={null}
+                  planVersionNumber={null}
+                  mealId={assignedPlan.meals.find((m) => m.publicId === meal.id)?.id || null}
+                  currentLog={trackingLogs[meal.id] || null}
+                  availableSubstitutions={getSubstitutionsForMeal(meal.id)}
+                  onLogUpdated={handleLogUpdated}
+                />
               </div>
             ))
           )}
@@ -807,6 +885,14 @@ export function StudentNutritionV2({
           )}
         </header>
 
+        {/* Meal Tracking Date Navigator (Etapa 12) */}
+        <div className="pt-2">
+          <StudentMealDateNavigator
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+          />
+        </div>
+
         {/* 5. Refeições — Seções Contínuas da Folha (ZERO "card dentro de card") */}
         <div className="divide-y divide-[var(--border-subtle)]">
           {plan.meals.length === 0 ? (
@@ -893,6 +979,24 @@ export function StudentNutritionV2({
                       )}
                     </div>
                   ))}
+                </div>
+
+                {/* Meal Check-in & Tracking (Etapa 12) */}
+                <div className="pt-2">
+                  <StudentMealCardTracker
+                    consultancySlug={consultancySlug}
+                    mealDate={selectedDate}
+                    mealPublicId={meal.id}
+                    mealTitle={meal.title}
+                    mealScheduledTime={meal.timeFormatted}
+                    planId={null}
+                    planVersionId={null}
+                    planVersionNumber={null}
+                    mealId={assignedPlan.meals.find((m) => m.publicId === meal.id)?.id || null}
+                    currentLog={trackingLogs[meal.id] || null}
+                    availableSubstitutions={getSubstitutionsForMeal(meal.id)}
+                    onLogUpdated={handleLogUpdated}
+                  />
                 </div>
               </section>
             ))

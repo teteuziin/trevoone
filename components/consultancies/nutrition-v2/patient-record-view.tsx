@@ -41,6 +41,7 @@ import { PatientCadastralModal } from "./patient-cadastral-modal";
 import { NutritionWorkspaceNav } from "./nutrition-workspace-nav";
 import { PatientGeneralRecordTab } from "./patient-general-record-tab";
 import { PlanningEvolutionTab } from "./planning-evolution-tab";
+import { PatientMealTrackingTab } from "./patient-meal-tracking-tab";
 import { AnthropometricModal } from "./anthropometric-modal";
 import type { PatientConsultationHubSummaryDto } from "@/lib/nutrition-v2/clinical-consultation-types";
 import type { PatientCheckinsHubSummaryDto } from "@/lib/nutrition-v2/checkin-types";
@@ -711,6 +712,21 @@ export function PatientRecordView({
           </span>
         </button>
 
+        <button
+          type="button"
+          onClick={() => handleTabChange("acompanhamento")}
+          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+            activeTab === "acompanhamento"
+              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
+              : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+          }`}
+        >
+          <span>Acompanhamento</span>
+          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+            Refeições
+          </span>
+        </button>
+
         <a
           href="#sec-plano"
           onClick={() => handleTabChange("visao-geral")}
@@ -769,9 +785,15 @@ export function PatientRecordView({
       </div>
 
       {/* =================================================================== */}
-      {/* CONDITIONAL WORKSPACE: REGISTRO GERAL vs PLANEJAMENTO vs VISÃO GERAL */}
+      {/* CONDITIONAL WORKSPACE: ACOMPANHAMENTO vs REGISTRO GERAL vs PLANEJAMENTO vs VISÃO GERAL */}
       {/* =================================================================== */}
-      {activeTab === "registro-geral" ? (
+      {activeTab === "acompanhamento" ? (
+        <PatientMealTrackingTab
+          consultancySlug={slug}
+          studentPublicId={detail.student.membershipPublicId}
+          studentName={detail.student.fullName}
+        />
+      ) : activeTab === "registro-geral" ? (
         <PatientGeneralRecordTab
           slug={slug}
           detail={detail}
@@ -1050,6 +1072,19 @@ export function PatientRecordView({
                   {activePlan ? activePlan.versionTitle : "Nenhum"}
                 </span>
               </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between flex-wrap gap-2">
+              <span className="text-xs text-[var(--text-secondary)]">
+                Registro diário das refeições, fotos enviadas e cálculo de adesão do paciente.
+              </span>
+              <button
+                type="button"
+                onClick={() => handleTabChange("acompanhamento")}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors cursor-pointer shrink-0"
+              >
+                <span>Ver refeições e fotos →</span>
+              </button>
             </div>
           </section>
 

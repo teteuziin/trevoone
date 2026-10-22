@@ -3,11 +3,14 @@
  * Pure types, defaults, and preset resolvers safe for Client Components.
  */
 
+import type { PlanUpdatePolicy } from "./auto-publish-types";
+
 export interface NutritionBuilderPreferences {
   showStudentPreview: boolean;
   showVersionHistory: boolean;
   showTemplateActions: boolean;
   showMealMicronutrients: boolean;
+  defaultUpdatePolicy?: PlanUpdatePolicy;
 }
 
 export type NutritionBuilderPreset = "COMPLETO" | "SIMPLIFICADO" | "PERSONALIZADO";
@@ -17,6 +20,7 @@ export const DEFAULT_NUTRITION_BUILDER_PREFERENCES: Readonly<NutritionBuilderPre
   showVersionHistory: true,
   showTemplateActions: true,
   showMealMicronutrients: true,
+  defaultUpdatePolicy: "MANUAL",
 });
 
 export function getPresetFromPreferences(prefs: NutritionBuilderPreferences): NutritionBuilderPreset {

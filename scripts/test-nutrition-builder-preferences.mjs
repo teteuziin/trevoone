@@ -32,7 +32,13 @@ console.log("\n--- Testing Preset Resolution Logic ---");
 // Test default
 assert.deepStrictEqual(
   DEFAULT_NUTRITION_BUILDER_PREFERENCES,
-  { showStudentPreview: true, showVersionHistory: true, showTemplateActions: true },
+  {
+    showStudentPreview: true,
+    showVersionHistory: true,
+    showTemplateActions: true,
+    showMealMicronutrients: true,
+    defaultUpdatePolicy: "MANUAL",
+  },
   "Default preferences must be COMPLETO (all true)"
 );
 
@@ -47,6 +53,8 @@ const simplificado = {
   showStudentPreview: false,
   showVersionHistory: false,
   showTemplateActions: false,
+  showMealMicronutrients: false,
+  defaultUpdatePolicy: "MANUAL",
 };
 assert.strictEqual(
   getPresetFromPreferences(simplificado),
@@ -103,6 +111,8 @@ function mockGetPreferences(cid, uid) {
     showStudentPreview: Boolean(row.show_student_preview),
     showVersionHistory: Boolean(row.show_version_history),
     showTemplateActions: Boolean(row.show_template_actions),
+    showMealMicronutrients: Boolean(row.show_meal_micronutrients),
+    defaultUpdatePolicy: row.default_update_policy || "MANUAL",
   };
 }
 
@@ -113,6 +123,8 @@ function mockSavePreferences(cid, uid, prefs) {
     show_student_preview: prefs.showStudentPreview ? 1 : 0,
     show_version_history: prefs.showVersionHistory ? 1 : 0,
     show_template_actions: prefs.showTemplateActions ? 1 : 0,
+    show_meal_micronutrients: prefs.showMealMicronutrients ? 1 : 0,
+    default_update_policy: prefs.defaultUpdatePolicy || "MANUAL",
   });
   return mockGetPreferences(cid, uid);
 }
@@ -136,7 +148,13 @@ assert.deepStrictEqual(
 );
 
 // Scenario 4: Nutri B customizes Consultancy 1 to PERSONALIZADO
-const personalizado = { showStudentPreview: true, showVersionHistory: false, showTemplateActions: true };
+const personalizado = {
+  showStudentPreview: true,
+  showVersionHistory: false,
+  showTemplateActions: true,
+  showMealMicronutrients: false,
+  defaultUpdatePolicy: "MANUAL",
+};
 mockSavePreferences(1, 20, personalizado);
 assert.deepStrictEqual(mockGetPreferences(1, 20), personalizado, "Nutri B has PERSONALIZADO");
 // Nutri A remains unaffected

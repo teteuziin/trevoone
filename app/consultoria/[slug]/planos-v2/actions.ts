@@ -49,6 +49,9 @@ import {
   createNextDraftVersion,
   getPlanVersionHistory,
   getPlanVersionTreeByPlanPublicId,
+  updatePlanPolicy,
+  autoPublishPlanVersion,
+  type AutoPublishResult,
   type AddMealItemInput,
   type UpdateMealItemInput,
   type AddSubstitutionInput,
@@ -56,6 +59,7 @@ import {
   type PlanVersionHistoryItemDto,
   type PlanVersionTreeDto,
 } from "@/lib/nutrition-v2/plan-repository";
+import type { PlanUpdatePolicy } from "@/lib/nutrition-v2/auto-publish-types";
 import {
   listUnifiedFoodsForNutritionist,
   getFoodWithPortions,
@@ -1464,6 +1468,7 @@ export async function saveNutritionBuilderPreferencesAction(
       showVersionHistory: preferences.showVersionHistory,
       showTemplateActions: preferences.showTemplateActions,
       showMealMicronutrients: typeof preferences.showMealMicronutrients === 'boolean' ? preferences.showMealMicronutrients : false,
+      defaultUpdatePolicy: preferences.defaultUpdatePolicy === "AUTO_PUBLISH" ? "AUTO_PUBLISH" : "MANUAL",
     });
 
     return { success: true, data };
@@ -1533,5 +1538,66 @@ export async function checkMeasureNameSimilarityAction(
     return { success: true, data: res };
   } catch {
     return { success: false, error: "Erro ao verificar similaridade." };
+  }
+}
+
+export async function setPlanUpdatePolicyAction(
+  slug: string,
+  planPublicId: string,
+  input: {
+    updatePolicy: PlanUpdatePolicy;
+    autoPublishPaused?: boolean;
+  }
+): Promise<ActionResult<{ updatePolicy: PlanUpdatePolicy; autoPublishPaused: boolean; lastAutoPublishedAt?: string | null }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const updated = await updatePlanPolicy(ctx, planPublicId, input);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    revalidatePath(`/consultoria/${slug}/planos-v2/${planPublicId}`);
+    return {
+      success: true,
+      data: {
+        updatePolicy: updated.updatePolicy,
+        autoPublishPaused: updated.autoPublishPaused,
+        lastAutoPublishedAt: updated.lastAutoPublishedAt,
+      },
+    };
+  } catch (err: unknown) {
+    if (err instanceof NutritionAuthorizationError) {
+      return { success: false, error: err.message, code: err.code };
+    }
+    const message = err instanceof Error ? err.message : "Erro ao atualizar política de atualização do plano.";
+    return { success: false, error: message };
+  }
+}
+
+export async function autoPublishPlanAction(
+  slug: string,
+  params: {
+    planPublicId: string;
+    versionPublicId: string;
+    studentMembershipPublicId?: string;
+    expectedVersionNumber?: number;
+  }
+): Promise<ActionResult<AutoPublishResult>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const data = await autoPublishPlanVersion(ctx, params);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    revalidatePath(`/consultoria/${slug}/planos-v2/${params.planPublicId}`);
+    revalidatePath(`/consultoria/${slug}/nutricao`);
+    return { success: true, data };
+  } catch (err: unknown) {
+    if (err instanceof NutritionAuthorizationError) {
+      return { success: false, error: err.message, code: err.code };
+    }
+    const message = err instanceof Error ? err.message : "Erro ao atualizar automaticamente o plano.";
+    return { success: false, error: message };
   }
 }

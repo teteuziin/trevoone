@@ -65,21 +65,13 @@ export function NutritionBuilderPreferencesDrawer({
   const applyPreset = (preset: "COMPLETO" | "SIMPLIFICADO") => {
     setShowRestoreConfirm(false);
     setErrorMessage(null);
-    if (preset === "COMPLETO") {
-      setDraft({
-        showStudentPreview: true,
-        showVersionHistory: true,
-        showTemplateActions: true,
-        showMealMicronutrients: true,
-      });
-    } else {
-      setDraft({
-        showStudentPreview: false,
-        showVersionHistory: false,
-        showTemplateActions: false,
-        showMealMicronutrients: false,
-      });
-    }
+    setDraft((prev) => ({
+      showStudentPreview: preset === "COMPLETO",
+      showVersionHistory: preset === "COMPLETO",
+      showTemplateActions: preset === "COMPLETO",
+      showMealMicronutrients: preset === "COMPLETO",
+      defaultUpdatePolicy: prev.defaultUpdatePolicy ?? "MANUAL",
+    }));
   };
 
   const handleToggle = (key: keyof NutritionBuilderPreferences) => {
@@ -326,6 +318,54 @@ export function NutritionBuilderPreferencesDrawer({
                   }`}
                 />
               </button>
+            </div>
+
+            {/* Toggle 5: Política Padrão para Novos Planos */}
+            <div className="p-3.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] space-y-2.5 transition-colors">
+              <div className="space-y-0.5">
+                <span className="text-sm font-semibold text-[var(--text-primary)] block">
+                  Política padrão para novos planos
+                </span>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  Sugere o comportamento de atualização ao iniciar novos planos. A política efetiva é definida individualmente em cada plano.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRestoreConfirm(false);
+                    setDraft((prev) => ({ ...prev, defaultUpdatePolicy: "MANUAL" }));
+                  }}
+                  className={`p-2.5 rounded-lg border text-left transition-colors min-h-[44px] flex flex-col justify-between ${
+                    (draft.defaultUpdatePolicy ?? "MANUAL") === "MANUAL"
+                      ? "border-[var(--brand)] bg-[var(--brand)]/10 text-[var(--text-primary)] font-semibold"
+                      : "border-[var(--border-default)] bg-[var(--surface-base)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                  }`}
+                >
+                  <span className="text-xs font-bold block">Publicação manual</span>
+                  <span className="text-[10px] text-[var(--text-tertiary)] leading-tight mt-0.5 block">
+                    Salva rascunho. Publica sob comando.
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRestoreConfirm(false);
+                    setDraft((prev) => ({ ...prev, defaultUpdatePolicy: "AUTO_PUBLISH" }));
+                  }}
+                  className={`p-2.5 rounded-lg border text-left transition-colors min-h-[44px] flex flex-col justify-between ${
+                    draft.defaultUpdatePolicy === "AUTO_PUBLISH"
+                      ? "border-[var(--brand)] bg-[var(--brand)]/10 text-[var(--text-primary)] font-semibold"
+                      : "border-[var(--border-default)] bg-[var(--surface-base)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                  }`}
+                >
+                  <span className="text-xs font-bold block">Atualização automática</span>
+                  <span className="text-[10px] text-[var(--text-tertiary)] leading-tight mt-0.5 block">
+                    Atualiza paciente a cada rascunho válido.
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 

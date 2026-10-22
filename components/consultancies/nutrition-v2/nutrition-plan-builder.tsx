@@ -27,7 +27,12 @@ import {
   getPlanVersionHistoryAction,
   getPlanVersionTreeAction,
   listPlanAssignmentsAction,
+  setPlanUpdatePolicyAction,
+  autoPublishPlanAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
+import { AutoPublishConfirmDialog } from "./auto-publish-confirm-dialog";
+import { validatePlanTreeForPublication } from "@/lib/nutrition-v2/validation";
+import type { PlanUpdatePolicy } from "@/lib/nutrition-v2/auto-publish-types";
 import { NutritionMealEditor } from "./nutrition-meal-editor";
 import { NutritionPublishDialog } from "./nutrition-publish-dialog";
 import { NutritionSaveTemplateDialog } from "./nutrition-save-template-dialog";
@@ -180,6 +185,7 @@ export function NutritionPlanBuilder({
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
   const [autosaveError, setAutosaveError] = useState<string | null>(null);
 
+
   const isReadOnly = tree.version.status !== "DRAFT";
 
   // In-place metadata editing state
@@ -228,10 +234,199 @@ export function NutritionPlanBuilder({
     }
   };
 
+  // Auto-publish policy state & coordination
+  const [isAutoPublishConfirmOpen, setIsAutoPublishConfirmOpen] = useState(false);
+  const [isUpdatingPolicy, setIsUpdatingPolicy] = useState(false);
+  const autoPublishTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isAutoPublishingRef = useRef<boolean>(false);
+
+  // Active / assigned student resolution
+  const activeAssignment = useMemo(
+    () => assignments.find((a) => a.status === "ACTIVE"),
+    [assignments]
+  );
+  const effectiveStudentMembershipPublicId =
+    patientContext?.studentMembershipPublicId ||
+    activeAssignment?.studentMembershipPublicId ||
+    null;
+  const effectiveStudentName =
+    patientContext?.studentName ||
+    activeAssignment?.studentName ||
+    null;
+
+  const triggerAutoPublishIfEligible = useCallback(
+    (currentTree: PlanVersionTreeDto) => {
+      const policy: PlanUpdatePolicy = currentTree.plan.updatePolicy ?? "MANUAL";
+      if (policy !== "AUTO_PUBLISH") return;
+      if (currentTree.plan.autoPublishPaused) return;
+      if (currentTree.version.status !== "DRAFT") return;
+      if (isAutoPublishingRef.current) return;
+
+      const targetStudentId =
+        patientContext?.studentMembershipPublicId ||
+        assignments.find((a) => a.status === "ACTIVE")?.studentMembershipPublicId;
+      if (!targetStudentId) return;
+
+      // P0.3 Publication Gate check
+      const validation = validatePlanTreeForPublication(currentTree);
+      if (!validation.valid) {
+        // Incomplete nutrition or partial editing: draft remains saved, no auto-publish
+        return;
+      }
+
+      if (autoPublishTimerRef.current) {
+        clearTimeout(autoPublishTimerRef.current);
+      }
+
+      autoPublishTimerRef.current = setTimeout(async () => {
+        if (isAutoPublishingRef.current) return;
+        isAutoPublishingRef.current = true;
+        setAutosaveStatus("updating_patient");
+
+        try {
+          const res = await autoPublishPlanAction(slug, {
+            planPublicId: currentTree.plan.publicId,
+            versionPublicId: currentTree.version.publicId,
+            studentMembershipPublicId: targetStudentId,
+            expectedVersionNumber: currentTree.version.versionNumber,
+          });
+
+          if (res.success && res.data) {
+            setAutosaveStatus("patient_updated");
+            // Seamlessly update client tree to the new next draft created by server
+            setTree((prev) => ({
+              ...prev,
+              plan: {
+                ...prev.plan,
+                lastAutoPublishedAt: res.data!.publishedAt,
+              },
+              version: {
+                ...prev.version,
+                publicId: res.data!.nextDraftVersionPublicId,
+                versionNumber: res.data!.nextDraftVersionNumber,
+                status: "DRAFT",
+                publishedAt: null,
+              },
+            }));
+            setTimeout(() => {
+              setAutosaveStatus("idle");
+            }, 3500);
+          } else {
+            setAutosaveStatus("auto_update_error");
+            setAutosaveError(res.error || "Não foi possível atualizar o plano do paciente automaticamente.");
+          }
+        } catch (err: unknown) {
+          setAutosaveStatus("auto_update_error");
+          setAutosaveError(err instanceof Error ? err.message : "Erro na atualização automática.");
+        } finally {
+          isAutoPublishingRef.current = false;
+        }
+      }, 2000);
+    },
+    [slug, patientContext, assignments]
+  );
+
+  const handleToggleAutoPublishPolicy = () => {
+    const currentPolicy: PlanUpdatePolicy = tree.plan.updatePolicy ?? "MANUAL";
+    if (currentPolicy === "MANUAL") {
+      if (!effectiveStudentMembershipPublicId) {
+        alert(
+          "Para ativar a atualização automática, este plano precisa estar vinculado a um aluno. Atribua o plano através do botão 'Prescrever'."
+        );
+        return;
+      }
+      setIsAutoPublishConfirmOpen(true);
+    } else {
+      handleSwitchToManualPolicy();
+    }
+  };
+
+  const handleSwitchToManualPolicy = async () => {
+    setIsUpdatingPolicy(true);
+    try {
+      const res = await setPlanUpdatePolicyAction(slug, tree.plan.publicId, {
+        updatePolicy: "MANUAL",
+        autoPublishPaused: false,
+      });
+      if (res.success) {
+        setTree((prev) => ({
+          ...prev,
+          plan: {
+            ...prev.plan,
+            updatePolicy: "MANUAL",
+            autoPublishPaused: false,
+          },
+        }));
+        if (autoPublishTimerRef.current) {
+          clearTimeout(autoPublishTimerRef.current);
+        }
+      } else {
+        alert(res.error || "Erro ao alterar política de atualização.");
+      }
+    } finally {
+      setIsUpdatingPolicy(false);
+    }
+  };
+
+  const handleConfirmActivateAutoPublish = async () => {
+    setIsUpdatingPolicy(true);
+    try {
+      const res = await setPlanUpdatePolicyAction(slug, tree.plan.publicId, {
+        updatePolicy: "AUTO_PUBLISH",
+        autoPublishPaused: false,
+      });
+      if (res.success) {
+        const updatedPlanTree: PlanVersionTreeDto = {
+          ...tree,
+          plan: {
+            ...tree.plan,
+            updatePolicy: "AUTO_PUBLISH",
+            autoPublishPaused: false,
+          },
+        };
+        setTree(updatedPlanTree);
+        setIsAutoPublishConfirmOpen(false);
+        triggerAutoPublishIfEligible(updatedPlanTree);
+      } else {
+        alert(res.error || "Erro ao ativar atualização automática.");
+      }
+    } finally {
+      setIsUpdatingPolicy(false);
+    }
+  };
+
+  const handleTogglePauseAutoPublish = async () => {
+    const newPaused = !(tree.plan.autoPublishPaused ?? false);
+    setIsUpdatingPolicy(true);
+    try {
+      const res = await setPlanUpdatePolicyAction(slug, tree.plan.publicId, {
+        updatePolicy: "AUTO_PUBLISH",
+        autoPublishPaused: newPaused,
+      });
+      if (res.success) {
+        setTree((prev) => ({
+          ...prev,
+          plan: {
+            ...prev.plan,
+            autoPublishPaused: newPaused,
+          },
+        }));
+        if (newPaused && autoPublishTimerRef.current) {
+          clearTimeout(autoPublishTimerRef.current);
+        }
+      } else {
+        alert(res.error || "Erro ao alterar pausa da atualização.");
+      }
+    } finally {
+      setIsUpdatingPolicy(false);
+    }
+  };
+
   const refreshTree = async () => {
     const res = await getPlanVersionTreeAction(slug, tree.plan.publicId, tree.version.publicId);
     if (res.success && res.data) {
       setTree(res.data);
+      triggerAutoPublishIfEligible(res.data);
     } else {
       router.refresh();
     }
@@ -700,7 +895,70 @@ export function NutritionPlanBuilder({
                 </span>
               )}
 
-              <AutosaveIndicator status={autosaveStatus} errorMessage={autosaveError} />
+              {/* Plan Update Policy Pill */}
+              <div className="relative inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleToggleAutoPublishPolicy}
+                  disabled={isReadOnly || isUpdatingPolicy}
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all cursor-pointer min-h-[26px] ${
+                    (tree.plan.updatePolicy ?? "MANUAL") === "AUTO_PUBLISH"
+                      ? tree.plan.autoPublishPaused
+                        ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+                        : "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
+                      : "bg-[var(--surface-subtle)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                  }`}
+                  title={
+                    (tree.plan.updatePolicy ?? "MANUAL") === "AUTO_PUBLISH"
+                      ? tree.plan.autoPublishPaused
+                        ? "Atualização automática pausada. Clique para alternar para manual."
+                        : "Atualização automática ativa. Clique para alternar para manual."
+                      : "Publicação manual. Clique para ativar atualização automática para o aluno."
+                  }
+                  data-testid="plan-update-policy-btn"
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      (tree.plan.updatePolicy ?? "MANUAL") === "AUTO_PUBLISH"
+                        ? tree.plan.autoPublishPaused
+                          ? "bg-amber-500"
+                          : "bg-emerald-500"
+                        : "bg-neutral-400 dark:bg-neutral-500"
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {(tree.plan.updatePolicy ?? "MANUAL") === "AUTO_PUBLISH"
+                      ? tree.plan.autoPublishPaused
+                        ? "Atualização pausada"
+                        : "Atualização automática"
+                      : "Publicação manual"}
+                  </span>
+                </button>
+                {(tree.plan.updatePolicy ?? "MANUAL") === "AUTO_PUBLISH" && !isReadOnly && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTogglePauseAutoPublish();
+                    }}
+                    disabled={isUpdatingPolicy}
+                    className="text-[11px] font-medium text-[var(--text-tertiary)] hover:text-[var(--text-primary)] underline cursor-pointer px-1 py-0.5"
+                    title={tree.plan.autoPublishPaused ? "Retomar envio automático" : "Pausar envio automático"}
+                    data-testid="toggle-pause-auto-publish-btn"
+                  >
+                    {tree.plan.autoPublishPaused ? "Retomar" : "Pausar"}
+                  </button>
+                )}
+              </div>
+
+              <AutosaveIndicator
+                status={autosaveStatus}
+                policy={tree.plan.updatePolicy ?? "MANUAL"}
+                isPaused={Boolean(tree.plan.autoPublishPaused)}
+                onPauseToggle={handleTogglePauseAutoPublish}
+                errorMessage={autosaveError}
+              />
             </div>
           </div>
 
@@ -1818,6 +2076,30 @@ export function NutritionPlanBuilder({
             ),
             onClick: () => setIsSaveTemplateDialogOpen(true),
           }] : []),
+          ...(tree.version.status === "DRAFT" ? [
+            {
+              id: "toggle-auto-publish",
+              label: (tree.plan.updatePolicy ?? "MANUAL") === "AUTO_PUBLISH"
+                ? "Mudar para Publicação Manual"
+                : "Ativar Atualização Automática",
+              icon: (
+                <svg className="w-4 h-4 text-[var(--brand)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              ),
+              onClick: handleToggleAutoPublishPolicy,
+            },
+            ...((tree.plan.updatePolicy ?? "MANUAL") === "AUTO_PUBLISH" ? [{
+              id: "pause-auto-publish",
+              label: tree.plan.autoPublishPaused ? "Retomar Atualização Automática" : "Pausar Atualização Automática",
+              icon: (
+                <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              ),
+              onClick: handleTogglePauseAutoPublish,
+            }] : []),
+          ] : []),
           {
             id: "preferences",
             label: "Preferências do painel",
@@ -1834,6 +2116,16 @@ export function NutritionPlanBuilder({
         slug={slug}
         preferences={preferences}
         onSaved={(newPrefs) => setPreferences(newPrefs)}
+      />
+
+      {/* Auto-publish Confirmation Dialog */}
+      <AutoPublishConfirmDialog
+        isOpen={isAutoPublishConfirmOpen}
+        onClose={() => setIsAutoPublishConfirmOpen(false)}
+        onConfirm={handleConfirmActivateAutoPublish}
+        planTitle={tree.version.title}
+        studentName={effectiveStudentName || "Aluno"}
+        isSubmitting={isUpdatingPolicy}
       />
     </div>
   );

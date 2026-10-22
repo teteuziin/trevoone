@@ -58,12 +58,26 @@ export async function ensureNutritionBuilderPreferencesTable(connection?: PoolCo
     } catch {
       // Column may already exist (ER_DUP_FIELDNAME / 1060), ignore safely
     }
+    try {
+      await connection.execute(
+        "ALTER TABLE `nutrition_v2_builder_preferences` ADD COLUMN `default_update_policy` VARCHAR(20) NOT NULL DEFAULT 'MANUAL' AFTER `show_meal_micronutrients`;"
+      );
+    } catch {
+      // Column may already exist, ignore safely
+    }
   } else {
     const pool = getDbPool();
     await pool.query(sql);
     try {
       await pool.query(
         "ALTER TABLE `nutrition_v2_builder_preferences` ADD COLUMN `show_meal_micronutrients` TINYINT(1) NOT NULL DEFAULT 0 AFTER `show_template_actions`;"
+      );
+    } catch {
+      // Column may already exist, ignore safely
+    }
+    try {
+      await pool.query(
+        "ALTER TABLE `nutrition_v2_builder_preferences` ADD COLUMN `default_update_policy` VARCHAR(20) NOT NULL DEFAULT 'MANUAL' AFTER `show_meal_micronutrients`;"
       );
     } catch {
       // Column may already exist, ignore safely
@@ -91,7 +105,7 @@ export async function getNutritionBuilderPreferences(
     let rows: RowDataPacket[];
     try {
       const [res] = await conn.execute<RowDataPacket[]>(
-        `SELECT show_student_preview, show_version_history, show_template_actions, show_meal_micronutrients
+        `SELECT show_student_preview, show_version_history, show_template_actions, show_meal_micronutrients, default_update_policy
          FROM nutrition_v2_builder_preferences
          WHERE consultancy_id = ? AND user_id = ?
          LIMIT 1;`,
@@ -99,15 +113,26 @@ export async function getNutritionBuilderPreferences(
       );
       rows = res;
     } catch {
-      // Fallback if column show_meal_micronutrients doesn't exist yet
-      const [res] = await conn.execute<RowDataPacket[]>(
-        `SELECT show_student_preview, show_version_history, show_template_actions
-         FROM nutrition_v2_builder_preferences
-         WHERE consultancy_id = ? AND user_id = ?
-         LIMIT 1;`,
-        [ctx.consultancyId, ctx.userId]
-      );
-      rows = res;
+      try {
+        const [res] = await conn.execute<RowDataPacket[]>(
+          `SELECT show_student_preview, show_version_history, show_template_actions, show_meal_micronutrients
+           FROM nutrition_v2_builder_preferences
+           WHERE consultancy_id = ? AND user_id = ?
+           LIMIT 1;`,
+          [ctx.consultancyId, ctx.userId]
+        );
+        rows = res;
+      } catch {
+        // Fallback if column show_meal_micronutrients doesn't exist yet
+        const [res] = await conn.execute<RowDataPacket[]>(
+          `SELECT show_student_preview, show_version_history, show_template_actions
+           FROM nutrition_v2_builder_preferences
+           WHERE consultancy_id = ? AND user_id = ?
+           LIMIT 1;`,
+          [ctx.consultancyId, ctx.userId]
+        );
+        rows = res;
+      }
     }
 
     if (!rows || rows.length === 0) {
@@ -125,11 +150,15 @@ export async function getNutritionBuilderPreferences(
         ? Boolean(row.show_meal_micronutrients)
         : !isSimplifiedPreset;
 
+    const defaultUpdatePolicy =
+      row.default_update_policy === "AUTO_PUBLISH" ? "AUTO_PUBLISH" : "MANUAL";
+
     return {
       showStudentPreview: Boolean(row.show_student_preview),
       showVersionHistory: Boolean(row.show_version_history),
       showTemplateActions: Boolean(row.show_template_actions),
       showMealMicronutrients,
+      defaultUpdatePolicy,
     };
   } finally {
     conn.release();
@@ -157,6 +186,8 @@ export async function saveNutritionBuilderPreferences(
     throw new NutritionAuthorizationError("Valores de preferência inválidos.", "BAD_REQUEST", 400);
   }
 
+  const defaultUpdatePolicy = prefs.defaultUpdatePolicy === "AUTO_PUBLISH" ? "AUTO_PUBLISH" : "MANUAL";
+
   await ensureNutritionBuilderPreferencesTable();
 
   const conn = await getDbConnection();
@@ -169,13 +200,15 @@ export async function saveNutritionBuilderPreferences(
           show_student_preview,
           show_version_history,
           show_template_actions,
-          show_meal_micronutrients
-        ) VALUES (?, ?, ?, ?, ?, ?)
+          show_meal_micronutrients,
+          default_update_policy
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
           show_student_preview = VALUES(show_student_preview),
           show_version_history = VALUES(show_version_history),
           show_template_actions = VALUES(show_template_actions),
           show_meal_micronutrients = VALUES(show_meal_micronutrients),
+          default_update_policy = VALUES(default_update_policy),
           updated_at = NOW(3);`,
         [
           ctx.consultancyId,
@@ -184,31 +217,59 @@ export async function saveNutritionBuilderPreferences(
           prefs.showVersionHistory ? 1 : 0,
           prefs.showTemplateActions ? 1 : 0,
           prefs.showMealMicronutrients ? 1 : 0,
+          defaultUpdatePolicy,
         ]
       );
     } catch {
-      // Fallback if column not yet present in migration execution window
-      await conn.execute(
-        `INSERT INTO nutrition_v2_builder_preferences (
-          consultancy_id,
-          user_id,
-          show_student_preview,
-          show_version_history,
-          show_template_actions
-        ) VALUES (?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          show_student_preview = VALUES(show_student_preview),
-          show_version_history = VALUES(show_version_history),
-          show_template_actions = VALUES(show_template_actions),
-          updated_at = NOW(3);`,
-        [
-          ctx.consultancyId,
-          ctx.userId,
-          prefs.showStudentPreview ? 1 : 0,
-          prefs.showVersionHistory ? 1 : 0,
-          prefs.showTemplateActions ? 1 : 0,
-        ]
-      );
+      try {
+        await conn.execute(
+          `INSERT INTO nutrition_v2_builder_preferences (
+            consultancy_id,
+            user_id,
+            show_student_preview,
+            show_version_history,
+            show_template_actions,
+            show_meal_micronutrients
+          ) VALUES (?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            show_student_preview = VALUES(show_student_preview),
+            show_version_history = VALUES(show_version_history),
+            show_template_actions = VALUES(show_template_actions),
+            show_meal_micronutrients = VALUES(show_meal_micronutrients),
+            updated_at = NOW(3);`,
+          [
+            ctx.consultancyId,
+            ctx.userId,
+            prefs.showStudentPreview ? 1 : 0,
+            prefs.showVersionHistory ? 1 : 0,
+            prefs.showTemplateActions ? 1 : 0,
+            prefs.showMealMicronutrients ? 1 : 0,
+          ]
+        );
+      } catch {
+        // Fallback if column not yet present in migration execution window
+        await conn.execute(
+          `INSERT INTO nutrition_v2_builder_preferences (
+            consultancy_id,
+            user_id,
+            show_student_preview,
+            show_version_history,
+            show_template_actions
+          ) VALUES (?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            show_student_preview = VALUES(show_student_preview),
+            show_version_history = VALUES(show_version_history),
+            show_template_actions = VALUES(show_template_actions),
+            updated_at = NOW(3);`,
+          [
+            ctx.consultancyId,
+            ctx.userId,
+            prefs.showStudentPreview ? 1 : 0,
+            prefs.showVersionHistory ? 1 : 0,
+            prefs.showTemplateActions ? 1 : 0,
+          ]
+        );
+      }
     }
 
     return {
@@ -216,6 +277,7 @@ export async function saveNutritionBuilderPreferences(
       showVersionHistory: prefs.showVersionHistory,
       showTemplateActions: prefs.showTemplateActions,
       showMealMicronutrients: prefs.showMealMicronutrients,
+      defaultUpdatePolicy,
     };
   } finally {
     conn.release();

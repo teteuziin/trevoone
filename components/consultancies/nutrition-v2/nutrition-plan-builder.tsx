@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -47,8 +47,7 @@ import type { AssignmentListItemDto } from "@/lib/nutrition-v2/assignment-reposi
 import type { FoodSelectionResult } from "./nutrition-food-picker";
 import type { AddSubstitutionInput } from "@/lib/nutrition-v2/plan-repository";
 import type { PendingPublicationItem } from "@/lib/nutrition-v2/validation";
-import { formatMacroGram, formatCaloriesKcal } from "@/lib/nutrition-v2/nutrition-plan-presentation";
-import { scaleItemSnapshots, calculateMealTotals, calculatePlanTotals } from "@/lib/nutrition-v2/nutrient-calculator";
+import { scaleItemSnapshots, calculateMealTotals, calculatePlanTotals, calculateDailySummary, detectPlanDays, filterMealsBySelectedDay, type DailyNutritionalSummary, type PlanDayInfo } from "@/lib/nutrition-v2/nutrient-calculator";
 
 export interface PatientBuilderContext {
   studentMembershipPublicId: string;
@@ -153,6 +152,24 @@ export function NutritionPlanBuilder({
 
   // Day group tabs: "ALL_DAYS" default
   const [selectedDayTab, setSelectedDayTab] = useState<string>("ALL_DAYS");
+
+  // Detected days for multi-day plans
+  const detectedDays: PlanDayInfo[] = useMemo(() => detectPlanDays(tree.meals), [tree.meals]);
+
+  // Synchronized Daily Summary with multi-day isolation and target evaluation
+  const dailySummary: DailyNutritionalSummary = useMemo(() => {
+    return calculateDailySummary({
+      meals: tree.meals,
+      planningTarget,
+      selectedDayId: selectedDayTab,
+      detectedDays,
+    });
+  }, [tree.meals, planningTarget, selectedDayTab, detectedDays]);
+
+  // Meals filtered to the active day tab
+  const displayedMeals: MealWithItemsDto[] = useMemo(() => {
+    return filterMealsBySelectedDay(tree.meals, selectedDayTab, detectedDays);
+  }, [tree.meals, selectedDayTab, detectedDays]);
 
   // Expand / collapse all meals state
   const [allMealsCollapsed, setAllMealsCollapsed] = useState<boolean | undefined>(undefined);
@@ -574,17 +591,6 @@ export function NutritionPlanBuilder({
     }
   };
 
-  // VET % calculations for Nutritional Analysis
-  const totalKcal = tree.dailyTotals.caloriesKcal || 0;
-  const pKcal = (tree.dailyTotals.proteinG || 0) * 4;
-  const cKcal = (tree.dailyTotals.carbohydrateG || 0) * 4;
-  const fKcal = (tree.dailyTotals.fatG || 0) * 9;
-  const calculatedSum = pKcal + cKcal + fKcal;
-
-  const pPct = calculatedSum > 0 ? Math.round((pKcal / calculatedSum) * 100) : 0;
-  const cPct = calculatedSum > 0 ? Math.round((cKcal / calculatedSum) * 100) : 0;
-  const fPct = calculatedSum > 0 ? Math.max(0, 100 - pPct - cPct) : 0;
-
   return (
     <div className="w-full max-w-full min-w-0 min-h-[calc(100vh-4rem)] bg-transparent px-3 sm:px-6 md:px-8 py-2.5 sm:py-5">
       <div className="space-y-3 sm:space-y-4 w-full max-w-full lg:max-w-7xl mx-auto pb-28 sm:pb-20 min-w-0">
@@ -998,15 +1004,18 @@ export function NutritionPlanBuilder({
                 {/* Meals Render List */}
                 {tree.meals.length > 0 && (
                   <div className="space-y-3">
-                    {tree.meals.map((meal, idx) => (
+                    {displayedMeals.map((meal: MealWithItemsDto, idx: number) => {
+                      const actualIdx = tree.meals.findIndex((m) => m.publicId === meal.publicId);
+                      return (
                       <NutritionMealEditor
                         key={meal.publicId}
                         slug={slug}
                         meal={meal}
                         readOnly={isReadOnly}
-                        isFirst={idx === 0}
-                        isLast={idx === tree.meals.length - 1}
+                        isFirst={actualIdx === 0}
+                        isLast={actualIdx === tree.meals.length - 1}
                         forceCollapsed={allMealsCollapsed}
+                        showMealMicronutrients={preferences.showMealMicronutrients}
                         onLiveQuantityChange={handleLiveQuantityChange}
                         onMoveUp={() => handleMoveMeal(idx, "UP")}
                         onMoveDown={() => handleMoveMeal(idx, "DOWN")}
@@ -1121,14 +1130,14 @@ export function NutritionPlanBuilder({
                           }
                         }}
                       />
-                    ))}
+                    );
+                  })}
                   </div>
                 )}
               </div>
 
               {/* ========================================================================= */}
-              {/* RIGHT / STICKY COCKPIT: Nutritional Summary (Total do Cardápio vs Meta)    */}
-              {/* (Corrected labels: Total vs Meta, no misleading 66.5 kcal meta label)     */}
+              {/* RIGHT / STICKY COCKPIT: Resumo Nutricional Diário & Metas                  */}
               {/* ========================================================================= */}
               <div className="w-full lg:col-span-4 lg:sticky lg:top-4 space-y-3.5">
                 <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 depth-surface">
@@ -1137,18 +1146,29 @@ export function NutritionPlanBuilder({
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                          Total do Cardápio
+                          {dailySummary.dayLabel === "Cardápio Diário" ? "Resumo Diário" : `Resumo — ${dailySummary.dayLabel}`}
                         </span>
-                        {tree.dailyTotals.hasIncompleteData && (
+                        {dailySummary.calories.isPartial && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                             Subtotal parcial
                           </span>
                         )}
+                        {dailySummary.calories.isComplete && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                            Total completo
+                          </span>
+                        )}
                       </div>
                       <div className="text-xl sm:text-2xl font-extrabold text-[var(--brand)] font-heading leading-tight mt-0.5">
-                        {tree.dailyTotals.caloriesKcal.toLocaleString("pt-BR")}{" "}
-                        <span className="text-xs font-semibold text-[var(--text-secondary)]">kcal</span>
+                        {dailySummary.calories.status === "NO_DATA" ? (
+                          <span className="text-base text-[var(--text-muted)] font-semibold">Sem dados</span>
+                        ) : (
+                          <>
+                            {dailySummary.calories.value?.toLocaleString("pt-BR")}{" "}
+                            <span className="text-xs font-semibold text-[var(--text-secondary)]">kcal</span>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
@@ -1156,61 +1176,76 @@ export function NutritionPlanBuilder({
                         Meta Clínica
                       </span>
                       <div className="text-xs sm:text-sm font-semibold text-[var(--text-secondary)] mt-0.5">
-                        {planningTarget?.caloriesKcal ? (
-                          <span className="font-bold text-[var(--text-primary)]">{planningTarget.caloriesKcal} kcal</span>
+                        {dailySummary.targets.calories.hasTarget ? (
+                          <span className="font-bold text-[var(--text-primary)]">
+                            {dailySummary.targets.calories.targetValue} kcal
+                          </span>
                         ) : (
-                          <span className="text-[var(--text-muted)] italic">Não definida</span>
+                          <span className="text-[var(--text-muted)] italic">Meta não definida</span>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {tree.dailyTotals.hasIncompleteData && (
+                  {/* Partial data warning if any macro has missing data */}
+                  {dailySummary.calories.isPartial && (
                     <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2">
                       <span className="text-sm shrink-0">⚠️</span>
                       <div className="space-y-0.5">
                         <p className="font-semibold text-[11px]">Subtotal calculado — dados incompletos</p>
                         <p className="text-[11px] text-amber-700 dark:text-amber-400/90 leading-relaxed">
-                          {tree.dailyTotals.incompleteItemsCount}{" "}
-                          {tree.dailyTotals.incompleteItemsCount === 1 ? "alimento precisa" : "alimentos precisam"} de
+                          {dailySummary.calories.missingItemCount}{" "}
+                          {dailySummary.calories.missingItemCount === 1 ? "alimento precisa" : "alimentos precisam"} de
                           vínculo ou medida caseira para fechar as calorias exatas.
                         </p>
                       </div>
                     </div>
                   )}
 
-                  {/* Calories Progress Bar only if planningTarget?.caloriesKcal exists */}
-                  {planningTarget?.caloriesKcal ? (
+                  {/* Calories Progress Bar ONLY if valid target > 0 */}
+                  {dailySummary.targets.calories.hasTarget && dailySummary.targets.calories.percentage != null && (
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
                         <span>Atingimento da Meta:</span>
                         <span className="font-bold text-[var(--text-primary)]">
-                          {Math.round((tree.dailyTotals.caloriesKcal / planningTarget.caloriesKcal) * 100)}%
+                          {dailySummary.targets.calories.percentage}%
                         </span>
                       </div>
                       <div className="w-full h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
                         <div
                           className="h-full bg-[var(--brand)] rounded-full transition-all duration-300"
                           style={{
-                            width: `${Math.min(100, Math.round((tree.dailyTotals.caloriesKcal / planningTarget.caloriesKcal) * 100))}%`,
+                            width: `${Math.min(100, dailySummary.targets.calories.percentage)}%`,
                           }}
                         />
                       </div>
                     </div>
-                  ) : null}
+                  )}
 
                   {/* Macronutrient VET % Segmented Bar */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)]">
                       <span>Distribuição Calórica (% VET)</span>
-                      <span className="text-[9px] font-normal normal-case text-[var(--text-muted)]">Valor Energético Total</span>
+                      <span className="text-[9px] font-normal normal-case text-[var(--text-muted)]">Atwater 4-4-9</span>
                     </div>
                     <div className="h-2.5 w-full rounded-full bg-[var(--surface-subtle)] flex overflow-hidden">
-                      <div style={{ width: `${pPct}%` }} className="bg-sky-500 h-full" title={`Proteína: ${pPct}%`} />
-                      <div style={{ width: `${cPct}%` }} className="bg-emerald-500 h-full" title={`Carboidratos: ${cPct}%`} />
-                      <div style={{ width: `${fPct}%` }} className="bg-amber-500 h-full" title={`Gorduras: ${fPct}%`} />
+                      <div
+                        style={{ width: `${dailySummary.caloricDistribution.proteinPercent}%` }}
+                        className="bg-sky-500 h-full"
+                        title={`Proteína: ${dailySummary.caloricDistribution.proteinPercent}%`}
+                      />
+                      <div
+                        style={{ width: `${dailySummary.caloricDistribution.carbsPercent}%` }}
+                        className="bg-emerald-500 h-full"
+                        title={`Carboidratos: ${dailySummary.caloricDistribution.carbsPercent}%`}
+                      />
+                      <div
+                        style={{ width: `${dailySummary.caloricDistribution.fatPercent}%` }}
+                        className="bg-amber-500 h-full"
+                        title={`Gorduras: ${dailySummary.caloricDistribution.fatPercent}%`}
+                      />
                     </div>
-                    {(tree.dailyTotals.missingProteinCount > 0 || tree.dailyTotals.missingCarbohydrateCount > 0 || tree.dailyTotals.missingFatCount > 0) && (
+                    {dailySummary.caloricDistribution.isEstimatedFromPartialData && (
                       <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
                         Distribuição estimada sobre dados parciais
                       </div>
@@ -1218,15 +1253,15 @@ export function NutritionPlanBuilder({
                     <div className="flex items-center justify-between text-[10px] text-[var(--text-secondary)] font-medium pt-0.5">
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0" />
-                        P: {pPct}%
+                        P: {dailySummary.caloricDistribution.proteinPercent}%
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                        C: {cPct}%
+                        C: {dailySummary.caloricDistribution.carbsPercent}%
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                        G: {fPct}%
+                        G: {dailySummary.caloricDistribution.fatPercent}%
                       </span>
                     </div>
                   </div>
@@ -1238,87 +1273,108 @@ export function NutritionPlanBuilder({
                         Proteínas
                       </span>
                       <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
-                        {tree.dailyTotals.proteinG}g
+                        {dailySummary.protein.displayText}
                       </span>
-                      {tree.dailyTotals.missingProteinCount > 0 && (
-                        <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold block" title={`${tree.dailyTotals.missingProteinCount} alimento(s) sem proteína cadastrada`}>
-                          * ({tree.dailyTotals.missingProteinCount} sem info)
+                      {dailySummary.protein.isPartial && (
+                        <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold block" title={`${dailySummary.protein.missingItemCount} sem info`}>
+                          * ({dailySummary.protein.missingItemCount} sem info)
                         </span>
                       )}
-                      {planningTarget?.proteinG && (
-                        <span className="text-[9px] text-[var(--text-tertiary)] block">
-                          Meta: {planningTarget.proteinG}g
-                        </span>
-                      )}
+                      <span className="text-[9px] text-[var(--text-tertiary)] block">
+                        {dailySummary.targets.protein.hasTarget ? dailySummary.targets.protein.statusText : "Meta não definida"}
+                      </span>
                     </div>
                     <div className="p-2 sm:p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                       <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block truncate">
                         Carboidratos
                       </span>
                       <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
-                        {tree.dailyTotals.carbohydrateG}g
+                        {dailySummary.carbohydrate.displayText}
                       </span>
-                      {tree.dailyTotals.missingCarbohydrateCount > 0 && (
-                        <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold block" title={`${tree.dailyTotals.missingCarbohydrateCount} alimento(s) sem carboidrato cadastrado`}>
-                          * ({tree.dailyTotals.missingCarbohydrateCount} sem info)
+                      {dailySummary.carbohydrate.isPartial && (
+                        <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold block" title={`${dailySummary.carbohydrate.missingItemCount} sem info`}>
+                          * ({dailySummary.carbohydrate.missingItemCount} sem info)
                         </span>
                       )}
-                      {planningTarget?.carbsG && (
-                        <span className="text-[9px] text-[var(--text-tertiary)] block">
-                          Meta: {planningTarget.carbsG}g
-                        </span>
-                      )}
+                      <span className="text-[9px] text-[var(--text-tertiary)] block">
+                        {dailySummary.targets.carbohydrates.hasTarget ? dailySummary.targets.carbohydrates.statusText : "Meta não definida"}
+                      </span>
                     </div>
                     <div className="p-2 sm:p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                       <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block truncate">
                         Gorduras
                       </span>
                       <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
-                        {tree.dailyTotals.fatG}g
+                        {dailySummary.fat.displayText}
                       </span>
-                      {tree.dailyTotals.missingFatCount > 0 && (
-                        <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold block" title={`${tree.dailyTotals.missingFatCount} alimento(s) sem gordura cadastrada`}>
-                          * ({tree.dailyTotals.missingFatCount} sem info)
+                      {dailySummary.fat.isPartial && (
+                        <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold block" title={`${dailySummary.fat.missingItemCount} sem info`}>
+                          * ({dailySummary.fat.missingItemCount} sem info)
                         </span>
                       )}
-                      {planningTarget?.fatsG && (
-                        <span className="text-[9px] text-[var(--text-tertiary)] block">
-                          Meta: {planningTarget.fatsG}g
+                      <span className="text-[9px] text-[var(--text-tertiary)] block">
+                        {dailySummary.targets.fats.hasTarget ? dailySummary.targets.fats.statusText : "Meta não definida"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Fiber Row */}
+                  <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface-subtle)] text-xs border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-secondary)] font-medium">Fibras Alimentares</span>
+                    <div className="text-right">
+                      <span className="font-bold text-[var(--text-primary)]">
+                        {dailySummary.fiber.displayText}
+                      </span>
+                      {dailySummary.fiber.isPartial && (
+                        <span className="text-[9px] text-amber-600 dark:text-amber-400 block">
+                          * ({dailySummary.fiber.missingItemCount} sem info)
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Fiber Row */}
-                  {tree.dailyMicronutrientTotals?.nutrients?.FIBER && (
-                    <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface-subtle)] text-xs border border-[var(--border-subtle)]">
-                      <span className="text-[var(--text-secondary)] font-medium">Fibras Alimentares</span>
-                      <span className="font-bold text-[var(--text-primary)]">
-                        {tree.dailyMicronutrientTotals.nutrients.FIBER.value} g
-                      </span>
+                  {/* Key Micronutrients Compact Strip */}
+                  {dailySummary.micronutrients.keyMicronutrients.length > 0 && (
+                    <div className="space-y-1.5 pt-1 border-t border-[var(--border-subtle)]">
+                      <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)]">
+                        <span>Micronutrientes Principais</span>
+                        <span className="text-[9px] font-normal normal-case text-[var(--text-muted)]">Base oficial</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5 text-xs">
+                        {dailySummary.micronutrients.keyMicronutrients.slice(0, 4).map((k) => (
+                          <div
+                            key={k.code}
+                            className="p-1.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between text-[11px]"
+                          >
+                            <span className="text-[var(--text-secondary)] truncate max-w-[80px]" title={k.namePtBr}>
+                              {k.namePtBr}
+                            </span>
+                            <span className="font-semibold text-[var(--text-primary)] shrink-0">
+                              {k.hasData ? `${k.value} ${k.unit}` : "Sem dados"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
                   {/* Caloric Distribution per Meal */}
-                  {tree.meals.length > 0 && totalKcal > 0 && (
+                  {dailySummary.meals.length > 0 && (dailySummary.calories.value || 0) > 0 && (
                     <div className="space-y-1.5 pt-1 border-t border-[var(--border-subtle)]">
                       <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)] block">
-                        Distribuição por Refeição
+                        Distribuição por Refeição ({dailySummary.dayLabel})
                       </span>
                       <div className="space-y-1 text-xs">
-                        {tree.meals.map((m) => {
-                          const mealPct = Math.round(((m.mealTotals.caloriesKcal || 0) / totalKcal) * 100);
-                          return (
-                            <div key={m.publicId} className="flex items-center justify-between text-[11px]">
-                              <span className="text-[var(--text-secondary)] truncate max-w-[150px]">
-                                {m.title}
-                              </span>
-                              <span className="font-semibold text-[var(--text-primary)] shrink-0">
-                                {m.mealTotals.caloriesKcal} kcal ({mealPct}%)
-                              </span>
-                            </div>
-                          );
-                        })}
+                        {dailySummary.meals.map((m) => (
+                          <div key={m.publicId} className="flex items-center justify-between text-[11px]">
+                            <span className="text-[var(--text-secondary)] truncate max-w-[150px]">
+                              {m.title}
+                            </span>
+                            <span className="font-semibold text-[var(--text-primary)] shrink-0">
+                              {m.caloriesKcal} kcal ({m.percentOfDay}%)
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -1345,13 +1401,41 @@ export function NutritionPlanBuilder({
         {/* ========================================================================= */}
         {activeTab === "ANALYSIS" && (
           <div className="p-4 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-6 depth-surface">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-                Análise Nutricional Completa do Plano
-              </h2>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Quadro comparativo de macronutrientes, distribuição energética (% VET) e micronutrientes.
-              </p>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+                  Análise Nutricional Completa — {dailySummary.dayLabel}
+                </h2>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Quadro comparativo de macronutrientes, distribuição energética (% VET via Fatores de Atwater) e micronutrientes.
+                </p>
+              </div>
+
+              {detectedDays.length > 1 && (
+                <div className="flex items-center gap-1 bg-[var(--surface-subtle)] p-1 rounded-xl border border-[var(--border-default)]">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDayTab("ALL_DAYS")}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                      selectedDayTab === "ALL_DAYS" ? "bg-[var(--brand)] text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    Todos os dias
+                  </button>
+                  {detectedDays.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setSelectedDayTab(d.id)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                        selectedDayTab === d.id ? "bg-[var(--brand)] text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Macro Summary Matrix */}
@@ -1359,67 +1443,85 @@ export function NutritionPlanBuilder({
               <div className="p-3.5 rounded-xl bg-[var(--brand)]/10 border border-[var(--brand)]/20">
                 <span className="text-xs text-[var(--text-secondary)] block">Valor Energético Total</span>
                 <span className="text-xl font-extrabold text-[var(--brand)]">
-                  {formatCaloriesKcal(tree.dailyTotals.caloriesKcal)}
+                  {dailySummary.calories.status === "NO_DATA" ? "Sem dados" : `${dailySummary.calories.value?.toLocaleString("pt-BR")} kcal`}
                 </span>
-                {tree.dailyTotals.hasIncompleteData && (
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
-                    Subtotal calculado ({tree.dailyTotals.incompleteItemsCount} sem info)
-                  </span>
-                )}
-                {planningTarget?.caloriesKcal && (
-                  <span className="text-[11px] text-[var(--text-tertiary)] block mt-1">
-                    Meta clínica: {planningTarget.caloriesKcal} kcal
-                  </span>
-                )}
+                <span className={`text-[10px] font-semibold block mt-0.5 ${dailySummary.calories.isPartial ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                  {dailySummary.calories.completenessText}
+                </span>
+                <span className="text-[11px] text-[var(--text-tertiary)] block mt-1">
+                  {dailySummary.targets.calories.hasTarget ? dailySummary.targets.calories.statusText : "Meta não definida"}
+                </span>
               </div>
               <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
                 <span className="text-xs text-[var(--text-secondary)] block">Proteínas Totais</span>
                 <span className="text-xl font-bold text-[var(--text-primary)]">
-                  {formatMacroGram(tree.dailyTotals.proteinG)}
+                  {dailySummary.protein.displayText}
                 </span>
-                {tree.dailyTotals.missingProteinCount > 0 && (
+                {dailySummary.protein.isPartial && (
                   <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
-                    * {tree.dailyTotals.missingProteinCount} sem info
+                    * {dailySummary.protein.missingItemCount} sem info
                   </span>
                 )}
                 <span className="text-[11px] text-sky-600 dark:text-sky-400 block mt-1">
-                  {pPct}% do VET
+                  {dailySummary.caloricDistribution.proteinPercent}% do VET
+                </span>
+                <span className="text-[10px] text-[var(--text-tertiary)] block">
+                  {dailySummary.targets.protein.hasTarget ? dailySummary.targets.protein.statusText : "Meta não definida"}
                 </span>
               </div>
               <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
                 <span className="text-xs text-[var(--text-secondary)] block">Carboidratos Totais</span>
                 <span className="text-xl font-bold text-[var(--text-primary)]">
-                  {formatMacroGram(tree.dailyTotals.carbohydrateG)}
+                  {dailySummary.carbohydrate.displayText}
                 </span>
-                {tree.dailyTotals.missingCarbohydrateCount > 0 && (
+                {dailySummary.carbohydrate.isPartial && (
                   <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
-                    * {tree.dailyTotals.missingCarbohydrateCount} sem info
+                    * {dailySummary.carbohydrate.missingItemCount} sem info
                   </span>
                 )}
                 <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block mt-1">
-                  {cPct}% do VET
+                  {dailySummary.caloricDistribution.carbsPercent}% do VET
+                </span>
+                <span className="text-[10px] text-[var(--text-tertiary)] block">
+                  {dailySummary.targets.carbohydrates.hasTarget ? dailySummary.targets.carbohydrates.statusText : "Meta não definida"}
                 </span>
               </div>
               <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
                 <span className="text-xs text-[var(--text-secondary)] block">Lipídios Totais</span>
                 <span className="text-xl font-bold text-[var(--text-primary)]">
-                  {formatMacroGram(tree.dailyTotals.fatG)}
+                  {dailySummary.fat.displayText}
                 </span>
-                {tree.dailyTotals.missingFatCount > 0 && (
+                {dailySummary.fat.isPartial && (
                   <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
-                    * {tree.dailyTotals.missingFatCount} sem info
+                    * {dailySummary.fat.missingItemCount} sem info
                   </span>
                 )}
                 <span className="text-[11px] text-amber-600 dark:text-amber-400 block mt-1">
-                  {fPct}% do VET
+                  {dailySummary.caloricDistribution.fatPercent}% do VET
+                </span>
+                <span className="text-[10px] text-[var(--text-tertiary)] block">
+                  {dailySummary.targets.fats.hasTarget ? dailySummary.targets.fats.statusText : "Meta não definida"}
                 </span>
               </div>
+            </div>
+
+            {/* Caloric Distribution Method Card */}
+            <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-between text-xs flex-wrap gap-2">
+              <div className="space-y-0.5">
+                <span className="font-bold text-[var(--text-primary)] block">Método de Distribuição Calórica (% VET)</span>
+                <span className="text-[var(--text-secondary)]">Fatores de Atwater: 4 kcal/g (Proteína), 4 kcal/g (Carboidrato), 9 kcal/g (Gordura).</span>
+              </div>
+              {dailySummary.caloricDistribution.isEstimatedFromPartialData && (
+                <span className="px-2 py-1 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                  Estimativa sobre dados parciais
+                </span>
+              )}
             </div>
 
             {/* Meal-by-Meal Table */}
             <div className="space-y-2">
               <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                Quadro por Refeição
+                Quadro por Refeição ({dailySummary.dayLabel})
               </h3>
               <div className="overflow-x-auto rounded-xl border border-[var(--border-default)]">
                 <table className="w-full text-left text-xs">
@@ -1435,20 +1537,17 @@ export function NutritionPlanBuilder({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border-subtle)]">
-                    {tree.meals.map((m) => {
-                      const mealPct = totalKcal > 0 ? Math.round(((m.mealTotals.caloriesKcal || 0) / totalKcal) * 100) : 0;
-                      return (
-                        <tr key={m.publicId} className="hover:bg-[var(--surface-hover)]">
-                          <td className="py-2 px-3 font-semibold text-[var(--text-primary)]">{m.title}</td>
-                          <td className="py-2 px-3 text-[var(--text-secondary)]">{m.scheduledTime || "—"}</td>
-                          <td className="py-2 px-3 text-right font-bold text-[var(--brand)]">{m.mealTotals.caloriesKcal}</td>
-                          <td className="py-2 px-3 text-right text-[var(--text-primary)]">{m.mealTotals.proteinG}g</td>
-                          <td className="py-2 px-3 text-right text-[var(--text-primary)]">{m.mealTotals.carbohydrateG}g</td>
-                          <td className="py-2 px-3 text-right text-[var(--text-primary)]">{m.mealTotals.fatG}g</td>
-                          <td className="py-2 px-3 text-right text-[var(--text-secondary)]">{mealPct}%</td>
-                        </tr>
-                      );
-                    })}
+                    {dailySummary.meals.map((m) => (
+                      <tr key={m.publicId} className="hover:bg-[var(--surface-hover)]">
+                        <td className="py-2 px-3 font-semibold text-[var(--text-primary)]">{m.title}</td>
+                        <td className="py-2 px-3 text-[var(--text-secondary)]">{m.scheduledTime || "—"}</td>
+                        <td className="py-2 px-3 text-right font-bold text-[var(--brand)]">{m.caloriesKcal}</td>
+                        <td className="py-2 px-3 text-right text-[var(--text-primary)]">{m.proteinG}g</td>
+                        <td className="py-2 px-3 text-right text-[var(--text-primary)]">{m.carbohydrateG}g</td>
+                        <td className="py-2 px-3 text-right text-[var(--text-primary)]">{m.fatG}g</td>
+                        <td className="py-2 px-3 text-right text-[var(--text-secondary)]">{m.percentOfDay}%</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

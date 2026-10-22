@@ -1055,3 +1055,534 @@ export function derivePortionUnitCode(label: string): string {
   if (norm.includes("PEDACO")) return "PEDACO";
   return norm || "PORCAO";
 }
+
+
+// ============================================================================
+// RELEASE F: DAILY NUTRITIONAL SUMMARY, MULTI-DAY ISOLATION & TARGETS
+// ============================================================================
+
+export type NutrientCompletenessStatus = "NO_DATA" | "PARTIAL" | "COMPLETE" | "EMPTY";
+
+export interface NutrientCompletenessDetail {
+  value: number | null;
+  unit: string;
+  knownItemCount: number;
+  totalItemCount: number;
+  missingItemCount: number;
+  status: NutrientCompletenessStatus;
+  displayText: string;
+  completenessText: string;
+  isPartial: boolean;
+  isComplete: boolean;
+  hasData: boolean;
+}
+
+export function evaluateNutrientCompleteness(
+  values: Array<number | null | undefined>,
+  unit: string
+): NutrientCompletenessDetail {
+  const totalItemCount = values.length;
+  if (totalItemCount === 0) {
+    return {
+      value: null,
+      unit,
+      knownItemCount: 0,
+      totalItemCount: 0,
+      missingItemCount: 0,
+      status: "EMPTY",
+      displayText: "Sem itens",
+      completenessText: "Nenhum alimento cadastrado",
+      isPartial: false,
+      isComplete: false,
+      hasData: false,
+    };
+  }
+
+  let knownItemCount = 0;
+  let rawSum = 0;
+
+  for (const v of values) {
+    if (v !== null && v !== undefined && Number.isFinite(Number(v))) {
+      knownItemCount += 1;
+      rawSum += Number(v);
+    }
+  }
+
+  const missingItemCount = totalItemCount - knownItemCount;
+
+  // Case 1: No items have data for this nutrient
+  if (knownItemCount === 0) {
+    return {
+      value: null,
+      unit,
+      knownItemCount: 0,
+      totalItemCount,
+      missingItemCount,
+      status: "NO_DATA",
+      displayText: "Sem dados",
+      completenessText: "Sem dados",
+      isPartial: false,
+      isComplete: false,
+      hasData: false,
+    };
+  }
+
+  const value = Math.round(rawSum * 100) / 100;
+
+  // Case 2: Partial data (some items known, some missing)
+  if (missingItemCount > 0) {
+    return {
+      value,
+      unit,
+      knownItemCount,
+      totalItemCount,
+      missingItemCount,
+      status: "PARTIAL",
+      displayText: `${value} ${unit}`,
+      completenessText: `Subtotal calculado (${missingItemCount} sem info)`,
+      isPartial: true,
+      isComplete: false,
+      hasData: true,
+    };
+  }
+
+  // Case 3: Complete data (all items known, including confirmed 0)
+  return {
+    value,
+    unit,
+    knownItemCount,
+    totalItemCount,
+    missingItemCount: 0,
+    status: "COMPLETE",
+    displayText: `${value} ${unit}`,
+    completenessText: "Total completo",
+    isPartial: false,
+    isComplete: true,
+    hasData: true,
+  };
+}
+
+export interface TargetComparisonDetail {
+  hasTarget: boolean;
+  targetValue: number | null;
+  targetUnit: string;
+  percentage: number | null;
+  statusText: string;
+  isAboveTarget?: boolean;
+  isMet?: boolean;
+}
+
+export function compareWithTarget(
+  currentValue: number | null,
+  targetValue: number | null | undefined,
+  unit: string
+): TargetComparisonDetail {
+  if (targetValue == null || !Number.isFinite(Number(targetValue)) || Number(targetValue) <= 0) {
+    return {
+      hasTarget: false,
+      targetValue: null,
+      targetUnit: unit,
+      percentage: null,
+      statusText: "Meta não definida",
+    };
+  }
+
+  const target = Number(targetValue);
+  if (currentValue == null) {
+    return {
+      hasTarget: true,
+      targetValue: target,
+      targetUnit: unit,
+      percentage: null,
+      statusText: `Meta: ${target} ${unit} (Sem dados)`,
+    };
+  }
+
+  const pct = Math.round((currentValue / target) * 100);
+  return {
+    hasTarget: true,
+    targetValue: target,
+    targetUnit: unit,
+    percentage: pct,
+    statusText: `Meta: ${target} ${unit} (${pct}%)`,
+    isAboveTarget: pct > 105,
+    isMet: pct >= 95 && pct <= 105,
+  };
+}
+
+export interface CaloricDistributionDetail {
+  method: string;
+  proteinKcal: number;
+  carbsKcal: number;
+  fatKcal: number;
+  calculatedSumKcal: number;
+  proteinPercent: number;
+  carbsPercent: number;
+  fatPercent: number;
+  isEstimatedFromPartialData: boolean;
+}
+
+export function calculateCaloricDistribution(
+  proteinG: number | null,
+  carbsG: number | null,
+  fatG: number | null,
+  isPartial: boolean
+): CaloricDistributionDetail {
+  const pG = proteinG ?? 0;
+  const cG = carbsG ?? 0;
+  const fG = fatG ?? 0;
+
+  const proteinKcal = Math.round(pG * 4 * 100) / 100;
+  const carbsKcal = Math.round(cG * 4 * 100) / 100;
+  const fatKcal = Math.round(fG * 9 * 100) / 100;
+  const calculatedSumKcal = Math.round((proteinKcal + carbsKcal + fatKcal) * 100) / 100;
+
+  let proteinPercent = 0;
+  let carbsPercent = 0;
+  let fatPercent = 0;
+
+  if (calculatedSumKcal > 0) {
+    proteinPercent = Math.round((proteinKcal / calculatedSumKcal) * 100);
+    carbsPercent = Math.round((carbsKcal / calculatedSumKcal) * 100);
+    fatPercent = Math.max(0, 100 - proteinPercent - carbsPercent);
+  }
+
+  return {
+    method: "Fatores de Atwater (4 kcal/g P, 4 kcal/g C, 9 kcal/g G)",
+    proteinKcal,
+    carbsKcal,
+    fatKcal,
+    calculatedSumKcal,
+    proteinPercent,
+    carbsPercent,
+    fatPercent,
+    isEstimatedFromPartialData: isPartial,
+  };
+}
+
+export interface PlanDayInfo {
+  id: string;
+  label: string;
+  mealCount: number;
+  mealPublicIds: string[];
+}
+
+const DAY_PATTERNS: Array<{ id: string; label: string; regex: RegExp }> = [
+  { id: "segunda", label: "Segunda-feira", regex: /\b(segunda(-feira)?|seg)\b/i },
+  { id: "terca", label: "Terça-feira", regex: /\b(ter[cç]a(-feira)?|ter)\b/i },
+  { id: "quarta", label: "Quarta-feira", regex: /\b(quarta(-feira)?|qua)\b/i },
+  { id: "quinta", label: "Quinta-feira", regex: /\b(quinta(-feira)?|qui)\b/i },
+  { id: "sexta", label: "Sexta-feira", regex: /\b(sexta(-feira)?|sex)\b/i },
+  { id: "sabado", label: "Sábado", regex: /\b(s[aá]bado|sab)\b/i },
+  { id: "domingo", label: "Domingo", regex: /\b(domingo|dom)\b/i },
+  { id: "dia-1", label: "Dia 1", regex: /\bdia\s*1\b/i },
+  { id: "dia-2", label: "Dia 2", regex: /\bdia\s*2\b/i },
+  { id: "dia-3", label: "Dia 3", regex: /\bdia\s*3\b/i },
+  { id: "dia-4", label: "Dia 4", regex: /\bdia\s*4\b/i },
+  { id: "dia-5", label: "Dia 5", regex: /\bdia\s*5\b/i },
+  { id: "dia-6", label: "Dia 6", regex: /\bdia\s*6\b/i },
+  { id: "dia-7", label: "Dia 7", regex: /\bdia\s*7\b/i },
+  { id: "treino", label: "Dia de Treino", regex: /\b(dia\s+de\s+treino|treino)\b/i },
+  { id: "descanso", label: "Dia de Descanso", regex: /\b(descanso|n[aã]o\s+treino)\b/i },
+];
+
+export function detectPlanDays(meals: Array<{ publicId?: string; title?: string; notes?: string | null }>): PlanDayInfo[] {
+  const dayBuckets = new Map<string, { label: string; mealPublicIds: string[] }>();
+
+  for (const m of meals) {
+    const text = `${m.title || ""} ${m.notes || ""}`;
+    let matchedDay: { id: string; label: string } | null = null;
+
+    for (const pat of DAY_PATTERNS) {
+      if (pat.regex.test(text)) {
+        matchedDay = pat;
+        break;
+      }
+    }
+
+    if (matchedDay && m.publicId) {
+      if (!dayBuckets.has(matchedDay.id)) {
+        dayBuckets.set(matchedDay.id, { label: matchedDay.label, mealPublicIds: [] });
+      }
+      dayBuckets.get(matchedDay.id)!.mealPublicIds.push(m.publicId);
+    }
+  }
+
+  // If at least 2 distinct days detected, return detected days
+  if (dayBuckets.size >= 2) {
+    const result: PlanDayInfo[] = [];
+    for (const [id, data] of dayBuckets.entries()) {
+      result.push({
+        id,
+        label: data.label,
+        mealCount: data.mealPublicIds.length,
+        mealPublicIds: data.mealPublicIds,
+      });
+    }
+    return result;
+  }
+
+  // Single daily cardápio (standard plan)
+  return [
+    {
+      id: "ALL_DAYS",
+      label: "Cardápio Diário",
+      mealCount: meals.length,
+      mealPublicIds: meals.map((m) => m.publicId || "").filter(Boolean),
+    },
+  ];
+}
+
+export function filterMealsBySelectedDay<T extends { publicId?: string }>(
+  meals: T[],
+  selectedDayId: string,
+  detectedDays: PlanDayInfo[]
+): T[] {
+  if (selectedDayId === "ALL_DAYS" || !detectedDays || detectedDays.length <= 1) {
+    return meals;
+  }
+
+  const targetDay = detectedDays.find((d) => d.id === selectedDayId);
+  if (!targetDay || targetDay.mealPublicIds.length === 0) {
+    return meals;
+  }
+
+  const allowedIds = new Set(targetDay.mealPublicIds);
+  return meals.filter((m) => m.publicId && allowedIds.has(m.publicId));
+}
+
+export interface KeyMicronutrientItem {
+  code: string;
+  namePtBr: string;
+  value: number | null;
+  unit: string;
+  statusText: string;
+  isPartial: boolean;
+  hasData: boolean;
+}
+
+export interface DailyNutritionalSummary {
+  dayId: string;
+  dayLabel: string;
+  totalItemsCount: number;
+  empty: boolean;
+  calories: NutrientCompletenessDetail;
+  protein: NutrientCompletenessDetail;
+  carbohydrate: NutrientCompletenessDetail;
+  fat: NutrientCompletenessDetail;
+  fiber: NutrientCompletenessDetail;
+  micronutrients: {
+    nutrients: Record<string, MicronutrientTotalDetail>;
+    keyMicronutrients: KeyMicronutrientItem[];
+  };
+  caloricDistribution: CaloricDistributionDetail;
+  targets: {
+    calories: TargetComparisonDetail;
+    protein: TargetComparisonDetail;
+    carbohydrates: TargetComparisonDetail;
+    fats: TargetComparisonDetail;
+  };
+  meals: Array<{
+    publicId: string;
+    title: string;
+    scheduledTime: string | null;
+    caloriesKcal: number;
+    proteinG: number;
+    carbohydrateG: number;
+    fatG: number;
+    percentOfDay: number;
+    itemsCount: number;
+    hasIncompleteData: boolean;
+  }>;
+}
+
+const KEY_MICRONUTRIENT_CODES = ["NA", "K", "CA", "FE", "VIT_C", "ZN", "MG", "VIT_D", "VIT_A"] as const;
+
+export function calculateDailySummary(params: {
+  meals: Array<{
+    publicId?: string;
+    title?: string;
+    scheduledTime?: string | null;
+    items?: Array<{
+      caloriesKcalSnapshot?: number | null;
+      proteinGSnapshot?: number | null;
+      carbohydrateGSnapshot?: number | null;
+      fatGSnapshot?: number | null;
+      micronutrientsSnapshotJson?: MicronutrientsSnapshotEnvelope | null;
+      substitutions?: unknown[];
+    }>;
+    mealTotals?: MacroTotals;
+  }>;
+  planningTarget?: {
+    caloriesKcal?: number | null;
+    proteinG?: number | null;
+    carbsG?: number | null;
+    fatsG?: number | null;
+  } | null;
+  selectedDayId?: string;
+  detectedDays?: PlanDayInfo[];
+}): DailyNutritionalSummary {
+  const detectedDays = params.detectedDays || detectPlanDays(params.meals);
+  const selectedDayId = params.selectedDayId || (detectedDays[0]?.id || "ALL_DAYS");
+  const filteredMeals = filterMealsBySelectedDay(params.meals, selectedDayId, detectedDays);
+
+  const activeDayInfo = detectedDays.find((d) => d.id === selectedDayId) || detectedDays[0] || {
+    id: "ALL_DAYS",
+    label: "Cardápio Diário",
+    mealCount: filteredMeals.length,
+    mealPublicIds: [],
+  };
+
+  // 1. Extract ONLY primary prescribed items from filtered meals. NEVER sum substitutions.
+  const primaryItems: Array<{
+    caloriesKcalSnapshot?: number | null;
+    proteinGSnapshot?: number | null;
+    carbohydrateGSnapshot?: number | null;
+    fatGSnapshot?: number | null;
+    micronutrientsSnapshotJson?: MicronutrientsSnapshotEnvelope | null;
+  }> = [];
+
+  for (const m of filteredMeals) {
+    if (Array.isArray(m.items)) {
+      for (const it of m.items) {
+        primaryItems.push({
+          caloriesKcalSnapshot: it.caloriesKcalSnapshot,
+          proteinGSnapshot: it.proteinGSnapshot,
+          carbohydrateGSnapshot: it.carbohydrateGSnapshot,
+          fatGSnapshot: it.fatGSnapshot,
+          micronutrientsSnapshotJson: it.micronutrientsSnapshotJson,
+        });
+      }
+    }
+  }
+
+  const totalItemsCount = primaryItems.length;
+  const empty = totalItemsCount === 0;
+
+  // 2. Authoritative food snapshot totals (never overridden by Atwater math)
+  const calories = evaluateNutrientCompleteness(
+    primaryItems.map((i) => i.caloriesKcalSnapshot),
+    "kcal"
+  );
+  const protein = evaluateNutrientCompleteness(
+    primaryItems.map((i) => i.proteinGSnapshot),
+    "g"
+  );
+  const carbohydrate = evaluateNutrientCompleteness(
+    primaryItems.map((i) => i.carbohydrateGSnapshot),
+    "g"
+  );
+  const fat = evaluateNutrientCompleteness(
+    primaryItems.map((i) => i.fatGSnapshot),
+    "g"
+  );
+
+  // Fiber from micronutrient envelope
+  const fiberValues: Array<number | null | undefined> = primaryItems.map((it) => {
+    if (!it.micronutrientsSnapshotJson || !Array.isArray(it.micronutrientsSnapshotJson.nutrients)) {
+      return null;
+    }
+    const fn = it.micronutrientsSnapshotJson.nutrients.find((n) => n.code === "FIBER");
+    if (!fn) return null;
+    if (fn.status === "KNOWN_ZERO") return 0;
+    if (fn.status === "KNOWN" && fn.value != null && Number.isFinite(Number(fn.value))) {
+      return Number(fn.value);
+    }
+    return null;
+  });
+  const fiber = evaluateNutrientCompleteness(fiberValues, "g");
+
+  // 3. Caloric distribution (% VET) via Atwater method
+  const isPartialMacros =
+    protein.isPartial ||
+    carbohydrate.isPartial ||
+    fat.isPartial ||
+    !protein.hasData ||
+    !carbohydrate.hasData ||
+    !fat.hasData;
+
+  const caloricDistribution = calculateCaloricDistribution(
+    protein.value,
+    carbohydrate.value,
+    fat.value,
+    isPartialMacros
+  );
+
+  // 4. Targets comparison (only when target > 0)
+  const targets = {
+    calories: compareWithTarget(calories.value, params.planningTarget?.caloriesKcal, "kcal"),
+    protein: compareWithTarget(protein.value, params.planningTarget?.proteinG, "g"),
+    carbohydrates: compareWithTarget(carbohydrate.value, params.planningTarget?.carbsG, "g"),
+    fats: compareWithTarget(fat.value, params.planningTarget?.fatsG, "g"),
+  };
+
+  // 5. Plan micronutrient aggregation across meals
+  const microTotals = calculatePlanMicronutrientTotals(
+    filteredMeals.map((m) => ({ items: m.items || [] }))
+  );
+
+  const keyMicronutrients: KeyMicronutrientItem[] = [];
+  for (const code of KEY_MICRONUTRIENT_CODES) {
+    const d = microTotals.nutrients?.[code];
+    const defn = CANONICAL_NUTRIENTS_BY_CODE.get(code);
+    if (d && defn) {
+      const hasData = d.quantifiedItemCount > 0;
+      const isPartial = d.hasUnknown && hasData;
+      let statusText = "Sem dados";
+      if (hasData) {
+        statusText = isPartial
+          ? `${d.value} ${defn.unit} (* ${d.unknownItemCount} sem info)`
+          : `${d.value} ${defn.unit}`;
+      }
+      keyMicronutrients.push({
+        code,
+        namePtBr: defn.namePtBr,
+        value: hasData ? d.value : null,
+        unit: defn.unit,
+        statusText,
+        isPartial,
+        hasData,
+      });
+    }
+  }
+
+  // 6. Meal breakdown with % of day
+  const mealsBreakdown = filteredMeals.map((m) => {
+    const mTotals = m.mealTotals || calculateMealTotals((m.items as SnapshotItemSource[]) || []);
+    const mealKcal = mTotals.caloriesKcal || 0;
+    const dayKcal = calories.value || 0;
+    const percentOfDay = dayKcal > 0 ? Math.round((mealKcal / dayKcal) * 100) : 0;
+
+    return {
+      publicId: m.publicId || "",
+      title: m.title || "Refeição",
+      scheduledTime: m.scheduledTime || null,
+      caloriesKcal: mealKcal,
+      proteinG: mTotals.proteinG || 0,
+      carbohydrateG: mTotals.carbohydrateG || 0,
+      fatG: mTotals.fatG || 0,
+      percentOfDay,
+      itemsCount: m.items?.length || 0,
+      hasIncompleteData: mTotals.hasIncompleteData,
+    };
+  });
+
+  return {
+    dayId: activeDayInfo.id,
+    dayLabel: activeDayInfo.label,
+    totalItemsCount,
+    empty,
+    calories,
+    protein,
+    carbohydrate,
+    fat,
+    fiber,
+    micronutrients: {
+      nutrients: microTotals.nutrients,
+      keyMicronutrients,
+    },
+    caloricDistribution,
+    targets,
+    meals: mealsBreakdown,
+  };
+}

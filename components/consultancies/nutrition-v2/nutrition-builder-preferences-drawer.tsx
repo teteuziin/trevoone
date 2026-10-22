@@ -70,12 +70,14 @@ export function NutritionBuilderPreferencesDrawer({
         showStudentPreview: true,
         showVersionHistory: true,
         showTemplateActions: true,
+        showMealMicronutrients: true,
       });
     } else {
       setDraft({
         showStudentPreview: false,
         showVersionHistory: false,
         showTemplateActions: false,
+        showMealMicronutrients: false,
       });
     }
   };
@@ -267,6 +269,33 @@ export function NutritionBuilderPreferencesDrawer({
                 <span
                   className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
                     draft.showVersionHistory ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Toggle 4: Micronutrientes por Refeição */}
+            <div className="p-3.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] flex items-start justify-between gap-3 transition-colors">
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <span className="text-sm font-semibold text-[var(--text-primary)] block">
+                  Mostrar micronutrientes por refeição
+                </span>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  Exibe a composição de micronutrientes no rodapé de cada refeição individual. O resumo nutricional diário continua sempre acessível.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={draft.showMealMicronutrients}
+                onClick={() => handleToggle("showMealMicronutrients")}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--brand)] min-h-[24px] ${
+                  draft.showMealMicronutrients ? "bg-[var(--brand)]" : "bg-neutral-300 dark:bg-neutral-700"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    draft.showMealMicronutrients ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
               </button>

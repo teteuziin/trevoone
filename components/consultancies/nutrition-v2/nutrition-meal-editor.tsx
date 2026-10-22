@@ -33,6 +33,7 @@ interface NutritionMealEditorProps {
   onRemoveSubstitution: (subPublicId: string) => Promise<void>;
   onReorderSubstitutions: (itemPublicId: string, orderedSubPublicIds: string[]) => Promise<void>;
   forceCollapsed?: boolean;
+  showMealMicronutrients?: boolean;
 }
 
 export function NutritionMealEditor({
@@ -56,6 +57,7 @@ export function NutritionMealEditor({
   onRemoveSubstitution,
   onReorderSubstitutions,
   forceCollapsed,
+  showMealMicronutrients = false,
 }: NutritionMealEditorProps) {
   const [isEditingMeal, setIsEditingMeal] = useState(false);
   const [title, setTitle] = useState(meal.title);
@@ -498,7 +500,7 @@ export function NutritionMealEditor({
           </div>
 
           {/* Meal Micronutrients Breakdown */}
-          {meal.micronutrientTotals && meal.items.length > 0 && (
+          {showMealMicronutrients && meal.micronutrientTotals && meal.items.length > 0 && (
             <div className="pt-1">
               <NutritionMicronutrientsPanel
                 totals={meal.micronutrientTotals}

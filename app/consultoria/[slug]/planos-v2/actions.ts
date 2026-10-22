@@ -1461,6 +1461,7 @@ export async function saveNutritionBuilderPreferencesAction(
       showStudentPreview: preferences.showStudentPreview,
       showVersionHistory: preferences.showVersionHistory,
       showTemplateActions: preferences.showTemplateActions,
+      showMealMicronutrients: typeof preferences.showMealMicronutrients === 'boolean' ? preferences.showMealMicronutrients : false,
     });
 
     return { success: true, data };

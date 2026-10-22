@@ -23,6 +23,7 @@ import {
   type PatientRecordAuditEntryDto,
   type ClinicalNoteContextType,
   type ClinicalNoteStatus,
+  type PatientRecordPreQuestionnaireItem,
   CLINICAL_NOTE_CONTEXT_LABELS,
   CLINICAL_NOTE_STATUS_LABELS,
 } from "./patient-record-types";
@@ -618,6 +619,55 @@ export async function getPatientRecordDetail(
       recentAuditTrail = [];
     }
 
+    // 8. Pre-Questionnaires (Etapa 10)
+    let preQuestionnaires: PatientRecordPreQuestionnaireItem[] = [];
+    try {
+      const [pqRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          pq.*,
+          u_req.full_name AS requested_by_name,
+          u_rev.full_name AS reviewed_by_name,
+          c.public_id AS consultation_public_id,
+          c.consultation_date AS consultation_date
+        FROM nutrition_v2_pre_questionnaires pq
+        JOIN consultancy_members cm_req ON cm_req.id = pq.requested_by_membership_id
+        JOIN users u_req ON u_req.id = cm_req.user_id
+        LEFT JOIN consultancy_members cm_rev ON cm_rev.id = pq.reviewed_by_membership_id
+        LEFT JOIN users u_rev ON u_rev.id = cm_rev.user_id
+        LEFT JOIN nutrition_v2_consultations c ON c.id = pq.consultation_id
+        WHERE pq.consultancy_id = ? AND pq.student_membership_id = ?
+        ORDER BY pq.created_at DESC;`,
+        [consultancyId, studentMembershipId]
+      );
+
+      preQuestionnaires = (Array.isArray(pqRows) ? pqRows : []).map((r) => {
+        let qJson = [];
+        try {
+          qJson = typeof r.questions_json === "string" ? JSON.parse(r.questions_json) : r.questions_json;
+        } catch {}
+        return {
+          publicId: r.public_id,
+          title: r.title || "Pré-Questionário Nutricional",
+          status: r.status,
+          statusLabel: r.status === "ANSWERED" ? "Respondido pelo paciente" : r.status === "REVIEWED" ? "Revisado pelo profissional" : r.status === "IN_PROGRESS" ? "Em preenchimento" : r.status === "CANCELLED" ? "Cancelado" : "Enviado ao paciente",
+          studentMembershipPublicId: studentInfo.membershipPublicId,
+          studentName: studentInfo.fullName,
+          studentEmail: studentInfo.email,
+          requestedByName: r.requested_by_name || "Nutricionista",
+          consultationDate: r.consultation_date ? new Date(r.consultation_date).toISOString() : null,
+          questions: qJson,
+          responses: typeof r.responses_json === "string" ? JSON.parse(r.responses_json) : r.responses_json,
+          sentAt: r.sent_at ? new Date(r.sent_at).toISOString() : null,
+          submittedAt: r.submitted_at ? new Date(r.submitted_at).toISOString() : null,
+          reviewedAt: r.reviewed_at ? new Date(r.reviewed_at).toISOString() : null,
+          reviewedByName: r.reviewed_by_name || null,
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+        };
+      });
+    } catch {
+      preQuestionnaires = [];
+    }
+
     return {
       record,
       student: studentInfo,
@@ -631,6 +681,7 @@ export async function getPatientRecordDetail(
       fieldProvenance,
       clinicalNotes,
       recentAuditTrail,
+      preQuestionnaires,
     };
   } finally {
     connection.release();

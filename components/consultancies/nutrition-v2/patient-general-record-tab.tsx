@@ -6,6 +6,7 @@ import type {
   UpdatePatientRecordInput,
   ClinicalFieldProvenance,
   PatientClinicalNoteDto,
+  PatientRecordPreQuestionnaireItem,
   SaveClinicalNoteInput,
   ClinicalNoteContextType,
 } from "@/lib/nutrition-v2/patient-record-types";
@@ -23,6 +24,9 @@ import {
   markPatientFieldReviewedAction,
 } from "@/app/consultoria/[slug]/planos-v2/patient-actions";
 import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
+import { SendPreQuestionnaireModal } from "./send-pre-questionnaire-modal";
+import { ReviewPreQuestionnaireDiffModal } from "./review-pre-questionnaire-diff-modal";
+import { cancelPreQuestionnaireAction } from "@/app/consultoria/[slug]/planos-v2/pre-questionnaire-actions";
 
 export interface PatientGeneralRecordTabProps {
   slug: string;
@@ -90,6 +94,31 @@ export function PatientGeneralRecordTab({
   const [newNoteConduct, setNewNoteConduct] = useState<string>("");
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [isSavingNote, setIsSavingNote] = useState<boolean>(false);
+
+  // Pre-Questionnaires local state & modals (Etapa 10)
+  const [preQuestionnaires, setPreQuestionnaires] = useState<PatientRecordPreQuestionnaireItem[]>(detail.preQuestionnaires || []);
+  const [isSendPreQuestionnaireModalOpen, setIsSendPreQuestionnaireModalOpen] = useState<boolean>(false);
+  const [reviewingQuestionnairePublicId, setReviewingQuestionnairePublicId] = useState<string | null>(null);
+  const [isCancelingId, setIsCancelingId] = useState<string | null>(null);
+
+  const handleCancelQuestionnaire = async (publicId: string) => {
+    if (!window.confirm("Deseja realmente cancelar este pré-questionário?")) return;
+    setIsCancelingId(publicId);
+    try {
+      const res = await cancelPreQuestionnaireAction(slug, publicId, "Cancelado pelo profissional");
+      if (res.success && res.data) {
+        setPreQuestionnaires((prev) =>
+          prev.map((item) =>
+            item.publicId === publicId
+              ? { ...item, status: "CANCELLED", statusLabel: "Cancelado" }
+              : item
+          )
+        );
+      }
+    } finally {
+      setIsCancelingId(null);
+    }
+  };
 
   // Local provenance map state to reflect reviews in real-time
   const [provenanceMap, setProvenanceMap] = useState<Record<string, ClinicalFieldProvenance>>(
@@ -881,7 +910,7 @@ export function PatientGeneralRecordTab({
       </section>
 
       {/* =================================================================== */}
-      {/* 7. SEÇÃO: PRÉ-QUESTIONÁRIO NUTRICIONAL (ETAPA 10 READY)             */}
+      {/* 7. SEÇÃO: PRÉ-QUESTIONÁRIO NUTRICIONAL (ETAPA 10)                   */}
       {/* =================================================================== */}
       <section id="sec-reg-prequestionario" className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleSection("prequestionario")}>
@@ -889,50 +918,208 @@ export function PatientGeneralRecordTab({
             <span className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 font-extrabold text-sm flex items-center justify-center">7</span>
             <div>
               <h3 className="text-base font-extrabold text-[var(--text-primary)]">Pré-Questionário Nutricional</h3>
-              <p className="text-xs text-[var(--text-secondary)]">Integração com questionários e anamneses enviadas pelo paciente (Preparado para Etapa 10).</p>
+              <p className="text-xs text-[var(--text-secondary)]">Envio de questionário clínico antes da consulta, rascunho automático e comparação lado a lado (Diff).</p>
             </div>
           </div>
-          <button type="button" className="text-sm font-bold text-[var(--text-tertiary)] p-2">
-            {openSections.prequestionario ? "▲" : "▼"}
-          </button>
+          <div className="flex items-center gap-2">
+            {canAuthorNutrition && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsSendPreQuestionnaireModalOpen(true);
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5 min-h-[36px]"
+              >
+                <span>+ Enviar Pré-Questionário</span>
+              </button>
+            )}
+            <button type="button" className="text-sm font-bold text-[var(--text-tertiary)] p-2">
+              {openSections.prequestionario ? "▲" : "▼"}
+            </button>
+          </div>
         </div>
 
         {openSections.prequestionario && (
-          <div className="space-y-3 pt-3 border-t border-[var(--border-subtle)] text-xs">
-            {detail.onboardingReference.hasOnboardingData ? (
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 space-y-2">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <span className="font-bold flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    Questionário Inicial / Onboarding Recebido
-                  </span>
-                  <span className="text-[11px] font-semibold opacity-80">
-                    Submetido em: {formatDate(detail.onboardingReference.submittedAt)}
-                  </span>
+          <div className="space-y-4 pt-3 border-t border-[var(--border-subtle)] text-xs">
+            {/* List of Sent Pre-Questionnaires */}
+            {preQuestionnaires.length > 0 ? (
+              <div className="space-y-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                  Questionários Nutricionais Enviados ({preQuestionnaires.length})
+                </span>
+
+                <div className="space-y-2.5">
+                  {preQuestionnaires.map((pq) => {
+                    const isAnswered = pq.status === "ANSWERED";
+                    const isReviewed = pq.status === "REVIEWED";
+                    const isSent = pq.status === "SENT";
+                    const isInProgress = pq.status === "IN_PROGRESS";
+                    const isCancelled = pq.status === "CANCELLED";
+
+                    return (
+                      <div
+                        key={pq.publicId}
+                        className={`p-4 rounded-2xl border transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          isAnswered
+                            ? "bg-emerald-500/10 border-emerald-500/30 shadow-xs"
+                            : isReviewed
+                            ? "bg-[var(--surface-subtle)] border-emerald-500/20"
+                            : isCancelled
+                            ? "bg-[var(--surface-subtle)] border-[var(--border-subtle)] opacity-70"
+                            : "bg-[var(--surface-subtle)] border-[var(--border-subtle)]"
+                        }`}
+                      >
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-sm text-[var(--text-primary)] truncate">
+                              {pq.title}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                                isAnswered
+                                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                                  : isReviewed
+                                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                  : isInProgress
+                                  ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                                  : isCancelled
+                                  ? "bg-zinc-500/15 text-zinc-500"
+                                  : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                              }`}
+                            >
+                              {pq.statusLabel || pq.status}
+                            </span>
+                          </div>
+
+                          <p className="text-[11px] text-[var(--text-tertiary)] flex flex-wrap items-center gap-2">
+                            <span>Solicitado por {pq.requestedByName}</span>
+                            {pq.sentAt && <span>• Enviado em {formatDate(pq.sentAt)}</span>}
+                            {pq.submittedAt && (
+                              <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                                • Respondido em {formatDate(pq.submittedAt)}
+                              </span>
+                            )}
+                            {pq.consultationDate && (
+                              <span>• Consulta: {formatDate(pq.consultationDate)}</span>
+                            )}
+                          </p>
+                        </div>
+
+                        {/* Actions per Status */}
+                        <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-0 border-[var(--border-subtle)]">
+                          {isAnswered && (
+                            <button
+                              type="button"
+                              onClick={() => setReviewingQuestionnairePublicId(pq.publicId)}
+                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5 min-h-[38px]"
+                            >
+                              <span>Revisar Respostas (Comparar Diff) →</span>
+                            </button>
+                          )}
+
+                          {isReviewed && (
+                            <button
+                              type="button"
+                              onClick={() => setReviewingQuestionnairePublicId(pq.publicId)}
+                              className="px-3.5 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold text-xs hover:bg-emerald-500/20 transition-colors cursor-pointer min-h-[38px]"
+                            >
+                              <span>Ver Comparação Diff</span>
+                            </button>
+                          )}
+
+                          {(isSent || isInProgress) && canAuthorNutrition && (
+                            <button
+                              type="button"
+                              disabled={isCancelingId === pq.publicId}
+                              onClick={() => handleCancelQuestionnaire(pq.publicId)}
+                              className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] hover:bg-destructive/10 text-xs font-semibold text-[var(--text-secondary)] hover:text-destructive transition-colors min-h-[38px]"
+                            >
+                              {isCancelingId === pq.publicId ? "Cancelando..." : "Cancelar envio"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <p className="text-[11px] opacity-90 leading-relaxed">
-                  As respostas foram importadas e identificadas como <strong>Relatado pelo paciente</strong>.
-                  Elas nunca sobrescrevem as condutas e notas profissionais já registradas.
-                </p>
               </div>
             ) : (
-              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)] space-y-2">
-                <span className="font-bold text-[var(--text-primary)] block">
-                  Aguardando envio de questionário pelo paciente
-                </span>
-                <p className="leading-relaxed text-[11px]">
-                  Nenhum pré-questionário nutricional foi enviado pelo paciente até o momento.
-                  A estrutura está preparada para receber respostas na <strong>Etapa 10</strong> sem necessidade de migrações ou perda de dados.
-                </p>
+              <div className="p-5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-center space-y-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center mx-auto text-base">
+                  📋
+                </div>
+                <div className="space-y-1 max-w-md mx-auto">
+                  <h4 className="font-bold text-sm text-[var(--text-primary)]">
+                    Nenhum pré-questionário enviado ainda
+                  </h4>
+                  <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                    Envie perguntas personalizadas para o paciente responder antes da consulta. O paciente poderá salvar o rascunho automaticamente e suas respostas serão apresentadas em comparação lado a lado para integração segura com o Registro Geral.
+                  </p>
+                </div>
+                {canAuthorNutrition && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setIsSendPreQuestionnaireModalOpen(true)}
+                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5 min-h-[40px]"
+                    >
+                      <span>+ Enviar Pré-Questionário</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
-            <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-tertiary)]">
-              ℹ️ <em>Nota de arquitetura:</em> Em conformidade com as diretrizes do Trevo One, não há botões fictícios de envio. A submissão é controlada de forma segura na experiência do paciente.
-            </div>
+            {/* Existing Onboarding Reference Banner */}
+            {detail.onboardingReference.hasOnboardingData && (
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1.5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="font-bold flex items-center gap-2 text-[var(--text-primary)]">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Questionário Inicial / Onboarding do Cadastro
+                  </span>
+                  <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">
+                    Submetido em: {formatDate(detail.onboardingReference.submittedAt)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                  Os dados iniciais do cadastro foram identificados como <em>Relatado pelo paciente</em> no prontuário.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </section>
+
+      {/* Modals: Send & Review Diff (Etapa 10) */}
+      {isSendPreQuestionnaireModalOpen && (
+        <SendPreQuestionnaireModal
+          slug={slug}
+          studentMembershipPublicId={detail.student.membershipPublicId}
+          studentName={detail.student.fullName}
+          studentEmail={detail.student.email}
+          biologicalSex={detail.resolvedBiologicalSex}
+          isOpen={isSendPreQuestionnaireModalOpen}
+          onClose={() => setIsSendPreQuestionnaireModalOpen(false)}
+          onSuccess={() => {
+            // Optimistically update list
+            window.location.reload();
+          }}
+        />
+      )}
+
+      {reviewingQuestionnairePublicId && (
+        <ReviewPreQuestionnaireDiffModal
+          slug={slug}
+          questionnairePublicId={reviewingQuestionnairePublicId}
+          isOpen={Boolean(reviewingQuestionnairePublicId)}
+          onClose={() => setReviewingQuestionnairePublicId(null)}
+          onSuccess={() => {
+            window.location.reload();
+          }}
+        />
+      )}
 
       {/* =================================================================== */}
       {/* 8. SEÇÃO: PRONTUÁRIO & OBSERVAÇÕES CLÍNICAS (HISTÓRICO & CONDUTA)   */}

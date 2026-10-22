@@ -19,6 +19,7 @@ interface Props {
   consultancyPublicId?: string;
   role?: string;
   pendingCheckinRequestPublicId?: string | null;
+  pendingPreQuestionnairePublicId?: string | null;
 }
 
 export function StudentNutritionV2({
@@ -31,6 +32,7 @@ export function StudentNutritionV2({
   consultancyPublicId: initialConsultancyPublicId,
   role: initialRole,
   pendingCheckinRequestPublicId,
+  pendingPreQuestionnairePublicId,
 }: Props) {
   const [activeContext, setActiveContext] = React.useState<{
     userPublicId: string;
@@ -177,6 +179,25 @@ export function StudentNutritionV2({
           </Link>
         </div>
       </div>
+
+      {pendingPreQuestionnairePublicId && (
+        <div className="mb-4 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+          <div className="space-y-0.5">
+            <span className="font-extrabold text-emerald-800 dark:text-emerald-200 block text-sm">
+              📋 Pré-Questionário Nutricional Pendente
+            </span>
+            <p className="text-emerald-700 dark:text-emerald-300 text-xs leading-relaxed">
+              Sua nutricionista solicitou o preenchimento antes da sua consulta. Suas respostas ajudarão a montar seu plano alimentar personalizado.
+            </p>
+          </div>
+          <Link
+            href={`/consultoria/${consultancySlug}/nutricao/pre-questionario/${pendingPreQuestionnairePublicId}`}
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shrink-0 shadow-xs inline-flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
+          >
+            <span>Responder Pré-Questionário →</span>
+          </Link>
+        </div>
+      )}
 
       {/* MOBILE NATIVE STUDENT COCKPIT (< sm) */}
       <div className="sm:hidden space-y-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]">

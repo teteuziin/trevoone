@@ -227,6 +227,25 @@ export type OnboardingReferenceData = {
   submittedAt: string | null;
 };
 
+export interface PatientRecordPreQuestionnaireItem {
+  publicId: string;
+  title: string;
+  status: string;
+  statusLabel: string;
+  studentMembershipPublicId: string;
+  studentName: string;
+  studentEmail: string;
+  requestedByName: string;
+  consultationDate: string | null;
+  questions: unknown[];
+  responses: Record<string, unknown> | null;
+  sentAt: string | null;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  reviewedByName: string | null;
+  createdAt: string;
+}
+
 export type PatientRecordDetail = {
   record: PatientRecord;
   student: {
@@ -253,6 +272,9 @@ export type PatientRecordDetail = {
   // Clinical Notes & History (Etapa 9)
   clinicalNotes: PatientClinicalNoteDto[];
   recentAuditTrail: PatientRecordAuditEntryDto[];
+
+  // Pre-Questionnaires (Etapa 10)
+  preQuestionnaires?: PatientRecordPreQuestionnaireItem[];
 };
 
 export type UpdatePatientRecordInput = {

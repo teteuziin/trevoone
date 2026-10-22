@@ -7,6 +7,7 @@ import { StudentModuleAccessPanel } from "@/components/consultancies/student-mod
 import { StudentNutritionV2 } from "@/components/consultancies/nutrition-v2/student-nutrition-v2";
 import { StudentFollowupTrigger } from "@/components/consultancies/nutrition-v2/student-followup-trigger";
 import { getPendingCheckinForStudent } from "@/lib/nutrition-v2/checkin-repository";
+import { getPendingPreQuestionnaireForStudent } from "@/lib/nutrition-v2/pre-questionnaire-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -78,6 +79,10 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
   // A. Prescrição V2 ativa -> renderiza Nutrition V2
   // B. Sem prescrição V2 ativa (com ou sem histórico prévio) -> estado sem plano ativo (ZERO fallback V1)
   const v2Auth = await getStudentAuthoritativeNutrition(session.userId, slug);
+  const pendingPreQuestionnaire = await getPendingPreQuestionnaireForStudent(
+    access.context.consultancyId,
+    access.context.membershipId
+  );
   const pendingCheckin = await getPendingCheckinForStudent(
     access.context.consultancyId,
     access.context.membershipId
@@ -110,6 +115,7 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
             consultancyPublicId={access.context.consultancyPublicId}
             role="STUDENT"
             pendingCheckinRequestPublicId={pendingCheckin?.publicId}
+            pendingPreQuestionnairePublicId={pendingPreQuestionnaire?.publicId}
           />
         ) : (
           <div className="space-y-6">
@@ -126,6 +132,26 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
                 pendingCheckinRequestPublicId={pendingCheckin?.publicId}
               />
             </div>
+
+            {pendingPreQuestionnaire && (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+                <div className="space-y-0.5">
+                  <span className="font-extrabold text-emerald-800 dark:text-emerald-200 block text-sm">
+                    📋 Pré-Questionário Nutricional Pendente
+                  </span>
+                  <p className="text-emerald-700 dark:text-emerald-300 text-xs leading-relaxed">
+                    Sua nutricionista solicitou o preenchimento antes da sua consulta. Suas respostas ajudarão a montar seu plano alimentar personalizado.
+                  </p>
+                </div>
+                <Link
+                  href={`/consultoria/${access.context.consultancySlug}/nutricao/pre-questionario/${pendingPreQuestionnaire.publicId}`}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shrink-0 shadow-xs inline-flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
+                >
+                  <span>Responder Pré-Questionário →</span>
+                </Link>
+              </div>
+            )}
+
             <PageHeader
               title="Seu Plano Alimentar"
               description="Acompanhe sua dieta atual, opções de refeições e orientações do seu Nutricionista."

@@ -87,6 +87,9 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context?.consultancyPublicId}
       viewModeState={effectiveState}
+      showDashboardWallpaper={true}
+      themeVariant="dark-overview"
+      maxWidth="default"
     >
       <PatientRecordView
         initialDetail={res.detail}

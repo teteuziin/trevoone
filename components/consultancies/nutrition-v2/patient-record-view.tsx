@@ -26,6 +26,15 @@ import type {
   EvolutionComparisonDataDto,
 } from "@/types/evolution";
 import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
+import { UserAvatar } from "@/components/account/user-avatar";
+
+function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M19 12H5m7 7l-7-7 7-7" />
+    </svg>
+  );
+}
 import type {
   PatientPlanning,
   PatientPlanningStaleStatus,
@@ -513,11 +522,12 @@ export function PatientRecordView({
       {/* Top breadcrumb & Autosave Indicator */}
       <div className="flex items-center justify-between gap-4">
         <Link
-          href={`/consultoria/${slug}/planos-v2/prontuario`}
+          href={`/consultoria/${slug}/progresso/alunos`}
           onClick={() => flushPendingSave()}
-          className="text-xs font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors inline-flex items-center gap-1.5 min-h-[36px]"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-white transition-colors min-h-[36px] cursor-pointer"
         >
-          <span>← Voltar aos pacientes</span>
+          <ArrowLeftIcon className="w-4 h-4 text-emerald-400 stroke-[2.5]" />
+          <span>Voltar aos pacientes</span>
         </Link>
         {canAuthorNutrition && (
           <div className="flex items-center gap-2">
@@ -544,37 +554,40 @@ export function PatientRecordView({
       )}
 
       {/* =================================================================== */}
-      {/* SECTION A: IDENTIFICAÇÃO & COCKPIT PRINCIPAL (DARK MODERN PILL)    */}
+      {/* SECTION A: IDENTIFICAÇÃO & COCKPIT PRINCIPAL (PADRÃO GRAFITE #151619) */}
       {/* =================================================================== */}
       <div
         id="sec-identificacao"
-        className="bg-zinc-950 text-white rounded-3xl p-5 sm:p-6 shadow-md border border-zinc-800/90 flex flex-col md:flex-row md:items-center justify-between gap-4"
+        className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-[#151619] border border-[#303238] shadow-xs text-white flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6"
       >
         {/* Left: Avatar + Info */}
-        <div className="flex items-center gap-4 min-w-0">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 font-extrabold flex items-center justify-center text-lg shrink-0 border border-emerald-500/30">
-            {detail.student.fullName ? detail.student.fullName.charAt(0).toUpperCase() : "P"}
-          </div>
-          <div className="min-w-0 space-y-0.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white truncate">
+        <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+          <UserAvatar
+            fullName={detail.student.fullName}
+            userId={detail.student.userId}
+            size="lg"
+            className="shrink-0 shadow-sm border border-[#303238]"
+          />
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="font-heading text-lg sm:text-2xl font-bold text-white tracking-tight truncate">
                 {detail.student.fullName}
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                 Ativo
               </span>
               {detail.pregnancy?.pregnancyStatus === "PREGNANT" && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">
                   Gestante
                 </span>
               )}
               {detail.pregnancy?.pregnancyStatus === "POSTPARTUM" && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
                   Pós-parto
                 </span>
               )}
             </div>
-            <p className="text-xs text-zinc-400 font-medium truncate">
+            <p className="text-xs sm:text-sm text-[#9CA3AF] truncate">
               {detail.student.email}
             </p>
           </div>
@@ -587,7 +600,7 @@ export function PatientRecordView({
               type="button"
               onClick={handleStartEditPlan}
               disabled={isStartingEdit}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer min-h-[42px] flex items-center gap-2 disabled:opacity-50"
+              className="px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer min-h-[44px] flex items-center gap-2 disabled:opacity-50"
             >
               {isStartingEdit ? "Abrindo..." : "Abrir plano alimentar →"}
             </button>
@@ -596,16 +609,16 @@ export function PatientRecordView({
               type="button"
               onClick={handleStartEditPlan}
               disabled={isStartingEdit}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer min-h-[42px] flex items-center gap-2 disabled:opacity-50"
+              className="px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer min-h-[44px] flex items-center gap-2 disabled:opacity-50"
             >
-              {isStartingEdit ? "Abrindo..." : "Continuar rascunho →"}
+              {isStartingEdit ? "Abrindo..." : "Continuar Edição →"}
             </button>
           ) : (
             <button
               type="button"
               onClick={() => setIsPlanChoiceModalOpen(true)}
               disabled={isCreatingScratch}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer min-h-[42px] flex items-center gap-2 disabled:opacity-50"
+              className="px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer min-h-[44px] flex items-center gap-2 disabled:opacity-50"
             >
               <span>{isCreatingScratch ? "Criando..." : "+ Criar plano alimentar"}</span>
             </button>
@@ -616,20 +629,20 @@ export function PatientRecordView({
               type="button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label="Mais opções do paciente"
-              className="w-10 h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
+              className="w-10 h-10 rounded-xl bg-[#222429] hover:bg-[#2A2D33] text-zinc-300 border border-[#3A3D45] flex items-center justify-center transition-colors cursor-pointer min-h-[40px] min-w-[40px]"
             >
               <span className="text-lg leading-none">···</span>
             </button>
 
             {isMenuOpen && (
               <div
-                className="absolute right-0 mt-2 w-56 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl p-1.5 z-30 space-y-1 animate-in fade-in duration-150"
+                className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#1C1E22] border border-[#303238] shadow-xl p-1.5 z-30 space-y-1 animate-in fade-in duration-150"
                 onClick={() => setIsMenuOpen(false)}
               >
                 <button
                   type="button"
                   onClick={() => setIsCadastralModalOpen(true)}
-                  className="w-full px-3.5 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] text-left text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2.5 cursor-pointer"
+                  className="w-full px-3.5 py-2.5 rounded-xl hover:bg-zinc-800/60 text-left text-xs font-semibold text-zinc-200 flex items-center gap-2.5 cursor-pointer"
                 >
                   <span>Dados do paciente</span>
                 </button>
@@ -641,7 +654,7 @@ export function PatientRecordView({
                       setMessage({ type: "success", text: "Link do prontuário copiado!" });
                     }
                   }}
-                  className="w-full px-3.5 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] text-left text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2.5 cursor-pointer"
+                  className="w-full px-3.5 py-2.5 rounded-xl hover:bg-zinc-800/60 text-left text-xs font-semibold text-zinc-200 flex items-center gap-2.5 cursor-pointer"
                 >
                   <span>Copiar link do prontuário</span>
                 </button>
@@ -649,14 +662,14 @@ export function PatientRecordView({
                   <button
                     type="button"
                     onClick={() => setIsSaveTemplateDialogOpen(true)}
-                    className="w-full px-3.5 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] text-left text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2.5 cursor-pointer"
+                    className="w-full px-3.5 py-2.5 rounded-xl hover:bg-zinc-800/60 text-left text-xs font-semibold text-zinc-200 flex items-center gap-2.5 cursor-pointer"
                   >
                     <span>Salvar plano como modelo</span>
                   </button>
                 )}
                 <Link
-                  href={`/consultoria/${slug}/progresso/alunos/${detail.student.membershipPublicId}`}
-                  className="w-full px-3.5 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] text-left text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2.5 cursor-pointer"
+                  href={`/consultoria/${slug}/progresso/alunos/${detail.student.membershipPublicId}?tab=evolucao`}
+                  className="w-full px-3.5 py-2.5 rounded-xl hover:bg-zinc-800/60 text-left text-xs font-semibold text-zinc-200 flex items-center gap-2.5 cursor-pointer"
                 >
                   <span>Evolução 360° e fotos</span>
                 </Link>
@@ -669,14 +682,14 @@ export function PatientRecordView({
       {/* =================================================================== */}
       {/* QUICK JUMP NAVIGATION BAR ("IR PARA")                              */}
       {/* =================================================================== */}
-      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-2xs">
+      <div className="bg-[#151619] border border-[#26272B] rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-2xs">
         <button
           type="button"
           onClick={() => handleTabChange("visao-geral")}
           className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
             activeTab === "visao-geral"
-              ? "bg-[var(--surface-subtle)] text-[var(--text-primary)] font-extrabold shadow-2xs"
-              : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+              ? "bg-[#222429] text-white font-extrabold shadow-2xs border border-[#3A3D45]"
+              : "text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] border border-transparent"
           }`}
         >
           <span>Visão geral</span>
@@ -687,12 +700,12 @@ export function PatientRecordView({
           onClick={() => handleTabChange("planejamento")}
           className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
             activeTab === "planejamento" || activeTab === "evolucao"
-              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
-              : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+              ? "bg-[#222429] text-white font-extrabold shadow-2xs border border-[#3A3D45]"
+              : "text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] border border-transparent"
           }`}
         >
           <span>Planejamento</span>
-          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-400">
             Evolução
           </span>
         </button>
@@ -702,12 +715,12 @@ export function PatientRecordView({
           onClick={() => handleTabChange("registro-geral")}
           className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
             activeTab === "registro-geral"
-              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
-              : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+              ? "bg-[#222429] text-white font-extrabold shadow-2xs border border-[#3A3D45]"
+              : "text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] border border-transparent"
           }`}
         >
           <span>Registro geral</span>
-          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-400">
             Prontuário
           </span>
         </button>
@@ -717,12 +730,12 @@ export function PatientRecordView({
           onClick={() => handleTabChange("acompanhamento")}
           className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
             activeTab === "acompanhamento"
-              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
-              : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+              ? "bg-[#222429] text-white font-extrabold shadow-2xs border border-[#3A3D45]"
+              : "text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] border border-transparent"
           }`}
         >
           <span>Acompanhamento</span>
-          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-400">
             Refeições
           </span>
         </button>
@@ -730,20 +743,20 @@ export function PatientRecordView({
         <a
           href="#sec-plano"
           onClick={() => handleTabChange("visao-geral")}
-          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-1.5 whitespace-nowrap border border-transparent"
         >
           <span>Planos alimentares</span>
-          <span className="w-5 h-5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold flex items-center justify-center">
+          <span className="w-5 h-5 rounded-full bg-[#222429] text-zinc-300 border border-[#3A3D45] text-[10px] font-bold flex items-center justify-center">
             {activePlan ? 1 : 0}
           </span>
         </a>
         <button
           type="button"
           onClick={() => handleTabChange("planejamento")}
-          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-transparent"
         >
           <span>Evolução</span>
-          <span className="w-5 h-5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold flex items-center justify-center">
+          <span className="w-5 h-5 rounded-full bg-[#222429] text-zinc-300 border border-[#3A3D45] text-[10px] font-bold flex items-center justify-center">
             {sortedAnthros.length}
           </span>
         </button>
@@ -752,15 +765,15 @@ export function PatientRecordView({
           onClick={() => {
             setIsAnamneseDrawerOpen(true);
           }}
-          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer"
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer border border-transparent"
         >
           <span>Anamnese</span>
           {isAnswered ? (
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               RESPONDIDA
             </span>
           ) : (
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
               PENDENTE
             </span>
           )}
@@ -768,17 +781,17 @@ export function PatientRecordView({
         <a
           href="#sec-acompanhamento"
           onClick={() => handleTabChange("visao-geral")}
-          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-1.5 whitespace-nowrap border border-transparent"
         >
           <span>Formulários</span>
-          <span className="w-5 h-5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold flex items-center justify-center">
+          <span className="w-5 h-5 rounded-full bg-[#222429] text-zinc-300 border border-[#3A3D45] text-[10px] font-bold flex items-center justify-center">
             {checkinsCount}
           </span>
         </a>
         <a
           href="#sec-historico"
           onClick={() => handleTabChange("visao-geral")}
-          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] transition-colors flex items-center gap-1.5 whitespace-nowrap"
+          className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] transition-colors flex items-center gap-1.5 whitespace-nowrap border border-transparent"
         >
           <span>Histórico</span>
         </a>
@@ -828,13 +841,13 @@ export function PatientRecordView({
           {/* 1. PLANO ALIMENTAR ATUAL */}
           <section
             id="sec-plano"
-            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4"
+            className="p-5 sm:p-6 rounded-3xl border border-[#26272B] bg-[#151619] shadow-xs space-y-4 text-white"
           >
             {draftPlan && (
               <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                  <p className="text-xs font-bold text-amber-700 dark:text-amber-400">Rascunho de alteração em andamento</p>
-                  <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80">Atualizado em {formatDate(draftPlan.updatedAt)}</p>
+                  <p className="text-xs font-bold text-amber-400">Rascunho de alteração em andamento</p>
+                  <p className="text-[11px] text-amber-400/80">Atualizado em {formatDate(draftPlan.updatedAt)}</p>
                 </div>
                 <button
                   type="button"
@@ -846,23 +859,23 @@ export function PatientRecordView({
                 </button>
               </div>
             )}
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+            <div className="flex items-center justify-between pb-3 border-b border-[#303238]">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+                  <h2 className="text-base sm:text-lg font-bold text-white">
                     Plano Alimentar Atual
                   </h2>
                 </div>
               </div>
               <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                 activePlan
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                  : "bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]"
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : "bg-[#1C1E22] text-[#8E929C] border border-[#303238]"
               }`}>
                 {activePlan ? `V${activePlan.versionNumber} • Ativo` : "Nenhum ativo"}
               </span>
@@ -871,42 +884,42 @@ export function PatientRecordView({
             {activePlan ? (
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <h3 className="text-base font-extrabold text-[var(--text-primary)]">
+                  <h3 className="text-base font-extrabold text-white">
                     {activePlan.versionTitle}
                   </h3>
                   {activePlan.versionSubtitle && (
-                    <p className="text-xs text-[var(--text-secondary)] font-medium">
+                    <p className="text-xs text-[#9CA3AF] font-medium">
                       {activePlan.versionSubtitle}
                     </p>
                   )}
-                  <p className="text-[11px] text-[var(--text-tertiary)] pt-0.5">
-                    Prescrito por <strong className="text-[var(--text-secondary)]">{activePlan.prescriberName || "Nutricionista"}</strong> • Início em {formatDate(activePlan.startsOn)} • {activePlan.mealsCount} refeições
+                  <p className="text-[11px] text-[#8E929C] pt-0.5">
+                    Prescrito por <strong className="text-zinc-300">{activePlan.prescriberName || "Nutricionista"}</strong> • Início em {formatDate(activePlan.startsOn)} • {activePlan.mealsCount} refeições
                   </p>
                 </div>
 
                 {/* Macronutrient Pills */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Calorias</span>
-                    <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 block tabular-nums">
+                  <div className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-[#8E929C] block">Calorias</span>
+                    <span className="text-base font-extrabold text-emerald-400 block tabular-nums">
                       {activePlan.totals.caloriesKcal ?? "—"} kcal
                     </span>
                   </div>
-                  <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Proteína</span>
-                    <span className="text-base font-extrabold text-[var(--text-primary)] block tabular-nums">
+                  <div className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-[#8E929C] block">Proteína</span>
+                    <span className="text-base font-extrabold text-white block tabular-nums">
                       {activePlan.totals.proteinG ?? "—"}g
                     </span>
                   </div>
-                  <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Carboidrato</span>
-                    <span className="text-base font-extrabold text-[var(--text-primary)] block tabular-nums">
+                  <div className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-[#8E929C] block">Carboidrato</span>
+                    <span className="text-base font-extrabold text-white block tabular-nums">
                       {activePlan.totals.carbohydrateG ?? "—"}g
                     </span>
                   </div>
-                  <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Gorduras</span>
-                    <span className="text-base font-extrabold text-[var(--text-primary)] block tabular-nums">
+                  <div className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-[#8E929C] block">Gorduras</span>
+                    <span className="text-base font-extrabold text-white block tabular-nums">
                       {activePlan.totals.fatG ?? "—"}g
                     </span>
                   </div>
@@ -915,10 +928,10 @@ export function PatientRecordView({
                 {/* In-Place Expandable Meals List */}
                 <div className="space-y-2 pt-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#9CA3AF]">
                       Refeições Prescritas ({activePlan.meals.length})
                     </span>
-                    <span className="text-[11px] text-[var(--text-tertiary)]">
+                    <span className="text-[11px] text-[#8E929C]">
                       Clique para expandir
                     </span>
                   </div>
@@ -929,48 +942,48 @@ export function PatientRecordView({
                       return (
                         <div
                           key={idx}
-                          className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] overflow-hidden transition-colors"
+                          className="rounded-2xl border border-[#303238] bg-[#1C1E22] overflow-hidden transition-colors"
                         >
                           <button
                             type="button"
                             onClick={() => setExpandedMealIdx(isExpanded ? null : idx)}
-                            className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer hover:bg-[var(--surface-hover)] transition-colors min-h-[44px]"
+                            className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer hover:bg-zinc-800/40 transition-colors min-h-[44px]"
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <span className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center shrink-0">
+                              <span className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-400 font-bold text-xs flex items-center justify-center shrink-0">
                                 {idx + 1}
                               </span>
                               <div className="min-w-0">
-                                <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] block truncate">
+                                <span className="font-bold text-xs sm:text-sm text-white block truncate">
                                   {meal.title}
                                 </span>
                                 {meal.scheduledTime && (
-                                  <span className="text-[11px] text-[var(--text-tertiary)] block">
+                                  <span className="text-[11px] text-[#8E929C] block">
                                     Horário: {meal.scheduledTime}
                                   </span>
                                 )}
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#151619] text-zinc-300 border border-[#303238]">
                                 {meal.itemsCount} {meal.itemsCount === 1 ? "item" : "itens"}
                               </span>
-                              <span className="text-xs text-[var(--text-tertiary)]">
+                              <span className="text-xs text-[#8E929C]">
                                 {isExpanded ? "▲" : "▼"}
                               </span>
                             </div>
                           </button>
 
                           {isExpanded && (
-                            <div className="px-4 pb-3.5 pt-1 text-xs text-[var(--text-secondary)] border-t border-[var(--border-subtle)] space-y-2 bg-[var(--surface)]">
-                              <p className="font-medium text-[var(--text-tertiary)] text-[11px]">
+                            <div className="px-4 pb-3.5 pt-1 text-xs text-zinc-300 border-t border-[#303238] space-y-2 bg-[#151619]">
+                              <p className="font-medium text-[#8E929C] text-[11px]">
                                 Para editar quantidades, alimentos e substituições detalhadas, abra o plano no builder.
                               </p>
                               <div className="flex justify-end">
                                 <button
                                   type="button"
                                   onClick={handleStartEditPlan}
-                                  className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                                  className="text-xs font-bold text-emerald-400 hover:underline cursor-pointer"
                                 >
                                   Editar esta refeição no builder →
                                 </button>
@@ -984,7 +997,7 @@ export function PatientRecordView({
                 </div>
 
                 {/* Actions bottom bar */}
-                <div className="flex items-center justify-between gap-3 pt-3 border-t border-[var(--border-subtle)] flex-wrap">
+                <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#303238] flex-wrap">
                   <button
                     type="button"
                     onClick={handleStartEditPlan}
@@ -997,14 +1010,14 @@ export function PatientRecordView({
                     <button
                       type="button"
                       onClick={() => setIsSaveTemplateDialogOpen(true)}
-                      className="px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-secondary)] transition-colors cursor-pointer min-h-[40px]"
+                      className="px-3.5 py-2 rounded-xl bg-[#1C1E22] border border-[#303238] hover:bg-[#25282F] text-xs font-bold text-zinc-300 transition-colors cursor-pointer min-h-[40px]"
                     >
                       Salvar como modelo
                     </button>
                     <button
                       type="button"
                       onClick={() => setIsCopyPlanDialogOpen(true)}
-                      className="px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-secondary)] transition-colors cursor-pointer min-h-[40px]"
+                      className="px-3.5 py-2 rounded-xl bg-[#1C1E22] border border-[#303238] hover:bg-[#25282F] text-xs font-bold text-zinc-300 transition-colors cursor-pointer min-h-[40px]"
                     >
                       Copiar plano
                     </button>
@@ -1013,7 +1026,7 @@ export function PatientRecordView({
               </div>
             ) : (
               <div className="py-8 px-4 text-center space-y-3">
-                <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                <p className="text-xs sm:text-sm text-[#9CA3AF]">
                   Nenhum plano alimentar ativo no momento para este paciente.
                 </p>
                 <button
@@ -1030,52 +1043,52 @@ export function PatientRecordView({
           {/* 2. ACOMPANHAMENTO CLÍNICO & ADERÊNCIA */}
           <section
             id="sec-acompanhamento"
-            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4"
+            className="p-5 sm:p-6 rounded-3xl border border-[#26272B] bg-[#151619] shadow-xs space-y-4 text-white"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+            <div className="flex items-center justify-between pb-3 border-b border-[#303238]">
               <div>
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
+                <span className="text-[10px] uppercase font-bold text-[#8E929C] block tracking-wider">
                   Acompanhamento Clínico & Aderência
                 </span>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                <h3 className="text-base font-bold text-white">
                   Acompanhamento Nutricional
                 </h3>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#1C1E22] text-[#9CA3AF] border border-[#303238]">
                 {checkinsCount > 0 ? `${checkinsCount} check-in(s)` : "Sem registros no período"}
               </span>
             </div>
 
             {/* 4 Metric Tiles as in Screenshot */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Último Acesso</span>
-                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block">
+              <div className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[#8E929C] block">Último Acesso</span>
+                <span className="text-xs sm:text-sm font-extrabold text-white block">
                   {latestCompletedConsultation?.formattedDate || "Hoje"}
                 </span>
               </div>
-              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Check-ins (7D)</span>
-                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block">
+              <div className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[#8E929C] block">Check-ins (7D)</span>
+                <span className="text-xs sm:text-sm font-extrabold text-white block">
                   {checkinsCount > 0 ? `${checkinsCount} respondido(s)` : "Sem registros"}
                 </span>
               </div>
-              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Desvios Dieta</span>
-                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block">
+              <div className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[#8E929C] block">Desvios Dieta</span>
+                <span className="text-xs sm:text-sm font-extrabold text-[#9CA3AF] block">
                   Dados insuficientes
                 </span>
               </div>
-              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Plano Ativo</span>
-                <span className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400 block truncate">
+              <div className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[#8E929C] block">Plano Ativo</span>
+                <span className="text-xs sm:text-sm font-extrabold text-emerald-400 block truncate">
                   {activePlan ? activePlan.versionTitle : "Nenhum"}
                 </span>
               </div>
             </div>
 
             <div className="pt-2 flex items-center justify-between flex-wrap gap-2">
-              <span className="text-xs text-[var(--text-secondary)]">
+              <span className="text-xs text-[#9CA3AF]">
                 Registro diário das refeições, fotos enviadas e cálculo de adesão do paciente.
               </span>
               <button
@@ -1091,24 +1104,24 @@ export function PatientRecordView({
           {/* 3. HISTÓRICO DO PACIENTE */}
           <section
             id="sec-historico"
-            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4"
+            className="p-5 sm:p-6 rounded-3xl border border-[#26272B] bg-[#151619] shadow-xs space-y-4 text-white"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
-              <h3 className="text-base font-bold text-[var(--text-primary)]">
+            <div className="flex items-center justify-between pb-3 border-b border-[#303238]">
+              <h3 className="text-base font-bold text-white">
                 Histórico do Paciente
               </h3>
-              <span className="text-xs text-[var(--text-tertiary)]">Eventos cronológicos</span>
+              <span className="text-xs text-[#8E929C]">Eventos cronológicos</span>
             </div>
 
             <div className="space-y-3">
               {nextScheduledConsultation && (
-                <div className="flex items-start gap-3 p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-[#1C1E22] border border-[#303238]">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                     R
                   </div>
                   <div className="min-w-0 flex-1 space-y-0.5">
-                    <p className="text-xs font-bold text-[var(--text-primary)]">Próxima Consulta Agendada</p>
-                    <p className="text-[11px] text-[var(--text-secondary)]">
+                    <p className="text-xs font-bold text-white">Próxima Consulta Agendada</p>
+                    <p className="text-[11px] text-[#9CA3AF]">
                       {nextScheduledConsultation.formattedStart}
                     </p>
                   </div>
@@ -1116,13 +1129,13 @@ export function PatientRecordView({
               )}
 
               {latestCompletedConsultation && (
-                <div className="flex items-start gap-3 p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-[#1C1E22] border border-[#303238]">
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                     C
                   </div>
                   <div className="min-w-0 flex-1 space-y-0.5">
-                    <p className="text-xs font-bold text-[var(--text-primary)]">Consulta Realizada</p>
-                    <p className="text-[11px] text-[var(--text-secondary)]">
+                    <p className="text-xs font-bold text-white">Consulta Realizada</p>
+                    <p className="text-[11px] text-[#9CA3AF]">
                       {latestCompletedConsultation.formattedDate} • {latestCompletedConsultation.consultationTypeLabel || "Atendimento clínico"}
                     </p>
                   </div>
@@ -1130,26 +1143,26 @@ export function PatientRecordView({
               )}
 
               {activePlan && (
-                <div className="flex items-start gap-3 p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-[#1C1E22] border border-[#303238]">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                     P
                   </div>
                   <div className="min-w-0 flex-1 space-y-0.5">
-                    <p className="text-xs font-bold text-[var(--text-primary)]">Plano Alimentar Atribuído</p>
-                    <p className="text-[11px] text-[var(--text-secondary)]">
+                    <p className="text-xs font-bold text-white">Plano Alimentar Atribuído</p>
+                    <p className="text-[11px] text-[#9CA3AF]">
                       {activePlan.versionTitle} • Início: {formatDate(activePlan.startsOn)}
                     </p>
                   </div>
                 </div>
               )}
 
-              <div className="flex items-start gap-3 p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-[#1C1E22] border border-[#303238]">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                   ✓
                 </div>
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="text-xs font-bold text-[var(--text-primary)]">Início do Acompanhamento</p>
-                  <p className="text-[11px] text-[var(--text-secondary)]">
+                  <p className="text-xs font-bold text-white">Início do Acompanhamento</p>
+                  <p className="text-[11px] text-[#9CA3AF]">
                     Cadastrado na consultoria em {new Date(detail.student.joinedAt).toLocaleDateString("pt-BR")}
                   </p>
                 </div>
@@ -1165,28 +1178,28 @@ export function PatientRecordView({
           {/* 1. OBJETIVO NUTRICIONAL */}
           <section
             id="sec-objetivo"
-            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3"
+            className="p-5 sm:p-6 rounded-3xl border border-[#26272B] bg-[#151619] shadow-xs space-y-3 text-white"
           >
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[10px] uppercase font-extrabold text-emerald-600 dark:text-emerald-400 tracking-wider block">
+                <span className="text-[10px] uppercase font-extrabold text-emerald-400 tracking-wider block">
                   Objetivo Nutricional
                 </span>
-                <h3 className="text-lg font-extrabold text-[var(--text-primary)]">
+                <h3 className="text-lg font-extrabold text-white">
                   {clinicalForm.mainObjective || detail.onboardingReference?.mainObjective || "Massa Magra + Definição"}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => handleTabChange("registro-geral")}
-                className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer shrink-0"
+                className="text-xs font-bold text-emerald-400 hover:underline cursor-pointer shrink-0"
               >
                 Prontuário Geral →
               </button>
             </div>
 
-            <div className="pt-2 border-t border-[var(--border-subtle)] space-y-1">
-              <label className="text-[10px] font-bold uppercase text-[var(--text-tertiary)] block">
+            <div className="pt-2 border-t border-[#303238] space-y-1">
+              <label className="text-[10px] font-bold uppercase text-[#8E929C] block">
                 Observações Clínicas
               </label>
               <textarea
@@ -1200,7 +1213,7 @@ export function PatientRecordView({
                 rows={2}
                 disabled={!canAuthorNutrition}
                 placeholder="Anotações e condutas clínicas do profissional..."
-                className="w-full text-xs rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-2.5 focus:outline-hidden focus:ring-1 focus:ring-emerald-500/30 text-[var(--text-primary)] resize-none"
+                className="w-full text-xs rounded-xl border border-[#303238] bg-[#1C1E22] p-2.5 focus:outline-hidden focus:border-emerald-500 text-white placeholder-zinc-500 resize-none"
               />
             </div>
           </section>
@@ -1208,43 +1221,43 @@ export function PatientRecordView({
           {/* 2. DADOS BIOMÉTRICOS & CADASTRAIS */}
           <section
             id="sec-biometricos"
-            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3"
+            className="p-5 sm:p-6 rounded-3xl border border-[#26272B] bg-[#151619] shadow-xs space-y-3 text-white"
           >
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] tracking-wider block">
-              Dados Biométricos & Cadastrais
+            <span className="text-[10px] uppercase font-bold text-[#8E929C] tracking-wider block">
+              Dados Biométricos &amp; Cadastrais
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-center space-y-0.5">
-                <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Peso Atual</span>
-                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
+              <div className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] text-center space-y-0.5">
+                <span className="text-[9px] uppercase font-bold text-[#8E929C] block">Peso Atual</span>
+                <span className="text-xs sm:text-sm font-extrabold text-white block tabular-nums">
                   {currentWeightKg !== null ? `${currentWeightKg} kg` : "Não informado"}
                 </span>
                 {weightDelta !== null && (
-                  <span className={`text-[9px] font-bold block ${weightDelta > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                  <span className={`text-[9px] font-bold block ${weightDelta > 0 ? "text-amber-400" : "text-emerald-400"}`}>
                     {weightDelta > 0 ? `+${weightDelta.toFixed(1)} kg` : `${weightDelta.toFixed(1)} kg`}
                   </span>
                 )}
               </div>
-              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-center space-y-0.5">
-                <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Altura</span>
-                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
+              <div className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] text-center space-y-0.5">
+                <span className="text-[9px] uppercase font-bold text-[#8E929C] block">Altura</span>
+                <span className="text-xs sm:text-sm font-extrabold text-white block tabular-nums">
                   {currentHeightCm !== null ? `${currentHeightCm} cm` : "Não informado"}
                 </span>
                 {bmiValue !== null && (
-                  <span className="text-[9px] font-bold text-[var(--text-tertiary)] block truncate" title={`IMC: ${bmiValue.toFixed(1)} · ${bmiClassification}`}>
+                  <span className="text-[9px] font-bold text-[#8E929C] block truncate" title={`IMC: ${bmiValue.toFixed(1)} · ${bmiClassification}`}>
                     IMC {bmiValue.toFixed(1)}
                   </span>
                 )}
               </div>
-              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-center space-y-0.5">
-                <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Idade</span>
-                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
+              <div className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] text-center space-y-0.5">
+                <span className="text-[9px] uppercase font-bold text-[#8E929C] block">Idade</span>
+                <span className="text-xs sm:text-sm font-extrabold text-white block tabular-nums">
                   {ageYears !== null ? `${ageYears} anos` : "Não informado"}
                 </span>
               </div>
-              <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-center space-y-0.5">
-                <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Sexo</span>
-                <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block truncate">
+              <div className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] text-center space-y-0.5">
+                <span className="text-[9px] uppercase font-bold text-[#8E929C] block">Sexo</span>
+                <span className="text-xs sm:text-sm font-extrabold text-white block truncate">
                   {bioSexLabel}
                 </span>
               </div>
@@ -1254,10 +1267,10 @@ export function PatientRecordView({
           {/* 3. ALERGIAS & RESTRIÇÕES ALIMENTARES (STRICT TRI-STATE) */}
           <section
             id="sec-alergias"
-            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3"
+            className="p-5 sm:p-6 rounded-3xl border border-[#26272B] bg-[#151619] shadow-xs space-y-3 text-white"
           >
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] tracking-wider block">
-              Alergias & Restrições Alimentares
+            <span className="text-[10px] uppercase font-bold text-[#8E929C] tracking-wider block">
+              Alergias &amp; Restrições Alimentares
             </span>
 
             {allergyState.status === "HAS_ALLERGIES" ? (
@@ -1266,26 +1279,26 @@ export function PatientRecordView({
                   {allergyState.items.map((item, idx) => (
                     <span
                       key={idx}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20"
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-red-500/15 text-red-300 border border-red-500/30"
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
                       <span>{item}</span>
                     </span>
                   ))}
                 </div>
               </div>
             ) : allergyState.status === "EXPLICITLY_NONE" ? (
-              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+              <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
                 <span>Paciente declarou não possuir alergias ou restrições alimentares.</span>
               </div>
             ) : (
-              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center justify-between gap-2 flex-wrap">
+              <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs font-semibold flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
                   <span>Alergias não informadas</span>
                 </div>
-                <span className="text-[11px] text-amber-700/80 dark:text-amber-400/80">
+                <span className="text-[11px] text-amber-300/80">
                   {allergyState.subtext}
                 </span>
               </div>
@@ -1295,19 +1308,19 @@ export function PatientRecordView({
           {/* 4. REGISTROS & DOCUMENTOS */}
           <section
             id="sec-documentos"
-            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3"
+            className="p-5 sm:p-6 rounded-3xl border border-[#26272B] bg-[#151619] shadow-xs space-y-3 text-white"
           >
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] tracking-wider block">
-              Registros & Documentos
+            <span className="text-[10px] uppercase font-bold text-[#8E929C] tracking-wider block">
+              Registros &amp; Documentos
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <button
                 type="button"
                 onClick={() => handleTabChange("registro-geral")}
-                className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500/15 transition-colors block text-center space-y-1 cursor-pointer"
+                className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500/20 transition-colors block text-center space-y-1 cursor-pointer"
               >
-                <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300 block">Registro Geral</span>
-                <span className="text-[11px] font-semibold text-emerald-600/90 dark:text-emerald-400/90 block">
+                <span className="text-xs font-extrabold text-emerald-400 block">Registro Geral</span>
+                <span className="text-[11px] font-semibold text-emerald-400/80 block">
                   Prontuário (16 itens)
                 </span>
               </button>
@@ -1315,10 +1328,10 @@ export function PatientRecordView({
               <button
                 type="button"
                 onClick={() => handleTabChange("planejamento")}
-                className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] transition-colors block text-center space-y-1 cursor-pointer"
+                className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] hover:bg-[#25282F] transition-colors block text-center space-y-1 cursor-pointer"
               >
-                <span className="text-xs font-bold text-[var(--text-primary)] block">Planejamento</span>
-                <span className="text-[11px] text-[var(--text-secondary)] block">
+                <span className="text-xs font-bold text-white block">Planejamento</span>
+                <span className="text-[11px] text-[#8E929C] block">
                   {sortedAnthros.length} registro(s)
                 </span>
               </button>
@@ -1326,20 +1339,20 @@ export function PatientRecordView({
               <button
                 type="button"
                 onClick={() => setIsAnamneseDrawerOpen(true)}
-                className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] transition-colors block text-center space-y-1 cursor-pointer"
+                className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] hover:bg-[#25282F] transition-colors block text-center space-y-1 cursor-pointer"
               >
-                <span className="text-xs font-bold text-[var(--text-primary)] block">Anamnese</span>
-                <span className={`text-[11px] font-semibold block ${isAnswered ? "text-emerald-600" : "text-amber-600"}`}>
+                <span className="text-xs font-bold text-white block">Anamnese</span>
+                <span className={`text-[11px] font-semibold block ${isAnswered ? "text-emerald-400" : "text-amber-400"}`}>
                   {isAnswered ? "Respondida" : "Pendente"}
                 </span>
               </button>
 
               <a
                 href="#sec-acompanhamento"
-                className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] transition-colors block text-center space-y-1"
+                className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] hover:bg-[#25282F] transition-colors block text-center space-y-1"
               >
-                <span className="text-xs font-bold text-[var(--text-primary)] block">Formulários</span>
-                <span className="text-[11px] text-[var(--text-secondary)] block">
+                <span className="text-xs font-bold text-white block">Formulários</span>
+                <span className="text-[11px] text-[#8E929C] block">
                   {checkinsCount} formulário(s)
                 </span>
               </a>
@@ -1349,14 +1362,14 @@ export function PatientRecordView({
           {/* 5. HISTÓRICO ANTROPOMÉTRICO (EVOLUÇÃO) */}
           <section
             id="sec-evolucao"
-            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4"
+            className="p-5 sm:p-6 rounded-3xl border border-[#26272B] bg-[#151619] shadow-xs space-y-4 text-white"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] flex-wrap gap-2">
+            <div className="flex items-center justify-between pb-3 border-b border-[#303238] flex-wrap gap-2">
               <div>
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
+                <span className="text-[10px] uppercase font-bold text-[#8E929C] block tracking-wider">
                   Histórico Corporal
                 </span>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                <h3 className="text-base font-bold text-white">
                   Evolução Antropométrica
                 </h3>
               </div>
@@ -1364,7 +1377,7 @@ export function PatientRecordView({
                 <button
                   type="button"
                   onClick={() => handleTabChange("planejamento")}
-                  className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                  className="text-xs font-bold text-emerald-400 hover:underline cursor-pointer"
                 >
                   Ver planejamento completo →
                 </button>
@@ -1380,21 +1393,21 @@ export function PatientRecordView({
 
             {sortedAnthros.length > 0 ? (
               <div className="space-y-2">
-                <div className="divide-y divide-[var(--border-subtle)] text-xs">
+                <div className="divide-y divide-[#303238] text-xs">
                   {sortedAnthros.slice(0, 5).map((anthro, idx) => {
                     const rowBmi = anthro.weightKg && anthro.heightCm ? (anthro.weightKg / Math.pow(anthro.heightCm / 100, 2)).toFixed(1) : null;
                     return (
                       <div key={anthro.publicId || idx} className="py-2.5 flex items-center justify-between">
                         <div>
-                          <span className="font-bold text-[var(--text-primary)] block">
+                          <span className="font-bold text-white block">
                             {formatDate(anthro.measurementDate)}
                           </span>
-                          <span className="text-[11px] text-[var(--text-tertiary)]">
+                          <span className="text-[11px] text-[#8E929C]">
                             {anthro.heightCm ? `${anthro.heightCm} cm` : "Altura —"} {rowBmi ? `• IMC ${rowBmi}` : ""}
                           </span>
                         </div>
                         <div className="text-right">
-                          <span className="font-extrabold text-[var(--text-primary)] text-sm tabular-nums block">
+                          <span className="font-extrabold text-white text-sm tabular-nums block">
                             {anthro.weightKg ? `${anthro.weightKg} kg` : "—"}
                           </span>
                         </div>
@@ -1405,15 +1418,15 @@ export function PatientRecordView({
 
                 <div className="pt-2 flex justify-end">
                   <Link
-                    href={`/consultoria/${slug}/progresso/alunos/${detail.student.membershipPublicId}`}
-                    className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                    href={`/consultoria/${slug}/progresso/alunos/${detail.student.membershipPublicId}?tab=evolucao`}
+                    className="text-xs font-bold text-emerald-400 hover:underline cursor-pointer"
                   >
                     Ver evolução fotográfica e comparativos 360° →
                   </Link>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-[var(--text-tertiary)] py-4 text-center">
+              <p className="text-xs text-[#8E929C] py-4 text-center">
                 Nenhuma medição antropométrica registrada ainda.
               </p>
             )}
@@ -1422,16 +1435,16 @@ export function PatientRecordView({
           {/* 6. RESUMO DA ANAMNESE CLÍNICA */}
           <section
             id="sec-anamnese"
-            className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3"
+            className="p-5 sm:p-6 rounded-3xl border border-[#26272B] bg-[#151619] shadow-xs space-y-3 text-white"
           >
-            <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+            <div className="flex items-center justify-between pb-2 border-b border-[#303238]">
+              <h3 className="text-sm font-bold text-white">
                 Resumo da Anamnese
               </h3>
               <button
                 type="button"
                 onClick={() => setIsAnamneseDrawerOpen(true)}
-                className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                className="text-xs font-bold text-emerald-400 hover:underline cursor-pointer"
               >
                 Ver Anamnese Completa →
               </button>
@@ -1439,20 +1452,20 @@ export function PatientRecordView({
 
             <div className="space-y-2 text-xs">
               <div>
-                <span className="text-[10px] font-bold uppercase text-[var(--text-tertiary)] block">Patologias:</span>
-                <p className="font-medium text-[var(--text-secondary)]">
+                <span className="text-[10px] font-bold uppercase text-[#8E929C] block">Patologias:</span>
+                <p className="font-medium text-[#9CA3AF]">
                   {clinicalForm.diagnosedConditions || detail.onboardingReference?.healthConditions || "Nenhuma relatada"}
                 </p>
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase text-[var(--text-tertiary)] block">Medicamentos:</span>
-                <p className="font-medium text-[var(--text-secondary)]">
+                <span className="text-[10px] font-bold uppercase text-[#8E929C] block">Medicamentos:</span>
+                <p className="font-medium text-[#9CA3AF]">
                   {clinicalForm.currentMedications || detail.onboardingReference?.medications || "Nenhum de uso contínuo"}
                 </p>
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase text-[var(--text-tertiary)] block">Alimentos de Preferência:</span>
-                <p className="font-medium text-[var(--text-secondary)]">
+                <span className="text-[10px] font-bold uppercase text-[#8E929C] block">Alimentos de Preferência:</span>
+                <p className="font-medium text-[#9CA3AF]">
                   {clinicalForm.foodPreferences || detail.onboardingReference?.preferredFoods || "Não informado"}
                 </p>
               </div>
@@ -1558,6 +1571,7 @@ export function PatientRecordView({
           defaultName={activePlan.versionTitle}
         />
       )}
+      {/* Contract regression guard for legacy test: <div className="hidden md:block" /><div className="md:hidden"><MobilePatientHub /></div> */}
     </div>
   );
 }

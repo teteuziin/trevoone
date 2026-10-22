@@ -521,7 +521,9 @@ export function PersonalStudentList({
                 student.latestAssignmentStatus === "ACTIVE" && Boolean(student.latestWorkoutTitle);
               const hasActiveNutrition = Boolean(student.hasActiveNutritionPlan && student.activeNutritionPlanTitle);
 
-              const studentDetailHref = `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?fromPage=${safePage}&filter=${filter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`;
+              const studentDetailHref = isEffectiveNutritionist
+                ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`
+                : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?fromPage=${safePage}&filter=${filter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`;
               const createWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
               const openPlanHref = student.activeNutritionPlanPublicId
                 ? `/consultoria/${consultancySlug}/planos-v2/${student.activeNutritionPlanPublicId}?student=${student.membershipPublicId}`
@@ -618,15 +620,6 @@ export function PersonalStudentList({
                             <span>Criar treino</span>
                           </Link>
                         )
-                      )}
-
-                      {isEffectiveNutritionist && (
-                        <Link
-                          href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`}
-                          className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 transition-colors min-h-[40px] inline-flex items-center gap-1 shrink-0"
-                        >
-                          <span>Prontuário</span>
-                        </Link>
                       )}
 
                       <Link

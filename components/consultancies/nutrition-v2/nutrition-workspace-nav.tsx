@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React from "react";
 import Link from "next/link";
@@ -32,7 +32,7 @@ export function NutritionWorkspaceNav({
   ] as const;
 
   return (
-    <div className="w-full border-b border-[var(--border-default)] bg-[var(--surface)] mb-6">
+    <div className="w-full border-b border-zinc-200 dark:border-[#303238] bg-transparent mb-6">
       <div className="flex items-center justify-between gap-4 py-2.5 overflow-x-auto no-scrollbar">
         <nav className="flex items-center gap-1.5 shrink-0" aria-label="Navegação Nutricional">
           {tabs.map((tab) => {

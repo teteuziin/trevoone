@@ -68,6 +68,11 @@ export default async function ProfessionalStudentProgressDetailPage({
     redirect(`/consultoria/${slug}`);
   }
 
+  // Canonical unification: Nutritionist mode opens the complete nutrition record (Prontuário) directly
+  if (isNutritionist && !isPersonal) {
+    redirect(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
+  }
+
   // Load complete student hub detail for Personal, Nutritionist and Consultancy Admin
   // Contract check: if (isPersonal || isConsultancyAdmin) {
   if (isPersonal || isNutritionist || isConsultancyAdmin) {

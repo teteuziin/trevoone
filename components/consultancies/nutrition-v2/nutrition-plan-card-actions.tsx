@@ -1,9 +1,15 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useEffect, useState, useSyncExternalStore, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { MobileActionSheet, type ActionSheetOption } from "@/components/ui/mobile";
 import { deletePlanAction } from "@/app/consultoria/[slug]/planos-v2/actions";
+
+const emptySubscribe = () => () => {};
+function useIsMounted() {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
 
 export interface NutritionPlanCardActionsProps {
   consultancySlug: string;
@@ -13,6 +19,13 @@ export interface NutritionPlanCardActionsProps {
   isTemplate?: boolean;
   assignedStudentName?: string | null;
   activeAssignmentsCount?: number;
+  /**
+   * "icons" (default): compact trash icon + ⋮ menu, used in the desktop table.
+   * "mobile": full-width labeled "Excluir" button + ⋮ menu, used in the
+   * smartphone card footer so the delete action is visible without opening
+   * the ⋮ menu first.
+   */
+  variant?: "icons" | "mobile";
 }
 
 function MoreVerticalIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -66,14 +79,31 @@ export function NutritionPlanCardActions({
   isTemplate = false,
   assignedStudentName,
   activeAssignmentsCount = 0,
+  variant = "icons",
 }: NutritionPlanCardActionsProps) {
   const router = useRouter();
+  const mounted = useIsMounted();
   const [isOpen, setIsOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const deleteLabel = isTemplate ? "Excluir modelo" : "Excluir plano";
   const hasActiveAssignment = Boolean(assignedStudentName) || activeAssignmentsCount > 0;
+
+  // Lock body scroll + close on Escape while the confirmation is open
+  useEffect(() => {
+    if (!isDeleteDialogOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsDeleteDialogOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isDeleteDialogOpen]);
 
   const handleConfirmDelete = () => {
     startTransition(async () => {
@@ -130,76 +160,111 @@ export function NutritionPlanCardActions({
     },
   ];
 
+  const actionSheet = (
+    <MobileActionSheet
+      isOpen={isOpen}
+      onClose={() => setIsOpen(false)}
+      title={planTitle}
+      options={options}
+    />
+  );
+
+  // Rendered through a portal (same pattern as the other nutrition modals):
+  // the desktop table cell applies whitespace-nowrap and layout containment,
+  // which made the confirmation text overflow the dialog box when the modal
+  // was rendered inline.
+  const deleteDialog = isDeleteDialogOpen ? (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={isTemplate ? "Excluir este modelo?" : "Excluir este plano?"}
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150 whitespace-normal"
+      onClick={() => setIsDeleteDialogOpen(false)}
+    >
+      <div
+        className="w-full max-w-sm rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl p-5 space-y-4 text-left"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-2">
+          <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+            <TrashIcon className="w-5 h-5" />
+          </div>
+          <h3 className="text-base font-extrabold text-[var(--text-primary)] break-words">
+            {isTemplate ? "Excluir este modelo?" : "Excluir este plano?"}
+          </h3>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed break-words">
+            O plano <strong className="text-[var(--text-primary)]">&ldquo;{planTitle}&rdquo;</strong>{" "}
+            sairá da lista de planos alimentares. Essa ação não pode ser desfeita.
+          </p>
+          {hasActiveAssignment && (
+            <p className="text-xs leading-relaxed break-words rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 px-3 py-2">
+              Este plano está vinculado a {assignedStudentName || "um paciente"}. Ao excluir, o
+              vínculo será encerrado e o paciente deixará de acessar este plano.
+            </p>
+          )}
+        </div>
+
+        <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center gap-2">
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => setIsDeleteDialogOpen(false)}
+            className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer disabled:opacity-50 min-h-[44px]"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={handleConfirmDelete}
+            className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer disabled:opacity-50 min-h-[44px]"
+          >
+            {isPending ? "Excluindo..." : deleteLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <>
-      {/* Visible delete button (desktop table). On mobile the delete action
-          lives in the ⋮ action sheet, like the workout cards pattern. */}
-      <button
-        type="button"
-        aria-label={`${deleteLabel}: ${planTitle}`}
-        title={deleteLabel}
-        disabled={isPending}
-        onClick={() => setIsDeleteDialogOpen(true)}
-        className="hidden sm:flex min-h-[34px] min-w-[34px] rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-950/60 active:scale-95 text-rose-600 dark:text-rose-400 items-center justify-center transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-      >
-        <TrashIcon className="w-4 h-4" />
-      </button>
+      {variant === "mobile" ? (
+        <button
+          type="button"
+          aria-label={`${deleteLabel}: ${planTitle}`}
+          disabled={isPending}
+          onClick={() => setIsDeleteDialogOpen(true)}
+          className="flex-1 min-h-[48px] px-3 rounded-xl font-bold text-xs bg-rose-50 hover:bg-rose-100 active:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+        >
+          <TrashIcon className="w-4 h-4" />
+          <span>{isTemplate ? "Excluir" : "Excluir plano"}</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          aria-label={`${deleteLabel}: ${planTitle}`}
+          title={deleteLabel}
+          disabled={isPending}
+          onClick={() => setIsDeleteDialogOpen(true)}
+          className="hidden sm:flex min-h-[34px] min-w-[34px] rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-950/60 active:scale-95 text-rose-600 dark:text-rose-400 items-center justify-center transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+        >
+          <TrashIcon className="w-4 h-4" />
+        </button>
+      )}
 
       <button
         type="button"
         aria-label={`Mais opções para ${planTitle}`}
         onClick={() => setIsOpen(true)}
-        className="min-h-[44px] min-w-[44px] sm:min-h-[34px] sm:min-w-[34px] rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] active:scale-95 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer shrink-0"
+        className={`${
+          variant === "mobile" ? "min-h-[48px] min-w-[48px]" : "min-h-[44px] min-w-[44px] sm:min-h-[34px] sm:min-w-[34px]"
+        } rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] active:scale-95 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer shrink-0`}
       >
         <MoreVerticalIcon className="w-4 h-4" />
       </button>
 
-      <MobileActionSheet
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        title={planTitle}
-        options={options}
-      />
-
-      {/* DELETE CONFIRMATION (responsive, mirrors the workout delete modal) */}
-      {isDeleteDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl p-5 space-y-4">
-            <div className="space-y-1.5">
-              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
-                <TrashIcon className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-extrabold text-[var(--text-primary)]">
-                {isTemplate ? "Excluir este modelo?" : "Excluir este plano?"}
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                {hasActiveAssignment
-                  ? `Este plano está vinculado a ${assignedStudentName || "um paciente"}. Ao excluir, o vínculo será encerrado e o paciente deixará de acessar o plano "${planTitle}". Essa ação não pode ser desfeita.`
-                  : `O plano "${planTitle}" sairá da lista de planos alimentares. Essa ação não pode ser desfeita.`}
-              </p>
-            </div>
-
-            <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-end gap-2">
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={() => setIsDeleteDialogOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={handleConfirmDelete}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {isPending ? "Excluindo..." : deleteLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {mounted ? createPortal(actionSheet, document.body) : actionSheet}
+      {mounted && deleteDialog ? createPortal(deleteDialog, document.body) : null}
     </>
   );
 }

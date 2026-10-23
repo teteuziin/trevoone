@@ -328,41 +328,46 @@ export function NutritionPlanListView({
                 <span>{new Date(plan.updatedAt).toLocaleDateString("pt-BR")}</span>
               </div>
 
-              {/* Action Buttons: Stop propagation so card touch isn't triggered simultaneously */}
+              {/* Action Buttons: two rows on smartphone so Excluir stays
+                  visible/accessible without opening the ⋮ menu.
+                  Stop propagation so card touch isn't triggered simultaneously */}
               <div
-                className="pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between gap-2"
+                className="pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80 space-y-2"
                 onClick={(e) => e.stopPropagation()}
               >
-                {!isTemplate ? (
-                  <button
-                    type="button"
-                    onClick={(e) => handleOpenSendPlan(e, plan)}
-                    className="flex-1 min-h-[44px] px-3 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+                <div className="flex items-center gap-2">
+                  {!isTemplate ? (
+                    <button
+                      type="button"
+                      onClick={(e) => handleOpenSendPlan(e, plan)}
+                      className="flex-1 min-h-[44px] px-3 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+                    >
+                      <PaperAirplaneIcon className="w-3.5 h-3.5" />
+                      <span>Enviar plano</span>
+                    </button>
+                  ) : null}
+
+                  <Link
+                    href={`/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`}
+                    className="flex-1 min-h-[44px] px-3.5 rounded-xl font-semibold text-xs bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white flex items-center justify-center gap-1.5 transition-colors"
                   >
-                    <PaperAirplaneIcon className="w-3.5 h-3.5" />
-                    <span>Enviar plano</span>
-                  </button>
-                ) : null}
+                    <span>Abrir plano</span>
+                    <ArrowRightIcon className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
 
-                <Link
-                  href={`/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`}
-                  className={`min-h-[44px] px-3.5 rounded-xl font-semibold text-xs bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white flex items-center justify-center gap-1.5 transition-colors ${
-                    isTemplate ? "flex-1" : ""
-                  }`}
-                >
-                  <span>Abrir plano</span>
-                  <ArrowRightIcon className="w-3.5 h-3.5" />
-                </Link>
-
-                <NutritionPlanCardActions
-                  consultancySlug={consultancySlug}
-                  planPublicId={plan.publicId}
-                  planTitle={title}
-                  isDraft={hasDraft && !hasPublished}
-                  isTemplate={isTemplate}
-                  assignedStudentName={plan.assignedStudentName}
-                  activeAssignmentsCount={plan.activeAssignmentsCount}
-                />
+                <div className="flex items-center gap-2">
+                  <NutritionPlanCardActions
+                    consultancySlug={consultancySlug}
+                    planPublicId={plan.publicId}
+                    planTitle={title}
+                    isDraft={hasDraft && !hasPublished}
+                    isTemplate={isTemplate}
+                    assignedStudentName={plan.assignedStudentName}
+                    activeAssignmentsCount={plan.activeAssignmentsCount}
+                    variant="mobile"
+                  />
+                </div>
               </div>
             </div>
           );

@@ -452,6 +452,9 @@ export function NutritionSubstitutionEditor({
                 {isLoadingPortions && availablePortions.length === 0 && (
                   <option value="" disabled>Carregando porções...</option>
                 )}
+                {!isLoadingPortions && availablePortions.length === 0 && substitution.foodPublicId && (
+                  <option value="" disabled>Sem medidas caseiras cadastradas</option>
+                )}
                 {availablePortions.map((p) => (
                   <option key={p.publicId} value={p.publicId}>
                     {p.label} ({p.equivalentReferenceAmount}g)
@@ -468,6 +471,20 @@ export function NutritionSubstitutionEditor({
               </select>
             </div>
           </div>
+
+          {/* Empty state message when food has no portions */}
+          {!isLoadingPortions && availablePortions.length === 0 && substitution.foodPublicId && !readOnly && (
+            <div className="flex items-center justify-between gap-1 text-[11px] text-[var(--text-tertiary)] bg-[var(--surface-subtle)] px-2 py-1.5 rounded-lg border border-[var(--border-subtle)] mt-1">
+              <span className="truncate">Este alimento ainda não tem medidas caseiras cadastradas.</span>
+              <button
+                type="button"
+                onClick={() => setIsCustomMeasureModalOpen(true)}
+                className="shrink-0 font-semibold text-[var(--brand-primary)] hover:underline cursor-pointer"
+              >
+                + Cadastrar medida
+              </button>
+            </div>
+          )}
 
           {/* Practical Rounding Suggestions Quick Chips */}
           {inlineRoundingOptions.length > 0 && (

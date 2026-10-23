@@ -54,6 +54,7 @@ import {
   type FoodNutrientDensityItem,
   type FoodNutrientStatus,
 } from "./nutrient-calculator";
+import { resolveAndEnsureCanonicalPortion } from "./canonical-food-portions";
 import {
   type PlanStructuredGuidance,
   parseStructuredGuidance,
@@ -1606,7 +1607,18 @@ export async function addMealItem(
         }
 
         if (portions.length === 0) {
-          throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
+          const canonical = await resolveAndEnsureCanonicalPortion(connection, food, input.portionPublicId.trim());
+          if (canonical) {
+            portions = [{
+              id: 0,
+              public_id: canonical.publicId,
+              label: canonical.label,
+              equivalent_reference_amount: canonical.equivalentReferenceAmount,
+              status: "ACTIVE",
+            } as RowDataPacket];
+          } else {
+            throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
+          }
         }
 
         const portion = portions[0];
@@ -1663,6 +1675,15 @@ export async function addMealItem(
                 ? input.prescribedUnitCode.trim().toUpperCase()
                 : derivePortionUnitCode(String(p.label));
               prescribedUnitLabel = String(p.label);
+            }
+          } else {
+            const canonical = await resolveAndEnsureCanonicalPortion(connection, food, targetLabel);
+            if (canonical) {
+              portionEquivalentAmount = canonical.equivalentReferenceAmount;
+              prescribedUnitCode = input.prescribedUnitCode && input.prescribedUnitCode !== "G"
+                ? input.prescribedUnitCode.trim().toUpperCase()
+                : derivePortionUnitCode(String(canonical.label));
+              prescribedUnitLabel = String(canonical.label);
             }
           }
         }
@@ -2012,7 +2033,18 @@ export async function updateMealItem(
             }
           }
           if (portions.length === 0) {
-            throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
+            const canonical = await resolveAndEnsureCanonicalPortion(connection, effectiveFoodRow, input.portionPublicId.trim());
+            if (canonical) {
+              portions = [{
+                id: 0,
+                public_id: canonical.publicId,
+                label: canonical.label,
+                equivalent_reference_amount: canonical.equivalentReferenceAmount,
+                status: "ACTIVE",
+              } as RowDataPacket];
+            } else {
+              throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
+            }
           }
           const portion = portions[0];
           if (portion.status !== "ACTIVE") {
@@ -2070,10 +2102,21 @@ export async function updateMealItem(
             prescribedUnitCode = String(item.prescribed_unit_code);
             prescribedUnitLabel = String(portion.label);
           } else {
-            portionEquivalentAmount = null;
-            if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
-              prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
-              prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+            const canonical = await resolveAndEnsureCanonicalPortion(
+              connection,
+              effectiveFoodRow,
+              String(item.prescribed_unit_label)
+            );
+            if (canonical) {
+              portionEquivalentAmount = canonical.equivalentReferenceAmount;
+              prescribedUnitCode = String(item.prescribed_unit_code);
+              prescribedUnitLabel = String(canonical.label);
+            } else {
+              portionEquivalentAmount = null;
+              if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
+                prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
+                prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+              }
             }
           }
         } else {
@@ -2505,7 +2548,18 @@ export async function addSubstitution(
         }
 
         if (portions.length === 0) {
-          throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
+          const canonical = await resolveAndEnsureCanonicalPortion(connection, food, input.portionPublicId.trim());
+          if (canonical) {
+            portions = [{
+              id: 0,
+              public_id: canonical.publicId,
+              label: canonical.label,
+              equivalent_reference_amount: canonical.equivalentReferenceAmount,
+              status: "ACTIVE",
+            } as RowDataPacket];
+          } else {
+            throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
+          }
         }
 
         const portion = portions[0];
@@ -2924,7 +2978,18 @@ export async function updateSubstitution(
             }
           }
           if (portions.length === 0) {
-            throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
+            const canonical = await resolveAndEnsureCanonicalPortion(connection, effectiveFoodRow, input.portionPublicId.trim());
+            if (canonical) {
+              portions = [{
+                id: 0,
+                public_id: canonical.publicId,
+                label: canonical.label,
+                equivalent_reference_amount: canonical.equivalentReferenceAmount,
+                status: "ACTIVE",
+              } as RowDataPacket];
+            } else {
+              throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
+            }
           }
           const portion = portions[0];
           if (portion.status !== "ACTIVE") {
@@ -2980,10 +3045,21 @@ export async function updateSubstitution(
             prescribedUnitCode = String(sub.prescribed_unit_code);
             prescribedUnitLabel = String(portion.label);
           } else {
-            portionEquivalentAmount = null;
-            if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
-              prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
-              prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+            const canonical = await resolveAndEnsureCanonicalPortion(
+              connection,
+              effectiveFoodRow,
+              String(sub.prescribed_unit_label)
+            );
+            if (canonical) {
+              portionEquivalentAmount = canonical.equivalentReferenceAmount;
+              prescribedUnitCode = String(sub.prescribed_unit_code);
+              prescribedUnitLabel = String(canonical.label);
+            } else {
+              portionEquivalentAmount = null;
+              if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
+                prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
+                prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+              }
             }
           }
         } else {

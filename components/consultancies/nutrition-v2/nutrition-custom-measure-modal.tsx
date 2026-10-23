@@ -290,6 +290,18 @@ function NutritionCustomMeasureForm({
           </p>
         </div>
 
+        {/* Live Structure Preview */}
+        {label.trim() && weightStr.trim() && (
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
+            <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>
+              1 {label.trim()} corresponde a {weightStr.trim()} {unitShort}
+            </span>
+          </div>
+        )}
+
         {/* Observação Opcional */}
         <div className="space-y-1.5">
           <label className="block text-xs font-bold text-[var(--text-primary)]">

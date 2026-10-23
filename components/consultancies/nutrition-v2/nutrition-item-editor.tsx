@@ -472,7 +472,7 @@ export function NutritionItemEditor({
                 </option>
               </optgroup>
 
-              {availablePortions.length > 0 && (
+              {availablePortions.length > 0 ? (
                 <optgroup label="Medidas do Alimento">
                   {availablePortions.map((p) => (
                     <option key={p.publicId} value={p.publicId}>
@@ -480,6 +480,12 @@ export function NutritionItemEditor({
                       {p.scope === "PERSONAL" ? " (Pessoal)" : p.scope === "CONSULTANCY" ? " (Consultoria)" : ""}
                     </option>
                   ))}
+                </optgroup>
+              ) : (
+                <optgroup label="Medidas do Alimento">
+                  <option value="" disabled>
+                    Sem medidas caseiras cadastradas
+                  </option>
                 </optgroup>
               )}
 
@@ -490,6 +496,20 @@ export function NutritionItemEditor({
           ) : (
             <span className="text-xs font-semibold text-[var(--text-secondary)]">
               {item.prescribedUnitLabel || item.prescribedUnitCode || standardUnitShort}
+            </span>
+          )}
+
+          {/* Empty state informative label with quick add button */}
+          {!readOnly && item.foodPublicId && availablePortions.length === 0 && (
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)] italic">
+              <span>Este alimento ainda não tem medidas caseiras cadastradas.</span>
+              <button
+                type="button"
+                onClick={() => setIsCustomMeasureModalOpen(true)}
+                className="not-italic font-semibold text-[var(--brand)] hover:underline cursor-pointer"
+              >
+                + Cadastrar medida
+              </button>
             </span>
           )}
 
@@ -877,13 +897,19 @@ export function NutritionItemEditor({
                 </option>
               </optgroup>
 
-              {availablePortions.length > 0 && (
+              {availablePortions.length > 0 ? (
                 <optgroup label="Medidas do Alimento">
                   {availablePortions.map((p) => (
                     <option key={p.publicId} value={p.publicId}>
                       {p.label} · {p.equivalentReferenceAmount} {standardUnitShort}
                     </option>
                   ))}
+                </optgroup>
+              ) : (
+                <optgroup label="Medidas do Alimento">
+                  <option value="" disabled>
+                    Sem medidas caseiras cadastradas
+                  </option>
                 </optgroup>
               )}
 
@@ -910,6 +936,20 @@ export function NutritionItemEditor({
             </span>
           )}
         </div>
+
+        {/* Empty state message on mobile */}
+        {!readOnly && item.foodPublicId && availablePortions.length === 0 && (
+          <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-tertiary)]">
+            <span className="truncate">Este alimento ainda não tem medidas caseiras cadastradas.</span>
+            <button
+              type="button"
+              onClick={() => setIsCustomMeasureModalOpen(true)}
+              className="shrink-0 font-semibold text-[var(--brand)] hover:underline cursor-pointer min-h-[36px] flex items-center px-1"
+            >
+              + Cadastrar
+            </button>
+          </div>
+        )}
 
         {/* Line 3: Macros + Equivalentes + Substitutions toggle */}
         <div className="flex items-center justify-between gap-2 text-[11px] pt-0.5">

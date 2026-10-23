@@ -8,6 +8,10 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { calculateItemNutrients, type CanonicalPortionSource } from "./nutrient-calculator";
 import {
+  resolveCanonicalPortionsForFood,
+  generateDeterministicPortionPublicId,
+} from "./canonical-food-portions";
+import {
   NutritionAuthorizationError,
   type NutritionAccessContext,
   assertCanAuthorNutrition,
@@ -360,6 +364,70 @@ export async function getFoodWithPortions(
 
     const effectiveDisplay = cleanFoodDisplayName(safeNullableString(f.display_name_pt_br) || safeString(f.name), safeNullableString(f.source_key)) || safeString(f.name);
     const { preparationState, brandName } = detectFoodPreparationAndBrand(effectiveDisplay, safeString(f.name), safeNullableString(f.source_key), safeString(f.source_type, "MANUAL"));
+
+    // If no portions are registered for this global food, resolve official canonical Brazilian household measures
+    if (portions.length === 0 && (!f.scope || f.scope === "GLOBAL")) {
+      const canonicals = resolveCanonicalPortionsForFood({
+        name: safeString(f.name),
+        displayName: safeNullableString(f.display_name_pt_br),
+        category: safeNullableString(f.category),
+        preparationState,
+        referenceUnitCode: safeString(f.reference_unit_code, "G"),
+      });
+
+      if (canonicals.length > 0) {
+        for (let i = 0; i < canonicals.length; i++) {
+          const c = canonicals[i];
+          const detPublicId = generateDeterministicPortionPublicId(f.id, c.label);
+          try {
+            await connection.query(
+              `INSERT INTO nutrition_v2_food_portions
+               (public_id, food_id, label, equivalent_reference_amount, sort_order, status, scope, consultancy_id, created_by_user_id, notes)
+               VALUES (?, ?, ?, ?, ?, 'ACTIVE', 'GLOBAL', NULL, NULL, ?)
+               ON DUPLICATE KEY UPDATE
+                 label = VALUES(label),
+                 equivalent_reference_amount = VALUES(equivalent_reference_amount),
+                 status = 'ACTIVE'`,
+              [detPublicId, f.id, c.label, c.amount, i, c.notes || null]
+            );
+          } catch {
+            // DB read-only or column variance fallback
+          }
+        }
+
+        try {
+          const [refetched] = await connection.query<RowDataPacket[]>(
+            `SELECT public_id, label, equivalent_reference_amount, sort_order, status,
+                    scope, consultancy_id, created_by_user_id, notes,
+                    created_at, updated_at, deleted_at
+             FROM nutrition_v2_food_portions
+             WHERE food_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
+             ORDER BY sort_order ASC, label ASC`,
+            [f.id]
+          );
+          if (refetched.length > 0) {
+            portions = refetched;
+          }
+        } catch {}
+
+        if (portions.length === 0) {
+          portions = canonicals.map((c, i) => ({
+            public_id: generateDeterministicPortionPublicId(f.id, c.label),
+            label: c.label,
+            equivalent_reference_amount: c.amount,
+            sort_order: i,
+            status: "ACTIVE",
+            scope: "GLOBAL",
+            consultancy_id: null,
+            created_by_user_id: null,
+            notes: c.notes || null,
+            created_at: new Date(),
+            updated_at: new Date(),
+            deleted_at: null,
+          })) as RowDataPacket[];
+        }
+      }
+    }
 
     return {
       publicId: safeString(f.public_id),

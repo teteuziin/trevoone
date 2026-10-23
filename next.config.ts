@@ -78,6 +78,10 @@ const nextConfig: NextConfig = {
   experimental: {
     // Reduz o paralelismo do build para compatibilidade com o ambiente e limite de threads da Hostinger
     cpus: 2,
+    // Reduz o pico de memória do webpack: o construtor da Hostinger derrubou
+    // duas construções seguidas (23/10/2026) enquanto o mesmo build passa
+    // localmente — a assinatura é de limite de memória do ambiente.
+    webpackMemoryOptimizations: true,
   },
   async headers() {
     return [

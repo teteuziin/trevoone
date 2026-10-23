@@ -795,7 +795,13 @@ export async function getPatientRecordDetail(
     let labExams: PatientLabExamRecord[] = [];
     try {
       labExams = await listPatientLabExams(consultancyId, studentMembershipId);
-    } catch {
+    } catch (err: unknown) {
+      const isMissingTable =
+        (err as { code?: string })?.code === "ER_NO_SUCH_TABLE" ||
+        String(err).includes("doesn't exist");
+      if (!isMissingTable) {
+        throw err;
+      }
       labExams = [];
     }
 
@@ -810,7 +816,13 @@ export async function getPatientRecordDetail(
       if (authorUserId > 0) {
         fieldPreferences = await getPlanningFieldPreferences(consultancyId, authorUserId);
       }
-    } catch {
+    } catch (err: unknown) {
+      const isMissingTable =
+        (err as { code?: string })?.code === "ER_NO_SUCH_TABLE" ||
+        String(err).includes("doesn't exist");
+      if (!isMissingTable) {
+        throw err;
+      }
       fieldPreferences = undefined;
     }
 
@@ -1273,6 +1285,18 @@ export async function addAnthropometricEntry(
     const diametersJson = validated.diameters ? JSON.stringify(validated.diameters) : null;
     const bodyCompJson = validated.bodyComposition ? JSON.stringify(validated.bodyComposition) : null;
 
+    const hasExpandedData = Boolean(
+      (validated.perimeters && Object.values(validated.perimeters).some((v) => v !== null && v !== undefined && (!Array.isArray(v) || v.length > 0))) ||
+      (validated.diameters && Object.values(validated.diameters).some((v) => v !== null && v !== undefined && (!Array.isArray(v) || v.length > 0))) ||
+      (validated.bodyComposition && (
+        validated.bodyComposition.equipment ||
+        validated.bodyComposition.protocol ||
+        validated.bodyComposition.origin ||
+        validated.bodyComposition.notes ||
+        validated.bodyComposition.isInconsistent
+      ))
+    );
+
     try {
       // 1. Expanded schema (migration 065)
       await connection.execute<ResultSetHeader>(
@@ -1371,6 +1395,11 @@ export async function addAnthropometricEntry(
         ]
       );
     } catch {
+      if (hasExpandedData) {
+        throw new Error(
+          "As medidas corporais ampliadas (perímetros bilaterais, diâmetros ósseos ou composição estruturada) requerem a aplicação da Migration 065 no banco de dados. Os dados digitados foram preservados para evitar perda de informações."
+        );
+      }
       try {
         // 2. Schema 062 without 065 columns
         await connection.execute<ResultSetHeader>(
@@ -1548,6 +1577,18 @@ export async function updateAnthropometricEntry(
     const diametersJson = validated.diameters ? JSON.stringify(validated.diameters) : null;
     const bodyCompJson = validated.bodyComposition ? JSON.stringify(validated.bodyComposition) : null;
 
+    const hasExpandedData = Boolean(
+      (validated.perimeters && Object.values(validated.perimeters).some((v) => v !== null && v !== undefined && (!Array.isArray(v) || v.length > 0))) ||
+      (validated.diameters && Object.values(validated.diameters).some((v) => v !== null && v !== undefined && (!Array.isArray(v) || v.length > 0))) ||
+      (validated.bodyComposition && (
+        validated.bodyComposition.equipment ||
+        validated.bodyComposition.protocol ||
+        validated.bodyComposition.origin ||
+        validated.bodyComposition.notes ||
+        validated.bodyComposition.isInconsistent
+      ))
+    );
+
     // 2. Perform UPDATE with fallback
     try {
       // 2.1 Full schema update (migration 065)
@@ -1643,6 +1684,11 @@ export async function updateAnthropometricEntry(
         ]
       );
     } catch {
+      if (hasExpandedData) {
+        throw new Error(
+          "As medidas corporais ampliadas (perímetros bilaterais, diâmetros ósseos ou composição estruturada) requerem a aplicação da Migration 065 no banco de dados. Os dados digitados foram preservados para evitar perda de informações."
+        );
+      }
       try {
         // 2.2 Schema 062 update without 065 columns
         await connection.execute<ResultSetHeader>(

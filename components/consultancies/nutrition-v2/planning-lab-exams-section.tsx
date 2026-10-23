@@ -97,7 +97,7 @@ export function PlanningLabExamsSection({
         const refText = refMin != null || refMax != null ? `${refMin != null ? `Min ${refMin}` : ""} ${refMax != null ? `Max ${refMax}` : ""}`.trim() : null;
 
         return {
-          canonicalKey: r.catalogKey || null,
+          canonicalKey: r.catalogKey === "custom" ? null : (r.catalogKey || null),
           name: examName,
           resultRaw: r.rawInput.trim(),
           unit: r.unit || canonical?.defaultUnit || "",

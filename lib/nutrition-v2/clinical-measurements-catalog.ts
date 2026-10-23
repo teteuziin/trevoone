@@ -317,10 +317,10 @@ export function computeWaistToHipEvaluation(params: {
 }): WaistToHipEvaluation {
   const { waistCm, hipCm, assessmentDate } = params;
 
-  const hasWaist = waistCm !== null && waistCm !== undefined && Number(waistCm) > 0;
-  const hasHip = hipCm !== null && hipCm !== undefined && Number(hipCm) > 0;
+  const isWaistProvided = waistCm !== null && waistCm !== undefined && !isNaN(Number(waistCm));
+  const isHipProvided = hipCm !== null && hipCm !== undefined && !isNaN(Number(hipCm));
 
-  if (!hasWaist && !hasHip) {
+  if (!isWaistProvided && !isHipProvided) {
     return {
       waistCm: null,
       hipCm: null,
@@ -333,10 +333,10 @@ export function computeWaistToHipEvaluation(params: {
     };
   }
 
-  if (!hasWaist) {
+  if (!isWaistProvided) {
     return {
       waistCm: null,
-      hipCm: Number(hipCm),
+      hipCm: isHipProvided ? Number(hipCm) : null,
       ratio: null,
       ratioFormatted: "—",
       isComputable: false,
@@ -346,7 +346,7 @@ export function computeWaistToHipEvaluation(params: {
     };
   }
 
-  if (!hasHip) {
+  if (!isHipProvided) {
     return {
       waistCm: Number(waistCm),
       hipCm: null,
@@ -430,6 +430,7 @@ export interface TwoComponentModelDerivation {
   derivedLeanPct: boolean;
   isInconsistent: boolean;
   inconsistencyDetails: string | null;
+  inconsistencyMessage?: string | null;
 }
 
 /**
@@ -529,6 +530,7 @@ export function deriveTwoComponentModel(params: {
     derivedLeanPct,
     isInconsistent,
     inconsistencyDetails,
+    inconsistencyMessage: inconsistencyDetails,
   };
 }
 

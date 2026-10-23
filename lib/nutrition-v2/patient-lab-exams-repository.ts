@@ -119,8 +119,13 @@ export async function listPatientLabExams(
     );
 
     return (Array.isArray(rows) ? rows : []).map(mapRowToLabExamRecord);
-  } catch {
-    // Schema fallback if table not yet created on remote host
+  } catch (err: unknown) {
+    const isMissingTable =
+      (err as { code?: string })?.code === "ER_NO_SUCH_TABLE" ||
+      String(err).includes("doesn't exist");
+    if (!isMissingTable) {
+      throw err;
+    }
     return [];
   } finally {
     connection.release();

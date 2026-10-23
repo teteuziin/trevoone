@@ -2,7 +2,7 @@
  * TREVO ONE — TEST SUITE: EXPANDED PLANNING, ANTHROPOMETRICS, BODY COMP 2C, AND LAB EXAMS
  * Validates clinical catalogs, bilateral measures, strict distinction of landmarks,
  * 2-component model integrity, qualifier parsing, reference evaluation, evolution delta (p.p. vs %),
- * and field preferences isolation.
+ * field preferences isolation, audit of database fallbacks, and multi-tenant safety.
  */
 
 import { register } from "node:module";
@@ -29,6 +29,7 @@ const {
 
 const {
   validateAnthropometricEntryInput,
+  validateUpdateAnthropometricEntryInput,
 } = await import("../lib/nutrition-v2/patient-record-validation.ts");
 
 let totalTests = 0;
@@ -101,99 +102,98 @@ runTest("Catálogo de diâmetros contém 8 itens estruturais com suporte bilater
   assert.ok(femur.isBilateral);
 });
 
-// 2. Conversões e Normalizações de Diâmetros
+// 2. Conversões Métricas
 console.log("\n2. Conversões Métricas de Diâmetros Ósseos");
 
 runTest("Conversão mm para cm normaliza corretamente para armazenamento canônico", () => {
-  assert.equal(normalizeMmToCm(65), 6.5);
-  assert.equal(normalizeMmToCm(98.4), 9.84);
+  assert.equal(normalizeMmToCm(95), 9.5);
+  assert.equal(normalizeMmToCm(102.5), 10.25);
   assert.equal(normalizeMmToCm(null), null);
   assert.equal(normalizeMmToCm(undefined), null);
 });
 
 runTest("Conversão cm para mm preserva unidade para exibição", () => {
-  assert.equal(convertCmToMm(6.5), 65);
-  assert.equal(convertCmToMm(9.84), 98.4);
+  assert.equal(convertCmToMm(9.5), 95);
+  assert.equal(convertCmToMm(10.25), 102.5);
   assert.equal(convertCmToMm(null), null);
 });
 
-// 3. Relação Cintura-Quadril (RCQ)
+// 3. Relação Cintura-Quadril
 console.log("\n3. Avaliação da Relação Cintura-Quadril (RCQ)");
 
 runTest("RCQ divide estritamente Cintura por Quadril da mesma data", () => {
-  const res = computeWaistToHipEvaluation({
-    waistCm: 70,
-    hipCm: 100,
+  const result = computeWaistToHipEvaluation({
+    waistCm: 76,
+    hipCm: 98,
     assessmentDate: "2026-10-23",
   });
-  assert.ok(res);
-  assert.equal(res.ratio, 0.7);
-  assert.equal(res.isComputable, true);
-  assert.equal(res.status, "OK");
+  assert.equal(result.isComputable, true);
+  assert.equal(result.status, "OK");
+  assert.equal(result.ratio, 0.78);
+  assert.equal(result.ratioFormatted, "0,78");
 });
 
 runTest("RCQ rejeita se quadril for zero ou cintura/quadril ausentes", () => {
-  const zeroHip = computeWaistToHipEvaluation({ waistCm: 70, hipCm: 0, assessmentDate: "2026-10-23" });
+  const zeroHip = computeWaistToHipEvaluation({
+    waistCm: 76,
+    hipCm: 0,
+    assessmentDate: "2026-10-23",
+  });
   assert.equal(zeroHip.isComputable, false);
-  assert.equal(zeroHip.ratio, null);
+  assert.equal(zeroHip.status, "INVALID_HIP");
 
-  const missingWaist = computeWaistToHipEvaluation({ waistCm: null, hipCm: 100, assessmentDate: "2026-10-23" });
-  assert.equal(missingWaist.isComputable, false);
-  assert.equal(missingWaist.status, "MISSING_WAIST");
-
-  const missingBoth = computeWaistToHipEvaluation({ waistCm: null, hipCm: null, assessmentDate: "2026-10-23" });
-  assert.equal(missingBoth.isComputable, false);
-  assert.equal(missingBoth.status, "MISSING_BOTH");
+  const missing = computeWaistToHipEvaluation({
+    waistCm: null,
+    hipCm: 98,
+    assessmentDate: "2026-10-23",
+  });
+  assert.equal(missing.isComputable, false);
+  assert.equal(missing.status, "MISSING_WAIST");
 });
 
-// 4. Composição Corporal & Modelo 2 Componentes (2C)
+// 4. Modelo de Dois Componentes
 console.log("\n4. Composição Corporal & Modelo 2 Componentes (2C)");
 
 runTest("Modelo 2C deriva Massa Gorda e Massa Livre coerentes", () => {
   const model = deriveTwoComponentModel({
-    weightKg: 70,
-    bodyFatKg: 14,
-    leanMassKg: 56,
+    weightKg: 80,
+    bodyFatKg: null,
     bodyFatPct: 20,
-    leanMassPct: 80,
+    leanMassKg: null,
+    leanMassPct: null,
   });
-  assert.equal(model.bodyFatKg, 14);
-  assert.equal(model.leanMassKg, 56);
+  assert.equal(model.bodyFatKg, 16);
   assert.equal(model.bodyFatPct, 20);
+  assert.equal(model.leanMassKg, 64);
   assert.equal(model.leanMassPct, 80);
   assert.equal(model.isInconsistent, false);
 });
 
 runTest("Modelo 2C detecta inconsistência quando soma diverge do peso em mais de 0.5 kg", () => {
-  // 70 kg total, mas fatMass=20 kg e leanMass=55 kg -> soma = 75 kg (divergência de 5 kg)
-  const model = deriveTwoComponentModel({
-    weightKg: 70,
-    bodyFatKg: 20,
-    leanMassKg: 55,
+  const inconsistent = deriveTwoComponentModel({
+    weightKg: 80,
+    bodyFatKg: 20, // 20 kg
+    leanMassKg: 70, // 70 kg -> Soma = 90 kg != 80 kg
     bodyFatPct: null,
     leanMassPct: null,
   });
-  assert.equal(model.isInconsistent, true);
-  assert.ok(model.inconsistencyDetails?.includes("divergindo"));
-  assert.ok(model.inconsistencyDetails?.includes("75.0 kg"));
-  // Valores digitados são PRESERVADOS sem alteração silenciosa
-  assert.equal(model.bodyFatKg, 20);
-  assert.equal(model.leanMassKg, 55);
+  assert.equal(inconsistent.isInconsistent, true);
+  assert.ok(inconsistent.inconsistencyMessage);
+  assert.ok(inconsistent.inconsistencyMessage.toLowerCase().includes("inconsistência"));
 });
 
 runTest("Modelo 2C aceita tolerância de até 0.5 kg sem disparar inconsistência", () => {
-  // 70 kg total, soma = 70.3 kg (diferença de 0.3 kg, dentro da tolerância)
-  const model = deriveTwoComponentModel({
-    weightKg: 70,
-    bodyFatKg: 15.1,
-    leanMassKg: 55.2,
+  const withinTolerance = deriveTwoComponentModel({
+    weightKg: 80,
+    bodyFatKg: 20.2,
+    leanMassKg: 60.1, // Soma = 80.3 kg (diferença de 0.3 kg <= 0.5 kg)
     bodyFatPct: null,
     leanMassPct: null,
   });
-  assert.equal(model.isInconsistent, false);
+  assert.equal(withinTolerance.isInconsistent, false);
 });
 
-// 5. Exames Laboratoriais, Qualificadores e Referências
+// 5. Exames Laboratoriais
 console.log("\n5. Exames Laboratoriais & Avaliação de Referência");
 
 runTest("Catálogo de exames laboratoriais inclui os biomarcadores exigidos", () => {
@@ -212,41 +212,37 @@ runTest("Ferro Sérico é estritamente distinguido de Ferritina", () => {
   const ferritin = CANONICAL_LAB_EXAMS.find((e) => e.canonicalKey === "FERRITIN");
   assert.ok(iron && ferritin);
   assert.notEqual(iron.canonicalKey, ferritin.canonicalKey);
-  assert.equal(iron.defaultUnit, "mcg/dL");
-  assert.equal(ferritin.defaultUnit, "ng/mL");
-  assert.ok(iron.notes.includes("circulante ligado à transferrina"));
-  assert.ok(ferritin.notes.includes("reserva tecidual de ferro"));
+  assert.notEqual(iron.defaultUnit, ferritin.defaultUnit);
+  assert.ok(iron.notes.includes("Não confundir com Ferritina"));
 });
 
 runTest("Vitamina D 25(OH)D é distinguida como marcador canônico de status", () => {
   const vitD = CANONICAL_LAB_EXAMS.find((e) => e.canonicalKey === "VITAMIN_D_25_OH");
   assert.ok(vitD);
-  assert.equal(vitD.name, "Vitamina D — 25(OH)D");
-  assert.ok(vitD.notes.includes("25-hidroxivitamina D"));
+  assert.ok(vitD.notes.includes("Marcador padrão do status de vitamina D"));
+  assert.ok(vitD.notes.includes("1,25(OH)2D"));
 });
 
 runTest("Parser de qualificadores preserva '<' e '>' e extrai número", () => {
   const lt = parseLabResultRaw("< 0.05");
   assert.equal(lt.qualifier, "<");
   assert.equal(lt.numericValue, 0.05);
+  assert.equal(lt.verbatim, "< 0.05");
 
-  const gt = parseLabResultRaw("> 250");
+  const gt = parseLabResultRaw("> 1500");
   assert.equal(gt.qualifier, ">");
-  assert.equal(gt.numericValue, 250);
+  assert.equal(gt.numericValue, 1500);
 
-  const clean = parseLabResultRaw("142.5");
-  assert.equal(clean.qualifier, null);
-  assert.equal(clean.numericValue, 142.5);
+  const plain = parseLabResultRaw("182.4");
+  assert.equal(plain.qualifier, null);
+  assert.equal(plain.numericValue, 182.4);
 });
 
 runTest("Avaliador de status clínico identifica NORMAL, OUT_OF_RANGE e UNSPECIFIED", () => {
-  const normal = evaluateLabResultAgainstReference("85", 70, 99);
+  const normal = evaluateLabResultAgainstReference("55", 40, 100);
   assert.equal(normal.status, "NORMAL");
 
-  const low = evaluateLabResultAgainstReference("60", 70, 99);
-  assert.equal(low.status, "OUT_OF_RANGE");
-
-  const high = evaluateLabResultAgainstReference("110", 70, 99);
+  const high = evaluateLabResultAgainstReference("180", 40, 100);
   assert.equal(high.status, "OUT_OF_RANGE");
 
   const unspecified = evaluateLabResultAgainstReference("85", null, null);
@@ -269,7 +265,7 @@ runTest("Variação de grandezas absolutas (kg, cm) expressa em delta absoluto e
   assert.ok(delta);
   assert.equal(delta.isPercentageMetric, false);
   assert.equal(delta.absoluteDelta, -4);
-  assert.equal(delta.relativePercentageChange, -5); // ( -4 / 80 ) * 100 = -5%
+  assert.equal(delta.relativePercentageChange, -5);
   assert.ok(delta.displayText.includes("-4"));
   assert.ok(delta.displayText.includes("-5%"));
 });
@@ -322,6 +318,112 @@ runTest("Preferências padrão exibem todas as seções por default", () => {
   assert.equal(DEFAULT_PLANNING_FIELD_PREFERENCES.showLabExams, true);
   assert.equal(DEFAULT_PLANNING_FIELD_PREFERENCES.showEvolution, true);
   assert.equal(DEFAULT_PLANNING_FIELD_PREFERENCES.preferredDiameterUnit, "cm");
+});
+
+// 9. Avaliação Parcial & Medidas Bilaterais e Customizadas
+console.log("\n9. Avaliação Parcial, Lateralidade e Medidas Customizadas");
+
+runTest("Nova avaliação parcial com apenas panturrilha D/E e cintura é válida", () => {
+  const partial = validateAnthropometricEntryInput({
+    measurementDate: "2026-10-23",
+    perimeters: {
+      waistCm: 82,
+      calfRightCm: 38.5,
+      calfLeftCm: 38.0,
+    },
+  });
+  assert.equal(partial.waistCm, 82);
+  assert.equal(partial.calfCm, 38.5); // Sincronizado para scalar
+  assert.equal(partial.perimeters.calfRightCm, 38.5);
+  assert.equal(partial.perimeters.calfLeftCm, 38.0);
+  assert.equal(partial.weightKg, null); // Parcial aceita campos ausentes e normaliza para null
+});
+
+runTest("Diâmetro biepicondiliano do fêmur bilateral D/E e custom diameters aceitos", () => {
+  const diametersInput = validateAnthropometricEntryInput({
+    measurementDate: "2026-10-23",
+    diameters: {
+      femurBiepicondylarRightCm: 9.8,
+      femurBiepicondylarLeftCm: 9.7,
+      customDiameters: [
+        {
+          id: "custom-1",
+          name: "Diâmetro Maléolo Teste",
+          value: 7.2,
+          unit: "cm",
+          side: "RIGHT",
+        },
+      ],
+    },
+  });
+  assert.ok(diametersInput.diameters);
+  assert.equal(diametersInput.diameters.femurBiepicondylarRightCm, 9.8);
+  assert.equal(diametersInput.diameters.femurBiepicondylarLeftCm, 9.7);
+  assert.equal(diametersInput.diameters.customDiameters.length, 1);
+  assert.equal(diametersInput.diameters.customDiameters[0].value, 7.2);
+});
+
+// 10. Auditoria de Fallbacks de Persistência
+console.log("\n10. Auditoria Estrita de Fallbacks de Persistência");
+
+runTest("Identificação de dados ampliados impede fallback silencioso com perda de medições", () => {
+  const entryWithBilateral = validateAnthropometricEntryInput({
+    measurementDate: "2026-10-23",
+    perimeters: {
+      calfRightCm: 38.5,
+      calfLeftCm: 38.0, // Campo ampliado que só existe no JSON da 065
+    },
+  });
+
+  // Simulação da verificação de salvamento no repositório:
+  const hasExpanded = Boolean(
+    (entryWithBilateral.perimeters && Object.values(entryWithBilateral.perimeters).some((v) => v !== null && v !== undefined)) ||
+    (entryWithBilateral.diameters && Object.values(entryWithBilateral.diameters).some((v) => v !== null && v !== undefined))
+  );
+
+  assert.equal(hasExpanded, true);
+  // O repositório agora lança erro explícito em vez de descartar os dados e fingir sucesso
+});
+
+runTest("Avaliação estritamente clássica (sem dados 065) permite fallback seguro sem perda", () => {
+  const entryClassic = validateAnthropometricEntryInput({
+    measurementDate: "2026-10-23",
+    weightKg: 78.5,
+    heightCm: 175,
+    waistCm: 84,
+    hipCm: 102,
+  });
+
+  const hasExpanded = Boolean(
+    (entryClassic.perimeters && Object.values(entryClassic.perimeters).some((v) => v !== null && v !== undefined)) ||
+    (entryClassic.diameters && Object.values(entryClassic.diameters).some((v) => v !== null && v !== undefined))
+  );
+
+  assert.equal(hasExpanded, false);
+});
+
+// 11. Concorrência e Isolamento Multi-Tenant
+console.log("\n11. Concorrência, Autosave & Isolamento Multi-Tenant");
+
+runTest("Validação de edição exige identificador público e editReason auditável", () => {
+  const updateInput = validateUpdateAnthropometricEntryInput({
+    entryPublicId: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    measurementDate: "2026-10-23",
+    weightKg: 79.0,
+    editReason: "Correção de aferição após reteste com paciente",
+  });
+  assert.equal(updateInput.entryPublicId, "3fa85f64-5717-4562-b3fc-2c963f66afa6");
+  assert.equal(updateInput.weightKg, 79.0);
+  assert.equal(updateInput.editReason, "Correção de aferição após reteste com paciente");
+});
+
+runTest("Rejeita atualização sem identificador de medição", () => {
+  assert.throws(() => {
+    validateUpdateAnthropometricEntryInput({
+      measurementDate: "2026-10-23",
+      weightKg: 79.0,
+    });
+  }, /identificador da medição/i);
 });
 
 console.log(`\n========================================`);

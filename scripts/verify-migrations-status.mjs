@@ -130,6 +130,22 @@ async function runVerification() {
     const [mtTable] = await conn.query("SHOW TABLES LIKE 'nutrition_v2_meal_tracking_logs';");
     console.log(`[063] nutrition_v2_meal_tracking_logs: ${mtTable.length > 0 ? "PRESENTE" : "AUSENTE"}`);
 
+    // 065: nutrition_v2_patient_anthropometrics JSON columns + lab exams + planning preferences
+    const [antJsonCols] = await conn.query(
+      `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'nutrition_v2_patient_anthropometrics'
+         AND COLUMN_NAME IN ('perimeters_json', 'diameters_json', 'body_composition_json');`,
+      [database]
+    );
+    console.log(`[065] nutrition_v2_patient_anthropometrics (colunas JSON estruturadas): ${antJsonCols.length}/3 colunas detectadas`);
+
+    const [labExamsTable] = await conn.query("SHOW TABLES LIKE 'nutrition_v2_patient_lab_exams';");
+    console.log(`[065] nutrition_v2_patient_lab_exams: ${labExamsTable.length > 0 ? "PRESENTE" : "AUSENTE"}`);
+
+    const [planningPrefsTable] = await conn.query("SHOW TABLES LIKE 'nutrition_v2_planning_field_preferences';");
+    console.log(`[065] nutrition_v2_planning_field_preferences: ${planningPrefsTable.length > 0 ? "PRESENTE" : "AUSENTE"}`);
+
     console.log("\n================================================================================");
     console.log("STATUS DAS MIGRATIONS: VERIFICAÇÃO CONCLUÍDA NO AMBIENTE AUTORIZADO");
     console.log("================================================================================\n");

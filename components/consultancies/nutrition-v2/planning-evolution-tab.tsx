@@ -742,8 +742,11 @@ export function PlanningEvolutionTab({
       {/* =================================================================== */}
       {subTab === "evolucao" && (
         <div className="space-y-6">
-          {/* Comparador Temporal */}
-          <PlanningEvolutionComparator entries={sortedAnthros} />
+          {/* Comparador Temporal e Série Histórica */}
+          <PlanningEvolutionComparator
+            entries={sortedAnthros}
+            labExams={detail.labExams || []}
+          />
 
           {/* Gráfico Responsivo de Peso */}
           <WeightEvolutionChart

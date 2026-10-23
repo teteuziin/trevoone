@@ -78,9 +78,16 @@ export async function savePlanningFieldPreferences(
       [consultancyId, userId, payloadJson]
     );
     return updated;
-  } catch {
-    // If table doesn't exist yet, return in-memory preferences without crashing
-    return updated;
+  } catch (err: unknown) {
+    const isMissingTable =
+      (err as { code?: string })?.code === "ER_NO_SUCH_TABLE" ||
+      String(err).includes("doesn't exist");
+    if (isMissingTable) {
+      throw new Error(
+        "A persistência de preferências de campos requer a aplicação da Migration 065 no banco de dados."
+      );
+    }
+    throw err;
   } finally {
     connection.release();
   }

@@ -398,6 +398,10 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* Defesa global: elementos decorativos/absolutos nunca geram rolagem
+     horizontal da página ("clip" não cria contêiner de rolagem, então
+     position: sticky/fixed dos cabeçalhos e da sidebar não é afetado). */
+  overflow-x: clip;
   min-height: 100%;
   width: 100%;
   max-width: 100%;

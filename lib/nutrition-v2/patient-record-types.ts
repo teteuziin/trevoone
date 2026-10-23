@@ -1,3 +1,19 @@
+import type {
+  StructuredPerimeters,
+  StructuredDiameters,
+  StructuredBodyComposition,
+  PatientLabExamRecord,
+  PlanningFieldPreferences,
+} from "./clinical-measurements-catalog";
+
+export type {
+  StructuredPerimeters,
+  StructuredDiameters,
+  StructuredBodyComposition,
+  PatientLabExamRecord,
+  PlanningFieldPreferences,
+};
+
 export type BiologicalSex = "MALE" | "FEMALE";
 
 /**
@@ -239,6 +255,11 @@ export type PatientAnthropometricEntry = {
   editReason?: string | null;
   createdAt: string;
   updatedAt: string;
+
+  // Medidas ampliadas estruturadas (Release Etapa 14)
+  perimeters?: StructuredPerimeters | null;
+  diameters?: StructuredDiameters | null;
+  bodyComposition?: StructuredBodyComposition | null;
 };
 
 export type PatientPregnancyRecord = {
@@ -339,6 +360,10 @@ export type PatientRecordDetail = {
 
   // Pre-Questionnaires (Etapa 10)
   preQuestionnaires?: PatientRecordPreQuestionnaireItem[];
+
+  // Exames Laboratoriais e Preferências de Exibição (Etapa 14)
+  labExams?: PatientLabExamRecord[];
+  fieldPreferences?: PlanningFieldPreferences;
 };
 
 export type UpdatePatientRecordInput = {
@@ -420,6 +445,11 @@ export type AddAnthropometricEntryInput = {
   sourceType?: AnthropometricSourceType;
   equipmentMethod?: string | null;
   notes?: string | null;
+
+  // Medidas ampliadas estruturadas (Release Etapa 14)
+  perimeters?: StructuredPerimeters | null;
+  diameters?: StructuredDiameters | null;
+  bodyComposition?: StructuredBodyComposition | null;
 };
 
 export type UpdateAnthropometricEntryInput = AddAnthropometricEntryInput & {

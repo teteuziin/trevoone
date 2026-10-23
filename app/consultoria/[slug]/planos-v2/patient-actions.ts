@@ -19,6 +19,17 @@ import {
   markPatientFieldReviewed,
   StudentNotFoundError,
 } from "@/lib/nutrition-v2/patient-record-repository";
+import {
+  getPlanningFieldPreferences,
+  savePlanningFieldPreferences,
+  type PlanningFieldPreferences,
+} from "@/lib/nutrition-v2/planning-preferences-repository";
+import {
+  listPatientLabExams,
+  savePatientLabExam,
+  deletePatientLabExam,
+  type SavePatientLabExamInput,
+} from "@/lib/nutrition-v2/patient-lab-exams-repository";
 import type {
   UpdatePatientRecordInput,
   AddAnthropometricEntryInput,
@@ -28,6 +39,7 @@ import type {
   PatientRecord,
   SaveClinicalNoteInput,
   PatientClinicalNoteDto,
+  PatientLabExamRecord,
 } from "@/lib/nutrition-v2/patient-record-types";
 
 async function resolveProfessionalStudentContext(
@@ -288,6 +300,94 @@ export async function listPatientsAction(
     return { success: true, patients };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao listar pacientes.";
+    return { success: false, error: message };
+  }
+}
+
+export async function getPlanningFieldPreferencesAction(
+  slug: string
+): Promise<{ success: boolean; error?: string; preferences?: PlanningFieldPreferences }> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx || !ctx.consultancyId || !ctx.userId) {
+      throw new Error("Não autorizado ou sessão inválida.");
+    }
+    const preferences = await getPlanningFieldPreferences(ctx.consultancyId, ctx.userId);
+    return { success: true, preferences };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao carregar preferências de exibição.";
+    return { success: false, error: message };
+  }
+}
+
+export async function savePlanningFieldPreferencesAction(
+  slug: string,
+  preferences: Partial<PlanningFieldPreferences>
+): Promise<{ success: boolean; error?: string; preferences?: PlanningFieldPreferences }> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx || !ctx.consultancyId || !ctx.userId) {
+      throw new Error("Não autorizado ou sessão inválida.");
+    }
+    const saved = await savePlanningFieldPreferences(ctx.consultancyId, ctx.userId, preferences);
+    return { success: true, preferences: saved };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao salvar preferências de exibição.";
+    return { success: false, error: message };
+  }
+}
+
+export async function listPatientLabExamsAction(
+  slug: string,
+  studentPublicId: string
+): Promise<{ success: boolean; error?: string; exams?: PatientLabExamRecord[] }> {
+  try {
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, false);
+    const exams = await listPatientLabExams(ctx.consultancyId!, studentMembershipId);
+    return { success: true, exams };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao listar exames laboratoriais.";
+    return { success: false, error: message };
+  }
+}
+
+export async function savePatientLabExamAction(
+  slug: string,
+  studentPublicId: string,
+  input: SavePatientLabExamInput
+): Promise<{ success: boolean; error?: string; exam?: PatientLabExamRecord }> {
+  try {
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, true);
+    const exam = await savePatientLabExam(
+      ctx.consultancyId!,
+      studentMembershipId,
+      ctx.membershipId!,
+      input
+    );
+    revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
+    return { success: true, exam };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao salvar exame laboratorial.";
+    return { success: false, error: message };
+  }
+}
+
+export async function deletePatientLabExamAction(
+  slug: string,
+  studentPublicId: string,
+  examPublicId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, true);
+    await deletePatientLabExam(
+      ctx.consultancyId!,
+      studentMembershipId,
+      examPublicId
+    );
+    revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao excluir exame laboratorial.";
     return { success: false, error: message };
   }
 }

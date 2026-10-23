@@ -8,6 +8,9 @@ import type {
   UpdateAnthropometricEntryInput,
   SkinfoldProtocol,
   AnthropometricSourceType,
+  StructuredPerimeters,
+  StructuredDiameters,
+  StructuredBodyComposition,
 } from "./patient-record-types";
 
 export type PregnancyStatus =
@@ -337,20 +340,111 @@ export function validateAnthropometricEntryInput(input: unknown): AddAnthropomet
   const equipmentMethod = sanitizeOptionalText(raw.equipmentMethod, 150);
   const notes = sanitizeOptionalText(raw.notes, 500);
 
+  // Structured Perimeters, Diameters, and Body Composition (Release Etapa 14)
+  const rawPerimeters = raw.perimeters && typeof raw.perimeters === "object" ? (raw.perimeters as Record<string, unknown>) : null;
+  const rawDiameters = raw.diameters && typeof raw.diameters === "object" ? (raw.diameters as Record<string, unknown>) : null;
+  const rawBodyComp = raw.bodyComposition && typeof raw.bodyComposition === "object" ? (raw.bodyComposition as Record<string, unknown>) : null;
+
+  // Harmonize perimeters
+  const effectiveWaistCm = waistCm ?? validateNumericMeasurement(rawPerimeters?.waistCm, "cintura", 10, 300);
+  const effectiveHipCm = hipCm ?? validateNumericMeasurement(rawPerimeters?.hipCm, "quadril", 10, 300);
+  const effectiveAbdomenCm = abdomenCm ?? validateNumericMeasurement(rawPerimeters?.abdomenCm, "abdômen", 10, 300);
+  const effectiveNeckCm = neckCm ?? validateNumericMeasurement(rawPerimeters?.neckCm, "pescoço", 10, 100);
+  const effectiveChestCm = chestCm ?? validateNumericMeasurement(rawPerimeters?.chestCm, "peitoral/tórax", 10, 300);
+  const effectiveForearmCm = forearmCm ?? validateNumericMeasurement(rawPerimeters?.forearmRightCm ?? rawPerimeters?.forearmLeftCm, "antebraço", 5, 100);
+  const effectiveRelaxedArmCm = relaxedArmCm ?? validateNumericMeasurement(rawPerimeters?.relaxedArmRightCm ?? rawPerimeters?.relaxedArmLeftCm, "braço relaxado", 5, 150);
+  const effectiveContractedArmCm = contractedArmCm ?? validateNumericMeasurement(rawPerimeters?.contractedArmRightCm ?? rawPerimeters?.contractedArmLeftCm, "braço contraído", 5, 150);
+  const effectiveThighCm = thighCm ?? validateNumericMeasurement(rawPerimeters?.midThighRightCm ?? rawPerimeters?.midThighLeftCm, "coxa", 10, 150);
+  const effectiveCalfCm = calfCm ?? validateNumericMeasurement(rawPerimeters?.calfRightCm ?? rawPerimeters?.calfLeftCm, "panturrilha", 10, 150);
+
+  // Harmonize body composition
+  const effectiveWeightKg = weightKg ?? validateNumericMeasurement(rawBodyComp?.weightKg, "peso", 10, 500);
+  const effectiveBodyFatPct = bodyFatPct ?? validateNumericMeasurement(rawBodyComp?.bodyFatPct, "% gordura", 1, 75);
+  const effectiveFatMassKg = fatMassKg ?? validateNumericMeasurement(rawBodyComp?.bodyFatKg ?? rawBodyComp?.fatMassKg, "massa gorda", 0.5, 300);
+  const effectiveLeanMassKg = leanMassKg ?? validateNumericMeasurement(rawBodyComp?.leanMassKg, "massa livre de gordura", 5, 300);
+  const effectiveMuscleMassKg = muscleMassKg ?? validateNumericMeasurement(rawBodyComp?.muscleMassKg, "massa muscular", 5, 300);
+
+  const perimeters: StructuredPerimeters | null = rawPerimeters ? {
+    neckCm: effectiveNeckCm,
+    shouldersCm: validateNumericMeasurement(rawPerimeters.shouldersCm ?? rawPerimeters.shoulderCm, "ombro", 10, 300),
+    shoulderCm: validateNumericMeasurement(rawPerimeters.shouldersCm ?? rawPerimeters.shoulderCm, "ombro", 10, 300),
+    chestCm: effectiveChestCm,
+    waistCm: effectiveWaistCm,
+    abdomenCm: effectiveAbdomenCm,
+    hipCm: effectiveHipCm,
+    relaxedArmRightCm: validateNumericMeasurement(rawPerimeters.relaxedArmRightCm ?? effectiveRelaxedArmCm, "braço relaxado D", 5, 150),
+    relaxedArmLeftCm: validateNumericMeasurement(rawPerimeters.relaxedArmLeftCm, "braço relaxado E", 5, 150),
+    contractedArmRightCm: validateNumericMeasurement(rawPerimeters.contractedArmRightCm ?? effectiveContractedArmCm, "braço contraído D", 5, 150),
+    contractedArmLeftCm: validateNumericMeasurement(rawPerimeters.contractedArmLeftCm, "braço contraído E", 5, 150),
+    forearmRightCm: validateNumericMeasurement(rawPerimeters.forearmRightCm ?? effectiveForearmCm, "antebraço D", 5, 100),
+    forearmLeftCm: validateNumericMeasurement(rawPerimeters.forearmLeftCm, "antebraço E", 5, 100),
+    wristRightCm: validateNumericMeasurement(rawPerimeters.wristRightCm, "punho D", 5, 50),
+    wristLeftCm: validateNumericMeasurement(rawPerimeters.wristLeftCm, "punho E", 5, 50),
+    proximalThighRightCm: validateNumericMeasurement(rawPerimeters.proximalThighRightCm, "coxa proximal D", 10, 150),
+    proximalThighLeftCm: validateNumericMeasurement(rawPerimeters.proximalThighLeftCm, "coxa proximal E", 10, 150),
+    midThighRightCm: validateNumericMeasurement(rawPerimeters.midThighRightCm ?? effectiveThighCm, "coxa média D", 10, 150),
+    midThighLeftCm: validateNumericMeasurement(rawPerimeters.midThighLeftCm, "coxa média E", 10, 150),
+    distalThighRightCm: validateNumericMeasurement(rawPerimeters.distalThighRightCm, "coxa distal D", 10, 150),
+    distalThighLeftCm: validateNumericMeasurement(rawPerimeters.distalThighLeftCm, "coxa distal E", 10, 150),
+    calfRightCm: validateNumericMeasurement(rawPerimeters.calfRightCm ?? effectiveCalfCm, "panturrilha D", 10, 150),
+    calfLeftCm: validateNumericMeasurement(rawPerimeters.calfLeftCm, "panturrilha E", 10, 150),
+    ankleRightCm: validateNumericMeasurement(rawPerimeters.ankleRightCm, "tornozelo D", 5, 60),
+    ankleLeftCm: validateNumericMeasurement(rawPerimeters.ankleLeftCm, "tornozelo E", 5, 60),
+    customPerimeters: Array.isArray(rawPerimeters.customPerimeters) ? (rawPerimeters.customPerimeters as StructuredPerimeters["customPerimeters"]) : undefined,
+  } : null;
+
+  const diameters: StructuredDiameters | null = rawDiameters ? {
+    biacromialCm: validateNumericMeasurement(rawDiameters.biacromialCm, "biacromial", 1, 100),
+    biiliocristalCm: validateNumericMeasurement(rawDiameters.biiliocristalCm, "bi-iliocristal", 1, 100),
+    bitrochantericCm: validateNumericMeasurement(rawDiameters.bitrochantericCm, "bitrocanteriano", 1, 100),
+    chestDepthCm: validateNumericMeasurement(rawDiameters.chestDepthCm ?? rawDiameters.chestAnteroposteriorCm, "profundidade tórax", 1, 100),
+    chestTransverseCm: validateNumericMeasurement(rawDiameters.chestTransverseCm, "tórax transverso", 1, 100),
+    chestAnteroposteriorCm: validateNumericMeasurement(rawDiameters.chestAnteroposteriorCm ?? rawDiameters.chestDepthCm, "tórax anteroposterior", 1, 100),
+    humerusBiepicondylarRightCm: validateNumericMeasurement(rawDiameters.humerusBiepicondylarRightCm, "úmero D", 1, 50),
+    humerusBiepicondylarLeftCm: validateNumericMeasurement(rawDiameters.humerusBiepicondylarLeftCm, "úmero E", 1, 50),
+    femurBiepicondylarRightCm: validateNumericMeasurement(rawDiameters.femurBiepicondylarRightCm, "fêmur D", 1, 50),
+    femurBiepicondylarLeftCm: validateNumericMeasurement(rawDiameters.femurBiepicondylarLeftCm, "fêmur E", 1, 50),
+    wristBiastyloidRightCm: validateNumericMeasurement(rawDiameters.wristBiastyloidRightCm ?? rawDiameters.bistyloidRightCm, "biestiloide D", 1, 50),
+    wristBiastyloidLeftCm: validateNumericMeasurement(rawDiameters.wristBiastyloidLeftCm ?? rawDiameters.bistyloidLeftCm, "biestiloide E", 1, 50),
+    bistyloidRightCm: validateNumericMeasurement(rawDiameters.wristBiastyloidRightCm ?? rawDiameters.bistyloidRightCm, "biestiloide D", 1, 50),
+    bistyloidLeftCm: validateNumericMeasurement(rawDiameters.wristBiastyloidLeftCm ?? rawDiameters.bistyloidLeftCm, "biestiloide E", 1, 50),
+    ankleBimalleolarRightCm: validateNumericMeasurement(rawDiameters.ankleBimalleolarRightCm ?? rawDiameters.bimalleolarRightCm, "bimaleolar D", 1, 50),
+    ankleBimalleolarLeftCm: validateNumericMeasurement(rawDiameters.ankleBimalleolarLeftCm ?? rawDiameters.bimalleolarLeftCm, "bimaleolar E", 1, 50),
+    bimalleolarRightCm: validateNumericMeasurement(rawDiameters.ankleBimalleolarRightCm ?? rawDiameters.bimalleolarRightCm, "bimaleolar D", 1, 50),
+    bimalleolarLeftCm: validateNumericMeasurement(rawDiameters.ankleBimalleolarLeftCm ?? rawDiameters.bimalleolarLeftCm, "bimaleolar E", 1, 50),
+    customDiameters: Array.isArray(rawDiameters.customDiameters) ? (rawDiameters.customDiameters as StructuredDiameters["customDiameters"]) : undefined,
+  } : null;
+
+  const bodyComposition: StructuredBodyComposition | null = rawBodyComp ? {
+    weightKg: effectiveWeightKg,
+    bodyFatPct: effectiveBodyFatPct,
+    bodyFatKg: effectiveFatMassKg,
+    leanMassKg: effectiveLeanMassKg,
+    muscleMassKg: effectiveMuscleMassKg,
+    bodyWaterPct: validateNumericMeasurement(rawBodyComp.bodyWaterPct ?? bodyWaterPct, "água corporal (%)", 10, 85),
+    bodyWaterKg: validateNumericMeasurement(rawBodyComp.bodyWaterKg ?? bodyWaterKg, "água corporal (kg)", 5, 200),
+    boneMassValue: validateNumericMeasurement(rawBodyComp.boneMassValue ?? boneMassValue, "massa óssea", 0.1, 50),
+    boneMassUnit: sanitizeOptionalText(rawBodyComp.boneMassUnit ?? boneMassUnit, 20),
+    boneMassMethod: sanitizeOptionalText(rawBodyComp.boneMassMethod ?? boneMassMethod, 100),
+    equipmentProtocol: sanitizeOptionalText(rawBodyComp.equipmentProtocol ?? rawBodyComp.equipment, 100) ?? undefined,
+    method: typeof rawBodyComp.method === "string" ? rawBodyComp.method : undefined,
+    origin: typeof rawBodyComp.origin === "string" ? rawBodyComp.origin : "RECORDED",
+  } : null;
+
   const hasAnyMeasurement =
-    weightKg !== null ||
+    effectiveWeightKg !== null ||
     heightCm !== null ||
-    waistCm !== null ||
-    hipCm !== null ||
+    effectiveWaistCm !== null ||
+    effectiveHipCm !== null ||
     armCm !== null ||
-    thighCm !== null ||
-    calfCm !== null ||
-    chestCm !== null ||
-    neckCm !== null ||
-    forearmCm !== null ||
-    abdomenCm !== null ||
-    relaxedArmCm !== null ||
-    contractedArmCm !== null ||
+    effectiveThighCm !== null ||
+    effectiveCalfCm !== null ||
+    effectiveChestCm !== null ||
+    effectiveNeckCm !== null ||
+    effectiveForearmCm !== null ||
+    effectiveAbdomenCm !== null ||
+    effectiveRelaxedArmCm !== null ||
+    effectiveContractedArmCm !== null ||
     tricepsMm !== null ||
     bicepsMm !== null ||
     subscapularMm !== null ||
@@ -360,13 +454,16 @@ export function validateAnthropometricEntryInput(input: unknown): AddAnthropomet
     thighFoldMm !== null ||
     midaxillaryMm !== null ||
     calfFoldMm !== null ||
-    bodyFatPct !== null ||
-    fatMassKg !== null ||
-    leanMassKg !== null ||
-    muscleMassKg !== null ||
+    effectiveBodyFatPct !== null ||
+    effectiveFatMassKg !== null ||
+    effectiveLeanMassKg !== null ||
+    effectiveMuscleMassKg !== null ||
     bodyWaterPct !== null ||
     bodyWaterKg !== null ||
     boneMassValue !== null ||
+    perimeters !== null ||
+    diameters !== null ||
+    bodyComposition !== null ||
     notes !== null;
 
   if (!hasAnyMeasurement) {
@@ -378,19 +475,19 @@ export function validateAnthropometricEntryInput(input: unknown): AddAnthropomet
 
   return {
     measurementDate,
-    weightKg,
+    weightKg: effectiveWeightKg,
     heightCm,
-    waistCm,
-    hipCm,
+    waistCm: effectiveWaistCm,
+    hipCm: effectiveHipCm,
     armCm,
-    thighCm,
-    calfCm,
-    chestCm,
-    neckCm,
-    forearmCm,
-    abdomenCm,
-    relaxedArmCm,
-    contractedArmCm,
+    thighCm: effectiveThighCm,
+    calfCm: effectiveCalfCm,
+    chestCm: effectiveChestCm,
+    neckCm: effectiveNeckCm,
+    forearmCm: effectiveForearmCm,
+    abdomenCm: effectiveAbdomenCm,
+    relaxedArmCm: effectiveRelaxedArmCm,
+    contractedArmCm: effectiveContractedArmCm,
     tricepsMm,
     bicepsMm,
     subscapularMm,
@@ -401,10 +498,10 @@ export function validateAnthropometricEntryInput(input: unknown): AddAnthropomet
     midaxillaryMm,
     calfFoldMm,
     skinfoldProtocol,
-    bodyFatPct,
-    fatMassKg,
-    leanMassKg,
-    muscleMassKg,
+    bodyFatPct: effectiveBodyFatPct,
+    fatMassKg: effectiveFatMassKg,
+    leanMassKg: effectiveLeanMassKg,
+    muscleMassKg: effectiveMuscleMassKg,
     bodyWaterPct,
     bodyWaterKg,
     boneMassValue,
@@ -413,6 +510,9 @@ export function validateAnthropometricEntryInput(input: unknown): AddAnthropomet
     sourceType,
     equipmentMethod,
     notes,
+    perimeters,
+    diameters,
+    bodyComposition,
   };
 }
 

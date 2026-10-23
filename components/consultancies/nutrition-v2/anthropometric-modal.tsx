@@ -211,9 +211,15 @@ export function AnthropometricModal({
       return isNaN(n) ? null : n;
     };
 
+    const parsedWeight = parseNum(weightKg);
+    const parsedFatKg = parseNum(fatMassKg);
+    const parsedLeanKg = parseNum(leanMassKg);
+    const parsedFatPct = parseNum(bodyFatPct);
+    const parsedMuscleKg = parseNum(muscleMassKg);
+
     const payload: AddAnthropometricEntryInput = {
       measurementDate,
-      weightKg: parseNum(weightKg),
+      weightKg: parsedWeight,
       heightCm: parseNum(heightCm),
       waistCm: parseNum(waistCm),
       hipCm: parseNum(hipCm),
@@ -236,10 +242,10 @@ export function AnthropometricModal({
       midaxillaryMm: parseNum(midaxillaryMm),
       calfFoldMm: parseNum(calfFoldMm),
       skinfoldProtocol: skinfoldProtocol !== "NONE" ? skinfoldProtocol : null,
-      bodyFatPct: parseNum(bodyFatPct),
-      fatMassKg: parseNum(fatMassKg),
-      leanMassKg: parseNum(leanMassKg),
-      muscleMassKg: parseNum(muscleMassKg),
+      bodyFatPct: parsedFatPct,
+      fatMassKg: parsedFatKg,
+      leanMassKg: parsedLeanKg,
+      muscleMassKg: parsedMuscleKg,
       bodyWaterPct: parseNum(bodyWaterPct),
       bodyWaterKg: parseNum(bodyWaterKg),
       boneMassValue: parseNum(boneMassValue),
@@ -248,6 +254,31 @@ export function AnthropometricModal({
       sourceType,
       equipmentMethod: equipmentMethod.trim() || null,
       notes: notes.trim() || null,
+      perimeters: {
+        waistCm: parseNum(waistCm),
+        hipCm: parseNum(hipCm),
+        abdomenCm: parseNum(abdomenCm),
+        neckCm: parseNum(neckCm),
+        chestCm: parseNum(chestCm),
+        relaxedArmRightCm: parseNum(relaxedArmCm),
+        contractedArmRightCm: parseNum(contractedArmCm),
+        forearmRightCm: parseNum(forearmCm),
+        midThighRightCm: parseNum(thighCm),
+        calfRightCm: parseNum(calfCm),
+      },
+      bodyComposition: {
+        weightKg: parsedWeight,
+        bodyFatPct: parsedFatPct,
+        bodyFatKg: parsedFatKg,
+        leanMassKg: parsedLeanKg,
+        muscleMassKg: parsedMuscleKg,
+        bodyWaterPct: parseNum(bodyWaterPct),
+        bodyWaterKg: parseNum(bodyWaterKg),
+        boneMassValue: parseNum(boneMassValue),
+        boneMassUnit: boneMassUnit.trim() || null,
+        boneMassMethod: boneMassMethod.trim() || null,
+        origin: sourceType === "PATIENT_REPORTED" ? "REPORTED" : "RECORDED",
+      },
     };
 
     startTransition(async () => {
@@ -727,6 +758,25 @@ export function AnthropometricModal({
                   />
                 </div>
               </div>
+
+              {/* Alerta de Consistência Modelo 2C */}
+              {(() => {
+                const w = parseFloat(weightKg);
+                const f = parseFloat(fatMassKg);
+                const l = parseFloat(leanMassKg);
+                if (!isNaN(w) && !isNaN(f) && !isNaN(l) && w > 0 && f > 0 && l > 0) {
+                  const diff = Math.abs((f + l) - w);
+                  if (diff > 0.5) {
+                    return (
+                      <div className="p-3.5 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive text-xs space-y-1">
+                        <span className="font-bold">Aviso de Inconsistência (Modelo 2C): </span>
+                        A soma de Massa Gorda ({f} kg) e Massa Livre ({l} kg) totaliza {(f + l).toFixed(1)} kg, divergindo do Peso Total ({w} kg) em {diff.toFixed(1)} kg. Os valores digitados serão mantidos sem correções silenciosas.
+                      </div>
+                    );
+                  }
+                }
+                return null;
+              })()}
 
               {/* Massa Óssea com Método e Unidade */}
               <div className="pt-2 border-t border-[var(--border-subtle)] space-y-3">

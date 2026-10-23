@@ -25,11 +25,23 @@ import {
   calculateWaistToHipRatio,
   resolveEvaluationBodyComposition,
 } from "@/lib/nutrition-v2/clinical-calculations";
-import { deleteAnthropometricEntryAction } from "@/app/consultoria/[slug]/planos-v2/patient-actions";
+import {
+  deleteAnthropometricEntryAction,
+  savePlanningFieldPreferencesAction,
+} from "@/app/consultoria/[slug]/planos-v2/patient-actions";
 import { WeightEvolutionChart } from "./weight-evolution-chart";
 import { AnthropometricModal } from "./anthropometric-modal";
 import { AnthropometricDetailModal } from "./anthropometric-detail-modal";
 import { PatientPlanningTab } from "./patient-planning-tab";
+import { PlanningMeasurementsSection } from "./planning-measurements-section";
+import { PlanningBodyCompositionSection } from "./planning-body-composition-section";
+import { PlanningLabExamsSection } from "./planning-lab-exams-section";
+import { PlanningEvolutionComparator } from "./planning-evolution-comparator";
+import { PlanningFieldPreferencesModal } from "./planning-field-preferences-modal";
+import {
+  DEFAULT_PLANNING_FIELD_PREFERENCES,
+  type PlanningFieldPreferences,
+} from "@/lib/nutrition-v2/clinical-measurements-catalog";
 
 export interface PlanningEvolutionTabProps {
   slug: string;
@@ -39,7 +51,7 @@ export interface PlanningEvolutionTabProps {
   activePlan?: ActiveNutritionPlanSummary | null;
   draftPlan?: PatientPlanDraftSummary | null;
   canAuthorNutrition?: boolean;
-  initialSubTab?: "evolucao" | "calculos" | "metas";
+  initialSubTab?: "resumo" | "medidas" | "composicao" | "exames" | "evolucao" | "metas";
   onBackToOverview?: () => void;
   onStartEditPlan?: () => void;
   isStartingEditPlan?: boolean;
@@ -53,14 +65,43 @@ export function PlanningEvolutionTab({
   activePlan = null,
   draftPlan = null,
   canAuthorNutrition = true,
-  initialSubTab = "evolucao",
+  initialSubTab = "resumo",
   onBackToOverview,
   onStartEditPlan,
   isStartingEditPlan = false,
 }: PlanningEvolutionTabProps) {
   const router = useRouter();
-  const [subTab, setSubTab] = useState<"evolucao" | "calculos" | "metas">(initialSubTab);
+  const [subTab, setSubTab] = useState<"resumo" | "medidas" | "composicao" | "exames" | "evolucao" | "metas">(
+    (initialSubTab as string) === "calculos" ? "resumo" : initialSubTab
+  );
   const [isPending, startTransition] = useTransition();
+
+  // Field Preferences State
+  const [preferences, setPreferences] = useState<PlanningFieldPreferences>(
+    detail.fieldPreferences || DEFAULT_PLANNING_FIELD_PREFERENCES
+  );
+  const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
+
+  // Sorted anthropometric evaluations (newest first)
+  const sortedAnthros = useMemo(() => {
+    if (!detail.anthropometrics || detail.anthropometrics.length === 0) return [];
+    return [...detail.anthropometrics].sort(
+      (a, b) => new Date(b.measurementDate).getTime() - new Date(a.measurementDate).getTime()
+    );
+  }, [detail.anthropometrics]);
+
+  // Selected Evaluation (defaults to newest evaluation)
+  const [selectedEntryId, setSelectedEntryId] = useState<string>(
+    sortedAnthros[0]?.publicId || ""
+  );
+
+  const selectedAnthro = useMemo(() => {
+    if (!selectedEntryId) return sortedAnthros[0] || null;
+    return sortedAnthros.find((a) => a.publicId === selectedEntryId) || sortedAnthros[0] || null;
+  }, [sortedAnthros, selectedEntryId]);
+
+  const latestAnthro = sortedAnthros[0] || null;
+  const previousAnthro = sortedAnthros[1] || null;
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -83,124 +124,100 @@ export function PlanningEvolutionTab({
 
   const isPregnant = detail.pregnancy?.pregnancyStatus === "PREGNANT";
 
-  // Sorted anthropometric evaluations (newest first for tables/cards)
-  const sortedAnthros = useMemo(() => {
-    if (!detail.anthropometrics || detail.anthropometrics.length === 0) return [];
-    return [...detail.anthropometrics].sort(
-      (a, b) => new Date(b.measurementDate).getTime() - new Date(a.measurementDate).getTime()
-    );
-  }, [detail.anthropometrics]);
+  // Current weight and height from selected evaluation
+  const activeWeightKg = selectedAnthro?.weightKg ?? latestAnthro?.weightKg ?? detail.onboardingReference?.reportedWeightKg ?? null;
+  const activeHeightCm = selectedAnthro?.heightCm ?? latestAnthro?.heightCm ?? detail.onboardingReference?.reportedHeightCm ?? null;
 
-  const latestAnthro = sortedAnthros[0] || null;
-  const previousAnthro = sortedAnthros[1] || null;
-
-  // Current weight and height
-  const currentWeightKg = latestAnthro?.weightKg ?? detail.onboardingReference?.reportedWeightKg ?? null;
-  const currentHeightCm = latestAnthro?.heightCm ?? detail.onboardingReference?.reportedHeightCm ?? null;
-
-  // Weight Delta
+  // Weight Delta vs previous evaluation
   const weightDeltaKg = useMemo(() => {
-    if (latestAnthro?.weightKg !== null && latestAnthro?.weightKg !== undefined && previousAnthro?.weightKg !== null && previousAnthro?.weightKg !== undefined) {
-      return Number((latestAnthro.weightKg - previousAnthro.weightKg).toFixed(1));
+    if (selectedAnthro?.weightKg != null && previousAnthro?.weightKg != null) {
+      return Number((selectedAnthro.weightKg - previousAnthro.weightKg).toFixed(1));
     }
     return null;
-  }, [latestAnthro, previousAnthro]);
+  }, [selectedAnthro, previousAnthro]);
 
-  // Current BMI
-  const currentBMI = useMemo(() => {
-    if (!currentWeightKg || !currentHeightCm || currentHeightCm <= 0) return null;
-    const hM = currentHeightCm / 100;
-    return Number((currentWeightKg / (hM * hM)).toFixed(1));
-  }, [currentWeightKg, currentHeightCm]);
+  // Active BMI
+  const activeBMI = useMemo(() => {
+    if (!activeWeightKg || !activeHeightCm || activeHeightCm <= 0) return null;
+    const hM = activeHeightCm / 100;
+    return Number((activeWeightKg / (hM * hM)).toFixed(1));
+  }, [activeWeightKg, activeHeightCm]);
 
   const bmiClassification = useMemo(() => {
-    return classifyBMI(currentBMI, {
+    return classifyBMI(activeBMI, {
       ageYears: ageYears ?? undefined,
       isPregnant,
     });
-  }, [currentBMI, ageYears, isPregnant]);
+  }, [activeBMI, ageYears, isPregnant]);
 
   const bmiCategoryLabel = bmiClassification?.category || "—";
 
-  // Waist-to-Hip Ratio (RCQ) on latest entry
-  const latestWHR = useMemo(() => {
-    if (!latestAnthro) return null;
-    return calculateWaistToHipRatio(latestAnthro.waistCm, latestAnthro.hipCm, bioSex);
-  }, [latestAnthro, bioSex]);
+  // Waist-to-Hip Ratio (RCQ) on selected evaluation
+  const selectedWHR = useMemo(() => {
+    if (!selectedAnthro) return null;
+    return calculateWaistToHipRatio(selectedAnthro.waistCm, selectedAnthro.hipCm, bioSex);
+  }, [selectedAnthro, bioSex]);
 
-  // Body Composition protocol result on latest entry
-  const latestBodyComp = useMemo(() => {
-    if (!latestAnthro) return null;
+  // Body Composition protocol result on selected evaluation
+  const selectedBodyComp = useMemo(() => {
+    if (!selectedAnthro) return null;
     return resolveEvaluationBodyComposition(
       {
-        tricepsMm: latestAnthro.tricepsMm,
-        bicepsMm: latestAnthro.bicepsMm,
-        subscapularMm: latestAnthro.subscapularMm,
-        suprailiacMm: latestAnthro.suprailiacMm,
-        abdominalFoldMm: latestAnthro.abdominalFoldMm,
-        chestFoldMm: latestAnthro.chestFoldMm,
-        thighFoldMm: latestAnthro.thighFoldMm,
-        midaxillaryMm: latestAnthro.midaxillaryMm,
-        calfFoldMm: latestAnthro.calfFoldMm,
+        tricepsMm: selectedAnthro.tricepsMm,
+        bicepsMm: selectedAnthro.bicepsMm,
+        subscapularMm: selectedAnthro.subscapularMm,
+        suprailiacMm: selectedAnthro.suprailiacMm,
+        abdominalFoldMm: selectedAnthro.abdominalFoldMm,
+        chestFoldMm: selectedAnthro.chestFoldMm,
+        thighFoldMm: selectedAnthro.thighFoldMm,
+        midaxillaryMm: selectedAnthro.midaxillaryMm,
+        calfFoldMm: selectedAnthro.calfFoldMm,
       },
-      latestAnthro.skinfoldProtocol,
+      selectedAnthro.skinfoldProtocol,
       ageYears,
       bioSex,
-      latestAnthro.weightKg
+      selectedAnthro.weightKg
     );
-  }, [latestAnthro, ageYears, bioSex]);
+  }, [selectedAnthro, ageYears, bioSex]);
 
-  // Effective body fat % (measured directly, via protocol, or via bioimpedance)
+  // Effective body fat % on selected entry
   const effectiveBodyFatPct = useMemo(() => {
-    if (latestAnthro?.bodyFatPct !== null && latestAnthro?.bodyFatPct !== undefined) {
-      return latestAnthro.bodyFatPct;
-    }
-    if (latestBodyComp?.effectiveBodyFatPct !== null && latestBodyComp?.effectiveBodyFatPct !== undefined) {
-      return latestBodyComp.effectiveBodyFatPct;
-    }
+    if (selectedAnthro?.bodyFatPct != null) return selectedAnthro.bodyFatPct;
+    if (selectedBodyComp?.effectiveBodyFatPct != null) return selectedBodyComp.effectiveBodyFatPct;
     return null;
-  }, [latestAnthro, latestBodyComp]);
+  }, [selectedAnthro, selectedBodyComp]);
 
-  // Effective Lean Mass (FFM in kg)
+  // Effective Lean Mass (FFM in kg) on selected entry
   const effectiveLeanMassKg = useMemo(() => {
-    if (latestAnthro?.leanMassKg !== null && latestAnthro?.leanMassKg !== undefined) {
-      return latestAnthro.leanMassKg;
-    }
-    if (latestBodyComp?.leanMassKg !== null && latestBodyComp?.leanMassKg !== undefined) {
-      return latestBodyComp.leanMassKg;
-    }
-    if (currentWeightKg !== null && effectiveBodyFatPct !== null) {
-      const fatKg = (currentWeightKg * effectiveBodyFatPct) / 100;
-      return Number((currentWeightKg - fatKg).toFixed(1));
+    if (selectedAnthro?.leanMassKg != null) return selectedAnthro.leanMassKg;
+    if (selectedBodyComp?.leanMassKg != null) return selectedBodyComp.leanMassKg;
+    if (activeWeightKg != null && effectiveBodyFatPct != null) {
+      const fatKg = (activeWeightKg * effectiveBodyFatPct) / 100;
+      return Number((activeWeightKg - fatKg).toFixed(1));
     }
     return null;
-  }, [latestAnthro, latestBodyComp, currentWeightKg, effectiveBodyFatPct]);
+  }, [selectedAnthro, selectedBodyComp, activeWeightKg, effectiveBodyFatPct]);
 
   // Comparative BMR / GER Formulas Calculations
   const formulaEstimates = useMemo(() => {
-    const hasBaseInputs = currentWeightKg !== null && currentHeightCm !== null && ageYears !== null && bioSex !== null;
+    const hasBaseInputs = activeWeightKg !== null && activeHeightCm !== null && ageYears !== null && bioSex !== null;
 
-    // 1. Mifflin-St Jeor (1990)
     const mifflin = hasBaseInputs
-      ? calculateMifflinStJeor(currentWeightKg!, currentHeightCm!, ageYears!, bioSex!)
+      ? calculateMifflinStJeor(activeWeightKg!, activeHeightCm!, ageYears!, bioSex!)
       : null;
 
-    // 2. Harris-Benedict Revisada (1984)
     const harris = hasBaseInputs
-      ? calculateHarrisBenedictRevised(currentWeightKg!, currentHeightCm!, ageYears!, bioSex!)
+      ? calculateHarrisBenedictRevised(activeWeightKg!, activeHeightCm!, ageYears!, bioSex!)
       : null;
 
-    // 3. FAO/OMS/UNU (2004)
-    const fao = currentWeightKg !== null && ageYears !== null && bioSex !== null
-      ? calculateFaoOms(currentWeightKg, ageYears, bioSex)
+    const fao = activeWeightKg !== null && ageYears !== null && bioSex !== null
+      ? calculateFaoOms(activeWeightKg, ageYears, bioSex)
       : null;
 
-    // 4. Katch-McArdle (1996)
     const katch = effectiveLeanMassKg !== null && effectiveLeanMassKg > 0
       ? calculateKatchMcArdle(effectiveLeanMassKg)
       : null;
 
-    // 5. Cunningham (1980)
     const cunningham = effectiveLeanMassKg !== null && effectiveLeanMassKg > 0
       ? calculateCunningham(effectiveLeanMassKg)
       : null;
@@ -214,9 +231,8 @@ export function PlanningEvolutionTab({
       hasBaseInputs,
       hasLeanMass: effectiveLeanMassKg !== null && effectiveLeanMassKg > 0,
     };
-  }, [currentWeightKg, currentHeightCm, ageYears, bioSex, effectiveLeanMassKg]);
+  }, [activeWeightKg, activeHeightCm, ageYears, bioSex, effectiveLeanMassKg]);
 
-  // Format date helper
   const formatDate = (isoStr?: string | null): string => {
     if (!isoStr) return "—";
     try {
@@ -232,10 +248,19 @@ export function PlanningEvolutionTab({
     }
   };
 
-  // Delete evaluation handler
+  const handleSavePreferences = async (newPrefs: Partial<PlanningFieldPreferences>) => {
+    const res = await savePlanningFieldPreferencesAction(slug, newPrefs);
+    if (res.success && res.preferences) {
+      setPreferences(res.preferences);
+      setFeedback({ type: "success", text: "Preferências de visualização atualizadas." });
+    } else {
+      setFeedback({ type: "error", text: res.error || "Erro ao salvar preferências." });
+    }
+  };
+
   const handleDeleteEntry = (entry: PatientAnthropometricEntry) => {
     if (!canAuthorNutrition) return;
-    const confirmMsg = `Confirma a exclusão da medição realizada em ${formatDate(entry.measurementDate)}?\nEsta ação removerá o registro de peso e composição desta data.`;
+    const confirmMsg = `Confirma a exclusão da medição realizada em ${formatDate(entry.measurementDate)}?\nEsta ação removerá o registro desta data.`;
     if (!window.confirm(confirmMsg)) return;
 
     setDeletingPublicId(entry.publicId);
@@ -253,51 +278,122 @@ export function PlanningEvolutionTab({
     });
   };
 
-  // Open Edit Modal with selected entry
   const handleOpenEdit = (entry: PatientAnthropometricEntry) => {
     setEditingEntry(entry);
     setIsAddModalOpen(true);
   };
 
+  const handleOpenNewEvaluation = () => {
+    setEditingEntry(null);
+    setIsAddModalOpen(true);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Top action bar: Back to overview + Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {onBackToOverview && (
-            <button
-              type="button"
-              onClick={onBackToOverview}
-              className="px-3 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-secondary)] transition-colors cursor-pointer inline-flex items-center gap-1.5 min-h-[44px]"
-            >
-              <span>← Voltar à visão geral</span>
-            </button>
+      {/* =================================================================== */}
+      {/* 1. TOP HEADER: SELETOR DE AVALIAÇÕES + AUTOSAVE + NOVA AVALIAÇÃO    */}
+      {/* =================================================================== */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            {onBackToOverview && (
+              <button
+                type="button"
+                onClick={onBackToOverview}
+                className="px-3 py-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-secondary)] transition-colors cursor-pointer inline-flex items-center gap-1 min-h-[36px]"
+              >
+                <span>← Voltar</span>
+              </button>
+            )}
+            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] tracking-wider">
+              Planejamento & Avaliação Nutricional
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+              {detail.student.fullName}
+            </h2>
+
+            {/* Historical Evaluation Selector */}
+            {sortedAnthros.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-[var(--text-tertiary)]">Avaliação:</span>
+                <select
+                  value={selectedEntryId}
+                  onChange={(e) => setSelectedEntryId(e.target.value)}
+                  className="px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300 text-xs font-bold focus:outline-hidden focus:ring-2 focus:ring-emerald-500 cursor-pointer min-h-[40px]"
+                >
+                  {sortedAnthros.map((a, idx) => (
+                    <option key={a.publicId} value={a.publicId}>
+                      {formatDate(a.measurementDate)} {idx === 0 ? "(Mais recente)" : ""} {a.weightKg ? `• ${a.weightKg} kg` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Selected evaluation metadata (date, author, notes) */}
+          {selectedAnthro && (
+            <div className="flex items-center gap-3 text-xs text-[var(--text-tertiary)] flex-wrap pt-0.5">
+              <span>
+                Data: <strong>{formatDate(selectedAnthro.measurementDate)}</strong>
+              </span>
+              <span>•</span>
+              <span>
+                Responsável: <strong>{selectedAnthro.createdByName || selectedAnthro.updatedByName || "Nutricionista"}</strong>
+              </span>
+              {selectedAnthro.notes && (
+                <>
+                  <span>•</span>
+                  <span className="italic truncate max-w-xs" title={selectedAnthro.notes}>
+                    Obs: &quot;{selectedAnthro.notes}&quot;
+                  </span>
+                </>
+              )}
+            </div>
           )}
-          <span className="text-xs font-bold text-[var(--text-tertiary)]">
-            Prontuário de {detail.student.fullName}
-          </span>
         </div>
 
-        {canAuthorNutrition && (
-          <div className="flex items-center gap-2">
+        {/* Actions bar */}
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          {/* Real Autosave Status Indicator */}
+          <div className="px-2.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-tertiary)] inline-flex items-center gap-1.5 min-h-[44px]">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+            <span>Dados sincronizados</span>
+          </div>
+
+          {/* Field preferences modal button */}
+          <button
+            type="button"
+            onClick={() => setIsPreferencesModalOpen(true)}
+            className="px-3 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-bold text-[var(--text-secondary)] transition-colors cursor-pointer inline-flex items-center gap-1.5 min-h-[44px]"
+            title="Personalizar seções e medições visíveis"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>Campos</span>
+          </button>
+
+          {/* New Evaluation Button (Does not overwrite previous, does not copy silently) */}
+          {canAuthorNutrition && (
             <button
               type="button"
-              onClick={() => {
-                setEditingEntry(null);
-                setIsAddModalOpen(true);
-              }}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer inline-flex items-center gap-2 min-h-[44px]"
+              onClick={handleOpenNewEvaluation}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer inline-flex items-center gap-1.5 min-h-[44px]"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
-              <span>+ Nova Avaliação Física</span>
+              <span>+ Nova Avaliação</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Notifications */}
       {feedback && (
         <div
           className={`p-3.5 rounded-2xl text-xs sm:text-sm border font-medium ${
@@ -311,152 +407,93 @@ export function PlanningEvolutionTab({
       )}
 
       {/* =================================================================== */}
-      {/* HERO COCKPIT: DADOS ATUAIS DA ÚLTIMA AVALIAÇÃO                      */}
-      {/* =================================================================== */}
-      <div className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] flex-wrap gap-2">
-          <div>
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
-              Painel Biométrico & Composição Corporal
-            </span>
-            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-              Estado Atual do Paciente
-            </h2>
-          </div>
-          {latestAnthro && (
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                Avaliação em {formatDate(latestAnthro.measurementDate)}
-              </span>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
-                {latestAnthro.sourceType === "PATIENT_REPORTED" ? "Relatada pelo paciente" : "Gravada pelo profissional"}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* 5 Biometric Metrics Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {/* Card 1: Peso Atual */}
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Peso Atual</span>
-            <span className="text-lg sm:text-xl font-extrabold text-[var(--text-primary)] block tabular-nums">
-              {currentWeightKg !== null ? `${currentWeightKg} kg` : "—"}
-            </span>
-            {weightDeltaKg !== null ? (
-              <span className="text-[11px] font-bold text-[var(--text-secondary)] block">
-                {weightDeltaKg > 0 ? `+${weightDeltaKg} kg vs anterior` : `${weightDeltaKg} kg vs anterior`}
-              </span>
-            ) : (
-              <span className="text-[10px] text-[var(--text-tertiary)] block">Sem registro anterior</span>
-            )}
-          </div>
-
-          {/* Card 2: Altura & IMC */}
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Altura & IMC</span>
-            <span className="text-lg sm:text-xl font-extrabold text-[var(--text-primary)] block tabular-nums">
-              {currentBMI !== null ? `IMC ${currentBMI}` : "—"}
-            </span>
-            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 block truncate" title={bmiCategoryLabel}>
-              {currentHeightCm ? `${currentHeightCm} cm • ${bmiCategoryLabel}` : bmiCategoryLabel}
-            </span>
-          </div>
-
-          {/* Card 3: % Gordura Corporal */}
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Gordura Corporal</span>
-            <span className="text-lg sm:text-xl font-extrabold text-[var(--text-primary)] block tabular-nums">
-              {effectiveBodyFatPct !== null ? `${effectiveBodyFatPct}%` : "—"}
-            </span>
-            <span className="text-[10px] text-[var(--text-tertiary)] block truncate">
-              {latestBodyComp?.protocolName
-                ? latestBodyComp.protocolName
-                : latestAnthro?.equipmentMethod
-                ? latestAnthro.equipmentMethod
-                : "Não medido"}
-            </span>
-          </div>
-
-          {/* Card 4: Massa Magra (FFM) */}
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Massa Magra (FFM)</span>
-            <span className="text-lg sm:text-xl font-extrabold text-[var(--text-primary)] block tabular-nums">
-              {effectiveLeanMassKg !== null ? `${effectiveLeanMassKg} kg` : "—"}
-            </span>
-            <span className="text-[10px] text-[var(--text-tertiary)] block">
-              {effectiveLeanMassKg !== null && currentWeightKg !== null
-                ? `${((effectiveLeanMassKg / currentWeightKg) * 100).toFixed(0)}% do peso total`
-                : "Requer % de gordura"}
-            </span>
-          </div>
-
-          {/* Card 5: RCQ (Relação Cintura-Quadril) */}
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1 col-span-2 sm:col-span-1">
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">RCQ (Cintura/Quadril)</span>
-            <span className="text-lg sm:text-xl font-extrabold text-[var(--text-primary)] block tabular-nums">
-              {latestWHR ? latestWHR.ratio.toFixed(2) : "—"}
-            </span>
-            <span
-              className={`text-[10px] font-bold block truncate ${
-                latestWHR?.badgeVariant === "danger"
-                  ? "text-red-600 dark:text-red-400"
-                  : latestWHR?.badgeVariant === "warning"
-                  ? "text-amber-600 dark:text-amber-400"
-                  : "text-emerald-600 dark:text-emerald-400"
-              }`}
-            >
-              {latestWHR ? latestWHR.riskCategory : "Requer cintura e quadril"}
-            </span>
-          </div>
-        </div>
-
-        {/* Gestational Notice if pregnant */}
-        {isPregnant && (
-          <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-700 dark:text-purple-300 flex items-center gap-2">
-            <span className="font-bold">Nota gestacional:</span>
-            <span>
-              Paciente em período gestacional ({detail.pregnancy?.gestationalWeeks ? `${detail.pregnancy.gestationalWeeks} semanas` : "semanas não informadas"}).
-              Classificações de IMC e equações preditivas para adultos gerais têm caráter puramente informativo e devem ser ajustadas pelo nutricionista.
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* =================================================================== */}
-      {/* SUB-TABS NAVIGATION (PILL BAR)                                      */}
+      {/* 2. SUB-TABS NAVIGATION: 5 SECTIONS AS PER USER SPEC                  */}
       {/* =================================================================== */}
       <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-2xs">
-        <button
-          type="button"
-          onClick={() => setSubTab("evolucao")}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer min-h-[44px] ${
-            subTab === "evolucao"
-              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
-              : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
-          }`}
-        >
-          <span>Evolução Corporal & Medidas</span>
-          <span className="px-1.5 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[10px] font-bold text-[var(--text-tertiary)]">
-            {sortedAnthros.length}
-          </span>
-        </button>
+        {/* Section 1: Resumo */}
+        {(preferences.showSummary ?? true) && (
+          <button
+            type="button"
+            onClick={() => setSubTab("resumo")}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer min-h-[44px] ${
+              subTab === "resumo"
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
+                : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+            }`}
+          >
+            <span>Resumo da Avaliação</span>
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={() => setSubTab("calculos")}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer min-h-[44px] ${
-            subTab === "calculos"
-              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
-              : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
-          }`}
-        >
-          <span>Cálculos Metabólicos & Dobras</span>
-          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-            Comparativo
-          </span>
-        </button>
+        {/* Section 2: Medidas corporais */}
+        {(preferences.showPerimeters ?? true) && (
+          <button
+            type="button"
+            onClick={() => setSubTab("medidas")}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer min-h-[44px] ${
+              subTab === "medidas"
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
+                : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+            }`}
+          >
+            <span>Medidas Corporais</span>
+          </button>
+        )}
 
+        {/* Section 3: Composição corporal */}
+        {(preferences.showBodyComposition ?? true) && (
+          <button
+            type="button"
+            onClick={() => setSubTab("composicao")}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer min-h-[44px] ${
+              subTab === "composicao"
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
+                : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+            }`}
+          >
+            <span>Composição Corporal (2C)</span>
+          </button>
+        )}
+
+        {/* Section 4: Exames laboratoriais */}
+        {(preferences.showLabExams ?? true) && (
+          <button
+            type="button"
+            onClick={() => setSubTab("exames")}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer min-h-[44px] ${
+              subTab === "exames"
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
+                : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+            }`}
+          >
+            <span>Exames Laboratoriais</span>
+            {detail.labExams && detail.labExams.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                {detail.labExams.length}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Section 5: Evolução das medidas */}
+        {(preferences.showEvolution ?? true) && (
+          <button
+            type="button"
+            onClick={() => setSubTab("evolucao")}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer min-h-[44px] ${
+              subTab === "evolucao"
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold border border-emerald-500/30 shadow-2xs"
+                : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+            }`}
+          >
+            <span>Evolução das Medidas</span>
+            <span className="px-1.5 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[10px] font-bold text-[var(--text-tertiary)]">
+              {sortedAnthros.length}
+            </span>
+          </button>
+        )}
+
+        {/* Sub-tab: Metas e GET */}
         <button
           type="button"
           onClick={() => setSubTab("metas")}
@@ -466,18 +503,248 @@ export function PlanningEvolutionTab({
               : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
           }`}
         >
-          <span>Metas & Planejamento Energético</span>
-          <span className="px-1.5 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[10px] font-bold text-[var(--text-tertiary)]">
-            GET / Macros
-          </span>
+          <span>Metas & GET</span>
         </button>
       </div>
 
       {/* =================================================================== */}
-      {/* SUB-TAB 1: EVOLUÇÃO CORPORAL & MEDIDAS                              */}
+      {/* 3. SECTION 1: RESUMO DA AVALIAÇÃO                                   */}
+      {/* =================================================================== */}
+      {subTab === "resumo" && (
+        <div className="space-y-6">
+          {/* Cockpit Card: 5 Metrics */}
+          <div className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] flex-wrap gap-2">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
+                  Resumo Biométrico da Avaliação Selecionada
+                </span>
+                <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+                  Painel de Indicadores Clínicos
+                </h3>
+              </div>
+              {selectedAnthro && (
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    {formatDate(selectedAnthro.measurementDate)}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
+                    {selectedAnthro.sourceType === "PATIENT_REPORTED" ? "Relatada pelo paciente" : "Gravada pelo profissional"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {/* Card 1: Peso */}
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Peso</span>
+                <span className="text-lg sm:text-xl font-extrabold text-[var(--text-primary)] block tabular-nums">
+                  {activeWeightKg !== null ? `${activeWeightKg} kg` : "—"}
+                </span>
+                {weightDeltaKg !== null ? (
+                  <span className="text-[11px] font-bold text-[var(--text-secondary)] block">
+                    {weightDeltaKg > 0 ? `+${weightDeltaKg} kg vs anterior` : `${weightDeltaKg} kg vs anterior`}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-[var(--text-tertiary)] block">Sem registro anterior</span>
+                )}
+              </div>
+
+              {/* Card 2: Altura & IMC */}
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Altura & IMC</span>
+                <span className="text-lg sm:text-xl font-extrabold text-[var(--text-primary)] block tabular-nums">
+                  {activeBMI !== null ? `IMC ${activeBMI}` : "—"}
+                </span>
+                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 block truncate" title={bmiCategoryLabel}>
+                  {activeHeightCm ? `${activeHeightCm} cm • ${bmiCategoryLabel}` : bmiCategoryLabel}
+                </span>
+              </div>
+
+              {/* Card 3: % Gordura */}
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Gordura Corporal</span>
+                <span className="text-lg sm:text-xl font-extrabold text-[var(--text-primary)] block tabular-nums">
+                  {effectiveBodyFatPct !== null ? `${effectiveBodyFatPct}%` : "—"}
+                </span>
+                <span className="text-[10px] text-[var(--text-tertiary)] block truncate">
+                  {selectedBodyComp?.protocolName
+                    ? selectedBodyComp.protocolName
+                    : selectedAnthro?.equipmentMethod
+                    ? selectedAnthro.equipmentMethod
+                    : "Não medido"}
+                </span>
+              </div>
+
+              {/* Card 4: Massa Livre (FFM) */}
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Massa Livre (FFM)</span>
+                <span className="text-lg sm:text-xl font-extrabold text-[var(--text-primary)] block tabular-nums">
+                  {effectiveLeanMassKg !== null ? `${effectiveLeanMassKg} kg` : "—"}
+                </span>
+                <span className="text-[10px] text-[var(--text-tertiary)] block">
+                  {effectiveLeanMassKg !== null && activeWeightKg !== null
+                    ? `${((effectiveLeanMassKg / activeWeightKg) * 100).toFixed(0)}% do peso total`
+                    : "Requer % de gordura"}
+                </span>
+              </div>
+
+              {/* Card 5: RCQ */}
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1 col-span-2 sm:col-span-1">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">RCQ (Cintura/Quadril)</span>
+                <span className="text-lg sm:text-xl font-extrabold text-[var(--text-primary)] block tabular-nums">
+                  {selectedWHR ? selectedWHR.ratio.toFixed(2) : "—"}
+                </span>
+                <span
+                  className={`text-[10px] font-bold block truncate ${
+                    selectedWHR?.badgeVariant === "danger"
+                      ? "text-red-600 dark:text-red-400"
+                      : selectedWHR?.badgeVariant === "warning"
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-emerald-600 dark:text-emerald-400"
+                  }`}
+                >
+                  {selectedWHR ? selectedWHR.riskCategory : "Requer cintura e quadril"}
+                </span>
+              </div>
+            </div>
+
+            {isPregnant && (
+              <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                <span className="font-bold">Nota gestacional:</span>
+                <span>
+                  Paciente em período gestacional ({detail.pregnancy?.gestationalWeeks ? `${detail.pregnancy.gestationalWeeks} semanas` : "semanas não informadas"}).
+                  Classificações de IMC e equações gerais são informativas.
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Formulas Comparativas de TMB */}
+          <div className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] flex-wrap gap-2">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
+                  Equações Preditivas Comparativas
+                </span>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  Taxa Metabólica Basal (TMB / GER)
+                </h3>
+              </div>
+              <span className="text-xs text-[var(--text-tertiary)]">
+                Base: {activeWeightKg}kg • {activeHeightCm}cm • {ageYears}a
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {/* Formula 1: Mifflin-St Jeor */}
+              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[var(--text-primary)]">Mifflin-St Jeor (1990)</span>
+                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded font-extrabold bg-emerald-500/10 text-emerald-600">Recomendado</span>
+                </div>
+                <div className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                  {formulaEstimates.mifflin ? `${Math.round(formulaEstimates.mifflin).toLocaleString("pt-BR")} kcal/dia` : "Requer dados"}
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)]">Padrão-ouro clínico para adultos gerais.</p>
+              </div>
+
+              {/* Formula 2: Harris-Benedict */}
+              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[var(--text-primary)]">Harris-Benedict Revisada</span>
+                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded font-semibold bg-[var(--surface)] text-[var(--text-tertiary)]">1984</span>
+                </div>
+                <div className="text-lg font-extrabold text-[var(--text-primary)] tabular-nums">
+                  {formulaEstimates.harris ? `${Math.round(formulaEstimates.harris).toLocaleString("pt-BR")} kcal/dia` : "Requer dados"}
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)]">Revisão Roza & Shizgal de Harris-Benedict.</p>
+              </div>
+
+              {/* Formula 3: FAO/OMS */}
+              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[var(--text-primary)]">FAO / OMS / UNU</span>
+                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded font-semibold bg-[var(--surface)] text-[var(--text-tertiary)]">2004</span>
+                </div>
+                <div className="text-lg font-extrabold text-[var(--text-primary)] tabular-nums">
+                  {formulaEstimates.fao ? `${Math.round(formulaEstimates.fao).toLocaleString("pt-BR")} kcal/dia` : "Requer dados"}
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)]">Faixas etárias padronizadas pela OMS.</p>
+              </div>
+
+              {/* Formula 4: Katch-McArdle */}
+              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[var(--text-primary)]">Katch-McArdle (1996)</span>
+                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded font-semibold bg-blue-500/10 text-blue-600">Massa Magra</span>
+                </div>
+                <div className="text-lg font-extrabold text-blue-600 dark:text-blue-400 tabular-nums">
+                  {formulaEstimates.katch ? `${Math.round(formulaEstimates.katch).toLocaleString("pt-BR")} kcal/dia` : "Requer % Gordura"}
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)]">Baseado na Massa Livre de Gordura (FFM).</p>
+              </div>
+
+              {/* Formula 5: Cunningham */}
+              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[var(--text-primary)]">Cunningham (1980)</span>
+                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded font-semibold bg-blue-500/10 text-blue-600">Atletas</span>
+                </div>
+                <div className="text-lg font-extrabold text-blue-600 dark:text-blue-400 tabular-nums">
+                  {formulaEstimates.cunningham ? `${Math.round(formulaEstimates.cunningham).toLocaleString("pt-BR")} kcal/dia` : "Requer % Gordura"}
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)]">Referência para atletas e praticantes avançados.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* 4. SECTION 2: MEDIDAS CORPORAIS                                     */}
+      {/* =================================================================== */}
+      {subTab === "medidas" && (
+        <PlanningMeasurementsSection
+          entry={selectedAnthro}
+          preferences={preferences}
+          canEdit={canAuthorNutrition}
+          onEdit={() => selectedAnthro && handleOpenEdit(selectedAnthro)}
+        />
+      )}
+
+      {/* =================================================================== */}
+      {/* 5. SECTION 3: COMPOSIÇÃO CORPORAL (2C)                              */}
+      {/* =================================================================== */}
+      {subTab === "composicao" && (
+        <PlanningBodyCompositionSection
+          entry={selectedAnthro}
+          canEdit={canAuthorNutrition}
+          onEdit={() => selectedAnthro && handleOpenEdit(selectedAnthro)}
+        />
+      )}
+
+      {/* =================================================================== */}
+      {/* 6. SECTION 4: EXAMES LABORATORIAIS                                  */}
+      {/* =================================================================== */}
+      {subTab === "exames" && (
+        <PlanningLabExamsSection
+          slug={slug}
+          studentMembershipPublicId={detail.student.membershipPublicId}
+          exams={detail.labExams || []}
+          canAuthor={canAuthorNutrition}
+        />
+      )}
+
+      {/* =================================================================== */}
+      {/* 7. SECTION 5: EVOLUÇÃO DAS MEDIDAS                                  */}
       {/* =================================================================== */}
       {subTab === "evolucao" && (
         <div className="space-y-6">
+          {/* Comparador Temporal */}
+          <PlanningEvolutionComparator entries={sortedAnthros} />
+
           {/* Gráfico Responsivo de Peso */}
           <WeightEvolutionChart
             entries={detail.anthropometrics || []}
@@ -490,20 +757,17 @@ export function PlanningEvolutionTab({
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] flex-wrap gap-2">
               <div>
                 <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
-                  Registros Históricos
+                  Histórico de Avaliações Físicas
                 </span>
                 <h3 className="text-base font-bold text-[var(--text-primary)]">
-                  Avaliações Físicas do Paciente ({sortedAnthros.length})
+                  Avaliações Registradas ({sortedAnthros.length})
                 </h3>
               </div>
               {canAuthorNutrition && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditingEntry(null);
-                    setIsAddModalOpen(true);
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors cursor-pointer"
+                  onClick={handleOpenNewEvaluation}
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors cursor-pointer min-h-[36px]"
                 >
                   + Nova Avaliação
                 </button>
@@ -537,128 +801,88 @@ export function PlanningEvolutionTab({
                           ? Number((entry.weightKg / Math.pow(entry.heightCm / 100, 2)).toFixed(1))
                           : null;
 
-                      const rowComp = resolveEvaluationBodyComposition(
-                        {
-                          tricepsMm: entry.tricepsMm,
-                          bicepsMm: entry.bicepsMm,
-                          subscapularMm: entry.subscapularMm,
-                          suprailiacMm: entry.suprailiacMm,
-                          abdominalFoldMm: entry.abdominalFoldMm,
-                          chestFoldMm: entry.chestFoldMm,
-                          thighFoldMm: entry.thighFoldMm,
-                          midaxillaryMm: entry.midaxillaryMm,
-                          calfFoldMm: entry.calfFoldMm,
-                        },
-                        entry.skinfoldProtocol,
-                        ageYears,
-                        bioSex,
-                        entry.weightKg
-                      );
-
-                      const fatPct = entry.bodyFatPct ?? rowComp?.effectiveBodyFatPct ?? null;
-                      const isDeletingThis = deletingPublicId === entry.publicId;
-
                       return (
-                        <tr key={entry.publicId || idx} className="hover:bg-[var(--surface-subtle)] transition-colors">
-                          <td className="py-3 px-4 font-semibold whitespace-nowrap">
-                            <span className="block">{formatDate(entry.measurementDate)}</span>
-                            {entry.editReason && (
-                              <span
-                                className="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30"
-                                title={`Motivo da correção: ${entry.editReason}`}
-                              >
-                                Corrigida
+                        <tr key={entry.publicId} className="hover:bg-[var(--surface-subtle)] transition-colors">
+                          <td className="py-3 px-4 font-bold">
+                            {formatDate(entry.measurementDate)}
+                            {idx === 0 && (
+                              <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/10 text-emerald-600">
+                                Mais recente
                               </span>
                             )}
                           </td>
-                          <td className="py-3 px-3 whitespace-nowrap">
-                            <span className="font-bold tabular-nums">
+                          <td className="py-3 px-3">
+                            <span className="font-extrabold tabular-nums block">
                               {entry.weightKg !== null ? `${entry.weightKg} kg` : "—"}
                             </span>
                             {delta !== null && (
-                              <span className="text-[10px] text-[var(--text-tertiary)] block tabular-nums">
+                              <span
+                                className={`text-[10px] font-bold ${
+                                  delta > 0 ? "text-amber-600" : delta < 0 ? "text-emerald-600" : "text-[var(--text-tertiary)]"
+                                }`}
+                              >
                                 {delta > 0 ? `+${delta} kg` : `${delta} kg`}
                               </span>
                             )}
                           </td>
-                          <td className="py-3 px-3 whitespace-nowrap">
-                            <span className="tabular-nums">
-                              {entry.heightCm !== null ? `${entry.heightCm} cm` : "—"}
+                          <td className="py-3 px-3">
+                            <span className="tabular-nums block">
+                              {entry.heightCm ? `${entry.heightCm} cm` : "—"}
                             </span>
-                            {rowBmi !== null && (
-                              <span className="text-[10px] text-[var(--text-tertiary)] block tabular-nums">
+                            {rowBmi && (
+                              <span className="text-[10px] font-semibold text-[var(--text-secondary)]">
                                 IMC {rowBmi}
                               </span>
                             )}
                           </td>
                           <td className="py-3 px-3">
-                            <div className="space-y-0.5 text-[11px] text-[var(--text-secondary)]">
-                              {entry.waistCm && <span>Cintura: {entry.waistCm}cm </span>}
-                              {entry.hipCm && <span>• Quadril: {entry.hipCm}cm </span>}
-                              {entry.abdomenCm && <span>• Abd: {entry.abdomenCm}cm</span>}
-                              {!entry.waistCm && !entry.hipCm && !entry.abdomenCm && (
-                                <span className="text-[var(--text-tertiary)]">—</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3 px-3 whitespace-nowrap">
-                            {fatPct !== null ? (
-                              <div>
-                                <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                                  {fatPct}% Gordura
-                                </span>
-                                {rowComp?.protocolName && (
-                                  <span className="text-[10px] text-[var(--text-tertiary)] block truncate max-w-[140px]" title={rowComp.protocolName}>
-                                    {rowComp.protocolName}
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-[var(--text-tertiary)]">—</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-3 whitespace-nowrap">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              entry.sourceType === "PATIENT_REPORTED"
-                                ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
-                                : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                            }`}>
-                              {entry.sourceType === "PATIENT_REPORTED" ? "Paciente" : "Profissional"}
+                            <span className="block text-[11px]">
+                              Cintura: <strong>{entry.waistCm ? `${entry.waistCm} cm` : "—"}</strong> • Quadril: <strong>{entry.hipCm ? `${entry.hipCm} cm` : "—"}</strong>
                             </span>
-                            {entry.createdByName && (
-                              <span className="text-[10px] text-[var(--text-tertiary)] block truncate max-w-[120px]" title={entry.createdByName}>
-                                {entry.createdByName}
+                            {entry.abdomenCm && (
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">
+                                Abdômen: {entry.abdomenCm} cm
                               </span>
                             )}
                           </td>
-                          <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <td className="py-3 px-3">
+                            <span className="block text-[11px]">
+                              Gordura: <strong>{entry.bodyFatPct ? `${entry.bodyFatPct}%` : "—"}</strong>
+                            </span>
+                            <span className="text-[10px] text-[var(--text-tertiary)] block">
+                              Massa Magra: {entry.leanMassKg ? `${entry.leanMassKg} kg` : "—"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
+                              {entry.sourceType === "PATIENT_REPORTED" ? "Paciente" : "Profissional"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => setDetailEntry(entry)}
-                                className="px-2.5 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] text-[11px] font-bold text-[var(--text-secondary)] transition-colors cursor-pointer"
+                                className="px-2 py-1 rounded-lg text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer min-h-[32px]"
                               >
                                 Detalhes
                               </button>
-
                               {canAuthorNutrition && (
                                 <>
                                   <button
                                     type="button"
                                     onClick={() => handleOpenEdit(entry)}
-                                    className="px-2.5 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] text-[11px] font-bold text-amber-600 dark:text-amber-400 transition-colors cursor-pointer"
+                                    className="px-2 py-1 rounded-lg text-xs font-bold text-emerald-600 hover:bg-emerald-500/10 transition-colors cursor-pointer min-h-[32px]"
                                   >
-                                    Corrigir
+                                    Editar
                                   </button>
-
                                   <button
                                     type="button"
-                                    disabled={isDeletingThis || isPending}
                                     onClick={() => handleDeleteEntry(entry)}
-                                    className="px-2 py-1 rounded-lg hover:bg-destructive/10 text-[11px] font-bold text-destructive transition-colors cursor-pointer disabled:opacity-50"
-                                    title="Excluir medição"
+                                    disabled={isPending && deletingPublicId === entry.publicId}
+                                    className="px-2 py-1 rounded-lg text-xs font-bold text-destructive hover:bg-destructive/10 transition-colors cursor-pointer min-h-[32px]"
                                   >
-                                    {isDeletingThis ? "..." : "✕"}
+                                    {isPending && deletingPublicId === entry.publicId ? "..." : "Excluir"}
                                   </button>
                                 </>
                               )}
@@ -671,354 +895,16 @@ export function PlanningEvolutionTab({
                 </table>
               </div>
             ) : (
-              <div className="py-8 px-4 text-center space-y-3">
-                <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-                  Nenhuma avaliação física registrada até o momento.
-                </p>
-                {canAuthorNutrition && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingEntry(null);
-                      setIsAddModalOpen(true);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors cursor-pointer"
-                  >
-                    + Registrar Primeira Avaliação
-                  </button>
-                )}
-              </div>
+              <p className="text-xs text-[var(--text-tertiary)] py-4 text-center">
+                Nenhum registro de avaliação física encontrado.
+              </p>
             )}
           </div>
         </div>
       )}
 
       {/* =================================================================== */}
-      {/* SUB-TAB 2: CÁLCULOS METABÓLICOS & DOBRAS (COMPARATIVO RIGOROSO)     */}
-      {/* =================================================================== */}
-      {subTab === "calculos" && (
-        <div className="space-y-6">
-          {/* Clarifying Clinical Banner: TMB vs GER */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                Diferença Clínica entre TMB e GER
-              </h3>
-            </div>
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              <strong>Taxa Metabólica Basal (TMB):</strong> Mensura a energia gasta em condições basais estritas (após jejum prolongado, repouso absoluto acordado e neutralidade térmica). Equações como <em>Mifflin-St Jeor</em>, <em>Harris-Benedict</em> e <em>FAO/OMS</em> predizem TMB a partir de peso, altura, idade e sexo.
-            </p>
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              <strong>Gasto Energético de Repouso (GER):</strong> Refere-se à energia despendida em repouso sem os requisitos estritos de jejum das condições basais. Equações como <em>Katch-McArdle</em> e <em>Cunningham</em> predizem GER diretamente com base na Massa Livre de Gordura (FFM), sendo altamente indicadas para atletas e indivíduos com massa muscular elevada.
-            </p>
-            <p className="text-[11px] text-[var(--text-tertiary)] italic pt-1 border-t border-[var(--border-subtle)]">
-              Nota ética e de segurança: Nenhuma estimativa prescreve calorias automaticamente. O nutricionista define a conduta terapêutica e a meta calórica no plano do paciente.
-            </p>
-          </div>
-
-          {/* Comparative Grid of 5 Formulas */}
-          <div className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
-                Comparativo Deterministico de Necessidades Energéticas
-              </span>
-              <h3 className="text-base font-bold text-[var(--text-primary)]">
-                Equações de Predição Metabólica Aplicadas ao Paciente
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Formula 1: Mifflin-St Jeor */}
-              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col justify-between space-y-3">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                      TMB (Basal)
-                    </span>
-                    <span className="text-[11px] text-[var(--text-tertiary)]">Padrão AND</span>
-                  </div>
-                  <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                    Mifflin-St Jeor (1990)
-                  </h4>
-                  <p className="text-[11px] text-[var(--text-secondary)]">
-                    Recomendada para adultos saudáveis e obesos.
-                  </p>
-                  <p className="text-[10px] text-[var(--text-tertiary)] font-mono">
-                    H: 10×P + 6,25×A - 5×I + 5 | M: 10×P + 6,25×A - 5×I - 161
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-[var(--border-subtle)]">
-                  {formulaEstimates.mifflin !== null ? (
-                    <div>
-                      <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        {Math.round(formulaEstimates.mifflin).toLocaleString("pt-BR")} kcal/dia
-                      </span>
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">
-                        Base: Peso {currentWeightKg}kg • Altura {currentHeightCm}cm • Idade {ageYears}a
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-amber-600 font-medium">
-                      Requer peso, altura, idade e sexo
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Formula 2: Harris-Benedict Revisada */}
-              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col justify-between space-y-3">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                      TMB (Basal)
-                    </span>
-                    <span className="text-[11px] text-[var(--text-tertiary)]">Roza & Shizgal 1984</span>
-                  </div>
-                  <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                    Harris-Benedict Revisada
-                  </h4>
-                  <p className="text-[11px] text-[var(--text-secondary)]">
-                    Reavaliação moderna dos coeficientes clássicos.
-                  </p>
-                  <p className="text-[10px] text-[var(--text-tertiary)] font-mono">
-                    H: 88,362 + 13,397×P + 4,799×A - 5,677×I
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-[var(--border-subtle)]">
-                  {formulaEstimates.harris !== null ? (
-                    <div>
-                      <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        {Math.round(formulaEstimates.harris).toLocaleString("pt-BR")} kcal/dia
-                      </span>
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">
-                        Base: Peso {currentWeightKg}kg • Altura {currentHeightCm}cm • Idade {ageYears}a
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-amber-600 font-medium">
-                      Requer peso, altura, idade e sexo
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Formula 3: FAO/OMS/UNU (2004) */}
-              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col justify-between space-y-3">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                      TMB (Faixa Etária)
-                    </span>
-                    <span className="text-[11px] text-[var(--text-tertiary)]">FAO/WHO/UNU 2004</span>
-                  </div>
-                  <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                    FAO / OMS / UNU (2004)
-                  </h4>
-                  <p className="text-[11px] text-[var(--text-secondary)]">
-                    Padrão internacional por faixas etárias específicas.
-                  </p>
-                  <p className="text-[10px] text-[var(--text-tertiary)] font-mono">
-                    {ageYears && ageYears < 30 ? "18-29 anos" : ageYears && ageYears <= 60 ? "30-60 anos" : ">60 anos"}
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-[var(--border-subtle)]">
-                  {formulaEstimates.fao !== null ? (
-                    <div>
-                      <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        {Math.round(formulaEstimates.fao).toLocaleString("pt-BR")} kcal/dia
-                      </span>
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">
-                        Base: Peso {currentWeightKg}kg • Idade {ageYears}a
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-amber-600 font-medium">
-                      Requer peso, idade e sexo
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Formula 4: Katch-McArdle (1996) */}
-              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col justify-between space-y-3">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
-                      GER (Massa Magra)
-                    </span>
-                    <span className="text-[11px] text-[var(--text-tertiary)]">Katch & McArdle 1996</span>
-                  </div>
-                  <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                    Katch-McArdle (1996)
-                  </h4>
-                  <p className="text-[11px] text-[var(--text-secondary)]">
-                    Baseada exclusivamente na massa livre de gordura (FFM).
-                  </p>
-                  <p className="text-[10px] text-[var(--text-tertiary)] font-mono">
-                    GER = 370 + (21,6 × Massa Magra kg)
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-[var(--border-subtle)]">
-                  {formulaEstimates.katch !== null ? (
-                    <div>
-                      <span className="text-lg font-extrabold text-blue-600 dark:text-blue-400 tabular-nums">
-                        {Math.round(formulaEstimates.katch).toLocaleString("pt-BR")} kcal/dia
-                      </span>
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">
-                        Base: FFM {effectiveLeanMassKg}kg
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="space-y-0.5">
-                      <span className="text-xs text-amber-600 font-medium block">
-                        Requer Massa Magra (FFM)
-                      </span>
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">
-                        Registre dobras ou bioimpedância na avaliação.
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Formula 5: Cunningham (1980) */}
-              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col justify-between space-y-3">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
-                      GER (Atletas)
-                    </span>
-                    <span className="text-[11px] text-[var(--text-tertiary)]">Cunningham 1980</span>
-                  </div>
-                  <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                    Cunningham (1980)
-                  </h4>
-                  <p className="text-[11px] text-[var(--text-secondary)]">
-                    Padrão de referência para atletas e adultos hipertrofiados.
-                  </p>
-                  <p className="text-[10px] text-[var(--text-tertiary)] font-mono">
-                    GER = 500 + (22 × Massa Magra kg)
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-[var(--border-subtle)]">
-                  {formulaEstimates.cunningham !== null ? (
-                    <div>
-                      <span className="text-lg font-extrabold text-blue-600 dark:text-blue-400 tabular-nums">
-                        {Math.round(formulaEstimates.cunningham).toLocaleString("pt-BR")} kcal/dia
-                      </span>
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">
-                        Base: FFM {effectiveLeanMassKg}kg
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="space-y-0.5">
-                      <span className="text-xs text-amber-600 font-medium block">
-                        Requer Massa Magra (FFM)
-                      </span>
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">
-                        Registre dobras ou bioimpedância na avaliação.
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Skinfold Protocol Analysis Card on Latest Evaluation */}
-          {latestAnthro && (
-            <div className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] flex-wrap gap-2">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
-                    Análise Antropométrica Detalhada
-                  </span>
-                  <h3 className="text-base font-bold text-[var(--text-primary)]">
-                    Dobras Cutâneas & Composição da Última Avaliação ({formatDate(latestAnthro.measurementDate)})
-                  </h3>
-                </div>
-                {latestBodyComp?.protocolName && (
-                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    Protocolo: {latestBodyComp.protocolName}
-                  </span>
-                )}
-              </div>
-
-              {/* Skinfolds Measured Chips */}
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-[var(--text-secondary)] block">
-                  Dobras Cutâneas Registradas (mm)
-                </span>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-                  <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] text-[var(--text-tertiary)] block">Tríceps</span>
-                    <span className="text-sm font-extrabold text-[var(--text-primary)] tabular-nums">
-                      {latestAnthro.tricepsMm !== null ? `${latestAnthro.tricepsMm} mm` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] text-[var(--text-tertiary)] block">Bíceps</span>
-                    <span className="text-sm font-extrabold text-[var(--text-primary)] tabular-nums">
-                      {latestAnthro.bicepsMm !== null ? `${latestAnthro.bicepsMm} mm` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] text-[var(--text-tertiary)] block">Subescapular</span>
-                    <span className="text-sm font-extrabold text-[var(--text-primary)] tabular-nums">
-                      {latestAnthro.subscapularMm !== null ? `${latestAnthro.subscapularMm} mm` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] text-[var(--text-tertiary)] block">Suprailíaca</span>
-                    <span className="text-sm font-extrabold text-[var(--text-primary)] tabular-nums">
-                      {latestAnthro.suprailiacMm !== null ? `${latestAnthro.suprailiacMm} mm` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] text-[var(--text-tertiary)] block">Abdominal</span>
-                    <span className="text-sm font-extrabold text-[var(--text-primary)] tabular-nums">
-                      {latestAnthro.abdominalFoldMm !== null ? `${latestAnthro.abdominalFoldMm} mm` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] text-[var(--text-tertiary)] block">Peitoral</span>
-                    <span className="text-sm font-extrabold text-[var(--text-primary)] tabular-nums">
-                      {latestAnthro.chestFoldMm !== null ? `${latestAnthro.chestFoldMm} mm` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] text-[var(--text-tertiary)] block">Coxa</span>
-                    <span className="text-sm font-extrabold text-[var(--text-primary)] tabular-nums">
-                      {latestAnthro.thighFoldMm !== null ? `${latestAnthro.thighFoldMm} mm` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] text-[var(--text-tertiary)] block">Axilar Média</span>
-                    <span className="text-sm font-extrabold text-[var(--text-primary)] tabular-nums">
-                      {latestAnthro.midaxillaryMm !== null ? `${latestAnthro.midaxillaryMm} mm` : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] text-[var(--text-tertiary)] block">Panturrilha</span>
-                    <span className="text-sm font-extrabold text-[var(--text-primary)] tabular-nums">
-                      {latestAnthro.calfFoldMm !== null ? `${latestAnthro.calfFoldMm} mm` : "—"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Protocol Isolation Note */}
-              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
-                <span className="font-bold">Regra de integridade antropométrica:</span> As equações de densidade corporal e % de gordura exigem que todas as dobras tenham sido coletadas no mesmo exame. Dobras de datas distintas nunca são combinadas.
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* SUB-TAB 3: METAS & PLANEJAMENTO ENERGÉTICO (PLANNING TAB ENGINE)     */}
+      {/* 8. SUB-TAB: METAS & PLANEJAMENTO ENERGÉTICO (GET / MACROS)          */}
       {/* =================================================================== */}
       {subTab === "metas" && (
         <PatientPlanningTab
@@ -1031,11 +917,11 @@ export function PlanningEvolutionTab({
           initialResolvedBirthDate={birthDateStr}
           initialResolvedBiologicalSex={bioSex}
           latestAnthro={
-            latestAnthro
+            selectedAnthro
               ? {
-                  weightKg: latestAnthro.weightKg,
-                  heightCm: latestAnthro.heightCm,
-                  measurementDate: latestAnthro.measurementDate,
+                  weightKg: selectedAnthro.weightKg,
+                  heightCm: selectedAnthro.heightCm,
+                  measurementDate: selectedAnthro.measurementDate,
                 }
               : null
           }
@@ -1087,6 +973,16 @@ export function PlanningEvolutionTab({
           setDetailEntry(null);
           handleOpenEdit(entry);
         }}
+      />
+
+      {/* =================================================================== */}
+      {/* MODAL DE PREFERÊNCIAS DE CAMPOS                                     */}
+      {/* =================================================================== */}
+      <PlanningFieldPreferencesModal
+        isOpen={isPreferencesModalOpen}
+        onClose={() => setIsPreferencesModalOpen(false)}
+        currentPreferences={preferences}
+        onSave={handleSavePreferences}
       />
     </div>
   );

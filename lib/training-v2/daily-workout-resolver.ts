@@ -39,6 +39,12 @@ export interface DailyWorkoutResolution {
   versionNumber?: number;
   assignmentPublicId: string | null;
   activeSessionPublicId?: string | null;
+  // Quando a sessão em andamento foi iniciada (data civil no fuso da consultoria).
+  // Permite rotular honestamente sessões abertas em dias anteriores em vez de
+  // apresentá-las como "treino de hoje".
+  activeSessionStartedAt?: string | null;
+  activeSessionWeekdayName?: string | null;
+  activeSessionIsToday?: boolean;
   targetBlockPublicId?: string | null;
   targetBlockIndex?: number | null;
   actionHref: string;
@@ -269,6 +275,22 @@ export async function resolveStudentDailyWorkout(
         ? String(activeBlock.title)
         : availableDivisions[0]?.title || "Sessão em andamento";
 
+      // Data civil de início da sessão no fuso da consultoria: sessões abertas
+      // em dias anteriores NÃO são o "treino de hoje" e devem ser rotuladas
+      // pelo dia real em que começaram.
+      const startedAtDate = activeSession.started_at ? new Date(activeSession.started_at) : null;
+      const sessionLocalDateStr =
+        startedAtDate && !Number.isNaN(startedAtDate.getTime())
+          ? getConsultancyLocalDate(timeZone, startedAtDate)
+          : null;
+      const activeSessionIsToday = sessionLocalDateStr != null ? sessionLocalDateStr === todayDateStr : undefined;
+      let activeSessionWeekdayName: string | null = null;
+      if (sessionLocalDateStr) {
+        const [sY, sM, sD] = sessionLocalDateStr.split("-").map(Number);
+        const sessionRefDate = new Date(Date.UTC(sY, sM - 1, sD, 12, 0, 0));
+        activeSessionWeekdayName = WEEKDAY_NAMES_PT[sessionRefDate.getUTCDay()];
+      }
+
       return {
         status: "IN_PROGRESS",
         headlineTitle: "Treino em andamento",
@@ -277,6 +299,9 @@ export async function resolveStudentDailyWorkout(
         versionNumber: Number(activeSession.version_number),
         assignmentPublicId: String(activeSession.assignment_public_id),
         activeSessionPublicId: String(activeSession.session_public_id),
+        activeSessionStartedAt: startedAtDate && !Number.isNaN(startedAtDate.getTime()) ? startedAtDate.toISOString() : null,
+        activeSessionWeekdayName,
+        activeSessionIsToday,
         targetBlockPublicId: activeBlock ? String(activeBlock.public_id) : null,
         targetBlockIndex: activeBlock ? availableDivisions.findIndex((d) => d.publicId === activeBlock.public_id) : 0,
         actionHref: buildStudentWorkoutExecutionUrl(
@@ -286,7 +311,10 @@ export async function resolveStudentDailyWorkout(
         ),
         actionLabel: "Continuar treino",
         canChangeDivision: availableDivisions.length > 1,
-        contextNote: "Você possui uma sessão em andamento. Continue de onde parou.",
+        contextNote:
+          activeSessionIsToday === false && activeSessionWeekdayName
+            ? `Você possui uma sessão em andamento desde ${activeSessionWeekdayName.toLowerCase()}. Continue de onde parou.`
+            : "Você possui uma sessão em andamento. Continue de onde parou.",
         exerciseCount: activeBlock
           ? availableDivisions.find((d) => d.publicId === activeBlock.public_id)?.exerciseCount
           : undefined,

@@ -607,6 +607,11 @@ body {
   background-repeat: no-repeat;
   background-position: right bottom;
   background-size: contain;
+  /* Nunca ampliar além do tamanho nativo da arte (1024px): com "contain" puro,
+     em telas largas a marca d'água era escalada para a largura toda da área de
+     conteúdo e o trevo gigante invadia o meio da página, encostando na borda
+     direita. Limitada à largura nativa, ela permanece um detalhe de canto. */
+  background-size: min(1024px, 100%) auto;
   transition: background-color 200ms ease-out;
 }
 

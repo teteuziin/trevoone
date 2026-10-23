@@ -72,6 +72,27 @@ export function StudentFocusSection({
   const isCompletedToday = status === "COMPLETED_TODAY" || status === "SEQUENCE_COMPLETED";
   const isRestDay = status === "REST_DAY";
 
+  // Subtítulo do card de treino:
+  // - Sessão em andamento iniciada HOJE: apenas "Hoje: {dia}" (o título e o selo
+  //   já dizem "Em andamento" — repetir no subtítulo era redundância tripla).
+  // - Sessão em andamento de OUTRO dia: nunca rotular como "Hoje"; mostrar o
+  //   dia real de início da sessão ("Sessão iniciada na Quarta-feira").
+  // - Demais estados: comportamento anterior ("Hoje: {dia} · Prescrição...").
+  const sessionWeekdayName = dailyWorkoutResolution?.activeSessionWeekdayName;
+  let trainingSubtitle: string;
+  if (isSessionInProgress) {
+    if (dailyWorkoutResolution?.activeSessionIsToday === false && sessionWeekdayName) {
+      const prep = sessionWeekdayName === "Domingo" || sessionWeekdayName === "Sábado" ? "no" : "na";
+      trainingSubtitle = `Sessão iniciada ${prep} ${sessionWeekdayName}`;
+    } else if (dailyWorkoutResolution?.todayWeekdayName) {
+      trainingSubtitle = `Hoje: ${dailyWorkoutResolution.todayWeekdayName}`;
+    } else {
+      trainingSubtitle = "Sessão em andamento";
+    }
+  } else {
+    trainingSubtitle = `${dailyWorkoutResolution?.todayWeekdayName ? `Hoje: ${dailyWorkoutResolution.todayWeekdayName} · ` : ""}Prescrição da consultoria`;
+  }
+
   const headlineTitle = dailyWorkoutResolution?.headlineTitle || (isSessionInProgress ? "Treino em andamento" : "Meu Treino");
   const divisionTitle = dailyWorkoutResolution?.divisionTitle || activeTraining?.title || "Ficha de treino";
   const routineTitle = dailyWorkoutResolution?.routineTitle || activeTraining?.title || "";
@@ -112,8 +133,7 @@ export function StudentFocusSection({
                     {headlineTitle}
                   </h2>
                   <span className="text-xs text-zinc-500 dark:text-[#8E95A2]">
-                    {dailyWorkoutResolution?.todayWeekdayName ? `Hoje: ${dailyWorkoutResolution.todayWeekdayName} · ` : ""}
-                    {isSessionInProgress ? "Em andamento" : "Prescrição da consultoria"}
+                    {trainingSubtitle}
                   </span>
                 </div>
               </div>

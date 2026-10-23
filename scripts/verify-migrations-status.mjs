@@ -72,12 +72,16 @@ async function runVerification() {
 
     // 1. Inspect schema_migrations table
     console.log("\n--- 1. TABELA schema_migrations ---");
+    let schemaRows = [];
     const [smTables] = await conn.query("SHOW TABLES LIKE 'schema_migrations';");
     if (Array.isArray(smTables) && smTables.length > 0) {
-      const [rows] = await conn.query("SELECT version, name, applied_at FROM schema_migrations ORDER BY version ASC;");
+      const [rows] = await conn.query("SELECT * FROM schema_migrations;");
+      schemaRows = rows;
       console.log(`Encontrados ${rows.length} registros em schema_migrations:`);
       for (const r of rows) {
-        console.log(`  - Versão ${r.version}: ${r.name || "(sem nome)"} (${r.applied_at})`);
+        const migName = r.migration || r.name || r.version || JSON.stringify(r);
+        const appliedAt = r.applied_at || r.created_at || "data desconhecida";
+        console.log(`  - ${migName} (${appliedAt})`);
       }
     } else {
       console.log("Tabela 'schema_migrations' não encontrada neste banco.");
@@ -139,12 +143,36 @@ async function runVerification() {
       [database]
     );
     console.log(`[065] nutrition_v2_patient_anthropometrics (colunas JSON estruturadas): ${antJsonCols.length}/3 colunas detectadas`);
+    for (const c of antJsonCols) {
+      console.log(`      - ${c.COLUMN_NAME}`);
+    }
 
     const [labExamsTable] = await conn.query("SHOW TABLES LIKE 'nutrition_v2_patient_lab_exams';");
     console.log(`[065] nutrition_v2_patient_lab_exams: ${labExamsTable.length > 0 ? "PRESENTE" : "AUSENTE"}`);
 
     const [planningPrefsTable] = await conn.query("SHOW TABLES LIKE 'nutrition_v2_planning_field_preferences';");
     console.log(`[065] nutrition_v2_planning_field_preferences: ${planningPrefsTable.length > 0 ? "PRESENTE" : "AUSENTE"}`);
+
+    // Avaliação do status da Migration 065
+    const is065InSchema = Array.isArray(schemaRows) && schemaRows.some((r) => (r.migration || r.name || "").includes("065"));
+    const isAllColsPresent = antJsonCols.length === 3;
+    const isLabExamsPresent = labExamsTable.length > 0;
+    const isPlanningPrefsPresent = planningPrefsTable.length > 0;
+
+    let status065 = "NÃO APLICADA";
+    if (is065InSchema && isAllColsPresent && isLabExamsPresent && isPlanningPrefsPresent) {
+      status065 = "APLICADA E VERIFICADA (INTEGRAL)";
+    } else if (isAllColsPresent || isLabExamsPresent || isPlanningPrefsPresent || is065InSchema) {
+      status065 = "PARCIALMENTE APLICADA (DIVERGÊNCIA)";
+    }
+
+    console.log("\n--------------------------------------------------------------------------------");
+    console.log(`STATUS DA MIGRATION 065: ${status065}`);
+    console.log("--------------------------------------------------------------------------------");
+    console.log(`  - Colunas JSON (perimeters_json, diameters_json, body_composition_json): ${isAllColsPresent ? "PRESENTE (3/3)" : `${antJsonCols.length}/3`}`);
+    console.log(`  - Tabela nutrition_v2_patient_lab_exams: ${isLabExamsPresent ? "PRESENTE" : "AUSENTE"}`);
+    console.log(`  - Tabela nutrition_v2_planning_field_preferences: ${isPlanningPrefsPresent ? "PRESENTE" : "AUSENTE"}`);
+    console.log(`  - Registro em schema_migrations: ${is065InSchema ? "PRESENTE" : "AUSENTE"}`);
 
     console.log("\n================================================================================");
     console.log("STATUS DAS MIGRATIONS: VERIFICAÇÃO CONCLUÍDA NO AMBIENTE AUTORIZADO");

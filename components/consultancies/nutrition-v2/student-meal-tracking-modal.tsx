@@ -155,6 +155,7 @@ function StudentMealTrackingModalContent({
         consumedAtTime: status !== "NOT_DONE" ? consumedAtTime : null,
         notes: notes.trim() || null,
         substitutions: status === "COMPLETED_WITH_CHANGES" ? selectedSubstitutions : [],
+        expectedUpdatedAt: existingLog ? existingLog.updatedAt : null,
       };
 
       const formData = new FormData();

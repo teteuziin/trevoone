@@ -241,6 +241,7 @@ export function PatientRecordView({
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
   const [autosaveError, setAutosaveError] = useState<string | null>(null);
   const lastSavedSnapshotRef = useRef<string>(JSON.stringify(clinicalForm));
+  const lastKnownRevisionRef = useRef<string | null>(detail.record.updatedAt || null);
   const pendingSaveRef = useRef<UpdatePatientRecordInput | null>(null);
   const isSavingRef = useRef<boolean>(false);
   const saveSequenceRef = useRef<number>(0);
@@ -271,13 +272,18 @@ export function PatientRecordView({
     }
 
     while (pendingSaveRef.current) {
-      const formToSave: UpdatePatientRecordInput = pendingSaveRef.current;
+      const rawFormToSave: UpdatePatientRecordInput = pendingSaveRef.current;
       pendingSaveRef.current = null;
 
       // Skip redundant write if snapshot already matches persisted record
-      if (JSON.stringify(formToSave) === lastSavedSnapshotRef.current) {
+      if (JSON.stringify(rawFormToSave) === lastSavedSnapshotRef.current) {
         continue;
       }
+
+      const formToSave: UpdatePatientRecordInput = {
+        ...rawFormToSave,
+        expectedUpdatedAt: lastKnownRevisionRef.current,
+      };
 
       const currentSeq = ++saveSequenceRef.current;
       try {
@@ -292,17 +298,23 @@ export function PatientRecordView({
         }
 
         if (res.success) {
-          lastSavedSnapshotRef.current = JSON.stringify(formToSave);
+          lastSavedSnapshotRef.current = JSON.stringify(rawFormToSave);
+          if (res.record?.updatedAt) {
+            lastKnownRevisionRef.current = res.record.updatedAt;
+          }
           setDetail((prev) => ({
             ...prev,
-            record: {
+            record: res.record || {
               ...prev.record,
-              ...formToSave,
+              ...rawFormToSave,
             },
           }));
         } else {
-          if (!pendingSaveRef.current) {
-            pendingSaveRef.current = formToSave;
+          // In case of conflict (409) or other errors: preserve user input on screen
+          if (res.code !== "CONCURRENT_MODIFICATION") {
+            if (!pendingSaveRef.current) {
+              pendingSaveRef.current = rawFormToSave;
+            }
           }
           isSavingRef.current = false;
           if (!isUnmountedRef.current) {
@@ -316,7 +328,7 @@ export function PatientRecordView({
           continue;
         }
         if (!pendingSaveRef.current) {
-          pendingSaveRef.current = formToSave;
+          pendingSaveRef.current = rawFormToSave;
         }
         isSavingRef.current = false;
         if (!isUnmountedRef.current) {
@@ -396,6 +408,8 @@ export function PatientRecordView({
   );
 
   const handleRetryAutosave = useCallback(() => {
+    // When manually retrying, reset expectedUpdatedAt to null so server accepts deliberate user save
+    lastKnownRevisionRef.current = null;
     executeAutosave(latestFormRef.current);
   }, [executeAutosave]);
 

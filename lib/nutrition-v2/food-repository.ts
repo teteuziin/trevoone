@@ -333,13 +333,13 @@ export async function getFoodWithPortions(
          FROM nutrition_v2_food_portions
          WHERE food_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
            AND (
-             scope = 'GLOBAL'
-             OR scope IS NULL
+             (scope = 'GLOBAL' AND consultancy_id IS NULL)
              OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-             OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+             OR (scope = 'PERSONAL' AND consultancy_id = ? AND created_by_user_id = ?)
+             OR (scope IS NULL AND consultancy_id IS NULL AND created_by_user_id IS NULL)
            )
          ORDER BY sort_order ASC, label ASC`,
-        [f.id, ctx.consultancyId || 0, ctx.userId || 0]
+        [f.id, ctx.consultancyId || 0, ctx.consultancyId || 0, ctx.userId || 0]
       );
       portions = res;
     } catch (err: unknown) {
@@ -869,8 +869,11 @@ export async function createFoodPortion(
       effectiveConsultancyId = ctx.consultancyId || null;
       effectiveCreatedByUserId = ctx.userId || null;
     } else {
+      if (!ctx.consultancyId) {
+        throw new NutritionAuthorizationError("Consultoria obrigatória para criar medida pessoal.", "INVALID_CONSULTANCY", 400);
+      }
       effectiveScope = "PERSONAL";
-      effectiveConsultancyId = ctx.consultancyId || null;
+      effectiveConsultancyId = ctx.consultancyId;
       effectiveCreatedByUserId = ctx.userId || null;
     }
 
@@ -953,8 +956,13 @@ export async function updateFoodPortion(
 
     // Scoped authorization check
     if (portionScope === "PERSONAL") {
-      if (!ctx.canManageGlobal && (!ctx.userId || Number(p.portion_user_id) !== ctx.userId)) {
-        throw new NutritionAuthorizationError("Acesso negado: apenas o autor pode editar esta medida pessoal.", "FORBIDDEN_PORTION_MUTATION", 403);
+      if (
+        !ctx.canManageGlobal &&
+        (!ctx.userId ||
+          Number(p.portion_user_id) !== ctx.userId ||
+          (p.portion_consultancy_id && Number(p.portion_consultancy_id) !== ctx.consultancyId))
+      ) {
+        throw new NutritionAuthorizationError("Acesso negado: apenas o autor dentro da consultoria de origem pode editar esta medida pessoal.", "FORBIDDEN_PORTION_MUTATION", 403);
       }
     } else if (portionScope === "CONSULTANCY") {
       if (!ctx.canAuthorNutrition || !ctx.consultancyId || Number(p.portion_consultancy_id || p.food_consultancy_id) !== ctx.consultancyId) {
@@ -1029,8 +1037,13 @@ export async function archiveFoodPortion(
 
     // Scoped authorization check
     if (portionScope === "PERSONAL") {
-      if (!ctx.canManageGlobal && (!ctx.userId || Number(p.portion_user_id) !== ctx.userId)) {
-        throw new NutritionAuthorizationError("Acesso negado: apenas o autor pode arquivar esta medida pessoal.", "FORBIDDEN_PORTION_MUTATION", 403);
+      if (
+        !ctx.canManageGlobal &&
+        (!ctx.userId ||
+          Number(p.portion_user_id) !== ctx.userId ||
+          (p.portion_consultancy_id && Number(p.portion_consultancy_id) !== ctx.consultancyId))
+      ) {
+        throw new NutritionAuthorizationError("Acesso negado: apenas o autor dentro da consultoria de origem pode arquivar esta medida pessoal.", "FORBIDDEN_PORTION_MUTATION", 403);
       }
     } else if (portionScope === "CONSULTANCY") {
       if (!ctx.canAuthorNutrition || !ctx.consultancyId || Number(p.portion_consultancy_id || p.food_consultancy_id) !== ctx.consultancyId) {
@@ -1085,12 +1098,12 @@ export async function findSimilarFoodPortion(
          FROM nutrition_v2_food_portions
          WHERE food_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
            AND (
-             scope = 'GLOBAL'
-             OR scope IS NULL
+             (scope = 'GLOBAL' AND consultancy_id IS NULL)
              OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-             OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+             OR (scope = 'PERSONAL' AND consultancy_id = ? AND created_by_user_id = ?)
+             OR (scope IS NULL AND consultancy_id IS NULL AND created_by_user_id IS NULL)
            )`,
-        [foodId, ctx.consultancyId || 0, ctx.userId || 0]
+        [foodId, ctx.consultancyId || 0, ctx.consultancyId || 0, ctx.userId || 0]
       );
       portions = res;
     } catch (err: unknown) {

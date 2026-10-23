@@ -812,38 +812,36 @@ export async function updatePatientRecord(
   const connection = await getDbConnection();
 
   try {
-    const record = await getOrCreatePatientRecord(
-      connection,
-      consultancyId,
-      studentMembershipId,
-      authorMembershipId
+    await connection.beginTransaction();
+
+    // 1. Fetch & lock existing patient record atomically
+    const [existingRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT * FROM nutrition_v2_patient_records
+       WHERE consultancy_id = ? AND student_membership_id = ? AND deleted_at IS NULL
+       FOR UPDATE;`,
+      [consultancyId, studentMembershipId]
     );
 
-    // Optimistic concurrency & out-of-order protection
-    if (validated.expectedUpdatedAt && record.updatedAt) {
-      const recordUpdatedAtMs = new Date(record.updatedAt).getTime();
-      const expectedUpdatedAtMs = new Date(validated.expectedUpdatedAt).getTime();
-      if (!isNaN(recordUpdatedAtMs) && !isNaN(expectedUpdatedAtMs) && recordUpdatedAtMs > expectedUpdatedAtMs) {
-        throw new NutritionAuthorizationError(
-          "O prontuário foi alterado em outra sessão ou aba. Recarregue a página para obter a versão mais recente antes de salvar.",
-          "CONCURRENT_MODIFICATION",
-          409
-        );
-      }
-    }
-    if (validated.clientTimestamp && record.updatedAt) {
-      const recordUpdatedAtMs = new Date(record.updatedAt).getTime();
-      const clientTimestampMs = new Date(validated.clientTimestamp).getTime();
-      if (!isNaN(recordUpdatedAtMs) && !isNaN(clientTimestampMs) && recordUpdatedAtMs > clientTimestampMs) {
-        throw new NutritionAuthorizationError(
-          "Requisição de salvamento atrasada ou fora de ordem ignorada para preservar alterações mais recentes.",
-          "STALE_UPDATE_IGNORED",
-          409
-        );
+    let record: PatientRecord;
+    if (Array.isArray(existingRows) && existingRows.length > 0) {
+      record = mapRowToPatientRecord(existingRows[0]);
+    } else {
+      record = await getOrCreatePatientRecord(
+        connection,
+        consultancyId,
+        studentMembershipId,
+        authorMembershipId
+      );
+      const [lockedRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT * FROM nutrition_v2_patient_records WHERE id = ? FOR UPDATE;`,
+        [record.id]
+      );
+      if (Array.isArray(lockedRows) && lockedRows.length > 0) {
+        record = mapRowToPatientRecord(lockedRows[0]);
       }
     }
 
-    // Compute changed fields for audit logging
+    // Compute changed fields for audit logging and idempotency detection
     const changedFields: Array<{ fieldName: string; previousValue: string | null; newValue: string | null }> = [];
     const checkChange = (fieldName: keyof PatientRecord, newVal: unknown) => {
       if (newVal === undefined) return;
@@ -888,6 +886,32 @@ export async function updatePatientRecord(
     checkChange("alcoholNotes", validated.alcoholNotes);
     checkChange("sleepRoutine", validated.sleepRoutine);
     checkChange("workStudyRoutine", validated.workStudyRoutine);
+
+    // Concurrency validation against server-side revision
+    const serverTimeMs = record.updatedAt ? new Date(record.updatedAt).getTime() : 0;
+    const expectedTimeMs = validated.expectedUpdatedAt ? new Date(validated.expectedUpdatedAt).getTime() : 0;
+
+    if (validated.expectedUpdatedAt && serverTimeMs > 0 && expectedTimeMs > 0 && Math.abs(serverTimeMs - expectedTimeMs) > 1000) {
+      // If there are no modified fields, this is an idempotent retry (e.g. repeated save after lost ACK)
+      if (changedFields.length === 0) {
+        await connection.commit();
+        return record;
+      }
+
+      // True concurrent edit conflict
+      await connection.rollback();
+      throw new NutritionAuthorizationError(
+        "O prontuário foi alterado em outra sessão ou aba. Suas alterações foram preservadas na tela; verifique antes de salvar novamente.",
+        "CONCURRENT_MODIFICATION",
+        409
+      );
+    }
+
+    // If no changes compared to locked state, return current record without unnecessary write
+    if (changedFields.length === 0) {
+      await connection.commit();
+      return record;
+    }
 
     // Attempt primary UPDATE with new columns (Migration 060)
     try {
@@ -1047,7 +1071,15 @@ export async function updatePatientRecord(
       [record.id]
     );
 
+    await connection.commit();
     return mapRowToPatientRecord(updatedRows[0]);
+  } catch (err) {
+    try {
+      await connection.rollback();
+    } catch {
+      // Ignore rollback failure on dead connection
+    }
+    throw err;
   } finally {
     connection.release();
   }

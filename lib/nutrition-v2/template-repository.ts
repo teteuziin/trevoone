@@ -939,9 +939,9 @@ export async function copyTemplateMealsToPlanVersion(
          FROM nutrition_v2_food_portions
          WHERE food_id IN (?) AND deleted_at IS NULL
            AND (
-             scope = 'GLOBAL'
-             OR scope IS NULL
+             (scope = 'GLOBAL' AND consultancy_id IS NULL)
              OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+             OR (scope IS NULL AND consultancy_id IS NULL AND created_by_user_id IS NULL)
            )`,
         [foodIdList, consultancyId]
       );

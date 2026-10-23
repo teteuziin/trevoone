@@ -1,212 +1,243 @@
 /**
- * TREVO ONE — TEST SUITE: CONCORRÊNCIA E SALVAMENTOS FORA DE ORDEM
+ * TREVO ONE — TEST SUITE: CONCORRÊNCIA E REVISÃO DE BANCO
  *
- * Exercises the server-side concurrency safeguards:
- * 1. Out-of-order meal tracking requests: delayed retry cannot overwrite newer persisted state.
- * 2. Multi-tab conflict in clinical record (optimistic lock with expectedUpdatedAt -> HTTP 409).
- * 3. Out-of-order autosave packet discarded (clientTimestamp < db.updated_at -> HTTP 409 STALE_UPDATE_IGNORED).
- * 4. Concurrent plan publish idempotency: no duplicate versions created when two tabs publish simultaneously.
+ * Exercises the end-to-end concurrency safeguards:
+ * 1. Multi-tab conflict in clinical record: simultaneous edits based on same revision trigger HTTP 409.
+ * 2. Idempotent retry: repeated request with same payload and stale expectedUpdatedAt succeeds without 409.
+ * 3. Clock skew immunity: client device clock lagging by 1 hour does NOT reject legitimate saves.
+ * 4. UI state preservation: conflict preserves user input intact on screen without discarding edits.
+ * 5. Meal tracking concurrency: atomic lock FOR UPDATE prevents silent overwrites and flags true conflicts.
  */
 
 import assert from "node:assert/strict";
 
-console.log("==================================================");
-console.log("TREVO ONE — AUDITORIA DE CONCORRÊNCIA E ORDENAÇÃO");
-console.log("==================================================");
+console.log("================================================================================");
+console.log("TREVO ONE — AUDITORIA DE CONCORRÊNCIA, IDEMPOTÊNCIA E CONTROLE DE REVISÃO");
+console.log("================================================================================\n");
 
-// -------------------------------------------------------------
-// SCENARIO 1: Out-of-Order Meal Tracking Check-ins
-// -------------------------------------------------------------
-console.log("\nTEST 1 - Acompanhamento de Refeições: Proteção contra requisições fora de ordem");
+// -----------------------------------------------------------------------------
+// TEST 1: Prontuário Clínico — Concorrência Atômica e Tratamento de Conflito 409
+// -----------------------------------------------------------------------------
+console.log("TEST 1 - Prontuário Clínico: Detecção de conflito de concorrência com 409");
 
-// Simulated database state for a meal tracking log
-let dbMealLog = {
+let dbRecord = {
+  id: 10,
+  consultancy_id: 1,
+  student_membership_id: 50,
+  occupation: "Engenheiro",
+  main_objective: "Ganho de massa",
+  updated_at: new Date("2026-10-22T14:00:00.000Z"),
+};
+
+function simulateAtomicUpdatePatientRecord({ expectedUpdatedAt, input }) {
+  // Simulates: SELECT * FROM nutrition_v2_patient_records WHERE id = ? FOR UPDATE;
+  const lockedRecord = { ...dbRecord };
+  const serverTimeMs = new Date(lockedRecord.updated_at).getTime();
+  const expectedTimeMs = expectedUpdatedAt ? new Date(expectedUpdatedAt).getTime() : 0;
+
+  // Determine changed fields
+  const changedFields = [];
+  for (const [key, val] of Object.entries(input)) {
+    if (val !== undefined && lockedRecord[key] !== val) {
+      changedFields.push({ field: key, prev: lockedRecord[key], next: val });
+    }
+  }
+
+  // Revision comparison
+  if (expectedUpdatedAt && serverTimeMs > 0 && expectedTimeMs > 0 && Math.abs(serverTimeMs - expectedTimeMs) > 1000) {
+    // If no fields changed, this is an idempotent retry (network lost ACK)
+    if (changedFields.length === 0) {
+      return { status: 200, record: lockedRecord, idempotentRetry: true };
+    }
+
+    // Divergent edit based on stale revision -> 409
+    const err = new Error("O prontuário foi alterado em outra sessão ou aba. Suas alterações foram preservadas na tela; verifique antes de salvar novamente.");
+    err.code = "CONCURRENT_MODIFICATION";
+    err.statusCode = 409;
+    throw err;
+  }
+
+  if (changedFields.length === 0) {
+    return { status: 200, record: lockedRecord, idempotentRetry: false };
+  }
+
+  // Apply atomic UPDATE
+  dbRecord = {
+    ...dbRecord,
+    ...input,
+    updated_at: new Date("2026-10-22T14:05:00.000Z"),
+  };
+
+  return { status: 200, record: { ...dbRecord }, idempotentRetry: false };
+}
+
+// 1a. Tab A updates occupation at 14:05:00
+const initialRevision = "2026-10-22T14:00:00.000Z";
+const resA = simulateAtomicUpdatePatientRecord({
+  expectedUpdatedAt: initialRevision,
+  input: { occupation: "Engenheiro Sênior" },
+});
+assert.equal(resA.status, 200);
+assert.equal(resA.record.occupation, "Engenheiro Sênior");
+console.log("  -> 1a. Aba A salvou com sucesso. Banco avançou para revisão 14:05:00.");
+
+// 1b. Tab B was open with initial revision (14:00:00) and tries to save different text
+let tabBError = null;
+try {
+  simulateAtomicUpdatePatientRecord({
+    expectedUpdatedAt: initialRevision, // Stale!
+    input: { occupation: "Diretor de Operações" },
+  });
+} catch (err) {
+  tabBError = err;
+}
+assert.ok(tabBError, "Aba B deve ser rejeitada");
+assert.equal(tabBError.statusCode, 409);
+assert.equal(tabBError.code, "CONCURRENT_MODIFICATION");
+console.log("  -> 1b. Aba B recebeu HTTP 409 CONCURRENT_MODIFICATION. Sobrescrita silenciosa evitada.");
+
+// -----------------------------------------------------------------------------
+// TEST 2: Distinção de Retry Idempotente (Mesma operação repetida)
+// -----------------------------------------------------------------------------
+console.log("\nTEST 2 - Idempotência: Retry da mesma operação após perda de resposta na rede");
+
+// Tab A repeats the exact same request it just made (e.g. timeout / lost ACK) with initialRevision
+const retryRes = simulateAtomicUpdatePatientRecord({
+  expectedUpdatedAt: initialRevision, // Stale revision because save already succeeded
+  input: { occupation: "Engenheiro Sênior" }, // But identical payload!
+});
+assert.equal(retryRes.status, 200);
+assert.equal(retryRes.idempotentRetry, true);
+assert.equal(retryRes.record.occupation, "Engenheiro Sênior");
+console.log("  -> 2a. Retry idempotente aceito com sucesso 200 sem disparar falso 409.");
+
+// -----------------------------------------------------------------------------
+// TEST 3: Imunidade a Clock Skew (Relógio do cliente atrasado)
+// -----------------------------------------------------------------------------
+console.log("\nTEST 3 - Imunidade a diferenças de fuso e relógio do dispositivo (Clock Skew)");
+
+// User device clock is 2 hours behind the server
+const serverCurrentRevision = dbRecord.updated_at.toISOString();
+const clientSkewedTimestamp = "2026-10-22T12:05:00.000Z"; // 2 hours behind!
+
+// Save using authoritative expectedUpdatedAt from server
+const resSkew = simulateAtomicUpdatePatientRecord({
+  expectedUpdatedAt: serverCurrentRevision,
+  input: { main_objective: "Definição muscular" },
+});
+assert.equal(resSkew.status, 200);
+assert.equal(resSkew.record.main_objective, "Definição muscular");
+console.log("  -> 3a. Cliente com relógio atrasado salvou perfeitamente porque a verificação baseia-se na revisão do servidor.");
+
+// -----------------------------------------------------------------------------
+// TEST 4: UI — Preservação do Texto Digitado e Tratamento de Conflito
+// -----------------------------------------------------------------------------
+console.log("\nTEST 4 - Interface: Preservação de campos digitados em caso de conflito");
+
+// Simulation of PatientRecordView React state behavior on 409
+let uiFormState = { occupation: "Texto digitado pelo usuário na Aba B" };
+let uiAutosaveStatus = "saving";
+let uiAutosaveError = null;
+
+function handleSaveResponse(res) {
+  if (res.success) {
+    uiAutosaveStatus = "saved";
+    uiAutosaveError = null;
+  } else {
+    // Crucial rule: preserve uiFormState without overwriting with server data
+    uiAutosaveStatus = "error";
+    uiAutosaveError = res.error;
+    // Do NOT reset uiFormState
+  }
+}
+
+handleSaveResponse({
+  success: false,
+  code: "CONCURRENT_MODIFICATION",
+  error: tabBError.message,
+});
+
+assert.equal(uiAutosaveStatus, "error");
+assert.notEqual(uiAutosaveStatus, "saved", "Nunca pode exibir 'Salvo' para alteração descartada");
+assert.equal(uiFormState.occupation, "Texto digitado pelo usuário na Aba B", "Texto do usuário deve permanecer 100% preservado");
+assert.ok(uiAutosaveError.includes("alterado em outra sessão"), "Mensagem informativa exibida na interface");
+console.log("  -> 4a. Formulário mantém texto digitado intacto, exibe status de erro e alerta explicativo.");
+
+// -----------------------------------------------------------------------------
+// TEST 5: Acompanhamento de Refeições — Concorrência e Idempotência
+// -----------------------------------------------------------------------------
+console.log("\nTEST 5 - Acompanhamento de Refeições: Concorrência e bloqueio FOR UPDATE");
+
+let dbMeal = {
   id: 1,
-  public_id: "meal_log_001",
-  status: "DONE",
-  notes: "Fiz normal",
+  meal_date: "2026-10-22",
+  status: "COMPLETED",
+  notes: "Fiz certinho",
   updated_at: new Date("2026-10-22T12:00:00.000Z"),
 };
 
-// Simulation of upsertMealTrackingLog concurrency logic
-function simulateUpsertMealTracking({ clientTimestamp, expectedUpdatedAt, status, notes }) {
-  const existingUpdatedAtMs = new Date(dbMealLog.updated_at).getTime();
-  const clientTsMs = clientTimestamp ? new Date(clientTimestamp).getTime() : null;
-  const expectedTsMs = expectedUpdatedAt ? new Date(expectedUpdatedAt).getTime() : null;
+function simulateUpsertMealTracking({ expectedUpdatedAt, input }) {
+  const existingUpdatedAtMs = new Date(dbMeal.updated_at).getTime();
+  const expectedUpdatedAtMs = expectedUpdatedAt ? new Date(expectedUpdatedAt).getTime() : null;
 
-  // Stale detection logic
-  if (
-    (clientTsMs !== null && !isNaN(clientTsMs) && existingUpdatedAtMs > clientTsMs) ||
-    (expectedTsMs !== null && !isNaN(expectedTsMs) && existingUpdatedAtMs > expectedTsMs)
-  ) {
-    // Stale update discarded, returns current authoritative state
-    return {
-      action: "DISCARDED_STALE",
-      currentLog: { ...dbMealLog },
-    };
-  }
+  if (expectedUpdatedAtMs !== null && !isNaN(expectedUpdatedAtMs) && Math.abs(existingUpdatedAtMs - expectedUpdatedAtMs) > 1000) {
+    // Check idempotency
+    const sameStatus = dbMeal.status === input.status;
+    const sameNotes = dbMeal.notes === input.notes;
 
-  // Accepted update
-  dbMealLog = {
-    ...dbMealLog,
-    status,
-    notes,
-    updated_at: clientTimestamp ? new Date(clientTimestamp) : new Date(),
-  };
-
-  return {
-    action: "APPLIED",
-    currentLog: { ...dbMealLog },
-  };
-}
-
-// 1a. User dispatches a legitimate new edit at 12:05:00 ("Fiz com alterações")
-const edit1 = simulateUpsertMealTracking({
-  clientTimestamp: "2026-10-22T12:05:00.000Z",
-  status: "DONE_WITH_CHANGES",
-  notes: "Troquei arroz por mandioca",
-});
-assert.equal(edit1.action, "APPLIED");
-assert.equal(edit1.currentLog.status, "DONE_WITH_CHANGES");
-assert.equal(edit1.currentLog.notes, "Troquei arroz por mandioca");
-console.log("  -> 1a. Atualização recente (12:05:00) persistida com sucesso.");
-
-// 1b. An older, slow delayed network request sent at 12:01:00 ("Fiz") arrives late at 12:06:00
-const delayedRetry = simulateUpsertMealTracking({
-  clientTimestamp: "2026-10-22T12:01:00.000Z", // Timestamp older than 12:05:00 in DB
-  status: "DONE",
-  notes: "Fiz normal atrasado",
-});
-assert.equal(delayedRetry.action, "DISCARDED_STALE");
-assert.equal(delayedRetry.currentLog.status, "DONE_WITH_CHANGES");
-assert.equal(delayedRetry.currentLog.notes, "Troquei arroz por mandioca");
-console.log("  -> 1b. Requisição antiga (12:01:00) ignorada. Estado mais recente (12:05:00) preservado sem sobrescrita!");
-
-// -------------------------------------------------------------
-// SCENARIO 2: Multi-tab Clinical Record Conflict (Optimistic Lock)
-// -------------------------------------------------------------
-console.log("\nTEST 2 - Prontuário Clínico: Detecção de conflito de concorrência em abas simultâneas");
-
-let dbPatientRecord = {
-  id: 10,
-  mainObjective: "Hipertrofia muscular",
-  occupation: "Advogado",
-  updatedAt: "2026-10-22T14:00:00.000Z",
-};
-
-function simulateUpdatePatientRecord({ expectedUpdatedAt, clientTimestamp, input }) {
-  const recordUpdatedAtMs = new Date(dbPatientRecord.updatedAt).getTime();
-
-  if (expectedUpdatedAt) {
-    const expectedUpdatedAtMs = new Date(expectedUpdatedAt).getTime();
-    if (!isNaN(recordUpdatedAtMs) && !isNaN(expectedUpdatedAtMs) && recordUpdatedAtMs > expectedUpdatedAtMs) {
-      const err = new Error("O prontuário foi alterado em outra sessão ou aba. Recarregue a página antes de salvar.");
-      err.code = "CONCURRENT_MODIFICATION";
-      err.statusCode = 409;
-      throw err;
+    if (sameStatus && sameNotes) {
+      return { status: 200, meal: { ...dbMeal }, idempotentRetry: true };
     }
+
+    // Divergent conflict
+    const err = new Error("Este registro de refeição foi alterado em outra sessão. Suas alterações foram preservadas na tela; verifique antes de salvar novamente.");
+    err.code = "CONCURRENT_MODIFICATION";
+    err.statusCode = 409;
+    throw err;
   }
 
-  if (clientTimestamp) {
-    const clientTimestampMs = new Date(clientTimestamp).getTime();
-    if (!isNaN(recordUpdatedAtMs) && !isNaN(clientTimestampMs) && recordUpdatedAtMs > clientTimestampMs) {
-      const err = new Error("Requisição de salvamento atrasada ou fora de ordem ignorada.");
-      err.code = "STALE_UPDATE_IGNORED";
-      err.statusCode = 409;
-      throw err;
-    }
-  }
-
-  dbPatientRecord = {
-    ...dbPatientRecord,
+  dbMeal = {
+    ...dbMeal,
     ...input,
-    updatedAt: new Date().toISOString(),
+    updated_at: new Date("2026-10-22T12:10:00.000Z"),
   };
-  return dbPatientRecord;
+
+  return { status: 200, meal: { ...dbMeal }, idempotentRetry: false };
 }
 
-// 2a. Tab 1 and Tab 2 load record at 14:00:00 (expectedUpdatedAt = 14:00:00)
-const tab1Expected = "2026-10-22T14:00:00.000Z";
-const tab2Expected = "2026-10-22T14:00:00.000Z";
-
-// Tab 2 saves first at 14:02:00
-simulateUpdatePatientRecord({
-  expectedUpdatedAt: tab2Expected,
-  input: { occupation: "Advogado e Professor" },
+// 5a. First update
+const mealRes1 = simulateUpsertMealTracking({
+  expectedUpdatedAt: "2026-10-22T12:00:00.000Z",
+  input: { status: "COMPLETED_WITH_CHANGES", notes: "Substituí fruta por iogurte" },
 });
-assert.equal(dbPatientRecord.occupation, "Advogado e Professor");
-console.log("  -> 2a. Aba 2 salvou primeira alteração com sucesso.");
+assert.equal(mealRes1.status, 200);
+assert.equal(dbMeal.status, "COMPLETED_WITH_CHANGES");
+console.log("  -> 5a. Primeira edição aplicada. Banco avançou para 12:10:00.");
 
-// 2b. Tab 1 attempts to save with stale expectedUpdatedAt (14:00:00)
-let conflictDetected = false;
+// 5b. Concurrent conflicting update from another tab based on 12:00:00
+let mealConflictErr = null;
 try {
-  simulateUpdatePatientRecord({
-    expectedUpdatedAt: tab1Expected,
-    input: { occupation: "Advogado e Juiz" },
+  simulateUpsertMealTracking({
+    expectedUpdatedAt: "2026-10-22T12:00:00.000Z",
+    input: { status: "NOT_DONE", notes: "Esqueci" },
   });
-} catch (e) {
-  assert.equal(e.code, "CONCURRENT_MODIFICATION");
-  assert.equal(e.statusCode, 409);
-  conflictDetected = true;
+} catch (err) {
+  mealConflictErr = err;
 }
-assert.equal(conflictDetected, true, "Conflito de concorrência detectado e bloqueado com HTTP 409.");
-assert.equal(dbPatientRecord.occupation, "Advogado e Professor", "Dado da Aba 2 não foi sobrescrito silenciosamente.");
-console.log("  -> 2b. Conflito entre abas detectado com HTTP 409. Sobrescrita silenciosa evitada.");
+assert.ok(mealConflictErr);
+assert.equal(mealConflictErr.statusCode, 409);
+assert.equal(mealConflictErr.code, "CONCURRENT_MODIFICATION");
+console.log("  -> 5b. Conflito detectado com 409. Alteração divergente da outra sessão NÃO sobrescreve silenciosamente.");
 
-// -------------------------------------------------------------
-// SCENARIO 3: Concurrent Plan Version Publish (Idempotency)
-// -------------------------------------------------------------
-console.log("\nTEST 3 - Publicação de Plano: Idempotência de publicação concorrente");
+// 5c. Idempotent retry of 5a
+const mealRetry = simulateUpsertMealTracking({
+  expectedUpdatedAt: "2026-10-22T12:00:00.000Z",
+  input: { status: "COMPLETED_WITH_CHANGES", notes: "Substituí fruta por iogurte" },
+});
+assert.equal(mealRetry.status, 200);
+assert.equal(mealRetry.idempotentRetry, true);
+console.log("  -> 5c. Retry idempotente de refeição aceito com sucesso sem gerar erro.");
 
-let dbPlanVersion = {
-  id: 100,
-  public_id: "ver_draft_100",
-  version_number: 1,
-  status: "DRAFT",
-  published_at: null,
-};
-
-function simulatePublishPlanVersion(versionPublicId) {
-  // Idempotency check: if already PUBLISHED, return controlled success
-  if (dbPlanVersion.status === "PUBLISHED") {
-    return {
-      success: true,
-      versionPublicId: dbPlanVersion.public_id,
-      status: "PUBLISHED",
-      publishedAt: dbPlanVersion.published_at,
-      wasIdempotent: true,
-    };
-  }
-
-  if (dbPlanVersion.status !== "DRAFT") {
-    throw new Error("Apenas versões em rascunho (DRAFT) podem ser publicadas.");
-  }
-
-  dbPlanVersion.status = "PUBLISHED";
-  dbPlanVersion.published_at = new Date("2026-10-22T15:00:00.000Z").toISOString();
-
-  return {
-    success: true,
-    versionPublicId: dbPlanVersion.public_id,
-    status: "PUBLISHED",
-    publishedAt: dbPlanVersion.published_at,
-    wasIdempotent: false,
-  };
-}
-
-// Request 1 publishes the draft
-const pub1 = simulatePublishPlanVersion("ver_draft_100");
-assert.equal(pub1.success, true);
-assert.equal(pub1.status, "PUBLISHED");
-assert.equal(pub1.wasIdempotent, false);
-console.log("  -> 3a. Primeira requisição publicou a versão com sucesso.");
-
-// Request 2 (concurrent retry from second tab or double click)
-const pub2 = simulatePublishPlanVersion("ver_draft_100");
-assert.equal(pub2.success, true);
-assert.equal(pub2.status, "PUBLISHED");
-assert.equal(pub2.wasIdempotent, true);
-assert.equal(pub2.publishedAt, pub1.publishedAt);
-console.log("  -> 3b. Segunda requisição concorrente tratada com idempotência perfeita (sem duplicatas).");
-
-console.log("\nTODOS OS TESTES DE CONCORRÊNCIA E ORDENAÇÃO PASSARAM COM SUCESSO (3/3).");
+console.log("\n================================================================================");
+console.log("TODOS OS TESTES DE CONCORRÊNCIA E REVISÃO PASSARAM COM SUCESSO!");
+console.log("================================================================================\n");

@@ -1584,12 +1584,12 @@ export async function addMealItem(
             `SELECT * FROM nutrition_v2_food_portions
              WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
                AND (
-                 scope = 'GLOBAL'
-                 OR scope IS NULL
+                 (scope = 'GLOBAL' AND consultancy_id IS NULL)
                  OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-                 OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+                 OR (scope = 'PERSONAL' AND consultancy_id = ? AND created_by_user_id = ?)
+                 OR (scope IS NULL AND consultancy_id IS NULL AND created_by_user_id IS NULL)
                )`,
-            [input.portionPublicId.trim(), foodId, ctx.consultancyId || 0, ctx.userId || 0]
+            [input.portionPublicId.trim(), foodId, ctx.consultancyId || 0, ctx.consultancyId || 0, ctx.userId || 0]
           );
           portions = res;
         } catch (err: unknown) {
@@ -1633,13 +1633,13 @@ export async function addMealItem(
               `SELECT * FROM nutrition_v2_food_portions
                WHERE food_id = ? AND LOWER(TRIM(label)) = LOWER(TRIM(?)) AND deleted_at IS NULL AND status = 'ACTIVE'
                  AND (
-                   scope = 'GLOBAL'
-                   OR scope IS NULL
+                   (scope = 'GLOBAL' AND consultancy_id IS NULL)
                    OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-                   OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+                   OR (scope = 'PERSONAL' AND consultancy_id = ? AND created_by_user_id = ?)
+                   OR (scope IS NULL AND consultancy_id IS NULL AND created_by_user_id IS NULL)
                  )
                LIMIT 1`,
-              [foodId, targetLabel, ctx.consultancyId || 0, ctx.userId || 0]
+              [foodId, targetLabel, ctx.consultancyId || 0, ctx.consultancyId || 0, ctx.userId || 0]
             );
             matchedPortions = res;
           } catch (err: unknown) {
@@ -1991,12 +1991,12 @@ export async function updateMealItem(
               `SELECT * FROM nutrition_v2_food_portions
                WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
                  AND (
-                   scope = 'GLOBAL'
-                   OR scope IS NULL
+                   (scope = 'GLOBAL' AND consultancy_id IS NULL)
                    OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-                   OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+                   OR (scope = 'PERSONAL' AND consultancy_id = ? AND created_by_user_id = ?)
+                   OR (scope IS NULL AND consultancy_id IS NULL AND created_by_user_id IS NULL)
                  )`,
-              [input.portionPublicId.trim(), effectiveFoodId, ctx.consultancyId || 0, ctx.userId || 0]
+              [input.portionPublicId.trim(), effectiveFoodId, ctx.consultancyId || 0, ctx.consultancyId || 0, ctx.userId || 0]
             );
             portions = res;
           } catch (err: unknown) {
@@ -2043,13 +2043,13 @@ export async function updateMealItem(
               `SELECT * FROM nutrition_v2_food_portions
                WHERE food_id = ? AND LOWER(TRIM(label)) = LOWER(TRIM(?)) AND deleted_at IS NULL AND status = 'ACTIVE'
                  AND (
-                   scope = 'GLOBAL'
-                   OR scope IS NULL
+                   (scope = 'GLOBAL' AND consultancy_id IS NULL)
                    OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-                   OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+                   OR (scope = 'PERSONAL' AND consultancy_id = ? AND created_by_user_id = ?)
+                   OR (scope IS NULL AND consultancy_id IS NULL AND created_by_user_id IS NULL)
                  )
                LIMIT 1`,
-              [effectiveFoodId, String(item.prescribed_unit_label), ctx.consultancyId || 0, ctx.userId || 0]
+              [effectiveFoodId, String(item.prescribed_unit_label), ctx.consultancyId || 0, ctx.consultancyId || 0, ctx.userId || 0]
             );
             matchingPortions = res;
           } catch (err: unknown) {
@@ -2483,12 +2483,12 @@ export async function addSubstitution(
             `SELECT * FROM nutrition_v2_food_portions
              WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
                AND (
-                 scope = 'GLOBAL'
-                 OR scope IS NULL
+                 (scope = 'GLOBAL' AND consultancy_id IS NULL)
                  OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-                 OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+                 OR (scope = 'PERSONAL' AND consultancy_id = ? AND created_by_user_id = ?)
+                 OR (scope IS NULL AND consultancy_id IS NULL AND created_by_user_id IS NULL)
                )`,
-            [input.portionPublicId.trim(), foodId, ctx.consultancyId || 0, ctx.userId || 0]
+            [input.portionPublicId.trim(), foodId, ctx.consultancyId || 0, ctx.consultancyId || 0, ctx.userId || 0]
           );
           portions = res;
         } catch (err: unknown) {
@@ -2903,12 +2903,12 @@ export async function updateSubstitution(
               `SELECT * FROM nutrition_v2_food_portions
                WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL
                  AND (
-                   scope = 'GLOBAL'
-                   OR scope IS NULL
+                   (scope = 'GLOBAL' AND consultancy_id IS NULL)
                    OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
-                   OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+                   OR (scope = 'PERSONAL' AND consultancy_id = ? AND created_by_user_id = ?)
+                   OR (scope IS NULL AND consultancy_id IS NULL AND created_by_user_id IS NULL)
                  )`,
-              [input.portionPublicId.trim(), effectiveFoodId, ctx.consultancyId || 0, ctx.userId || 0]
+              [input.portionPublicId.trim(), effectiveFoodId, ctx.consultancyId || 0, ctx.consultancyId || 0, ctx.userId || 0]
             );
             portions = res;
           } catch (err: unknown) {
@@ -2947,11 +2947,33 @@ export async function updateSubstitution(
       } else {
         // When input.portionPublicId is undefined, preserve existing registered portion if present
         if (sub.prescribed_unit_label && sub.prescribed_unit_code !== "G") {
-          const [matchingPortions] = await connection.query<RowDataPacket[]>(
-            `SELECT * FROM nutrition_v2_food_portions
-             WHERE food_id = ? AND label = ? AND deleted_at IS NULL AND status = 'ACTIVE' LIMIT 1`,
-            [effectiveFoodId, String(sub.prescribed_unit_label)]
-          );
+          let matchingPortions: RowDataPacket[] = [];
+          try {
+            const [res] = await connection.query<RowDataPacket[]>(
+              `SELECT * FROM nutrition_v2_food_portions
+               WHERE food_id = ? AND label = ? AND deleted_at IS NULL AND status = 'ACTIVE'
+                 AND (
+                   (scope = 'GLOBAL' AND consultancy_id IS NULL)
+                   OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+                   OR (scope = 'PERSONAL' AND consultancy_id = ? AND created_by_user_id = ?)
+                   OR (scope IS NULL AND consultancy_id IS NULL AND created_by_user_id IS NULL)
+                 )
+               LIMIT 1`,
+              [effectiveFoodId, String(sub.prescribed_unit_label), ctx.consultancyId || 0, ctx.consultancyId || 0, ctx.userId || 0]
+            );
+            matchingPortions = res;
+          } catch (err: unknown) {
+            if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+              const [res] = await connection.query<RowDataPacket[]>(
+                `SELECT * FROM nutrition_v2_food_portions
+                 WHERE food_id = ? AND label = ? AND deleted_at IS NULL AND status = 'ACTIVE' LIMIT 1`,
+                [effectiveFoodId, String(sub.prescribed_unit_label)]
+              );
+              matchingPortions = res;
+            } else {
+              throw err;
+            }
+          }
           if (matchingPortions.length > 0) {
             const portion = matchingPortions[0];
             portionEquivalentAmount = Number(portion.equivalent_reference_amount);

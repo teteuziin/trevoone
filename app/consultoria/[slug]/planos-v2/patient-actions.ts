@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "@/lib/db/mysql";
-import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
+import { resolveNutritionAccessContext, NutritionAuthorizationError } from "@/lib/nutrition-v2/access";
 import {
   getPatientRecordDetail,
   updatePatientRecord,
@@ -25,6 +25,7 @@ import type {
   UpdateAnthropometricEntryInput,
   UpdatePregnancyInput,
   PatientRecordDetail,
+  PatientRecord,
   SaveClinicalNoteInput,
   PatientClinicalNoteDto,
 } from "@/lib/nutrition-v2/patient-record-types";
@@ -90,15 +91,16 @@ export async function updatePatientRecordAction(
   slug: string,
   studentPublicId: string,
   input: UpdatePatientRecordInput
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; code?: string; record?: PatientRecord }> {
   try {
     const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, true);
-    await updatePatientRecord(ctx.consultancyId!, studentMembershipId, ctx.membershipId!, input);
+    const updatedRecord = await updatePatientRecord(ctx.consultancyId!, studentMembershipId, ctx.membershipId!, input);
     revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
-    return { success: true };
+    return { success: true, record: updatedRecord };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao salvar prontuário.";
-    return { success: false, error: message };
+    const code = err instanceof NutritionAuthorizationError ? err.code : undefined;
+    return { success: false, error: message, code };
   }
 }
 

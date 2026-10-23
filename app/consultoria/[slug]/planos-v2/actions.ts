@@ -32,6 +32,7 @@ import { revalidatePath } from "next/cache";
 import { resolveNutritionAccessContext, assertCanAuthorNutrition, assertCanViewNutrition, NutritionAuthorizationError } from "@/lib/nutrition-v2/access";
 import {
   createPlanWithDraftVersion,
+  deletePlan,
   updatePlanVersionMetadata,
   addMeal,
   updateMeal,
@@ -166,6 +167,28 @@ export async function updatePlanMetadataAction(
     return { success: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao atualizar dados do plano.";
+    return { success: false, error: message };
+  }
+}
+
+export async function deletePlanAction(
+  slug: string,
+  planPublicId: string
+): Promise<ActionResult<{ success: boolean }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    if (!planPublicId) {
+      return { success: false, error: "Identificador do plano é obrigatório.", code: "VALIDATION_ERROR" };
+    }
+
+    const res = await deletePlan(ctx, planPublicId);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao excluir plano.";
     return { success: false, error: message };
   }
 }

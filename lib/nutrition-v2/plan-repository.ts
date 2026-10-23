@@ -797,6 +797,100 @@ export async function listPlansForConsultancy(
 }
 
 // ============================================================================
+// PLAN DELETE (soft delete, mirrors the workout delete pattern)
+// - Archives ACTIVE/DRAFT assignments so the patient loses access to the plan
+// - Soft-deletes the plan root (status ARCHIVED + deleted_at); versions are
+//   preserved in the database for audit/history and are NOT modified, which
+//   keeps published versions immutable.
+// ============================================================================
+
+export async function deletePlan(
+  ctx: NutritionAccessContext,
+  planPublicId: string
+): Promise<{ success: boolean }> {
+  assertCanAuthorNutrition(ctx);
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    const [plans] = await connection.query<RowDataPacket[]>(
+      `SELECT id, consultancy_id
+       FROM nutrition_v2_plans
+       WHERE public_id = ? AND deleted_at IS NULL
+       LIMIT 1 FOR UPDATE`,
+      [planPublicId]
+    );
+
+    if (plans.length === 0) {
+      throw new NutritionAuthorizationError("Plano não encontrado.", "PLAN_NOT_FOUND", 404);
+    }
+
+    const plan = plans[0];
+
+    if (Number(plan.consultancy_id) !== ctx.consultancyId) {
+      throw new NutritionAuthorizationError("Acesso negado a este plano.", "FORBIDDEN_TENANT_PLAN", 403);
+    }
+
+    const [versions] = await connection.query<RowDataPacket[]>(
+      `SELECT title
+       FROM nutrition_v2_plan_versions
+       WHERE nutrition_plan_id = ? AND deleted_at IS NULL
+       ORDER BY version_number DESC
+       LIMIT 1`,
+      [plan.id]
+    );
+    const planTitle = versions.length > 0 ? String(versions[0].title) : "Plano alimentar";
+
+    // 1. Archive any ACTIVE/DRAFT assignments of this plan (patient loses access)
+    await connection.query(
+      `UPDATE nutrition_v2_assignments a
+       JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
+       SET a.status = 'ARCHIVED', a.updated_at = UTC_TIMESTAMP(3)
+       WHERE v.nutrition_plan_id = ? AND a.deleted_at IS NULL AND a.status IN ('ACTIVE', 'DRAFT')`,
+      [plan.id]
+    );
+
+    // 2. Soft-delete the plan root
+    await connection.query(
+      `UPDATE nutrition_v2_plans
+       SET status = 'ARCHIVED', deleted_at = UTC_TIMESTAMP(3), updated_at = UTC_TIMESTAMP(3)
+       WHERE id = ?`,
+      [plan.id]
+    );
+
+    await recordConsultancyActivity({
+      consultancyId: ctx.consultancyId!,
+      actorUserId: ctx.userId,
+      actorMembershipId: ctx.membershipId,
+      actorRole: ctx.roles.includes("NUTRITIONIST") ? "NUTRITIONIST" : (ctx.roles[0] || "NUTRITIONIST"),
+      action: "NUTRITION_PLAN_DELETED",
+      module: "NUTRITION",
+      resourceType: "nutrition_plan",
+      resourcePublicId: planPublicId,
+      summary: `Plano alimentar "${planTitle}" excluído`,
+      metadata: { planPublicId, title: planTitle },
+      connection,
+    }).catch(() => {});
+
+    await connection.commit();
+    return { success: true };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {
+        // ignore rollback error
+      }
+    }
+    throw err;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+// ============================================================================
 // CANONICAL PLAN TREE READER
 // ============================================================================
 

@@ -142,7 +142,7 @@ export default async function ConsultancyNutritionPlansPage({
       showDashboardWallpaper={true}
       maxWidth="default"
     >
-      <div className="w-full max-w-5xl mx-auto space-y-6 pb-24 sm:pb-12">
+      <div className="w-full max-w-6xl mx-auto space-y-6 pb-24 sm:pb-12">
         {/* =========================================================================
             A. CABEÇALHO COMPACTO
             Fundo preto/grafite, cantos arredondados, sem degradê verde.

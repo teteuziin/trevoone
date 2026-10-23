@@ -117,9 +117,9 @@ export function NutritionPlanListView({
           <div className="col-span-3">Plano alimentar</div>
           <div className="col-span-2">Paciente / Vínculo</div>
           <div className="col-span-2">Situação & Versão</div>
-          <div className="col-span-2">Refeições</div>
+          <div className="col-span-1">Refeições</div>
           <div className="col-span-1">Atualização</div>
-          <div className="col-span-2 text-right">Ações</div>
+          <div className="col-span-3 text-right">Ações</div>
         </div>
 
         {/* Table Rows */}
@@ -197,7 +197,7 @@ export function NutritionPlanListView({
                 </div>
 
                 {/* Col 4: Refeições */}
-                <div className="col-span-2 text-xs text-zinc-600 dark:text-zinc-300 font-medium whitespace-nowrap">
+                <div className="col-span-1 text-xs text-zinc-600 dark:text-zinc-300 font-medium truncate">
                   <span>
                     {plan.mealsCount ? `${plan.mealsCount} ${plan.mealsCount === 1 ? "refeição" : "refeições"}` : "Sem refeições"}
                   </span>
@@ -208,8 +208,8 @@ export function NutritionPlanListView({
                   {new Date(plan.updatedAt).toLocaleDateString("pt-BR")}
                 </div>
 
-                {/* Col 6: Ações (Abrir plano, Enviar plano, Menu ⋮) */}
-                <div className="col-span-2 flex items-center justify-end gap-1.5 whitespace-nowrap">
+                {/* Col 6: Ações (Enviar plano, Abrir plano, Excluir, Menu ⋮) */}
+                <div className="col-span-3 flex items-center justify-end gap-1.5 whitespace-nowrap">
                   {!isTemplate && (
                     <button
                       type="button"
@@ -234,7 +234,9 @@ export function NutritionPlanListView({
                     planPublicId={plan.publicId}
                     planTitle={title}
                     isDraft={hasDraft && !hasPublished}
+                    isTemplate={isTemplate}
                     assignedStudentName={plan.assignedStudentName}
+                    activeAssignmentsCount={plan.activeAssignmentsCount}
                   />
                 </div>
               </div>
@@ -357,7 +359,9 @@ export function NutritionPlanListView({
                   planPublicId={plan.publicId}
                   planTitle={title}
                   isDraft={hasDraft && !hasPublished}
+                  isTemplate={isTemplate}
                   assignedStudentName={plan.assignedStudentName}
+                  activeAssignmentsCount={plan.activeAssignmentsCount}
                 />
               </div>
             </div>

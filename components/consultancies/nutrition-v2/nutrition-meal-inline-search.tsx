@@ -57,8 +57,11 @@ export function NutritionMealInlineSearch({
 
   // Selected portion per food: portionPublicId or "G"
   const [selectedPortions, setSelectedPortions] = useState<Record<string, string>>({});
-  // Selected quantity per food (default 1)
-  const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({});
+  // Selected quantity per food, kept as RAW TEXT (default "1") so the user can
+  // erase the field while typing; parsing/fallback to 1 happens on blur and
+  // when adding. Storing a number here made the input snap back to "1" on
+  // every keystroke that produced an empty/invalid value ("o 1 não apaga").
+  const [selectedQuantities, setSelectedQuantities] = useState<Record<string, string>>({});
 
   // Adding feedback
   const [addingFoodId, setAddingFoodId] = useState<string | null>(null);
@@ -152,11 +155,32 @@ export function NutritionMealInlineSearch({
   }, [foods, slug]);
 
   const handleQuantityChange = (foodPublicId: string, val: string) => {
-    const num = parseFloat(val.replace(",", "."));
+    // Keep exactly what the user typed (including "") — never coerce here.
     setSelectedQuantities((prev) => ({
       ...prev,
-      [foodPublicId]: isNaN(num) || num <= 0 ? 1 : num,
+      [foodPublicId]: val,
     }));
+  };
+
+  const handleQuantityBlur = (foodPublicId: string) => {
+    // On blur, an empty/invalid field falls back to "1".
+    setSelectedQuantities((prev) => {
+      const raw = prev[foodPublicId];
+      if (raw == null) return prev;
+      const num = parseFloat(raw.replace(",", "."));
+      if (!Number.isFinite(num) || num <= 0) {
+        return { ...prev, [foodPublicId]: "1" };
+      }
+      return prev;
+    });
+  };
+
+  // Effective numeric quantity for previews and for adding (fallback 1).
+  const getQuantityNumber = (foodPublicId: string): number => {
+    const raw = selectedQuantities[foodPublicId];
+    if (raw == null) return 1;
+    const num = parseFloat(raw.replace(",", "."));
+    return Number.isFinite(num) && num > 0 ? num : 1;
   };
 
   const handlePortionChange = (foodPublicId: string, val: string) => {
@@ -167,7 +191,7 @@ export function NutritionMealInlineSearch({
   };
 
   const handleAddFood = async (food: FoodListItemDto) => {
-    const qty = selectedQuantities[food.publicId] ?? 1;
+    const qty = getQuantityNumber(food.publicId);
     const portionChoice = selectedPortions[food.publicId] ?? (foodPortionsMap[food.publicId]?.[0]?.publicId || "G");
 
     let portionPublicId: string | null = null;
@@ -354,7 +378,8 @@ export function NutritionMealInlineSearch({
         )}
 
         {foods.map((food, idx) => {
-          const qty = selectedQuantities[food.publicId] ?? 1;
+          const qtyText = selectedQuantities[food.publicId] ?? "1";
+          const qty = getQuantityNumber(food.publicId);
           const portions = foodPortionsMap[food.publicId] || [];
           const chosenPortionId = selectedPortions[food.publicId] || (portions[0]?.publicId ?? "G");
 
@@ -448,8 +473,9 @@ export function NutritionMealInlineSearch({
                     <input
                       type="text"
                       inputMode="decimal"
-                      value={qty}
+                      value={qtyText}
                       onChange={(e) => handleQuantityChange(food.publicId, e.target.value)}
+                      onBlur={() => handleQuantityBlur(food.publicId)}
                       className="w-full px-1.5 py-1 text-xs font-bold text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                       title="Quantidade prescrita"
                     />

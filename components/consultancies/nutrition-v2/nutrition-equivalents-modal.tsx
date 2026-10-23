@@ -101,6 +101,14 @@ export function NutritionEquivalentsModal({
   const [totalCount, setTotalCount] = useState(0);
   const searchRequestIdRef = useRef(0);
   const [isSearching, startSearchTransition] = useTransition();
+  // First-load / failure visibility for the candidates list. Previously a
+  // failed or still-running first search silently rendered "(0)" + the
+  // "nenhum alimento" box, which looked like an empty catalog even when the
+  // server reported hundreds of foods in the pagination totals.
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
+  const autoRetriedRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -148,17 +156,44 @@ export function NutritionEquivalentsModal({
     const timer = setTimeout(() => {
       startSearchTransition(async () => {
         const searchQuery = isReviewMode ? (query || substitutionToReview?.foodNameSnapshot || "") : query;
-        const res = await searchFoodsForPickerAction(slug, searchQuery, scopeFilter, page);
-        if (!isCurrent || searchRequestIdRef.current !== currentRequestId) return;
+        try {
+          const res = await searchFoodsForPickerAction(slug, searchQuery, scopeFilter, page);
+          if (!isCurrent || searchRequestIdRef.current !== currentRequestId) return;
 
-        if (res.success && res.data) {
-          setFoods(res.data.items);
-          setTotalPages(res.data.totalPages || 1);
-          setTotalCount(res.data.total || 0);
-        } else if (initialFoods && initialFoods.length > 0 && !searchQuery.trim()) {
-          setFoods(initialFoods);
-          setTotalPages(1);
-          setTotalCount(initialFoods.length);
+          if (res.success && res.data) {
+            const items = res.data.items || [];
+            setFoods(items);
+            setTotalPages(res.data.totalPages || 1);
+            setTotalCount(res.data.total || 0);
+            setSearchError(null);
+            setHasLoaded(true);
+
+            // Inconsistent response guard: server reports foods exist
+            // (total > 0) but page 1 came back empty — retry once silently
+            // instead of showing a fake empty catalog.
+            if (items.length === 0 && (res.data.total || 0) > 0 && page === 1 && !autoRetriedRef.current) {
+              autoRetriedRef.current = true;
+              setRetryNonce((n) => n + 1);
+            } else if (items.length > 0) {
+              autoRetriedRef.current = false;
+            }
+          } else if (initialFoods && initialFoods.length > 0 && !searchQuery.trim()) {
+            setFoods(initialFoods);
+            setTotalPages(1);
+            setTotalCount(initialFoods.length);
+            setSearchError(null);
+            setHasLoaded(true);
+          } else {
+            // Surface the failure — never present it as an empty catalog.
+            setSearchError(
+              !res.success && res.error ? res.error : "Não foi possível carregar os alimentos. Tente novamente."
+            );
+            setHasLoaded(true);
+          }
+        } catch {
+          if (!isCurrent || searchRequestIdRef.current !== currentRequestId) return;
+          setSearchError("Falha de conexão ao buscar os alimentos. Tente novamente.");
+          setHasLoaded(true);
         }
       });
     }, 200);
@@ -167,7 +202,7 @@ export function NutritionEquivalentsModal({
       isCurrent = false;
       clearTimeout(timer);
     };
-  }, [isOpen, slug, query, scopeFilter, page, initialFoods, isReviewMode, substitutionToReview]);
+  }, [isOpen, slug, query, scopeFilter, page, initialFoods, isReviewMode, substitutionToReview, retryNonce]);
 
   // Pre-load household portions from Food Library for candidate foods
   useEffect(() => {
@@ -222,6 +257,9 @@ export function NutritionEquivalentsModal({
     if (isSubmitting) return;
     setQuery("");
     setPage(1);
+    setHasLoaded(false);
+    setSearchError(null);
+    autoRetriedRef.current = false;
     setSuccessMessage(null);
     setSubmittingId(null);
     setCustomQuantities({});
@@ -623,7 +661,7 @@ export function NutritionEquivalentsModal({
                         : "porção ou alimento divergente"
                     }). Revise a sugestão abaixo e confirme.`
                   : "Esta substituição não possui critério nutricional registrado. Escolha um critério ou confirme como porção manual."
-                : "Selecione o alimento da biblioteca e escolha o critério para calcular a quantidade equivalente."}
+                : `Você está adicionando uma substituição para "${prescribedItem.foodNameSnapshot}". O alimento escolhido entra como alternativa (OU) deste item — ele NÃO soma calorias à refeição. Escolha o critério para calcular a quantidade equivalente.`}
             </p>
           </div>
 
@@ -1067,12 +1105,42 @@ export function NutritionEquivalentsModal({
           <div className="space-y-3 pt-1">
             {!isReviewMode && (
               <div className="flex items-center justify-between text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
-                <span>Alimentos candidatos ({sortedItems.length})</span>
+                <span>
+                  {sortedItems.length === 0 && (!hasLoaded || isSearching)
+                    ? "Alimentos candidatos"
+                    : `Alimentos candidatos (${sortedItems.length})`}
+                </span>
                 {isSearching && <span className="animate-pulse">Buscando...</span>}
               </div>
             )}
 
-            {sortedItems.length === 0 ? (
+            {sortedItems.length === 0 && searchError ? (
+              <div className="py-10 px-4 text-center text-xs bg-rose-500/5 rounded-2xl border border-dashed border-rose-500/30 space-y-2">
+                <p className="font-semibold text-rose-700 dark:text-rose-300">Não foi possível carregar os alimentos.</p>
+                <p className="text-[11px] text-[var(--text-secondary)]">{searchError}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchError(null);
+                    setHasLoaded(false);
+                    autoRetriedRef.current = false;
+                    setRetryNonce((n) => n + 1);
+                  }}
+                  className="min-h-[36px] px-4 py-1.5 rounded-lg text-xs font-bold bg-[var(--brand)] text-white hover:opacity-90 cursor-pointer"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : sortedItems.length === 0 && (!hasLoaded || isSearching) ? (
+              <div className="py-10 text-center text-xs text-[var(--text-secondary)] bg-[var(--surface-sunken)]/50 rounded-2xl border border-dashed border-[var(--border-subtle)] space-y-2">
+                <svg className="w-5 h-5 animate-spin text-[var(--brand)] mx-auto" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                <p className="font-semibold">Carregando alimentos da biblioteca...</p>
+                <p className="text-[11px] opacity-75">A lista de equivalentes aparece em instantes.</p>
+              </div>
+            ) : sortedItems.length === 0 ? (
               <div className="py-10 text-center text-xs text-[var(--text-secondary)] bg-[var(--surface-sunken)]/50 rounded-2xl border border-dashed border-[var(--border-subtle)] space-y-1">
                 <p className="font-semibold">Nenhum alimento encontrado para substituição.</p>
                 <p className="text-[11px] opacity-75">Tente buscar por outro termo ou nome de ingrediente.</p>

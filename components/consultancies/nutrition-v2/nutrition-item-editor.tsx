@@ -114,13 +114,23 @@ export function NutritionItemEditor({
   const [substitutionToCompare, setSubstitutionToCompare] = useState<ItemSubstitutionDto | null>(null);
   const [showMicro, setShowMicro] = useState(false);
 
-  const menuRef = useRef<HTMLDivElement>(null);
+  // Desktop and mobile layouts render separate ⋮ menus that share the same
+  // open state. Each layout MUST have its own ref: with a single shared ref,
+  // the ref ends up pointing at the mobile container only, so on desktop the
+  // click-away listener (mousedown) closes the menu before the click event
+  // reaches the menu item — making every desktop menu action a no-op
+  // ("+ Adicionar substituição", "Remover alimento", etc.).
+  const desktopMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Click away listener for menu
+  // Click away listener for menu (must check BOTH layout containers)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insideDesktop = desktopMenuRef.current?.contains(target);
+      const insideMobile = mobileMenuRef.current?.contains(target);
+      if (!insideDesktop && !insideMobile) {
         setIsMenuOpen(false);
       }
     };
@@ -585,7 +595,7 @@ export function NutritionItemEditor({
 
           {/* Action Menu ⋮ Button */}
           {!readOnly && (
-            <div className="relative" ref={menuRef}>
+            <div className="relative" ref={desktopMenuRef}>
               <button
                 type="button"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -787,7 +797,7 @@ export function NutritionItemEditor({
 
           {/* Action Menu ⋮ Mobile */}
           {!readOnly && (
-            <div className="relative shrink-0" ref={menuRef}>
+            <div className="relative shrink-0" ref={mobileMenuRef}>
               <button
                 type="button"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}

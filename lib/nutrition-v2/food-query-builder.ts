@@ -892,6 +892,38 @@ export function buildFoodSearchOrderClause(
   }
   orderParams.push(...tier2Pt, ...tier2En);
 
+  // Tier 2b: Regional synonyms of the first token at the START of the name.
+  // The WHERE clause already matches synonym-expanded tokens anywhere in the
+  // name, but the relevance tiers below only knew the raw token — so a search
+  // for "aipim" ranked every literal "aipim" item first and pushed the basic
+  // TACO staple "Mandioca, cozida" (a synonym match) to the generic tier,
+  // often off the first page. Promote foods whose name starts with a synonym
+  // variant (e.g. "mandioca,%" / "mandioca %") to a top tier.
+  const synonymVariants = Array.from(
+    new Set(
+      (expandSearchTokensWithSynonyms([firstToken])[0] || [])
+        .map((v) => v.trim().toLowerCase())
+        .filter(
+          (v) =>
+            v.length >= 3 &&
+            v !== firstToken &&
+            v !== firstStem &&
+            v !== `${firstStem}s`
+        )
+    )
+  ).slice(0, 4);
+  const synonymOrderParams: string[] = [];
+  let synonymTierSql = "";
+  if (synonymVariants.length > 0) {
+    const clauses: string[] = [];
+    for (const v of synonymVariants) {
+      clauses.push(`${targetCol} LIKE ?`, `${targetCol} LIKE ?`);
+      synonymOrderParams.push(`${v},%`, `${v} %`);
+    }
+    synonymTierSql = `WHEN ${clauses.join(" OR ")} THEN 4`;
+  }
+  orderParams.push(...synonymOrderParams);
+
   // Tier 3: Primary noun followed by comma
   orderParams.push(`${firstToken},%`, `${firstStem},%`, `${firstStem}s,%`, `peixe, ${firstToken},%`, `peixe, ${firstStem},%`);
   orderParams.push(`${firstToken},%`, `${firstStem},%`, `${firstStem}s,%`, `fish, ${firstToken},%`, `fish, ${firstStem},%`);
@@ -988,6 +1020,8 @@ export function buildFoodSearchOrderClause(
       WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ?
         OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 4
       `}
+      -- Tier 2b: Regional synonym at start of PT-BR name (aipim -> "Mandioca, cozida")
+      ${synonymTierSql}
       -- Tier 3: Primary noun followed by comma (base food indicator)
       WHEN ${targetCol} LIKE ? OR ${targetCol} LIKE ? OR ${targetCol} LIKE ?
         OR ${targetCol} LIKE ? OR ${targetCol} LIKE ? THEN 5

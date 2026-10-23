@@ -793,6 +793,7 @@ export async function getPatientRecordDetail(
 
     // 12. Lab Exams (Etapa 14)
     let labExams: PatientLabExamRecord[] = [];
+    let isLabExamsUnavailable = false;
     try {
       labExams = await listPatientLabExams(consultancyId, studentMembershipId);
     } catch (err: unknown) {
@@ -802,6 +803,7 @@ export async function getPatientRecordDetail(
       if (!isMissingTable) {
         throw err;
       }
+      isLabExamsUnavailable = true;
       labExams = [];
     }
 
@@ -841,6 +843,7 @@ export async function getPatientRecordDetail(
       recentAuditTrail,
       preQuestionnaires,
       labExams,
+      isLabExamsUnavailable,
       fieldPreferences,
     };
   } finally {

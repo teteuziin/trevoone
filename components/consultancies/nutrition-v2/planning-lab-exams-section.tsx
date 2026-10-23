@@ -10,6 +10,7 @@ interface PlanningLabExamsSectionProps {
   studentMembershipPublicId: string;
   exams: PatientLabExamRecord[];
   canAuthor?: boolean;
+  isUnavailable?: boolean;
 }
 
 export function PlanningLabExamsSection({
@@ -17,6 +18,7 @@ export function PlanningLabExamsSection({
   studentMembershipPublicId,
   exams: initialExams,
   canAuthor = true,
+  isUnavailable = false,
 }: PlanningLabExamsSectionProps) {
   const [exams, setExams] = useState<PatientLabExamRecord[]>(initialExams || []);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -171,7 +173,7 @@ export function PlanningLabExamsSection({
           </p>
         </div>
 
-        {canAuthor && (
+        {canAuthor && !isUnavailable && (
           <button
             type="button"
             onClick={handleOpenAdd}
@@ -207,8 +209,24 @@ export function PlanningLabExamsSection({
         </span>
       </div>
 
-      {/* List of Registered Exam Sessions */}
-      {exams.length === 0 ? (
+      {/* List of Registered Exam Sessions or Unavailable Warning */}
+      {isUnavailable ? (
+        <div className="p-8 rounded-3xl border border-amber-500/30 bg-amber-500/10 text-center space-y-3">
+          <div className="inline-flex p-3 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-amber-800 dark:text-amber-300">
+              Módulo de Exames Laboratoriais Temporariamente Indisponível
+            </h4>
+            <p className="text-xs text-amber-700 dark:text-amber-400 max-w-lg mx-auto mt-1 leading-relaxed">
+              A tabela de exames laboratoriais (migration 065) ainda não foi aplicada neste ambiente de banco de dados. Os dados clínicos e avaliações do paciente estão preservados, mas a inserção de novos laudos requer a execução da migration pelo operador.
+            </p>
+          </div>
+        </div>
+      ) : exams.length === 0 ? (
         <div className="p-8 rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface-subtle)] text-center space-y-2">
           <p className="text-sm font-semibold text-[var(--text-secondary)]">
             Nenhum exame laboratorial registrado até o momento.

@@ -467,11 +467,15 @@ export function PlanningEvolutionTab({
             }`}
           >
             <span>Exames Laboratoriais</span>
-            {detail.labExams && detail.labExams.length > 0 && (
+            {detail.isLabExamsUnavailable ? (
+              <span className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                Pendente
+              </span>
+            ) : detail.labExams && detail.labExams.length > 0 ? (
               <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                 {detail.labExams.length}
               </span>
-            )}
+            ) : null}
           </button>
         )}
 
@@ -734,6 +738,7 @@ export function PlanningEvolutionTab({
           studentMembershipPublicId={detail.student.membershipPublicId}
           exams={detail.labExams || []}
           canAuthor={canAuthorNutrition}
+          isUnavailable={detail.isLabExamsUnavailable}
         />
       )}
 

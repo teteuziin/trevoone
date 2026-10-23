@@ -123,10 +123,12 @@ export async function listPatientLabExams(
     const isMissingTable =
       (err as { code?: string })?.code === "ER_NO_SUCH_TABLE" ||
       String(err).includes("doesn't exist");
-    if (!isMissingTable) {
-      throw err;
+    if (isMissingTable) {
+      const missingErr = new Error("Tabela de exames laboratoriais (nutrition_v2_patient_lab_exams) não encontrada no banco de dados.");
+      (missingErr as unknown as { code: string }).code = "ER_NO_SUCH_TABLE";
+      throw missingErr;
     }
-    return [];
+    throw err;
   } finally {
     connection.release();
   }

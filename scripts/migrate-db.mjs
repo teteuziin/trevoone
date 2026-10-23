@@ -65,17 +65,23 @@ async function loadAndValidateLocalMigrations() {
 
 async function run() {
   const isApplyMode = process.argv.includes("--apply");
+  const onlyArg = process.argv.find((arg) => arg.startsWith("--only=") || arg.startsWith("--migration="));
+  const targetOnly = onlyArg ? onlyArg.replace(/^--(only|migration)=/, "").trim() : null;
+
+  console.log(`[Diretório Atual]: ${process.cwd()}`);
 
   const localMigrations = await loadAndValidateLocalMigrations();
 
   if (!isApplyMode) {
-    console.log("Migrations locais encontradas:");
+    console.log(`\nMigrations locais encontradas (${localMigrations.length}):`);
     for (const m of localMigrations) {
       console.log(`- ${m.name}`);
     }
     console.log("\nModo seguro.");
     console.log("Nenhuma conexão com o banco foi aberta.");
-    console.log("Use --apply somente após autorização explícita.");
+    console.log("\nOpções de execução com autorização:");
+    console.log("  node scripts/migrate-db.mjs --apply                      # Aplica todas as migrations pendentes");
+    console.log("  node scripts/migrate-db.mjs --apply --only=065_...sql    # Aplica estritamente a migration indicada");
     process.exit(0);
   }
 
@@ -175,13 +181,29 @@ async function run() {
 
     const pending = localMigrations.filter((m) => !appliedMap.has(m.name));
 
-    if (pending.length === 0) {
-      console.log("Nenhuma migration pendente. O banco de dados já está atualizado.");
-      return;
+    let toExecute = pending;
+
+    if (targetOnly) {
+      const matched = localMigrations.find((m) => m.name === targetOnly || m.name.startsWith(targetOnly));
+      if (!matched) {
+        console.error(`ERRO: Migration alvo '${targetOnly}' não encontrada no diretório local database/migrations.`);
+        process.exit(1);
+      }
+      if (appliedMap.has(matched.name)) {
+        console.log(`A migration '${matched.name}' já consta como aplicada e registrada no banco de dados.`);
+        return;
+      }
+      toExecute = [matched];
+      console.log(`[Modo Seletivo]: Executando exclusivamente a migration '${matched.name}'.`);
+    } else {
+      if (pending.length === 0) {
+        console.log("Nenhuma migration pendente. O banco de dados já está atualizado.");
+        return;
+      }
+      console.log(`Encontrada(s) ${pending.length} migration(s) pendente(s):`);
     }
 
-    console.log(`Encontrada(s) ${pending.length} migration(s) pendente(s):`);
-    for (const m of pending) {
+    for (const m of toExecute) {
       console.log(`- Executando ${m.name}...`);
       await connection.query(m.content);
       await connection.query(
@@ -191,7 +213,7 @@ async function run() {
       console.log(`- ${m.name} aplicada e registrada com sucesso.`);
     }
 
-    console.log("\nTodas as migrations foram aplicadas com sucesso.");
+    console.log("\nOperação de migration concluída com sucesso.");
   } catch (err) {
     const errCode = err?.code || "ERRO_MIGRATION";
     const errMessage = err?.message || String(err);

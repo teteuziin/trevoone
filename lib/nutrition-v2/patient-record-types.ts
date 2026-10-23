@@ -363,6 +363,7 @@ export type PatientRecordDetail = {
 
   // Exames Laboratoriais e Preferências de Exibição (Etapa 14)
   labExams?: PatientLabExamRecord[];
+  isLabExamsUnavailable?: boolean;
   fieldPreferences?: PlanningFieldPreferences;
 };
 

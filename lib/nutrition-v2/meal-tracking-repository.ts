@@ -98,7 +98,7 @@ export async function upsertMealTrackingLog(
 
     // 1. Check existing log
     const [existingRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, public_id, photo_storage_key
+      `SELECT id, public_id, photo_storage_key, updated_at
        FROM nutrition_v2_meal_tracking_logs
        WHERE consultancy_id = ?
          AND student_membership_id = ?
@@ -126,6 +126,31 @@ export async function upsertMealTrackingLog(
       // UPDATE existing log
       const existing = existingRows[0];
       targetPublicId = String(existing.public_id);
+
+      // Concurrency & Out-of-Order protection:
+      // If client supplied clientTimestamp or expectedUpdatedAt, ensure we do NOT
+      // overwrite a newer state with a stale, delayed or out-of-order request.
+      const existingUpdatedAtMs = existing.updated_at ? new Date(existing.updated_at).getTime() : 0;
+      const clientTsMs = params.input.clientTimestamp ? new Date(params.input.clientTimestamp).getTime() : null;
+      const expectedUpdatedAtMs = params.input.expectedUpdatedAt ? new Date(params.input.expectedUpdatedAt).getTime() : null;
+
+      if (
+        (clientTsMs !== null && !isNaN(clientTsMs) && existingUpdatedAtMs > clientTsMs) ||
+        (expectedUpdatedAtMs !== null && !isNaN(expectedUpdatedAtMs) && existingUpdatedAtMs > expectedUpdatedAtMs)
+      ) {
+        // Rollback current transaction to discard stale overwrite
+        await connection.rollback();
+        // Load and return authoritative newer state from database
+        const [freshRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT * FROM nutrition_v2_meal_tracking_logs WHERE id = ? LIMIT 1;`,
+          [existing.id]
+        );
+        if (Array.isArray(freshRows) && freshRows.length > 0) {
+          return mapRowToDto(freshRows[0], params.consultancySlug);
+        }
+        return mapRowToDto(existing, params.consultancySlug);
+      }
+
       const oldPhotoKey = existing.photo_storage_key ? String(existing.photo_storage_key) : null;
 
       let newPhotoKey = oldPhotoKey;

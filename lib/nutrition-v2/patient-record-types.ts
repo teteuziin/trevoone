@@ -375,6 +375,8 @@ export type UpdatePatientRecordInput = {
   sleepRoutine?: string | null;
   workStudyRoutine?: string | null;
   fieldProvenanceJson?: string | null;
+  expectedUpdatedAt?: string | null;
+  clientTimestamp?: string | null;
 };
 
 export type AddAnthropometricEntryInput = {

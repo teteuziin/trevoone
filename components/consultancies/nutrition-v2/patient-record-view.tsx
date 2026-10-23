@@ -50,6 +50,7 @@ import { PatientCadastralModal } from "./patient-cadastral-modal";
 import { NutritionWorkspaceNav } from "./nutrition-workspace-nav";
 import { PatientGeneralRecordTab } from "./patient-general-record-tab";
 import { PlanningEvolutionTab } from "./planning-evolution-tab";
+import { Evolution360Hub } from "@/components/consultancies/evolution/evolution-360-hub";
 import { PatientMealTrackingTab } from "./patient-meal-tracking-tab";
 import { AnthropometricModal } from "./anthropometric-modal";
 import type { PatientConsultationHubSummaryDto } from "@/lib/nutrition-v2/clinical-consultation-types";
@@ -175,6 +176,8 @@ export function PatientRecordView({
   initialDetail,
   activePlan,
   draftPlan,
+  evolutionHubData = null,
+  evolutionComparisonData = null,
   initialTab,
   initialPlanning = null,
   initialStaleStatus = null,
@@ -699,14 +702,29 @@ export function PatientRecordView({
           type="button"
           onClick={() => handleTabChange("planejamento")}
           className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer min-h-[44px] ${
-            activeTab === "planejamento" || activeTab === "evolucao"
+            activeTab === "planejamento"
               ? "bg-[#222429] text-white font-extrabold shadow-2xs border border-[#3A3D45]"
               : "text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] border border-transparent"
           }`}
         >
           <span>Planejamento</span>
           <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-400">
-            Evolução ({sortedAnthros.length})
+            Medidas ({sortedAnthros.length})
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange("evolucao")}
+          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer min-h-[44px] ${
+            activeTab === "evolucao"
+              ? "bg-[#222429] text-white font-extrabold shadow-2xs border border-[#3A3D45]"
+              : "text-[#9CA3AF] hover:text-white hover:bg-[#1C1E22] border border-transparent"
+          }`}
+        >
+          <span>Evolução 360°</span>
+          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-400">
+            Fotos & Comparador
           </span>
         </button>
 
@@ -800,7 +818,7 @@ export function PatientRecordView({
           onRetryAutosave={handleRetryAutosave}
           onBackToOverview={() => handleTabChange("visao-geral")}
         />
-      ) : activeTab === "planejamento" || activeTab === "evolucao" ? (
+      ) : activeTab === "planejamento" ? (
         <PlanningEvolutionTab
           slug={slug}
           detail={detail}
@@ -813,6 +831,49 @@ export function PatientRecordView({
           onStartEditPlan={handleStartEditPlan}
           isStartingEditPlan={isStartingEdit}
         />
+      ) : activeTab === "evolucao" ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between pb-3 border-b border-[#26272B] flex-wrap gap-3">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-wider">
+                Acompanhamento Visual & Fotos Corporais
+              </span>
+              <h2 className="text-lg font-bold text-white">Evolução 360° & Comparador de Fotos</h2>
+              <p className="text-xs text-[#9CA3AF]">
+                Fotos de avaliação corporal (frente, costas e perfis), histórico temporal e comparação visual.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleTabChange("visao-geral")}
+              className="px-3.5 py-2 rounded-xl bg-[#222429] hover:bg-[#2A2D33] text-xs font-semibold text-[#D1D5DB] border border-[#3A3D45] transition-colors cursor-pointer min-h-[44px]"
+            >
+              ← Voltar à visão geral
+            </button>
+          </div>
+
+          {evolutionHubData ? (
+            <Evolution360Hub
+              consultancySlug={slug}
+              hubData={evolutionHubData}
+              initialComparisonData={evolutionComparisonData || null}
+              isNutritionist={true}
+              studentPublicId={detail.student.membershipPublicId}
+            />
+          ) : (
+            <div className="p-8 text-center rounded-2xl bg-[#151619] border border-[#26272B] space-y-3">
+              <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-bold text-white">Nenhum registro de fotos corporais encontrado</h3>
+              <p className="text-xs text-[#9CA3AF] max-w-md mx-auto">
+                Este paciente ainda não enviou fotos de evolução 360° ou a solicitação de fotos está pendente.
+              </p>
+            </div>
+          )}
+        </div>
       ) : (
         <div id="sec-visao-geral" onBlur={handleFieldBlur} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ================================================================= */}
@@ -1295,7 +1356,7 @@ export function PatientRecordView({
             <span className="text-[10px] uppercase font-bold text-[#8E929C] tracking-wider block">
               Registros &amp; Documentos
             </span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
               <button
                 type="button"
                 onClick={() => handleTabChange("registro-geral")}
@@ -1315,6 +1376,17 @@ export function PatientRecordView({
                 <span className="text-xs font-bold text-white block">Planejamento</span>
                 <span className="text-[11px] text-[#8E929C] block">
                   {sortedAnthros.length} registro(s)
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTabChange("evolucao")}
+                className="p-3 rounded-2xl bg-[#1C1E22] border border-[#303238] hover:bg-[#25282F] transition-colors block text-center space-y-1 cursor-pointer"
+              >
+                <span className="text-xs font-bold text-white block">Evolução 360°</span>
+                <span className="text-[11px] text-[#8E929C] block">
+                  Fotos & Comparador
                 </span>
               </button>
 

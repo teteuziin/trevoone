@@ -58,24 +58,39 @@ export default async function ProfessionalStudentProgressDetailPage({
     redirect(`/consultoria/${slug}/progresso`);
   }
 
-  const isPersonal = effectiveMode === "PERSONAL" && context.roles.includes("PERSONAL");
-  const isNutritionist = effectiveMode === "NUTRITIONIST" && context.roles.includes("NUTRITIONIST");
-  const isConsultancyAdmin =
-    (effectiveMode === "ADMIN" || (effectiveMode as string) === "CONSULTANCY_ADMIN") &&
+  const canAccessNutritionist =
+    context.roles.includes("NUTRITIONIST") ||
     context.roles.includes("CONSULTANCY_ADMIN");
 
-  if (!isPersonal && !isNutritionist && !isConsultancyAdmin) {
+  const canAccessPersonal =
+    context.roles.includes("PERSONAL") ||
+    context.roles.includes("CONSULTANCY_ADMIN");
+
+  const canAccessAdmin =
+    context.roles.includes("CONSULTANCY_ADMIN");
+
+  // Mode validation against permissions
+  const hasAccessForCurrentMode =
+    (effectiveMode === "NUTRITIONIST" && canAccessNutritionist) ||
+    (effectiveMode === "PERSONAL" && canAccessPersonal) ||
+    (effectiveMode === "ADMIN" && canAccessAdmin);
+
+  if (!hasAccessForCurrentMode) {
     redirect(`/consultoria/${slug}`);
   }
 
-  // Canonical unification: Nutritionist mode opens the complete nutrition record (Prontuário) directly
-  if (isNutritionist && !isPersonal) {
+  // Canonical unification: Operating in Nutritionist mode opens the complete clinical nutrition
+  // record (Prontuário) directly. Multi-role users (Personal + Nutritionist or Admin + Nutritionist)
+  // seamlessly open Prontuário whenever operating in Nutritionist mode, with NO restrictive !isPersonal block.
+  if (effectiveMode === "NUTRITIONIST") {
     redirect(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
   }
 
-  // Load complete student hub detail for Personal, Nutritionist and Consultancy Admin
-  // Contract check: if (isPersonal || isConsultancyAdmin) {
-  if (isPersonal || isNutritionist || isConsultancyAdmin) {
+  const isPersonal = effectiveMode === "PERSONAL";
+  const isConsultancyAdmin = effectiveMode === "ADMIN";
+
+  // Load complete student hub detail for Personal and Consultancy Admin
+  if (isPersonal || isConsultancyAdmin) {
     const connection = await getDbConnection();
     let studentMemberId: number;
     try {
@@ -88,8 +103,8 @@ export default async function ProfessionalStudentProgressDetailPage({
       }
       studentMemberId = Number(mRows[0].id);
 
-      // Verify assignment: Personal only sees assigned students. Nutritionist sees assigned students or unassigned in consultancy to allow prescription. Consultancy Admin retains global visibility.
-      if (isPersonal && !isConsultancyAdmin && !isNutritionist) {
+      // Verify assignment: Personal only sees assigned students. Consultancy Admin retains global visibility.
+      if (isPersonal && !isConsultancyAdmin) {
         const [assignRows] = await connection.execute<RowDataPacket[]>(
           `SELECT 1 FROM (
              SELECT student_membership_id FROM workout_assignments
@@ -197,7 +212,7 @@ export default async function ProfessionalStudentProgressDetailPage({
           title={`Evolução de ${hubData.student.fullName}`}
           description={hubData.student.email}
           backHref={backHref}
-          backLabel={isNutritionist && !isPersonal ? "Voltar para lista de pacientes" : "Voltar aos alunos"}
+          backLabel={effectiveMode === "NUTRITIONIST" ? "Voltar para lista de pacientes" : "Voltar aos alunos"}
         />
 
         <Evolution360Hub
@@ -206,7 +221,7 @@ export default async function ProfessionalStudentProgressDetailPage({
           initialComparisonData={initialComparisonData}
           isStudent={false}
           isPersonal={isPersonal}
-          isNutritionist={isNutritionist}
+          isNutritionist={false}
           isAdmin={isConsultancyAdmin}
           studentPublicId={hubData.student.publicId}
           userPublicId={session.userPublicId}

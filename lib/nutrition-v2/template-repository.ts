@@ -932,12 +932,33 @@ export async function copyTemplateMealsToPlanVersion(
       foodRowsById.set(Number(row.id), row);
     }
 
-    const [portionRows] = await connection.query<RowDataPacket[]>(
-      `SELECT id, public_id, food_id, label, equivalent_reference_amount, status, deleted_at
-       FROM nutrition_v2_food_portions
-       WHERE food_id IN (?) AND deleted_at IS NULL`,
-      [foodIdList]
-    );
+    let portionRows: RowDataPacket[] = [];
+    try {
+      const [res] = await connection.query<RowDataPacket[]>(
+        `SELECT id, public_id, food_id, label, equivalent_reference_amount, status, deleted_at
+         FROM nutrition_v2_food_portions
+         WHERE food_id IN (?) AND deleted_at IS NULL
+           AND (
+             scope = 'GLOBAL'
+             OR scope IS NULL
+             OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+           )`,
+        [foodIdList, consultancyId]
+      );
+      portionRows = res;
+    } catch (err: unknown) {
+      if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+        const [res] = await connection.query<RowDataPacket[]>(
+          `SELECT id, public_id, food_id, label, equivalent_reference_amount, status, deleted_at
+           FROM nutrition_v2_food_portions
+           WHERE food_id IN (?) AND deleted_at IS NULL`,
+          [foodIdList]
+        );
+        portionRows = res;
+      } else {
+        throw err;
+      }
+    }
 
     const portionsByFoodId = new Map<
       number,

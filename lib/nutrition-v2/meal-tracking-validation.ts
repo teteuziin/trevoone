@@ -37,6 +37,8 @@ export interface ValidatedMealTrackingInput {
     substitutedWith: string;
     quantityFormatted?: string;
   }[];
+  clientTimestamp: string | null;
+  expectedUpdatedAt: string | null;
 }
 
 export function validateMealTrackingInput(input: unknown): ValidatedMealTrackingInput {
@@ -150,6 +152,8 @@ export function validateMealTrackingInput(input: unknown): ValidatedMealTracking
     consumedAtTime,
     notes,
     substitutions,
+    clientTimestamp: raw.clientTimestamp && typeof raw.clientTimestamp === "string" ? raw.clientTimestamp.trim() : null,
+    expectedUpdatedAt: raw.expectedUpdatedAt && typeof raw.expectedUpdatedAt === "string" ? raw.expectedUpdatedAt.trim() : null,
   };
 }
 

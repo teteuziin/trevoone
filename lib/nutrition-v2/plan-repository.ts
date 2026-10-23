@@ -1627,11 +1627,33 @@ export async function addMealItem(
         // Fallback: match portion by label if portionPublicId wasn't passed directly
         const targetLabel = (input.prescribedUnitLabel || input.prescribedUnitCode || "").trim();
         if (targetLabel) {
-          const [matchedPortions] = await connection.query<RowDataPacket[]>(
-            `SELECT * FROM nutrition_v2_food_portions
-             WHERE food_id = ? AND LOWER(TRIM(label)) = LOWER(TRIM(?)) AND deleted_at IS NULL AND status = 'ACTIVE' LIMIT 1`,
-            [foodId, targetLabel]
-          );
+          let matchedPortions: RowDataPacket[] = [];
+          try {
+            const [res] = await connection.query<RowDataPacket[]>(
+              `SELECT * FROM nutrition_v2_food_portions
+               WHERE food_id = ? AND LOWER(TRIM(label)) = LOWER(TRIM(?)) AND deleted_at IS NULL AND status = 'ACTIVE'
+                 AND (
+                   scope = 'GLOBAL'
+                   OR scope IS NULL
+                   OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+                   OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+                 )
+               LIMIT 1`,
+              [foodId, targetLabel, ctx.consultancyId || 0, ctx.userId || 0]
+            );
+            matchedPortions = res;
+          } catch (err: unknown) {
+            if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+              const [res] = await connection.query<RowDataPacket[]>(
+                `SELECT * FROM nutrition_v2_food_portions
+                 WHERE food_id = ? AND LOWER(TRIM(label)) = LOWER(TRIM(?)) AND deleted_at IS NULL AND status = 'ACTIVE' LIMIT 1`,
+                [foodId, targetLabel]
+              );
+              matchedPortions = res;
+            } else {
+              throw err;
+            }
+          }
           if (matchedPortions.length > 0) {
             const p = matchedPortions[0];
             const eq = Number(p.equivalent_reference_amount);
@@ -2015,11 +2037,33 @@ export async function updateMealItem(
       } else {
         // When input.portionPublicId is undefined, preserve existing registered portion if present
         if (item.prescribed_unit_label && item.prescribed_unit_code !== "G") {
-          const [matchingPortions] = await connection.query<RowDataPacket[]>(
-            `SELECT * FROM nutrition_v2_food_portions
-             WHERE food_id = ? AND LOWER(TRIM(label)) = LOWER(TRIM(?)) AND deleted_at IS NULL AND status = 'ACTIVE' LIMIT 1`,
-            [effectiveFoodId, String(item.prescribed_unit_label)]
-          );
+          let matchingPortions: RowDataPacket[] = [];
+          try {
+            const [res] = await connection.query<RowDataPacket[]>(
+              `SELECT * FROM nutrition_v2_food_portions
+               WHERE food_id = ? AND LOWER(TRIM(label)) = LOWER(TRIM(?)) AND deleted_at IS NULL AND status = 'ACTIVE'
+                 AND (
+                   scope = 'GLOBAL'
+                   OR scope IS NULL
+                   OR (scope = 'CONSULTANCY' AND consultancy_id = ?)
+                   OR (scope = 'PERSONAL' AND created_by_user_id = ?)
+                 )
+               LIMIT 1`,
+              [effectiveFoodId, String(item.prescribed_unit_label), ctx.consultancyId || 0, ctx.userId || 0]
+            );
+            matchingPortions = res;
+          } catch (err: unknown) {
+            if (err && typeof err === "object" && ("code" in err && (err.code === "ER_BAD_FIELD_ERROR" || (err as { errno?: number }).errno === 1054))) {
+              const [res] = await connection.query<RowDataPacket[]>(
+                `SELECT * FROM nutrition_v2_food_portions
+                 WHERE food_id = ? AND LOWER(TRIM(label)) = LOWER(TRIM(?)) AND deleted_at IS NULL AND status = 'ACTIVE' LIMIT 1`,
+                [effectiveFoodId, String(item.prescribed_unit_label)]
+              );
+              matchingPortions = res;
+            } else {
+              throw err;
+            }
+          }
           if (matchingPortions.length > 0) {
             const portion = matchingPortions[0];
             portionEquivalentAmount = Number(portion.equivalent_reference_amount);

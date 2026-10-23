@@ -121,6 +121,8 @@ export interface SaveMealTrackingInput {
   consumedAtTime?: string | null;
   notes?: string | null;
   substitutions?: MealTrackingSubstitutionItem[];
+  clientTimestamp?: string | null;
+  expectedUpdatedAt?: string | null;
 }
 
 export interface MealTrackingDayItemDto {

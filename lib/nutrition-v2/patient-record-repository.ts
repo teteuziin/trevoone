@@ -6,6 +6,7 @@
 import crypto from "node:crypto";
 import type { RowDataPacket, ResultSetHeader, PoolConnection } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
+import { NutritionAuthorizationError } from "./access";
 import {
   type PatientRecord,
   type PatientAnthropometricEntry,
@@ -817,6 +818,30 @@ export async function updatePatientRecord(
       studentMembershipId,
       authorMembershipId
     );
+
+    // Optimistic concurrency & out-of-order protection
+    if (validated.expectedUpdatedAt && record.updatedAt) {
+      const recordUpdatedAtMs = new Date(record.updatedAt).getTime();
+      const expectedUpdatedAtMs = new Date(validated.expectedUpdatedAt).getTime();
+      if (!isNaN(recordUpdatedAtMs) && !isNaN(expectedUpdatedAtMs) && recordUpdatedAtMs > expectedUpdatedAtMs) {
+        throw new NutritionAuthorizationError(
+          "O prontuário foi alterado em outra sessão ou aba. Recarregue a página para obter a versão mais recente antes de salvar.",
+          "CONCURRENT_MODIFICATION",
+          409
+        );
+      }
+    }
+    if (validated.clientTimestamp && record.updatedAt) {
+      const recordUpdatedAtMs = new Date(record.updatedAt).getTime();
+      const clientTimestampMs = new Date(validated.clientTimestamp).getTime();
+      if (!isNaN(recordUpdatedAtMs) && !isNaN(clientTimestampMs) && recordUpdatedAtMs > clientTimestampMs) {
+        throw new NutritionAuthorizationError(
+          "Requisição de salvamento atrasada ou fora de ordem ignorada para preservar alterações mais recentes.",
+          "STALE_UPDATE_IGNORED",
+          409
+        );
+      }
+    }
 
     // Compute changed fields for audit logging
     const changedFields: Array<{ fieldName: string; previousValue: string | null; newValue: string | null }> = [];

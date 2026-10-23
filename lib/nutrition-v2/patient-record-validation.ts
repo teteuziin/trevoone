@@ -65,6 +65,8 @@ export type UpdatePatientRecordInput = {
   sleepRoutine?: string | null;
   workStudyRoutine?: string | null;
   fieldProvenanceJson?: string | null;
+  expectedUpdatedAt?: string | null;
+  clientTimestamp?: string | null;
 };
 
 export type { AddAnthropometricEntryInput };
@@ -578,6 +580,8 @@ export function validatePatientRecordInput(input: unknown): UpdatePatientRecordI
     sleepRoutine: sanitizeOptionalText(raw.sleepRoutine),
     workStudyRoutine: sanitizeOptionalText(raw.workStudyRoutine),
     fieldProvenanceJson: sanitizeOptionalText(raw.fieldProvenanceJson),
+    expectedUpdatedAt: typeof raw.expectedUpdatedAt === "string" ? raw.expectedUpdatedAt.trim() : null,
+    clientTimestamp: typeof raw.clientTimestamp === "string" ? raw.clientTimestamp.trim() : null,
   };
 }
 

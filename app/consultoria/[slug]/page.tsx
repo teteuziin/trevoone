@@ -171,6 +171,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
           return {
             title: v2Auth.activeAssignment.version.title || v2Auth.activeAssignment.plan.title,
             subtitle: v2Auth.activeAssignment.version.subtitle,
+            studentName: session.fullName,
+            prescriberName: v2Auth.activeAssignment.prescriberName || null,
             mealsCount: v2Auth.activeAssignment.meals.length,
             firstMealTime: v2Auth.activeAssignment.meals[0]?.scheduledTime || null,
             meals: v2Auth.activeAssignment.meals.map((m) => ({

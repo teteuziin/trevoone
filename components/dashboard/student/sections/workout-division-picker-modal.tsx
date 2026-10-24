@@ -12,6 +12,7 @@ export interface WorkoutDivisionPickerModalProps {
   assignmentPublicId: string;
   divisions: DailyWorkoutDivisionOption[];
   currentDivisionPublicId?: string | null;
+  hasActiveSession?: boolean;
 }
 
 export function WorkoutDivisionPickerModal({
@@ -21,6 +22,7 @@ export function WorkoutDivisionPickerModal({
   assignmentPublicId,
   divisions,
   currentDivisionPublicId,
+  hasActiveSession = false,
 }: WorkoutDivisionPickerModalProps) {
   const router = useRouter();
   const [overridePublicId, setOverridePublicId] = useState<string | null>(null);
@@ -130,7 +132,12 @@ export function WorkoutDivisionPickerModal({
 
         {/* Mensagem de Política de Troca */}
         <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-800 dark:text-emerald-300 shrink-0">
-          ℹ️ A troca vale para esta sessão. Sua programação será mantida.
+          <p>ℹ️ A troca vale para esta sessão. Sua programação dos demais dias será mantida.</p>
+          {hasActiveSession && (
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1">
+              Suas séries já realizadas continuam registradas e salvas com segurança no histórico.
+            </p>
+          )}
         </div>
 
         {/* Lista de Divisões Disponíveis com Scroll */}

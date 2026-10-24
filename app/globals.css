@@ -608,28 +608,44 @@ body {
 
 .trevo-dashboard-wallpaper {
   background-color: #F0F1F3;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  transition: background-color 200ms ease-out;
+}
+
+.trevo-dashboard-wallpaper::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
   background-repeat: no-repeat;
   background-position: right bottom;
-  background-size: contain;
-  /* Nunca ampliar além do tamanho nativo da arte (1024px): com "contain" puro,
-     em telas largas a marca d'água era escalada para a largura toda da área de
-     conteúdo e o trevo gigante invadia o meio da página, encostando na borda
-     direita. Limitada à largura nativa, ela permanece um detalhe de canto. */
-  background-size: min(1024px, 100%) auto;
-  transition: background-color 200ms ease-out;
+  background-size: min(520px, 38vw);
+  max-height: 520px;
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 /* Light Mode — Landscape (Horizontal / Desktop) */
 @media (orientation: landscape) {
-  .trevo-dashboard-wallpaper {
+  .trevo-dashboard-wallpaper::after {
     background-image: url("/images/wallpapers/wallpaper-light-desktop.webp");
+    background-size: min(520px, 36vw);
+    max-height: 520px;
   }
 }
 
 /* Light Mode — Portrait (Vertical / Smartphone) */
 @media (orientation: portrait) {
-  .trevo-dashboard-wallpaper {
+  .trevo-dashboard-wallpaper::after {
     background-image: url("/images/wallpapers/wallpaper-light-mobile.webp");
+    background-size: min(320px, 65vw);
+    max-height: 400px;
+    opacity: 0.28;
   }
 }
 
@@ -639,13 +655,19 @@ body {
     background-color: #0B0C0E;
   }
   @media (orientation: landscape) {
-    :root:not([data-theme="light"]) .trevo-dashboard-wallpaper {
+    :root:not([data-theme="light"]) .trevo-dashboard-wallpaper::after {
       background-image: url("/images/wallpapers/wallpaper-dark-desktop.webp");
+      background-size: min(520px, 36vw);
+      max-height: 520px;
+      opacity: 0.38;
     }
   }
   @media (orientation: portrait) {
-    :root:not([data-theme="light"]) .trevo-dashboard-wallpaper {
+    :root:not([data-theme="light"]) .trevo-dashboard-wallpaper::after {
       background-image: url("/images/wallpapers/wallpaper-dark-mobile.webp");
+      background-size: min(320px, 65vw);
+      max-height: 400px;
+      opacity: 0.3;
     }
   }
 }
@@ -656,14 +678,20 @@ body {
 }
 
 @media (orientation: landscape) {
-  :is(.dark, [data-theme="dark"]) .trevo-dashboard-wallpaper {
+  :is(.dark, [data-theme="dark"]) .trevo-dashboard-wallpaper::after {
     background-image: url("/images/wallpapers/wallpaper-dark-desktop.webp");
+    background-size: min(520px, 36vw);
+    max-height: 520px;
+    opacity: 0.38;
   }
 }
 
 @media (orientation: portrait) {
-  :is(.dark, [data-theme="dark"]) .trevo-dashboard-wallpaper {
+  :is(.dark, [data-theme="dark"]) .trevo-dashboard-wallpaper::after {
     background-image: url("/images/wallpapers/wallpaper-dark-mobile.webp");
+    background-size: min(320px, 65vw);
+    max-height: 400px;
+    opacity: 0.3;
   }
 }
 

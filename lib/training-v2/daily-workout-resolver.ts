@@ -33,7 +33,7 @@ export interface DailyWorkoutDivisionOption {
 
 export interface DailyWorkoutResolution {
   status: DailyWorkoutDecisionStatus;
-  headlineTitle: string; // "Treino em andamento", "Treino de hoje", "Próximo treino", "Dia de descanso", "Escolher treino"
+  headlineTitle: string; // "Meu Treino", "Treino de hoje", "Próximo treino", "Dia de descanso", "Escolher treino"
   divisionTitle: string; // Ex: "Treino A — Peitoral e Tríceps" ou "Recuperação muscular"
   routineTitle: string; // Ex: "Treino de reabilitação"
   versionNumber?: number;
@@ -58,6 +58,17 @@ export interface DailyWorkoutResolution {
   todayWeekdayName: string;
   todayDateStr: string; // YYYY-MM-DD
   consultancyTimezone: string;
+
+  // Resolução e auditoria detalhada de sessão em andamento
+  activeSessionStartedFormatted?: string | null;
+  isSessionStartedToday?: boolean;
+  completedExercisesCount?: number;
+  completedSetsCount?: number;
+  todayRecommendedWorkout?: {
+    divisionTitle: string;
+    blockPublicId?: string;
+    isRestDay: boolean;
+  } | null;
 }
 
 import { buildStudentWorkoutExecutionUrl } from "./route-helpers";
@@ -275,15 +286,14 @@ export async function resolveStudentDailyWorkout(
         ? String(activeBlock.title)
         : availableDivisions[0]?.title || "Sessão em andamento";
 
-      // Data civil de início da sessão no fuso da consultoria: sessões abertas
-      // em dias anteriores NÃO são o "treino de hoje" e devem ser rotuladas
-      // pelo dia real em que começaram.
+      // Resolução de data de início no fuso da consultoria
       const startedAtDate = activeSession.started_at ? new Date(activeSession.started_at) : null;
       const sessionLocalDateStr =
         startedAtDate && !Number.isNaN(startedAtDate.getTime())
           ? getConsultancyLocalDate(timeZone, startedAtDate)
           : null;
-      const activeSessionIsToday = sessionLocalDateStr != null ? sessionLocalDateStr === todayDateStr : undefined;
+      const isSessionStartedToday = sessionLocalDateStr != null ? sessionLocalDateStr === todayDateStr : undefined;
+      const activeSessionIsToday = isSessionStartedToday;
       let activeSessionWeekdayName: string | null = null;
       if (sessionLocalDateStr) {
         const [sY, sM, sD] = sessionLocalDateStr.split("-").map(Number);
@@ -291,9 +301,73 @@ export async function resolveStudentDailyWorkout(
         activeSessionWeekdayName = WEEKDAY_NAMES_PT[sessionRefDate.getUTCDay()];
       }
 
+      const sessionDateFormatted = startedAtDate && !Number.isNaN(startedAtDate.getTime())
+        ? new Intl.DateTimeFormat("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            timeZone,
+          }).format(startedAtDate)
+        : "";
+      const sessionTimeFormatted = startedAtDate && !Number.isNaN(startedAtDate.getTime())
+        ? new Intl.DateTimeFormat("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone,
+          }).format(startedAtDate)
+        : "";
+
+      // Progresso real das séries concluídas na sessão em andamento
+      let completedExercisesCount = 0;
+      let completedSetsCount = 0;
+      try {
+        const [progRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+             COUNT(DISTINCT wex.block_item_id) AS completed_exercises_count,
+             COUNT(*) AS completed_sets_count
+           FROM workout_execution_sets wex
+           WHERE wex.execution_session_id = ? AND wex.completed_at IS NOT NULL;`,
+          [activeSession.session_id]
+        );
+        completedExercisesCount = Number(progRows[0]?.completed_exercises_count || 0);
+        completedSetsCount = Number(progRows[0]?.completed_sets_count || 0);
+      } catch {
+        // Fallback seguro em caso de indisponibilidade
+        completedExercisesCount = 0;
+        completedSetsCount = 0;
+      }
+
+      // Treino recomendado para hoje caso a sessão seja de um dia anterior
+      let todayRecommendedWorkout: {
+        divisionTitle: string;
+        blockPublicId?: string;
+        isRestDay: boolean;
+      } | null = null;
+
+      const hasCalendar = (allBlocksRows || []).some(
+        (b) => parseScheduledWeekdays(b.title, b.instructions).length > 0
+      );
+      if (hasCalendar) {
+        const scheduledTodayBlock = (allBlocksRows || []).find((b) => {
+          const weekdays = parseScheduledWeekdays(b.title, b.instructions);
+          return weekdays.includes(todayWeekday);
+        });
+        if (scheduledTodayBlock) {
+          todayRecommendedWorkout = {
+            divisionTitle: String(scheduledTodayBlock.title || "Treino de hoje"),
+            blockPublicId: String(scheduledTodayBlock.public_id),
+            isRestDay: false,
+          };
+        } else {
+          todayRecommendedWorkout = {
+            divisionTitle: "Dia de descanso",
+            isRestDay: true,
+          };
+        }
+      }
+
       return {
         status: "IN_PROGRESS",
-        headlineTitle: "Treino em andamento",
+        headlineTitle: "Meu Treino",
         divisionTitle,
         routineTitle: String(activeSession.routine_title),
         versionNumber: Number(activeSession.version_number),
@@ -311,18 +385,26 @@ export async function resolveStudentDailyWorkout(
         ),
         actionLabel: "Continuar treino",
         canChangeDivision: availableDivisions.length > 1,
-        contextNote:
-          activeSessionIsToday === false && activeSessionWeekdayName
-            ? `Você possui uma sessão em andamento desde ${activeSessionWeekdayName.toLowerCase()}. Continue de onde parou.`
-            : "Você possui uma sessão em andamento. Continue de onde parou.",
+contextNote: isSessionStartedToday
+          ? "Sessão iniciada hoje. Continue de onde parou."
+          : (sessionDateFormatted && sessionTimeFormatted
+              ? `Sessão iniciada em ${sessionDateFormatted} às ${sessionTimeFormatted}. Retome de onde parou para concluir ou escolha outro treino.`
+              : "Você possui uma sessão em andamento. Continue de onde parou."),
         exerciseCount: activeBlock
           ? availableDivisions.find((d) => d.publicId === activeBlock.public_id)?.exerciseCount
-          : undefined,
+          : (allBlocksRows[0]?.exercise_count ? Number(allBlocksRows[0].exercise_count) : undefined),
         availableDivisions,
         todayWeekday,
         todayWeekdayName,
         todayDateStr,
         consultancyTimezone: timeZone,
+        activeSessionStartedFormatted: isSessionStartedToday
+          ? `Iniciado hoje às ${sessionTimeFormatted}`
+          : `${sessionDateFormatted} às ${sessionTimeFormatted}`,
+        isSessionStartedToday,
+        completedExercisesCount,
+        completedSetsCount,
+        todayRecommendedWorkout,
       };
     }
 

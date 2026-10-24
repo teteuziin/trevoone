@@ -888,7 +888,7 @@ export function ConsultancyNavigation({
                     {identity.fullName}
                   </p>
                   {identity.email && (
-                    <p title={identity.email} className="text-[11px] text-[#6B7280] dark:text-[#8E95A2] break-all">
+<p title={identity.email} className="text-[11px] text-[#6B7280] dark:text-[#8E95A2] break-all leading-snug mt-0.5">
                       {identity.email}
                     </p>
                   )}
@@ -1016,11 +1016,11 @@ export function ConsultancyNavigation({
                   {identity.fullName}
                 </p>
                 {identity.email && (
-                  <p
+<p
                     title={identity.email}
                     className={`text-xs ${
                       isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-tertiary)]"
-                    } break-all leading-tight mt-0.5`}
+                    } break-all leading-snug mt-0.5`}
                   >
                     {identity.email}
                   </p>
@@ -1371,7 +1371,7 @@ export function ConsultancyNavigation({
                     )}
                   </div>
                   {identity.email && (
-                    <p title={identity.email} className="text-xs text-[var(--text-tertiary)] break-all mt-0.5">
+<p title={identity.email} className="text-xs text-[var(--text-tertiary)] break-all leading-snug mt-0.5">
                       {identity.email}
                     </p>
                   )}

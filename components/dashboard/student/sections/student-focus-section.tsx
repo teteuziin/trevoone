@@ -36,6 +36,8 @@ export interface StudentMealItem {
 export interface StudentNutritionSummary {
   title: string;
   subtitle?: string | null;
+  studentName?: string | null;
+  prescriberName?: string | null;
   mealsCount?: number;
   firstMealTime?: string | null;
   meals?: StudentMealItem[];
@@ -72,40 +74,20 @@ export function StudentFocusSection({
   const isCompletedToday = status === "COMPLETED_TODAY" || status === "SEQUENCE_COMPLETED";
   const isRestDay = status === "REST_DAY";
 
-  // Subtítulo do card de treino:
-  // - Sessão em andamento iniciada HOJE: apenas "Hoje: {dia}" (o título e o selo
-  //   já dizem "Em andamento" — repetir no subtítulo era redundância tripla).
-  // - Sessão em andamento de OUTRO dia: nunca rotular como "Hoje"; mostrar o
-  //   dia real de início da sessão ("Sessão iniciada na Quarta-feira").
-  // - Demais estados: comportamento anterior ("Hoje: {dia} · Prescrição...").
-  const sessionWeekdayName = dailyWorkoutResolution?.activeSessionWeekdayName;
-  let trainingSubtitle: string;
-  if (isSessionInProgress) {
-    if (dailyWorkoutResolution?.activeSessionIsToday === false && sessionWeekdayName) {
-      const prep = sessionWeekdayName === "Domingo" || sessionWeekdayName === "Sábado" ? "no" : "na";
-      trainingSubtitle = `Sessão iniciada ${prep} ${sessionWeekdayName}`;
-    } else if (dailyWorkoutResolution?.todayWeekdayName) {
-      trainingSubtitle = `Hoje: ${dailyWorkoutResolution.todayWeekdayName}`;
-    } else {
-      trainingSubtitle = "Sessão em andamento";
-    }
-  } else {
-    trainingSubtitle = `${dailyWorkoutResolution?.todayWeekdayName ? `Hoje: ${dailyWorkoutResolution.todayWeekdayName} · ` : ""}Prescrição da consultoria`;
-  }
-
-  const headlineTitle = dailyWorkoutResolution?.headlineTitle || (isSessionInProgress ? "Treino em andamento" : "Meu Treino");
+// Título e divisão sem repetição de "Em andamento"
+  const headlineTitle = dailyWorkoutResolution?.headlineTitle || "Meu Treino";
   const divisionTitle = dailyWorkoutResolution?.divisionTitle || activeTraining?.title || "Ficha de treino";
   const routineTitle = dailyWorkoutResolution?.routineTitle || activeTraining?.title || "";
   const exerciseCount = dailyWorkoutResolution?.exerciseCount ?? activeTraining?.blockCount ?? 0;
   const durationEstimate = dailyWorkoutResolution?.estimatedDurationMinutes || 40;
 
   let trainingActionHref = dailyWorkoutResolution?.actionHref || `/consultoria/${consultancySlug}/treinos`;
-  let trainingActionLabel = dailyWorkoutResolution?.actionLabel || "Iniciar treino";
+  let trainingActionLabel = dailyWorkoutResolution?.actionLabel || (isSessionInProgress ? "Retomar treino" : "Iniciar treino");
 
   if (!dailyWorkoutResolution && hasTraining) {
     if (isSessionInProgress && activeSessionAssignmentPublicId) {
       trainingActionHref = `/consultoria/${consultancySlug}/treinos/${activeSessionAssignmentPublicId}`;
-      trainingActionLabel = "Continuar treino";
+      trainingActionLabel = "Retomar treino";
     }
   }
 
@@ -133,12 +115,23 @@ export function StudentFocusSection({
                     {headlineTitle}
                   </h2>
                   <span className="text-xs text-zinc-500 dark:text-[#8E95A2]">
-                    {trainingSubtitle}
+{isSessionInProgress ? (
+                      dailyWorkoutResolution?.activeSessionStartedFormatted ? (
+                        <span>{dailyWorkoutResolution.activeSessionStartedFormatted}</span>
+                      ) : (
+                        <span>Sessão em andamento</span>
+                      )
+                    ) : (
+                      <span>
+                        {dailyWorkoutResolution?.todayWeekdayName ? `Hoje: ${dailyWorkoutResolution.todayWeekdayName} · ` : ""}
+                        Prescrição da consultoria
+                      </span>
+                    )}
                   </span>
                 </div>
               </div>
 
-              {/* Status Badge Real */}
+              {/* Status Badge Real ÚNICO (sem repetição de status no card) */}
               {hasTraining ? (
                 isSessionInProgress ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
@@ -167,7 +160,7 @@ export function StudentFocusSection({
 
             {/* Conteúdo Central */}
             {hasTraining ? (
-              <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-2.5">
+              <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-3">
                 <div>
                   {/* Nome da Divisão em Destaque Forte */}
                   <h3 className="text-base sm:text-lg font-black text-zinc-900 dark:text-white tracking-tight">
@@ -181,6 +174,53 @@ export function StudentFocusSection({
                     </p>
                   )}
                 </div>
+
+                {/* Progresso Real da Sessão em Andamento */}
+                {isSessionInProgress && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span>
+                      Progresso da sessão:{" "}
+                      <strong>
+                        {dailyWorkoutResolution?.completedExercisesCount ?? 0} de {exerciseCount}{" "}
+                        {exerciseCount === 1 ? "exercício concluído" : "exercícios concluídos"}
+                      </strong>
+                      {(dailyWorkoutResolution?.completedSetsCount ?? 0) > 0 && (
+                        <span className="text-zinc-500 dark:text-zinc-400 ml-1">
+                          ({dailyWorkoutResolution?.completedSetsCount}{" "}
+                          {dailyWorkoutResolution?.completedSetsCount === 1 ? "série gravada" : "séries gravadas"})
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
+
+                {/* Aviso quando a sessão aberta for de um dia anterior */}
+                {isSessionInProgress && dailyWorkoutResolution?.isSessionStartedToday === false && dailyWorkoutResolution.todayRecommendedWorkout && (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                        <span>📅</span>
+                        <span>Treino previsto para hoje ({dailyWorkoutResolution.todayWeekdayName})</span>
+                      </span>
+                      {dailyWorkoutResolution.todayRecommendedWorkout.isRestDay ? (
+                        <span className="text-[11px] text-amber-800 dark:text-amber-300 font-medium">
+                          Descanso programado
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-amber-800 dark:text-amber-300 font-medium">
+                          Divisão recomendada
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-amber-900 dark:text-amber-100 font-semibold text-xs">
+                      {dailyWorkoutResolution.todayRecommendedWorkout.divisionTitle}
+                    </p>
+                    <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
+                      Você pode retomar a sessão aberta ({divisionTitle}) ou tocar em &ldquo;Escolher outro treino&rdquo; para treinar a divisão de hoje. Suas séries já salvas continuam preservadas com total segurança.
+                    </p>
+                  </div>
+                )}
 
                 {/* Resumo da Sessão */}
                 <div className="flex flex-wrap items-center gap-2.5 text-xs text-zinc-600 dark:text-[#8E95A2] pt-2 border-t border-zinc-200/60 dark:border-[#303238]/60">
@@ -233,7 +273,7 @@ export function StudentFocusSection({
             {hasTraining ? (
               <div className="flex flex-wrap items-center gap-2.5 w-full justify-between">
                 <div className="flex items-center gap-2 flex-wrap flex-1">
-                  {/* Ação Principal: Iniciar / Continuar / Treinar Novamente */}
+                  {/* Ação Principal: Iniciar / Retomar / Continuar */}
                   <Link
                     href={trainingActionHref}
                     className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
@@ -312,16 +352,34 @@ export function StudentFocusSection({
 
             {/* Conteúdo Central */}
             {hasNutrition ? (
-              <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-2.5">
-                <div>
-                  <h3 className="text-base font-bold text-zinc-900 dark:text-white truncate">
-                    {activeNutrition?.title}
-                  </h3>
-                  {activeNutrition?.subtitle && (
-                    <p className="text-xs text-zinc-600 dark:text-[#8E95A2] mt-0.5 line-clamp-2">
-                      {activeNutrition.subtitle}
-                    </p>
+              <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-3">
+                {/* Identificação Segura: Paciente Destinatário vs Título da Prescrição */}
+                <div className="space-y-1.5">
+                  {activeNutrition?.studentName && (
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                      <span className="font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-md">
+                        Destinatário: {activeNutrition.studentName}
+                      </span>
+                      {activeNutrition.prescriberName && (
+                        <span className="text-[11px] text-zinc-500 dark:text-[#8E95A2]">
+                          • Nutricionista: <strong className="font-medium text-zinc-700 dark:text-zinc-300">{activeNutrition.prescriberName}</strong>
+                        </span>
+                      )}
+                    </div>
                   )}
+                  <div>
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 block">
+                      Título da Prescrição
+                    </span>
+                    <h3 className="text-base font-bold text-zinc-900 dark:text-white truncate">
+                      {activeNutrition?.title}
+                    </h3>
+                    {activeNutrition?.subtitle && (
+                      <p className="text-xs text-zinc-600 dark:text-[#8E95A2] mt-0.5 line-clamp-2">
+                        {activeNutrition.subtitle}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Lista de Refeições */}
@@ -391,6 +449,7 @@ export function StudentFocusSection({
           assignmentPublicId={dailyWorkoutResolution.assignmentPublicId}
           divisions={dailyWorkoutResolution.availableDivisions}
           currentDivisionPublicId={dailyWorkoutResolution.targetBlockPublicId}
+          hasActiveSession={isSessionInProgress}
         />
       )}
     </div>

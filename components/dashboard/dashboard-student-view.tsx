@@ -54,6 +54,8 @@ export interface StudentActiveNutritionMealSummary {
 export interface StudentActiveNutritionSummary {
   title: string;
   subtitle?: string | null;
+  studentName?: string | null;
+  prescriberName?: string | null;
   mealsCount?: number;
   firstMealTime?: string | null;
   meals?: StudentActiveNutritionMealSummary[];

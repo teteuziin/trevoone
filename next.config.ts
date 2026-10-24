@@ -76,12 +76,20 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_APP_VERSION: deploymentId || "0.1.0",
   },
   experimental: {
-    // Reduz o paralelismo do build para compatibilidade com o ambiente e limite de threads da Hostinger
-    cpus: 2,
+    // Paralelismo mínimo do build: o construtor compartilhado da Hostinger tem
+    // teto de memória apertado e cada processo paralelo soma seu próprio pico.
+    cpus: 1,
     // Reduz o pico de memória do webpack: o construtor da Hostinger derrubou
-    // duas construções seguidas (23/10/2026) enquanto o mesmo build passa
+    // construções seguidas (23/10/2026) enquanto o mesmo build passa
     // localmente — a assinatura é de limite de memória do ambiente.
     webpackMemoryOptimizations: true,
+  },
+  typescript: {
+    // A checagem de tipos roda FORA do build de produção (tsc --noEmit no
+    // fluxo de desenvolvimento, antes de cada push): o verificador de tipos
+    // do `next build` é um processo separado e pesado, e seu pico de memória
+    // somado ao do webpack derrubava a construção na Hostinger.
+    ignoreBuildErrors: true,
   },
   async headers() {
     return [

@@ -221,6 +221,7 @@ export async function resolveStudentDailyWorkout(
          wes.public_id AS session_public_id,
          wes.workout_assignment_id,
          wes.workout_version_id,
+         wes.workout_block_id,
          wes.started_at,
          wa.public_id AS assignment_public_id,
          wa.status AS assignment_status,
@@ -241,18 +242,32 @@ export async function resolveStudentDailyWorkout(
       const activeSession = inProgressRows[0];
 
       // Busca qual bloco está sendo executado nesta sessão
-      const [blockInExecRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT wb.id, wb.public_id, wb.title, wb.sort_order
-         FROM workout_execution_sets wex
-         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-         WHERE wex.execution_session_id = ?
-         ORDER BY wex.completed_at DESC, wex.set_number ASC
-         LIMIT 1;`,
-        [activeSession.session_id]
-      );
-
-      const activeBlock = blockInExecRows && blockInExecRows.length > 0 ? blockInExecRows[0] : null;
+      let activeBlock: { id: number; public_id: string; title: string; sort_order: number } | null = null;
+      if (activeSession.workout_block_id != null) {
+        const [blockRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT wb.id, wb.public_id, wb.title, wb.sort_order
+           FROM workout_blocks wb
+           WHERE wb.id = ?
+           LIMIT 1;`,
+          [activeSession.workout_block_id]
+        );
+        if (blockRows && blockRows.length > 0) {
+          activeBlock = blockRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number };
+        }
+      }
+      if (!activeBlock) {
+        const [blockInExecRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT wb.id, wb.public_id, wb.title, wb.sort_order
+           FROM workout_execution_sets wex
+           INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+           INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+           WHERE wex.execution_session_id = ?
+           ORDER BY wex.completed_at DESC, wex.set_number ASC
+           LIMIT 1;`,
+          [activeSession.session_id]
+        );
+        activeBlock = blockInExecRows && blockInExecRows.length > 0 ? (blockInExecRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number }) : null;
+      }
 
       // Carrega blocos para opções de troca
       const [allBlocksRows] = await connection.execute<RowDataPacket[]>(
@@ -494,23 +509,29 @@ contextNote: isSessionStartedToday
          wes.public_id AS session_public_id,
          wes.started_at,
          wes.completed_at,
-         (
-           SELECT wb.id
-           FROM workout_execution_sets wex
-           INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-           INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-           WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL
-           ORDER BY wex.completed_at DESC, wex.id DESC
-           LIMIT 1
+         COALESCE(
+           wes.workout_block_id,
+           (
+             SELECT wb.id
+             FROM workout_execution_sets wex
+             INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+             INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+             WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL
+             ORDER BY wex.completed_at DESC, wex.id DESC
+             LIMIT 1
+           )
          ) AS completed_block_id,
-         (
-           SELECT wb.public_id
-           FROM workout_execution_sets wex
-           INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-           INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-           WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL
-           ORDER BY wex.completed_at DESC, wex.id DESC
-           LIMIT 1
+         COALESCE(
+           (SELECT wb2.public_id FROM workout_blocks wb2 WHERE wb2.id = wes.workout_block_id LIMIT 1),
+           (
+             SELECT wb.public_id
+             FROM workout_execution_sets wex
+             INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+             INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+             WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL
+             ORDER BY wex.completed_at DESC, wex.id DESC
+             LIMIT 1
+           )
          ) AS completed_block_public_id
        FROM workout_execution_sessions wes
        WHERE wes.workout_assignment_id = ?

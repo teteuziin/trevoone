@@ -388,6 +388,7 @@ export type WorkoutExecutionSetDto = {
   prescribedRestSeconds: number | null;
   actualReps: number | null;
   actualLoadKg: number | null;
+  isSkipped?: boolean;
   completedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -399,6 +400,9 @@ export type WorkoutExecutionSessionDto = {
   studentMembershipId: number;
   workoutAssignmentPublicId: string;
   workoutVersionPublicId: string;
+  workoutBlockId?: number | null;
+  workoutBlockPublicId?: string | null;
+  workoutBlockTitle?: string | null;
   status: WorkoutExecutionSessionStatus;
   startedAt: Date;
   completedAt: Date | null;
@@ -408,8 +412,9 @@ export type WorkoutExecutionSessionDto = {
 };
 
 export type CompleteExecutionSetInput = {
-  actualReps: number;
-  actualLoadKg: number | null;
+  actualReps?: number | null;
+  actualLoadKg?: number | null;
+  isSkipped?: boolean;
 };
 
 export type WorkoutExecutionHistorySetDto = {

@@ -949,11 +949,15 @@ export async function getStudentWorkoutViewDetailed(
          wes.id AS session_id,
          wes.public_id AS session_public_id,
          wes.workout_version_id,
+         wes.workout_block_id,
+         wb.public_id AS session_block_public_id,
+         wb.title AS session_block_title,
          wv.public_id AS session_version_public_id,
          wv.version_number AS session_version_number,
          wv.title AS session_title
        FROM workout_execution_sessions wes
        INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
        WHERE wes.workout_assignment_id = ?
          AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
          AND wes.status = 'IN_PROGRESS'
@@ -1003,22 +1007,29 @@ export async function getStudentWorkoutViewDetailed(
       return { status: "NOT_FOUND" };
     }
 
-    // 5. Determine active block if resuming session and none explicitly selected
-    let activeBlockPublicId: string | null = preferredBlockPublicId || null;
-    if (activeSession && !activeBlockPublicId) {
-      const [lastSetRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT wb.public_id
-         FROM workout_execution_sets wex
-         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-         WHERE wex.execution_session_id = ?
-         ORDER BY wex.completed_at DESC, wex.set_number ASC
-         LIMIT 1;`,
-        [activeSession.session_id]
-      );
-      if (lastSetRows && lastSetRows.length > 0) {
-        activeBlockPublicId = String(lastSetRows[0].public_id);
+    // 5. Determine active block: if resuming session, prioritize session's persisted block
+    let activeBlockPublicId: string | null = null;
+    if (activeSession) {
+      if (activeSession.session_block_public_id) {
+        activeBlockPublicId = String(activeSession.session_block_public_id);
+      } else {
+        const [lastSetRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT wb.public_id
+           FROM workout_execution_sets wex
+           INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+           INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+           WHERE wex.execution_session_id = ?
+           ORDER BY wex.set_number ASC
+           LIMIT 1;`,
+          [activeSession.session_id]
+        );
+        if (lastSetRows && lastSetRows.length > 0) {
+          activeBlockPublicId = String(lastSetRows[0].public_id);
+        }
       }
+    }
+    if (!activeBlockPublicId) {
+      activeBlockPublicId = preferredBlockPublicId || null;
     }
 
     const workoutView: StudentWorkoutViewContract = {

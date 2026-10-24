@@ -13,6 +13,7 @@ import {
   completeWorkoutExecutionSet,
   completeWorkoutExecution,
   syncOfflineWorkoutExecution,
+  TrainingSessionConflictError,
   type SyncOfflineWorkoutExecutionInput,
 } from "@/lib/training-v2/execution-repository";
 import type {
@@ -23,6 +24,20 @@ import type {
 export type StartOrResumeExecutionResult = {
   success: boolean;
   session?: WorkoutExecutionSessionDto;
+  conflict?: {
+    activeSession: {
+      publicId: string;
+      workoutBlockId: number | null;
+      workoutBlockPublicId: string | null;
+      workoutBlockTitle: string | null;
+      startedAt: Date;
+    };
+    targetBlock: {
+      id: number;
+      publicId: string;
+      title: string;
+    };
+  };
   error?: string;
 };
 
@@ -44,7 +59,9 @@ export type CompleteWorkoutExecutionResult = {
  */
 export async function startOrResumeWorkoutExecutionAction(
   slug: string,
-  assignmentPublicId: string
+  assignmentPublicId: string,
+  targetBlockPublicId?: string | null,
+  options?: { resolveConflict?: "COMPLETE_EARLY" | "ABANDON" | "RESUME" }
 ): Promise<StartOrResumeExecutionResult> {
   const session = await getCurrentSession();
   if (!session) {
@@ -61,12 +78,27 @@ export async function startOrResumeWorkoutExecutionAction(
   }
 
   try {
-    const executionSession = await startOrResumeWorkoutExecution(ctx, assignmentPublicId);
+    const executionSession = await startOrResumeWorkoutExecution(
+      ctx,
+      assignmentPublicId,
+      targetBlockPublicId,
+      options
+    );
     return {
       success: true,
       session: executionSession,
     };
   } catch (err: unknown) {
+    if (err instanceof TrainingSessionConflictError) {
+      return {
+        success: false,
+        conflict: {
+          activeSession: err.activeSession,
+          targetBlock: err.targetBlock,
+        },
+        error: err.message,
+      };
+    }
     const message = err instanceof Error ? err.message : "Erro ao iniciar treino.";
     return {
       success: false,
@@ -84,8 +116,9 @@ export async function completeWorkoutExecutionSetAction(
   sessionPublicId: string,
   setPublicId: string,
   input: {
-    actualReps: number;
-    actualLoadKg: number | null;
+    actualReps?: number | string | null;
+    actualLoadKg?: number | string | null;
+    isSkipped?: boolean;
   }
 ): Promise<CompleteExecutionSetResult> {
   const session = await getCurrentSession();
@@ -106,50 +139,45 @@ export async function completeWorkoutExecutionSetAction(
     return { success: false, error: "Dados de realização da série são obrigatórios." };
   }
 
-  // Server-side validation of actualReps (mandatory for completion)
-  if (input.actualReps === undefined || input.actualReps === null) {
-    return { success: false, error: "Informe o número de repetições realizadas." };
+  // Server-side validation of actualReps (optional: null or integer between 0 and 65535)
+  let validatedActualReps: number | null = null;
+  if (input.actualReps !== undefined && input.actualReps !== null && String(input.actualReps).trim() !== "") {
+    const r = typeof input.actualReps === "string" ? Number(input.actualReps.trim()) : input.actualReps;
+    if (typeof r !== "number" || !Number.isFinite(r) || !Number.isInteger(r) || r < 0 || r > 65535) {
+      return { success: false, error: "Repetições devem ser um número inteiro entre 0 e 65535." };
+    }
+    validatedActualReps = r;
   }
-  if (
-    typeof input.actualReps !== "number" ||
-    !Number.isFinite(input.actualReps) ||
-    !Number.isInteger(input.actualReps)
-  ) {
-    return { success: false, error: "Repetições devem ser um número inteiro." };
-  }
-  if (input.actualReps < 0) {
-    return { success: false, error: "Repetições não podem ser negativas." };
-  }
-  if (input.actualReps > 65535) {
-    return { success: false, error: "Repetições não podem exceder 65535." };
-  }
-  const validatedActualReps = input.actualReps;
 
-  // Server-side validation of actualLoadKg (optional, null allowed for bodyweight/empty)
+  // Server-side validation of actualLoadKg (optional: null or number between 0 and 9999.99 with at most 2 decimals)
   let validatedActualLoadKg: number | null = null;
-  if (input.actualLoadKg !== null && input.actualLoadKg !== undefined) {
-    if (typeof input.actualLoadKg !== "number" || !Number.isFinite(input.actualLoadKg)) {
-      return { success: false, error: "Carga realizada deve ser um valor numérico." };
+  if (input.actualLoadKg !== null && input.actualLoadKg !== undefined && String(input.actualLoadKg).trim() !== "") {
+    let l = input.actualLoadKg;
+    if (typeof l === "string") {
+      l = Number(l.trim().replace(",", "."));
     }
-    if (input.actualLoadKg < 0) {
-      return { success: false, error: "Carga não pode ser negativa." };
+    if (typeof l !== "number" || !Number.isFinite(l) || l < 0 || l > 9999.99) {
+      return { success: false, error: "Carga realizada deve ser um valor entre 0 e 9999,99 kg." };
     }
-    if (input.actualLoadKg > 9999.99) {
-      return { success: false, error: "Carga não pode exceder 9999,99 kg." };
-    }
-    const rounded = Math.round(input.actualLoadKg * 100) / 100;
-    if (Math.abs(input.actualLoadKg - rounded) > 1e-7) {
+    const rounded = Math.round(l * 100) / 100;
+    if (Math.abs(l - rounded) > 1e-7) {
       return { success: false, error: "Carga deve ter no máximo 2 casas decimais." };
     }
     validatedActualLoadKg = rounded;
   }
+
+  const isSkipped = Boolean(input.isSkipped);
 
   try {
     const completedSet = await completeWorkoutExecutionSet(
       ctx,
       sessionPublicId,
       setPublicId,
-      { actualReps: validatedActualReps, actualLoadKg: validatedActualLoadKg }
+      {
+        actualReps: validatedActualReps,
+        actualLoadKg: validatedActualLoadKg,
+        isSkipped,
+      }
     );
     return {
       success: true,
@@ -170,7 +198,8 @@ export async function completeWorkoutExecutionSetAction(
  */
 export async function completeWorkoutExecutionAction(
   slug: string,
-  sessionPublicId: string
+  sessionPublicId: string,
+  options?: { allowEarlyCompletion?: boolean }
 ): Promise<CompleteWorkoutExecutionResult> {
   const session = await getCurrentSession();
   if (!session) {
@@ -187,7 +216,7 @@ export async function completeWorkoutExecutionAction(
   }
 
   try {
-    const completedSession = await completeWorkoutExecution(ctx, sessionPublicId);
+    const completedSession = await completeWorkoutExecution(ctx, sessionPublicId, options);
     if (ctx.consultancyId && ctx.membershipId) {
       evaluateStudentMonitoring(ctx.consultancyId, ctx.membershipId).catch((evalErr) => {
         console.warn("[Monitoring] Opportunistic evaluation after workout completion failed:", evalErr);

@@ -284,7 +284,7 @@ export async function getActiveOfflineWorkoutSession(
 export async function completeOfflineSet(
   clientExecutionId: string,
   setPublicId: string,
-  input: { actualReps: number; actualLoadKg: number | null }
+  input: { actualReps?: number | null; actualLoadKg?: number | null; isSkipped?: boolean }
 ): Promise<WorkoutOfflineSession | null> {
   return await withWriteStore(WORKOUT_SESSION_STORE, async (store) => {
     return new Promise<WorkoutOfflineSession | null>((resolve) => {
@@ -304,7 +304,7 @@ export async function completeOfflineSet(
             found = true;
             return {
               ...s,
-              actualReps: input.actualReps,
+              actualReps: input.actualReps ?? null,
               actualLoadKg: input.actualLoadKg,
               completedAt: nowIso,
             };

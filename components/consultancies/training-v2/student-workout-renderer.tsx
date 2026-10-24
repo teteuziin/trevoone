@@ -422,6 +422,21 @@ export function StudentWorkoutRenderer({
       return db - da;
     });
   }, [completedSessions, initialHistory]);
+  const [conflictState, setConflictState] = useState<{
+    activeSession: {
+      publicId: string;
+      workoutBlockId: number | null;
+      workoutBlockPublicId: string | null;
+      workoutBlockTitle: string | null;
+      startedAt: Date;
+    };
+    targetBlock: {
+      id: number;
+      publicId: string;
+      title: string;
+    };
+  } | null>(null);
+  const [showEarlyCompleteModal, setShowEarlyCompleteModal] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -740,7 +755,43 @@ export function StudentWorkoutRenderer({
     }
   }
 
-  async function handleCompleteWorkout() {
+  async function handleResolveConflict(choice: "RESUME" | "COMPLETE_EARLY" | "ABANDON") {
+    if (!conflictState || !consultancySlug || isStarting) return;
+    setIsStarting(true);
+    setStartError(null);
+    try {
+      const targetBlockPublicId =
+        choice === "RESUME"
+          ? conflictState.activeSession.workoutBlockPublicId
+          : conflictState.targetBlock.publicId;
+
+      const res = await startOrResumeWorkoutExecutionAction(
+        consultancySlug,
+        workout.assignmentPublicId,
+        targetBlockPublicId,
+        { resolveConflict: choice }
+      );
+
+      if (res.success && res.session) {
+        setActiveSession(res.session);
+        setManualRest(null);
+        setConflictState(null);
+        if (res.session.workoutBlockPublicId) {
+          const idx = blocks.findIndex((b) => b.publicId === res.session!.workoutBlockPublicId);
+          if (idx !== -1) setSelectedBlockIndex(idx);
+        }
+      } else {
+        setStartError(res.error || "Erro ao resolver conflito de divisão.");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao resolver conflito de divisão.";
+      setStartError(msg);
+    } finally {
+      setIsStarting(false);
+    }
+  }
+
+  async function handleCompleteWorkout(options?: { allowEarlyCompletion?: boolean }) {
     if (isPreview || !consultancySlug || !activeSession || activeSession.status !== "IN_PROGRESS" || isCompleting) {
       return;
     }
@@ -802,13 +853,15 @@ export function StudentWorkoutRenderer({
     try {
       const res = await completeWorkoutExecutionAction(
         consultancySlug,
-        activeSession.publicId
+        activeSession.publicId,
+        options
       );
 
       if (res.success && res.session) {
         const completedSession = res.session;
         setActiveSession(completedSession);
         setManualRest(null);
+        setShowEarlyCompleteModal(false);
 
         // Prepend the freshly completed session to local history view
         const completedHistorySession: WorkoutExecutionHistorySessionDto = {
@@ -901,7 +954,7 @@ export function StudentWorkoutRenderer({
 
   async function handleCompleteSet(
     setPublicId: string,
-    input: { actualReps: number; actualLoadKg: number | null }
+    input: { actualReps?: number | null; actualLoadKg?: number | null; isSkipped?: boolean }
   ) {
     if (isPreview || !consultancySlug || !activeSession || activeSession.status !== "IN_PROGRESS" || loadingSetPublicId) {
       return;
@@ -925,7 +978,7 @@ export function StudentWorkoutRenderer({
             ...prev,
             sets: prev.sets.map((s) =>
               s.publicId === setPublicId
-                ? { ...s, actualReps: input.actualReps, actualLoadKg: input.actualLoadKg, completedAt: new Date() }
+                ? { ...s, actualReps: input.actualReps ?? null, actualLoadKg: input.actualLoadKg ?? null, completedAt: new Date() }
                 : s
             ),
           };
@@ -1238,6 +1291,37 @@ export function StudentWorkoutRenderer({
         </div>
       )}
 
+      {/* Active Division Context Warning Banner */}
+      {activeSession &&
+        activeSession.status === "IN_PROGRESS" &&
+        activeSession.workoutBlockPublicId &&
+        selectedBlockIndex !== null &&
+        blocks[selectedBlockIndex] &&
+        blocks[selectedBlockIndex].publicId !== activeSession.workoutBlockPublicId && (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <p className="text-xs sm:text-sm font-bold text-amber-800 dark:text-amber-300">
+                Sessão em andamento na divisão: {activeSession.workoutBlockTitle || "outra divisão"}
+              </p>
+              <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
+                Você está visualizando a divisão &quot;{blocks[selectedBlockIndex].title || `Divisão ${selectedBlockIndex + 1}`}&quot;. As séries abaixo pertencem a esta divisão.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  const idx = blocks.findIndex((b) => b.publicId === activeSession.workoutBlockPublicId);
+                  if (idx !== -1) setSelectedBlockIndex(idx);
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-xs transition-all cursor-pointer whitespace-nowrap"
+              >
+                Retomar {activeSession.workoutBlockTitle || "divisão ativa"}
+              </button>
+            </div>
+          </div>
+        )}
+
       {/* Blocks List */}
       <div className="space-y-5">
         {(selectedBlockIndex !== null && blocks[selectedBlockIndex]
@@ -1264,6 +1348,28 @@ export function StudentWorkoutRenderer({
           />
         ))}
 
+        {/* Early Complete Prompt */}
+        {activeSession && activeSession.status === "IN_PROGRESS" && !allSetsCompleted && completedSets > 0 && (
+          <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+            <div className="space-y-0.5">
+              <p className="text-xs sm:text-base font-bold text-[var(--foreground)]">
+                {completedSets} de {totalSets} séries concluídas
+              </p>
+              <p className="text-xs text-[var(--foreground-muted)]">
+                Precisa encerrar mais cedo? Você pode concluir seu treino agora.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowEarlyCompleteModal(true)}
+              disabled={isCompleting}
+              className="px-4 py-2 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface)] text-[var(--foreground)] font-semibold text-xs transition-all cursor-pointer whitespace-nowrap"
+            >
+              Concluir treino antecipadamente
+            </button>
+          </div>
+        )}
+
         {/* Bottom Completion Banner */}
         {activeSession && activeSession.status === "IN_PROGRESS" && allSetsCompleted && (
           <div className="p-6 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-3">
@@ -1284,7 +1390,7 @@ export function StudentWorkoutRenderer({
             <div className="pt-1 flex justify-center">
               <button
                 type="button"
-                onClick={handleCompleteWorkout}
+                onClick={() => handleCompleteWorkout()}
                 disabled={isCompleting}
                 className="w-full sm:w-auto px-8 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
@@ -1379,6 +1485,96 @@ export function StudentWorkoutRenderer({
         />
       )}
 
+      {/* Early Complete Confirmation Modal */}
+      {showEarlyCompleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="space-y-1.5">
+              <h3 className="text-base font-bold text-[var(--foreground)]">
+                Concluir treino antecipadamente?
+              </h3>
+              <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                Você realizou {completedSets} de {totalSets} séries. As {totalSets - completedSets} séries restantes serão marcadas como não realizadas nesta sessão.
+              </p>
+            </div>
+            {completeError && (
+              <p className="text-xs text-red-500 font-medium">{completeError}</p>
+            )}
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowEarlyCompleteModal(false)}
+                disabled={isCompleting}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] cursor-pointer"
+              >
+                Continuar treinando
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCompleteWorkout({ allowEarlyCompletion: true })}
+                disabled={isCompleting}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-md shadow-emerald-600/20 cursor-pointer flex items-center justify-center gap-2"
+              >
+                {isCompleting ? "Finalizando..." : "Sim, finalizar treino"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Division Conflict Resolution Modal */}
+      {conflictState && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="space-y-1.5">
+              <h3 className="text-base font-bold text-[var(--foreground)]">
+                Sessão em andamento de outra divisão
+              </h3>
+              <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                Você já possui um treino em andamento na divisão &quot;{conflictState.activeSession.workoutBlockTitle || "Divisão anterior"}&quot;. Como deseja prosseguir para iniciar &quot;{conflictState.targetBlock.title}&quot;?
+              </p>
+            </div>
+            {startError && (
+              <p className="text-xs text-red-500 font-medium">{startError}</p>
+            )}
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => handleResolveConflict("RESUME")}
+                disabled={isStarting}
+                className="w-full px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-md shadow-emerald-600/20 cursor-pointer text-center"
+              >
+                Retomar divisão em andamento ({conflictState.activeSession.workoutBlockTitle || "anterior"})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleResolveConflict("COMPLETE_EARLY")}
+                disabled={isStarting}
+                className="w-full px-4 py-3 rounded-2xl bg-[var(--surface-subtle)] hover:bg-[var(--surface)] border border-[var(--border-default)] text-[var(--foreground)] text-xs font-semibold cursor-pointer text-center"
+              >
+                Concluir divisão anterior e iniciar esta ({conflictState.targetBlock.title})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleResolveConflict("ABANDON")}
+                disabled={isStarting}
+                className="w-full px-4 py-2.5 rounded-2xl border border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/10 text-xs font-semibold cursor-pointer text-center"
+              >
+                Descartar divisão anterior e iniciar esta
+              </button>
+              <button
+                type="button"
+                onClick={() => setConflictState(null)}
+                disabled={isStarting}
+                className="w-full px-4 py-2 text-xs font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] cursor-pointer text-center"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Execution History */}
       <WorkoutExecutionHistorySection history={history} />
     </div>
@@ -1433,7 +1629,7 @@ function ItemOrCombinationList({
   setErrors?: Record<string, string>;
   onCompleteSet?: (
     setPublicId: string,
-    input: { actualReps: number; actualLoadKg: number | null }
+    input: { actualReps?: number | null; actualLoadKg?: number | null; isSkipped?: boolean }
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
@@ -1640,7 +1836,7 @@ function BlockCard({
   setErrors?: Record<string, string>;
   onCompleteSet?: (
     setPublicId: string,
-    input: { actualReps: number; actualLoadKg: number | null }
+    input: { actualReps?: number | null; actualLoadKg?: number | null; isSkipped?: boolean }
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
@@ -1856,7 +2052,7 @@ function ItemCard({
   setErrors?: Record<string, string>;
   onCompleteSet?: (
     setPublicId: string,
-    input: { actualReps: number; actualLoadKg: number | null }
+    input: { actualReps?: number | null; actualLoadKg?: number | null; isSkipped?: boolean }
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
@@ -2172,7 +2368,7 @@ function SetCheckoffControl({
   isLoading: boolean;
   onCompleteSet?: (
     setPublicId: string,
-    input: { actualReps: number; actualLoadKg: number | null }
+    input: { actualReps?: number | null; actualLoadKg?: number | null; isSkipped?: boolean }
   ) => Promise<void>;
   isSessionActive?: boolean;
   draft?: { reps: string; load: string };
@@ -2236,7 +2432,7 @@ function PendingSetControl({
   isLoading: boolean;
   onCompleteSet?: (
     setPublicId: string,
-    input: { actualReps: number; actualLoadKg: number | null }
+    input: { actualReps?: number | null; actualLoadKg?: number | null; isSkipped?: boolean }
   ) => Promise<void>;
   draft?: { reps: string; load: string };
   onDraftChange?: (draft: { reps: string; load: string }) => void;
@@ -2433,7 +2629,7 @@ function StandardSetsPrescription({
   setErrors?: Record<string, string>;
   onCompleteSet?: (
     setPublicId: string,
-    input: { actualReps: number; actualLoadKg: number | null }
+    input: { actualReps?: number | null; actualLoadKg?: number | null; isSkipped?: boolean }
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
@@ -2766,7 +2962,7 @@ function DropSetPrescription({
   setErrors?: Record<string, string>;
   onCompleteSet?: (
     setPublicId: string,
-    input: { actualReps: number; actualLoadKg: number | null }
+    input: { actualReps?: number | null; actualLoadKg?: number | null; isSkipped?: boolean }
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
@@ -2894,7 +3090,7 @@ function RestPausePrescription({
   setErrors?: Record<string, string>;
   onCompleteSet?: (
     setPublicId: string,
-    input: { actualReps: number; actualLoadKg: number | null }
+    input: { actualReps?: number | null; actualLoadKg?: number | null; isSkipped?: boolean }
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;

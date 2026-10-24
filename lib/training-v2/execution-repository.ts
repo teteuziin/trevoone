@@ -16,6 +16,43 @@ import {
   createNotificationInTransaction,
   deliverNotificationAfterCommit,
 } from "@/services/notification-service";
+export class TrainingSessionConflictError extends Error {
+  public readonly code = "ACTIVE_SESSION_CONFLICT";
+  public readonly statusCode = 409;
+  public readonly activeSession: {
+    publicId: string;
+    workoutBlockId: number | null;
+    workoutBlockPublicId: string | null;
+    workoutBlockTitle: string | null;
+    startedAt: Date;
+  };
+  public readonly targetBlock: {
+    id: number;
+    publicId: string;
+    title: string;
+  };
+  constructor(
+    message: string,
+    activeSession: {
+      publicId: string;
+      workoutBlockId: number | null;
+      workoutBlockPublicId: string | null;
+      workoutBlockTitle: string | null;
+      startedAt: Date;
+    },
+    targetBlock: {
+      id: number;
+      publicId: string;
+      title: string;
+    }
+  ) {
+    super(message);
+    this.name = "TrainingSessionConflictError";
+    this.activeSession = activeSession;
+    this.targetBlock = targetBlock;
+  }
+}
+
 import type {
   WorkoutExecutionSessionDto,
   WorkoutExecutionSetDto,
@@ -41,6 +78,7 @@ function mapExecutionSetRow(r: RowDataPacket): WorkoutExecutionSetDto {
     prescribedRestSeconds: r.prescribed_rest_seconds != null ? Number(r.prescribed_rest_seconds) : null,
     actualReps: r.actual_reps != null ? Number(r.actual_reps) : null,
     actualLoadKg: r.actual_load_kg != null ? Number(r.actual_load_kg) : null,
+    isSkipped: Boolean(r.is_skipped),
     completedAt: r.completed_at ? new Date(r.completed_at) : null,
     createdAt: new Date(r.created_at),
     updatedAt: new Date(r.updated_at),
@@ -157,9 +195,24 @@ async function resolveAssignmentForExecution(
  * 3. Concurrency-safe single IN_PROGRESS session per assignment via row lock.
  * 4. Automatic cloning of prescribed sets into execution snapshots.
  */
+export type StartOrResumeWorkoutExecutionOptions = {
+  resolveConflict?: "COMPLETE_EARLY" | "ABANDON" | "RESUME";
+};
+
+/**
+ * Starts or resumes a student workout execution session.
+ * Enforces:
+ * 1. Strict tenancy and student ownership checks.
+ * 2. Active assignment validation.
+ * 3. Scoped strictly to the target division/block (workout_blocks).
+ * 4. Automatic cloning of prescribed sets for that division only (not other divisions).
+ * 5. Safe division switching without silent overwrites or cross-division set mixing.
+ */
 export async function startOrResumeWorkoutExecution(
   ctx: TrainingAccessContext,
-  assignmentPublicId: string
+  assignmentPublicId: string,
+  targetBlockPublicId?: string | null,
+  options?: StartOrResumeWorkoutExecutionOptions
 ): Promise<WorkoutExecutionSessionDto> {
   assertStudentContext(ctx);
 
@@ -217,7 +270,32 @@ export async function startOrResumeWorkoutExecution(
       throw new TrainingAuthorizationError("Acesso negado: prescrição não pertence a este aluno.", "FORBIDDEN", 403);
     }
 
-    // 2. Check for an existing IN_PROGRESS execution session for this assignment FIRST
+    // 2. Resolve requested target block (if specified)
+    let requestedTargetBlock: { id: number; public_id: string; title: string; sort_order: number } | null = null;
+    if (targetBlockPublicId && targetBlockPublicId.trim()) {
+      const [blockRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, public_id, title, sort_order
+         FROM workout_blocks
+         WHERE public_id = ? AND workout_version_id = ?
+         LIMIT 1;`,
+        [targetBlockPublicId.trim(), a.workout_version_id]
+      );
+      if (!blockRows || blockRows.length === 0) {
+        throw new TrainingAuthorizationError(
+          "Divisão de treino prescrita não encontrada nesta versão.",
+          "BLOCK_NOT_FOUND",
+          404
+        );
+      }
+      requestedTargetBlock = blockRows[0] as unknown as {
+        id: number;
+        public_id: string;
+        title: string;
+        sort_order: number;
+      };
+    }
+
+    // 3. Check for an existing IN_PROGRESS execution session for this assignment
     const [existingSessions] = await connection.execute<RowDataPacket[]>(
       `SELECT
         wes.id,
@@ -226,14 +304,18 @@ export async function startOrResumeWorkoutExecution(
         wes.student_membership_id,
         wes.workout_assignment_id,
         wes.workout_version_id,
+        wes.workout_block_id,
         wes.status,
         wes.started_at,
         wes.completed_at,
         wes.created_at,
         wes.updated_at,
-        wv.public_id AS session_version_public_id
+        wv.public_id AS session_version_public_id,
+        wb.public_id AS workout_block_public_id,
+        wb.title AS workout_block_title
        FROM workout_execution_sessions wes
        INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
        WHERE wes.workout_assignment_id = ? AND wes.status = 'IN_PROGRESS'
        LIMIT 1
        FOR UPDATE;`,
@@ -243,51 +325,181 @@ export async function startOrResumeWorkoutExecution(
     if (existingSessions && existingSessions.length > 0) {
       const activeSession = existingSessions[0];
 
-      // Fetch sets for existing active session
-      const [setRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT
-          wex.id,
-          wex.public_id,
-          wex.execution_session_id,
-          wex.workout_item_set_id,
-          wex.block_item_id,
-          wbi.public_id AS block_item_public_id,
-          wex.set_number,
-          wex.set_type,
-          wex.prescribed_reps,
-          wex.prescribed_reps_max,
-          wex.prescribed_load_kg,
-          wex.prescribed_rest_seconds,
-          wex.actual_reps,
-          wex.actual_load_kg,
-          wex.completed_at,
-          wex.created_at,
-          wex.updated_at
-         FROM workout_execution_sets wex
-         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-         WHERE wex.execution_session_id = ?
-         ORDER BY wex.set_number ASC;`,
-        [activeSession.id]
-      );
+      // Identify active session block (supporting legacy sessions where workout_block_id is NULL)
+      let activeBlockId = activeSession.workout_block_id != null ? Number(activeSession.workout_block_id) : null;
+      let activeBlockPublicId = activeSession.workout_block_public_id
+        ? String(activeSession.workout_block_public_id)
+        : null;
+      let activeBlockTitle = activeSession.workout_block_title
+        ? String(activeSession.workout_block_title)
+        : null;
 
-      await connection.commit();
+      if (activeBlockId == null) {
+        const [legacyBlockRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT wb.id, wb.public_id, wb.title
+           FROM workout_execution_sets wex
+           INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+           INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+           WHERE wex.execution_session_id = ?
+           ORDER BY wex.set_number ASC
+           LIMIT 1;`,
+          [activeSession.id]
+        );
+        if (legacyBlockRows && legacyBlockRows.length > 0) {
+          activeBlockId = Number(legacyBlockRows[0].id);
+          activeBlockPublicId = String(legacyBlockRows[0].public_id);
+          activeBlockTitle = String(legacyBlockRows[0].title);
+        }
+      }
 
-      return {
-        publicId: String(activeSession.public_id),
-        consultancyId: Number(activeSession.consultancy_id),
-        studentMembershipId: Number(activeSession.student_membership_id),
-        workoutAssignmentPublicId: String(a.public_id),
-        workoutVersionPublicId: String(activeSession.session_version_public_id || a.version_public_id),
-        status: activeSession.status as WorkoutExecutionSessionStatus,
-        startedAt: new Date(activeSession.started_at),
-        completedAt: activeSession.completed_at ? new Date(activeSession.completed_at) : null,
-        createdAt: new Date(activeSession.created_at),
-        updatedAt: new Date(activeSession.updated_at),
-        sets: setRows.map(mapExecutionSetRow),
-      };
+      const isConflict =
+        requestedTargetBlock != null &&
+        activeBlockId != null &&
+        requestedTargetBlock.id !== activeBlockId;
+
+      if (isConflict) {
+        if (options?.resolveConflict === "RESUME") {
+          // Explicit resume of active session
+          const [setRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT
+              wex.id,
+              wex.public_id,
+              wex.execution_session_id,
+              wex.workout_item_set_id,
+              wex.block_item_id,
+              wbi.public_id AS block_item_public_id,
+              wex.set_number,
+              wex.set_type,
+              wex.prescribed_reps,
+              wex.prescribed_reps_max,
+              wex.prescribed_load_kg,
+              wex.prescribed_rest_seconds,
+              wex.actual_reps,
+              wex.actual_load_kg,
+              wex.is_skipped,
+              wex.completed_at,
+              wex.created_at,
+              wex.updated_at
+             FROM workout_execution_sets wex
+             INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+             WHERE wex.execution_session_id = ?
+             ORDER BY wex.set_number ASC;`,
+            [activeSession.id]
+          );
+
+          await connection.commit();
+
+          return {
+            publicId: String(activeSession.public_id),
+            consultancyId: Number(activeSession.consultancy_id),
+            studentMembershipId: Number(activeSession.student_membership_id),
+            workoutAssignmentPublicId: String(a.public_id),
+            workoutVersionPublicId: String(activeSession.session_version_public_id || a.version_public_id),
+            workoutBlockId: activeBlockId,
+            workoutBlockPublicId: activeBlockPublicId,
+            workoutBlockTitle: activeBlockTitle,
+            status: activeSession.status as WorkoutExecutionSessionStatus,
+            startedAt: new Date(activeSession.started_at),
+            completedAt: activeSession.completed_at ? new Date(activeSession.completed_at) : null,
+            createdAt: new Date(activeSession.created_at),
+            updatedAt: new Date(activeSession.updated_at),
+            sets: setRows.map(mapExecutionSetRow),
+          };
+        } else if (options?.resolveConflict === "COMPLETE_EARLY") {
+          // Conclude previous session early: mark pending sets as skipped and session COMPLETED
+          await connection.execute<ResultSetHeader>(
+            `UPDATE workout_execution_sets
+             SET completed_at = NOW(3), is_skipped = 1, updated_at = NOW(3)
+             WHERE execution_session_id = ? AND completed_at IS NULL;`,
+            [activeSession.id]
+          );
+
+          await connection.execute<ResultSetHeader>(
+            `UPDATE workout_execution_sessions
+             SET status = 'COMPLETED', completed_at = NOW(3), updated_at = NOW(3)
+             WHERE id = ?;`,
+            [activeSession.id]
+          );
+          // Proceed to create new session for requestedTargetBlock below!
+        } else if (options?.resolveConflict === "ABANDON") {
+          // Discard previous session: mark ABANDONED
+          await connection.execute<ResultSetHeader>(
+            `UPDATE workout_execution_sessions
+             SET status = 'ABANDONED', updated_at = NOW(3)
+             WHERE id = ?;`,
+            [activeSession.id]
+          );
+          // Proceed to create new session for requestedTargetBlock below!
+        } else {
+          // No resolution specified: throw conflict error for explicit user choice
+          await connection.commit();
+          throw new TrainingSessionConflictError(
+            `Já existe uma sessão de treino em andamento para a divisão "${activeBlockTitle || "Divisão ativa"}". Deseja retomar a sessão ativa, concluí-la antecipadamente ou descartá-la para iniciar uma nova divisão?`,
+            {
+              publicId: String(activeSession.public_id),
+              workoutBlockId: activeBlockId,
+              workoutBlockPublicId: activeBlockPublicId,
+              workoutBlockTitle: activeBlockTitle,
+              startedAt: new Date(activeSession.started_at),
+            },
+            {
+              id: requestedTargetBlock!.id,
+              publicId: String(requestedTargetBlock!.public_id),
+              title: String(requestedTargetBlock!.title),
+            }
+          );
+        }
+      } else {
+        // No conflict: student is resuming the active session
+        const [setRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+            wex.id,
+            wex.public_id,
+            wex.execution_session_id,
+            wex.workout_item_set_id,
+            wex.block_item_id,
+            wbi.public_id AS block_item_public_id,
+            wex.set_number,
+            wex.set_type,
+            wex.prescribed_reps,
+            wex.prescribed_reps_max,
+            wex.prescribed_load_kg,
+            wex.prescribed_rest_seconds,
+            wex.actual_reps,
+            wex.actual_load_kg,
+            wex.is_skipped,
+            wex.completed_at,
+            wex.created_at,
+            wex.updated_at
+           FROM workout_execution_sets wex
+           INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+           WHERE wex.execution_session_id = ?
+           ORDER BY wex.set_number ASC;`,
+          [activeSession.id]
+        );
+
+        await connection.commit();
+
+        return {
+          publicId: String(activeSession.public_id),
+          consultancyId: Number(activeSession.consultancy_id),
+          studentMembershipId: Number(activeSession.student_membership_id),
+          workoutAssignmentPublicId: String(a.public_id),
+          workoutVersionPublicId: String(activeSession.session_version_public_id || a.version_public_id),
+          workoutBlockId: activeBlockId,
+          workoutBlockPublicId: activeBlockPublicId,
+          workoutBlockTitle: activeBlockTitle,
+          status: activeSession.status as WorkoutExecutionSessionStatus,
+          startedAt: new Date(activeSession.started_at),
+          completedAt: activeSession.completed_at ? new Date(activeSession.completed_at) : null,
+          createdAt: new Date(activeSession.created_at),
+          updatedAt: new Date(activeSession.updated_at),
+          sets: setRows.map(mapExecutionSetRow),
+        };
+      }
     }
 
-    // 3. No IN_PROGRESS session: validate assignment is ACTIVE to start a new execution session
+    // 4. No IN_PROGRESS session (or resolved): validate assignment is ACTIVE
     if (a.status !== "ACTIVE") {
       throw new TrainingAuthorizationError(
         "Apenas prescrições ativas podem ser iniciadas para execução.",
@@ -296,7 +508,33 @@ export async function startOrResumeWorkoutExecution(
       );
     }
 
-    // 3. No IN_PROGRESS session: create a new session and snapshot all prescribed sets
+    // Determine target block: use requestedTargetBlock or fallback to first block of version
+    let targetBlock = requestedTargetBlock;
+    if (!targetBlock) {
+      const [firstBlockRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, public_id, title, sort_order
+         FROM workout_blocks
+         WHERE workout_version_id = ?
+         ORDER BY sort_order ASC
+         LIMIT 1;`,
+        [a.workout_version_id]
+      );
+      if (!firstBlockRows || firstBlockRows.length === 0) {
+        throw new TrainingAuthorizationError(
+          "A rotina prescrita não possui divisões para execução.",
+          "WORKOUT_HAS_NO_BLOCKS",
+          400
+        );
+      }
+      targetBlock = firstBlockRows[0] as unknown as {
+        id: number;
+        public_id: string;
+        title: string;
+        sort_order: number;
+      };
+    }
+
+    // 5. Snapshot prescribed sets strictly for the target division (targetBlock.id)
     const [prescribedRows] = await connection.execute<RowDataPacket[]>(
       `SELECT
         wis.id AS workout_item_set_id,
@@ -318,14 +556,14 @@ export async function startOrResumeWorkoutExecution(
        INNER JOIN workout_block_items wbi ON wbi.block_id = wb.id
        LEFT JOIN workout_item_combinations wic ON wic.id = wbi.combination_id
        INNER JOIN workout_item_sets wis ON wis.block_item_id = wbi.id
-       WHERE wb.workout_version_id = ?
-       ORDER BY wb.sort_order ASC, COALESCE(wic.sort_order, wbi.sort_order) ASC, wbi.sort_order ASC, wis.set_number ASC;`,
-      [a.workout_version_id]
+       WHERE wb.id = ?
+       ORDER BY COALESCE(wic.sort_order, wbi.sort_order) ASC, wbi.sort_order ASC, wis.set_number ASC;`,
+      [targetBlock.id]
     );
 
     if (!prescribedRows || prescribedRows.length === 0) {
       throw new TrainingAuthorizationError(
-        "A rotina prescrita não possui séries para execução.",
+        "A divisão selecionada não possui séries prescritas para execução.",
         "WORKOUT_HAS_NO_EXECUTABLE_SETS",
         400
       );
@@ -499,10 +737,11 @@ export async function startOrResumeWorkoutExecution(
         student_membership_id,
         workout_assignment_id,
         workout_version_id,
+        workout_block_id,
         status,
         started_at
-      ) VALUES (?, ?, ?, ?, ?, 'IN_PROGRESS', NOW(3));`,
-      [sessionPublicId, ctx.consultancyId!, ctx.membershipId!, a.id, a.workout_version_id]
+      ) VALUES (?, ?, ?, ?, ?, ?, 'IN_PROGRESS', NOW(3));`,
+      [sessionPublicId, ctx.consultancyId!, ctx.membershipId!, a.id, a.workout_version_id, targetBlock.id]
     );
 
     const sessionId = insertSessionRes.insertId;
@@ -553,6 +792,7 @@ export async function startOrResumeWorkoutExecution(
         prescribedRestSeconds: ps.prescribed_rest_seconds != null ? Number(ps.prescribed_rest_seconds) : null,
         actualReps: null,
         actualLoadKg: null,
+        isSkipped: false,
         completedAt: null,
         createdAt: now,
         updatedAt: now,
@@ -570,6 +810,9 @@ export async function startOrResumeWorkoutExecution(
       studentMembershipId: ctx.membershipId!,
       workoutAssignmentPublicId: String(a.public_id),
       workoutVersionPublicId: String(a.version_public_id),
+      workoutBlockId: targetBlock.id,
+      workoutBlockPublicId: String(targetBlock.public_id),
+      workoutBlockTitle: String(targetBlock.title),
       status: "IN_PROGRESS",
       startedAt: now,
       completedAt: null,
@@ -613,16 +856,20 @@ export async function getActiveStudentWorkoutExecution(
         wes.public_id,
         wes.consultancy_id,
         wes.student_membership_id,
+        wes.workout_block_id,
         wes.status,
         wes.started_at,
         wes.completed_at,
         wes.created_at,
         wes.updated_at,
         wa.public_id AS assignment_public_id,
-        wv.public_id AS version_public_id
+        wv.public_id AS version_public_id,
+        wb.public_id AS workout_block_public_id,
+        wb.title AS workout_block_title
        FROM workout_execution_sessions wes
        INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
        INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
        WHERE ${assignTargetId ? "wa.id = ?" : "wa.public_id = ?"}
          AND wes.status = 'IN_PROGRESS'
          AND wa.deleted_at IS NULL
@@ -667,6 +914,7 @@ export async function getActiveStudentWorkoutExecution(
         wex.prescribed_rest_seconds,
         wex.actual_reps,
         wex.actual_load_kg,
+        wex.is_skipped,
         wex.completed_at,
         wex.created_at,
         wex.updated_at
@@ -677,12 +925,37 @@ export async function getActiveStudentWorkoutExecution(
       [s.id]
     );
 
+    let activeBlockId = s.workout_block_id != null ? Number(s.workout_block_id) : null;
+    let activeBlockPublicId = s.workout_block_public_id ? String(s.workout_block_public_id) : null;
+    let activeBlockTitle = s.workout_block_title ? String(s.workout_block_title) : null;
+
+    if (activeBlockId == null && setRows.length > 0) {
+      const [legacyBlockRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT wb.id, wb.public_id, wb.title
+         FROM workout_execution_sets wex
+         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+         WHERE wex.execution_session_id = ?
+         ORDER BY wex.set_number ASC
+         LIMIT 1;`,
+        [s.id]
+      );
+      if (legacyBlockRows && legacyBlockRows.length > 0) {
+        activeBlockId = Number(legacyBlockRows[0].id);
+        activeBlockPublicId = String(legacyBlockRows[0].public_id);
+        activeBlockTitle = String(legacyBlockRows[0].title);
+      }
+    }
+
     return {
       publicId: String(s.public_id),
       consultancyId: Number(s.consultancy_id),
       studentMembershipId: Number(s.student_membership_id),
       workoutAssignmentPublicId: String(s.assignment_public_id),
       workoutVersionPublicId: String(s.version_public_id),
+      workoutBlockId: activeBlockId,
+      workoutBlockPublicId: activeBlockPublicId,
+      workoutBlockTitle: activeBlockTitle,
       status: s.status as WorkoutExecutionSessionStatus,
       startedAt: new Date(s.started_at),
       completedAt: s.completed_at ? new Date(s.completed_at) : null,
@@ -724,16 +997,20 @@ export async function getActiveOrLatestStudentWorkoutExecution(
         wes.public_id,
         wes.consultancy_id,
         wes.student_membership_id,
+        wes.workout_block_id,
         wes.status,
         wes.started_at,
         wes.completed_at,
         wes.created_at,
         wes.updated_at,
         wa.public_id AS assignment_public_id,
-        wv.public_id AS version_public_id
+        wv.public_id AS version_public_id,
+        wb.public_id AS workout_block_public_id,
+        wb.title AS workout_block_title
        FROM workout_execution_sessions wes
        INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
        INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
        WHERE ${assignTargetId ? "wa.id = ?" : "wa.public_id = ?"}
          AND wa.deleted_at IS NULL
          AND wes.status IN ('IN_PROGRESS', 'COMPLETED')
@@ -782,6 +1059,7 @@ export async function getActiveOrLatestStudentWorkoutExecution(
         wex.prescribed_rest_seconds,
         wex.actual_reps,
         wex.actual_load_kg,
+        wex.is_skipped,
         wex.completed_at,
         wex.created_at,
         wex.updated_at
@@ -792,12 +1070,37 @@ export async function getActiveOrLatestStudentWorkoutExecution(
       [s.id]
     );
 
+    let activeBlockId = s.workout_block_id != null ? Number(s.workout_block_id) : null;
+    let activeBlockPublicId = s.workout_block_public_id ? String(s.workout_block_public_id) : null;
+    let activeBlockTitle = s.workout_block_title ? String(s.workout_block_title) : null;
+
+    if (activeBlockId == null && setRows.length > 0) {
+      const [legacyBlockRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT wb.id, wb.public_id, wb.title
+         FROM workout_execution_sets wex
+         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+         WHERE wex.execution_session_id = ?
+         ORDER BY wex.set_number ASC
+         LIMIT 1;`,
+        [s.id]
+      );
+      if (legacyBlockRows && legacyBlockRows.length > 0) {
+        activeBlockId = Number(legacyBlockRows[0].id);
+        activeBlockPublicId = String(legacyBlockRows[0].public_id);
+        activeBlockTitle = String(legacyBlockRows[0].title);
+      }
+    }
+
     return {
       publicId: String(s.public_id),
       consultancyId: Number(s.consultancy_id),
       studentMembershipId: Number(s.student_membership_id),
       workoutAssignmentPublicId: String(s.assignment_public_id),
       workoutVersionPublicId: String(s.version_public_id),
+      workoutBlockId: activeBlockId,
+      workoutBlockPublicId: activeBlockPublicId,
+      workoutBlockTitle: activeBlockTitle,
       status: s.status as WorkoutExecutionSessionStatus,
       startedAt: new Date(s.started_at),
       completedAt: s.completed_at ? new Date(s.completed_at) : null,
@@ -828,16 +1131,20 @@ export async function getStudentWorkoutExecution(
         wes.public_id,
         wes.consultancy_id,
         wes.student_membership_id,
+        wes.workout_block_id,
         wes.status,
         wes.started_at,
         wes.completed_at,
         wes.created_at,
         wes.updated_at,
         wa.public_id AS assignment_public_id,
-        wv.public_id AS version_public_id
+        wv.public_id AS version_public_id,
+        wb.public_id AS workout_block_public_id,
+        wb.title AS workout_block_title
        FROM workout_execution_sessions wes
        INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
        INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
        WHERE wes.public_id = ?
        LIMIT 1;`,
       [sessionPublicId]
@@ -855,7 +1162,10 @@ export async function getStudentWorkoutExecution(
     const isStudentOwner =
       (ctx.membershipId && Number(s.student_membership_id) === ctx.membershipId) ||
       (await verifyUserMembershipOwnership(connection, s.student_membership_id, ctx.userId, ctx.consultancyId));
-    const isCoachOrAdmin = ctx.consultancyId && Number(s.consultancy_id) === ctx.consultancyId && (ctx.canAuthorTraining || ctx.canManageConsultancy);
+    const isCoachOrAdmin =
+      ctx.consultancyId &&
+      Number(s.consultancy_id) === ctx.consultancyId &&
+      (ctx.canAuthorTraining || ctx.canManageConsultancy);
 
     if (!isStudentOwner && !isCoachOrAdmin) {
       return null;
@@ -877,6 +1187,7 @@ export async function getStudentWorkoutExecution(
         wex.prescribed_rest_seconds,
         wex.actual_reps,
         wex.actual_load_kg,
+        wex.is_skipped,
         wex.completed_at,
         wex.created_at,
         wex.updated_at
@@ -887,12 +1198,37 @@ export async function getStudentWorkoutExecution(
       [s.id]
     );
 
+    let activeBlockId = s.workout_block_id != null ? Number(s.workout_block_id) : null;
+    let activeBlockPublicId = s.workout_block_public_id ? String(s.workout_block_public_id) : null;
+    let activeBlockTitle = s.workout_block_title ? String(s.workout_block_title) : null;
+
+    if (activeBlockId == null && setRows.length > 0) {
+      const [legacyBlockRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT wb.id, wb.public_id, wb.title
+         FROM workout_execution_sets wex
+         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+         WHERE wex.execution_session_id = ?
+         ORDER BY wex.set_number ASC
+         LIMIT 1;`,
+        [s.id]
+      );
+      if (legacyBlockRows && legacyBlockRows.length > 0) {
+        activeBlockId = Number(legacyBlockRows[0].id);
+        activeBlockPublicId = String(legacyBlockRows[0].public_id);
+        activeBlockTitle = String(legacyBlockRows[0].title);
+      }
+    }
+
     return {
       publicId: String(s.public_id),
       consultancyId: Number(s.consultancy_id),
       studentMembershipId: Number(s.student_membership_id),
       workoutAssignmentPublicId: String(s.assignment_public_id),
       workoutVersionPublicId: String(s.version_public_id),
+      workoutBlockId: activeBlockId,
+      workoutBlockPublicId: activeBlockPublicId,
+      workoutBlockTitle: activeBlockTitle,
       status: s.status as WorkoutExecutionSessionStatus,
       startedAt: new Date(s.started_at),
       completedAt: s.completed_at ? new Date(s.completed_at) : null,
@@ -908,6 +1244,8 @@ export async function getStudentWorkoutExecution(
 /**
  * Marks an individual execution set completed.
  * Idempotent: repeated calls do NOT reset completed_at or duplicate records.
+ * Supports optional actualReps and actualLoadKg (never coerces empty values to 0 or prescribed values).
+ * Supports isSkipped marking.
  * Prescription is NEVER mutated; only workout_execution_sets is updated.
  */
 export async function completeWorkoutExecutionSet(
@@ -926,51 +1264,47 @@ export async function completeWorkoutExecutionSet(
     );
   }
 
-  // Validate actualReps (strictly mandatory)
-  if (input.actualReps === undefined || input.actualReps === null) {
-    throw new TrainingAuthorizationError(
-      "Informe o número de repetições realizadas.",
-      "INVALID_ACTUAL_REPS",
-      400
-    );
-  }
-  if (
-    typeof input.actualReps !== "number" ||
-    !Number.isFinite(input.actualReps) ||
-    !Number.isInteger(input.actualReps) ||
-    input.actualReps < 0 ||
-    input.actualReps > 65535
-  ) {
-    throw new TrainingAuthorizationError(
-      "Valor inválido de repetições realizadas (esperado número inteiro entre 0 e 65535).",
-      "INVALID_ACTUAL_REPS",
-      400
-    );
+  // Validate actualReps (optional: null or integer between 0 and 65535)
+  let validatedActualReps: number | null = null;
+  if (input.actualReps !== undefined && input.actualReps !== null) {
+    const rawR = input.actualReps;
+    const r = typeof rawR === "string" ? Number(rawR) : rawR;
+    if (typeof r !== "number" || !Number.isFinite(r) || !Number.isInteger(r) || r < 0 || r > 65535) {
+      throw new TrainingAuthorizationError(
+        "Valor inválido de repetições realizadas (esperado número inteiro entre 0 e 65535).",
+        "INVALID_ACTUAL_REPS",
+        400
+      );
+    }
+    validatedActualReps = r;
   }
 
-  // Validate actualLoadKg (null or number between 0 and 9999.99 with at most 2 decimals)
-  if (input.actualLoadKg !== null) {
-    if (
-      typeof input.actualLoadKg !== "number" ||
-      !Number.isFinite(input.actualLoadKg) ||
-      input.actualLoadKg < 0 ||
-      input.actualLoadKg > 9999.99
-    ) {
+  // Validate actualLoadKg (optional: null or number between 0 and 9999.99 with at most 2 decimals)
+  let validatedActualLoadKg: number | null = null;
+  if (input.actualLoadKg !== undefined && input.actualLoadKg !== null) {
+    let rawL = input.actualLoadKg;
+    if (typeof rawL === "string") {
+      rawL = Number(String(rawL).replace(",", "."));
+    }
+    if (typeof rawL !== "number" || !Number.isFinite(rawL) || rawL < 0 || rawL > 9999.99) {
       throw new TrainingAuthorizationError(
         "Valor inválido de carga realizada (esperado entre 0 e 9999.99 kg).",
         "INVALID_ACTUAL_LOAD",
         400
       );
     }
-    const rounded = Math.round(input.actualLoadKg * 100) / 100;
-    if (Math.abs(input.actualLoadKg - rounded) > 1e-7) {
+    const rounded = Math.round(rawL * 100) / 100;
+    if (Math.abs(rawL - rounded) > 1e-7) {
       throw new TrainingAuthorizationError(
         "Carga deve ter no máximo 2 casas decimais.",
         "INVALID_ACTUAL_LOAD",
         400
       );
     }
+    validatedActualLoadKg = rounded;
   }
+
+  const isSkipped = Boolean(input.isSkipped);
 
   const pool = getDbPool();
   const connection = await pool.getConnection();
@@ -1031,6 +1365,7 @@ export async function completeWorkoutExecutionSet(
         wex.prescribed_rest_seconds,
         wex.actual_reps,
         wex.actual_load_kg,
+        wex.is_skipped,
         wex.completed_at,
         wex.created_at,
         wex.updated_at
@@ -1048,28 +1383,21 @@ export async function completeWorkoutExecutionSet(
 
     const targetSet = setRows[0];
 
-    // 3. Apply completion idempotently: atomic update of completed_at, actual_reps and actual_load_kg
+    // 3. Apply completion idempotently: atomic update of completed_at, actual_reps, actual_load_kg, is_skipped
     const now = new Date();
-    const actualReps = input.actualReps;
-    const actualLoadKg =
-      input.actualLoadKg !== null
-        ? Math.round(input.actualLoadKg * 100) / 100
-        : null;
-
     if (targetSet.completed_at == null) {
-      // First completion: atomically persist completed_at, actual_reps, and actual_load_kg
       await connection.execute<ResultSetHeader>(
         `UPDATE workout_execution_sets
-         SET completed_at = ?, actual_reps = ?, actual_load_kg = ?, updated_at = NOW(3)
+         SET completed_at = ?, actual_reps = ?, actual_load_kg = ?, is_skipped = ?, updated_at = NOW(3)
          WHERE id = ?;`,
-        [now, actualReps, actualLoadKg, targetSet.id]
+        [now, validatedActualReps, validatedActualLoadKg, isSkipped ? 1 : 0, targetSet.id]
       );
       targetSet.completed_at = now;
-      targetSet.actual_reps = actualReps;
-      targetSet.actual_load_kg = actualLoadKg;
+      targetSet.actual_reps = validatedActualReps;
+      targetSet.actual_load_kg = validatedActualLoadKg;
+      targetSet.is_skipped = isSkipped ? 1 : 0;
       targetSet.updated_at = now;
     }
-    // If targetSet.completed_at != null, already completed: idempotent no-op, preserving existing completion
 
     await connection.commit();
 
@@ -1087,6 +1415,7 @@ export async function completeWorkoutExecutionSet(
       prescribedRestSeconds: targetSet.prescribed_rest_seconds != null ? Number(targetSet.prescribed_rest_seconds) : null,
       actualReps: targetSet.actual_reps != null ? Number(targetSet.actual_reps) : null,
       actualLoadKg: targetSet.actual_load_kg != null ? Number(targetSet.actual_load_kg) : null,
+      isSkipped: Boolean(targetSet.is_skipped),
       completedAt: targetSet.completed_at ? new Date(targetSet.completed_at) : null,
       createdAt: new Date(targetSet.created_at),
       updatedAt: new Date(targetSet.updated_at),
@@ -1099,17 +1428,21 @@ export async function completeWorkoutExecutionSet(
   }
 }
 
+export type CompleteWorkoutExecutionOptions = {
+  allowEarlyCompletion?: boolean;
+};
+
 /**
  * Completes a workout execution session.
- * Guards:
- * - Every prescribed execution set must be marked completed first.
- * - Rejects completion if pending sets remain.
- * - Idempotent: repeated call on a COMPLETED session returns safe completed state.
- * - Leaves assignment intact.
+ * Evaluates only the prescribed sets belonging to this scoped session.
+ * Supports early completion (options.allowEarlyCompletion: true) marking pending sets as is_skipped = 1.
+ * Idempotent: repeated calls on a COMPLETED session return safe completed state.
+ * Leaves assignment intact.
  */
 export async function completeWorkoutExecution(
   ctx: TrainingAccessContext,
-  sessionPublicId: string
+  sessionPublicId: string,
+  options?: CompleteWorkoutExecutionOptions
 ): Promise<WorkoutExecutionSessionDto> {
   assertStudentContext(ctx);
 
@@ -1127,16 +1460,21 @@ export async function completeWorkoutExecution(
         wes.consultancy_id,
         wes.student_membership_id,
         wes.workout_assignment_id,
+        wes.workout_version_id,
+        wes.workout_block_id,
         wes.status,
         wes.started_at,
         wes.completed_at,
         wes.created_at,
         wes.updated_at,
         wa.public_id AS assignment_public_id,
-        wv.public_id AS version_public_id
+        wv.public_id AS version_public_id,
+        wb.public_id AS workout_block_public_id,
+        wb.title AS workout_block_title
        FROM workout_execution_sessions wes
        INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
        INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
        WHERE wes.public_id = ?
        LIMIT 1
        FOR UPDATE;`,
@@ -1161,10 +1499,50 @@ export async function completeWorkoutExecution(
       throw new TrainingAuthorizationError("Acesso negado: sessão pertence a outro aluno.", "FORBIDDEN", 403);
     }
 
+    let activeBlockId = s.workout_block_id != null ? Number(s.workout_block_id) : null;
+    let activeBlockPublicId = s.workout_block_public_id ? String(s.workout_block_public_id) : null;
+    let activeBlockTitle = s.workout_block_title ? String(s.workout_block_title) : null;
+
+    if (activeBlockId == null) {
+      const [legacyBlockRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT wb.id, wb.public_id, wb.title
+         FROM workout_execution_sets wex
+         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+         WHERE wex.execution_session_id = ?
+         ORDER BY wex.set_number ASC
+         LIMIT 1;`,
+        [s.id]
+      );
+      if (legacyBlockRows && legacyBlockRows.length > 0) {
+        activeBlockId = Number(legacyBlockRows[0].id);
+        activeBlockPublicId = String(legacyBlockRows[0].public_id);
+        activeBlockTitle = String(legacyBlockRows[0].title);
+      }
+    }
+
     // Idempotent: already completed
     if (s.status === "COMPLETED") {
       const [setRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT wex.*, wbi.public_id AS block_item_public_id
+        `SELECT
+          wex.id,
+          wex.public_id,
+          wex.execution_session_id,
+          wex.workout_item_set_id,
+          wex.block_item_id,
+          wbi.public_id AS block_item_public_id,
+          wex.set_number,
+          wex.set_type,
+          wex.prescribed_reps,
+          wex.prescribed_reps_max,
+          wex.prescribed_load_kg,
+          wex.prescribed_rest_seconds,
+          wex.actual_reps,
+          wex.actual_load_kg,
+          wex.is_skipped,
+          wex.completed_at,
+          wex.created_at,
+          wex.updated_at
          FROM workout_execution_sets wex
          INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
          WHERE wex.execution_session_id = ?
@@ -1178,6 +1556,9 @@ export async function completeWorkoutExecution(
         studentMembershipId: Number(s.student_membership_id),
         workoutAssignmentPublicId: String(s.assignment_public_id),
         workoutVersionPublicId: String(s.version_public_id),
+        workoutBlockId: activeBlockId,
+        workoutBlockPublicId: activeBlockPublicId,
+        workoutBlockTitle: activeBlockTitle,
         status: "COMPLETED",
         startedAt: new Date(s.started_at),
         completedAt: s.completed_at ? new Date(s.completed_at) : new Date(),
@@ -1187,21 +1568,32 @@ export async function completeWorkoutExecution(
       };
     }
 
-    // 2. Pending sets guard: reject if any set is not completed
-    const [pendingRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT COUNT(*) AS pending_count
-       FROM workout_execution_sets
-       WHERE execution_session_id = ? AND completed_at IS NULL;`,
-      [s.id]
-    );
-
-    const pendingCount = Number(pendingRows[0]?.pending_count || 0);
-    if (pendingCount > 0) {
-      throw new TrainingAuthorizationError(
-        `Não é possível finalizar o treino com ${pendingCount} ${pendingCount === 1 ? "série pendente" : "séries pendentes"}.`,
-        "WORKOUT_EXECUTION_HAS_PENDING_SETS",
-        400
+    // 2. Pending sets handling
+    if (options?.allowEarlyCompletion) {
+      // Mark all remaining pending sets as skipped
+      await connection.execute<ResultSetHeader>(
+        `UPDATE workout_execution_sets
+         SET completed_at = NOW(3), is_skipped = 1, updated_at = NOW(3)
+         WHERE execution_session_id = ? AND completed_at IS NULL;`,
+        [s.id]
       );
+    } else {
+      // Pending sets guard: reject if any set is not completed
+      const [pendingRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT COUNT(*) AS pending_count
+         FROM workout_execution_sets
+         WHERE execution_session_id = ? AND completed_at IS NULL;`,
+        [s.id]
+      );
+
+      const pendingCount = Number(pendingRows[0]?.pending_count || 0);
+      if (pendingCount > 0) {
+        throw new TrainingAuthorizationError(
+          `Não é possível finalizar o treino com ${pendingCount} ${pendingCount === 1 ? "série pendente" : "séries pendentes"}.`,
+          "WORKOUT_EXECUTION_HAS_PENDING_SETS",
+          400
+        );
+      }
     }
 
     // 3. Mark session COMPLETED
@@ -1214,7 +1606,25 @@ export async function completeWorkoutExecution(
     );
 
     const [setRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wex.*, wbi.public_id AS block_item_public_id
+      `SELECT
+        wex.id,
+        wex.public_id,
+        wex.execution_session_id,
+        wex.workout_item_set_id,
+        wex.block_item_id,
+        wbi.public_id AS block_item_public_id,
+        wex.set_number,
+        wex.set_type,
+        wex.prescribed_reps,
+        wex.prescribed_reps_max,
+        wex.prescribed_load_kg,
+        wex.prescribed_rest_seconds,
+        wex.actual_reps,
+        wex.actual_load_kg,
+        wex.is_skipped,
+        wex.completed_at,
+        wex.created_at,
+        wex.updated_at
        FROM workout_execution_sets wex
        INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
        WHERE wex.execution_session_id = ?
@@ -1222,7 +1632,7 @@ export async function completeWorkoutExecution(
       [s.id]
     );
 
-    // 4. Dispatch notification to responsible Personal Trainer (if valid assignment exists)
+    // 4. Dispatch notification to responsible Personal Trainer
     let notifIdToDeliver: number | null = null;
     try {
       const [relRows] = await connection.execute<RowDataPacket[]>(
@@ -1272,6 +1682,9 @@ export async function completeWorkoutExecution(
       studentMembershipId: Number(s.student_membership_id),
       workoutAssignmentPublicId: String(s.assignment_public_id),
       workoutVersionPublicId: String(s.version_public_id),
+      workoutBlockId: activeBlockId,
+      workoutBlockPublicId: activeBlockPublicId,
+      workoutBlockTitle: activeBlockTitle,
       status: "COMPLETED",
       startedAt: new Date(s.started_at),
       completedAt: now,

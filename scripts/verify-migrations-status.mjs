@@ -174,6 +174,55 @@ async function runVerification() {
     console.log(`  - Tabela nutrition_v2_planning_field_preferences: ${isPlanningPrefsPresent ? "PRESENTE" : "AUSENTE"}`);
     console.log(`  - Registro em schema_migrations: ${is065InSchema ? "PRESENTE" : "AUSENTE"}`);
 
+    // 066: workout_execution_sessions scoped block & workout_execution_sets is_skipped
+    const [wesBlockCol] = await conn.query(
+      `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'workout_execution_sessions'
+         AND COLUMN_NAME = 'workout_block_id';`,
+      [database]
+    );
+    console.log(`\n[066] workout_execution_sessions.workout_block_id: ${wesBlockCol.length > 0 ? "PRESENTE" : "AUSENTE"}`);
+
+    const [wesFk] = await conn.query(
+      `SELECT CONSTRAINT_NAME
+       FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'workout_execution_sessions'
+         AND CONSTRAINT_TYPE = 'FOREIGN KEY' AND CONSTRAINT_NAME = 'fk_wes_block';`,
+      [database]
+    );
+    console.log(`[066] FK fk_wes_block (workout_execution_sessions -> workout_blocks): ${wesFk.length > 0 ? "PRESENTE" : "AUSENTE"}`);
+
+    const [setSkipCol] = await conn.query(
+      `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'workout_execution_sets'
+         AND COLUMN_NAME = 'is_skipped';`,
+      [database]
+    );
+    console.log(`[066] workout_execution_sets.is_skipped: ${setSkipCol.length > 0 ? "PRESENTE" : "AUSENTE"}`);
+
+    // Avaliação do status da Migration 066
+    const is066InSchema = Array.isArray(schemaRows) && schemaRows.some((r) => (r.migration || r.name || "").includes("066"));
+    const isWesBlockPresent = wesBlockCol.length > 0;
+    const isWesFkPresent = wesFk.length > 0;
+    const isSetSkipPresent = setSkipCol.length > 0;
+
+    let status066 = "NÃO APLICADA";
+    if (is066InSchema && isWesBlockPresent && isWesFkPresent && isSetSkipPresent) {
+      status066 = "APLICADA E VERIFICADA (INTEGRAL)";
+    } else if (isWesBlockPresent || isWesFkPresent || isSetSkipPresent || is066InSchema) {
+      status066 = "PARCIALMENTE APLICADA (DIVERGÊNCIA)";
+    }
+
+    console.log("\n--------------------------------------------------------------------------------");
+    console.log(`STATUS DA MIGRATION 066: ${status066}`);
+    console.log("--------------------------------------------------------------------------------");
+    console.log(`  - Coluna workout_execution_sessions.workout_block_id: ${isWesBlockPresent ? "PRESENTE" : "AUSENTE"}`);
+    console.log(`  - Chave estrangeira fk_wes_block: ${isWesFkPresent ? "PRESENTE" : "AUSENTE"}`);
+    console.log(`  - Coluna workout_execution_sets.is_skipped: ${isSetSkipPresent ? "PRESENTE" : "AUSENTE"}`);
+    console.log(`  - Registro em schema_migrations: ${is066InSchema ? "PRESENTE" : "AUSENTE"}`);
+
     console.log("\n================================================================================");
     console.log("STATUS DAS MIGRATIONS: VERIFICAÇÃO CONCLUÍDA NO AMBIENTE AUTORIZADO");
     console.log("================================================================================\n");

@@ -434,6 +434,7 @@ export type WorkoutExecutionHistorySetDto = {
   prescribedRestSeconds: number | null;
   actualReps: number | null;
   actualLoadKg: number | null;
+  isSkipped?: boolean;
   completedAt: Date | null;
 };
 

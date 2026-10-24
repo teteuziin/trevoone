@@ -907,6 +907,7 @@ export async function getPersonalStudentDetail(params: {
           FROM workout_execution_sets weset
           WHERE weset.execution_session_id = wes.id
             AND weset.completed_at IS NOT NULL
+            AND (weset.is_skipped = 0 OR weset.is_skipped IS NULL)
         ) AS completed_sets_count
        FROM workout_execution_sessions wes
        INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id

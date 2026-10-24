@@ -111,6 +111,87 @@ async function verifyUserMembershipOwnership(
   return Array.isArray(rows) && rows.length > 0;
 }
 
+export type LegacyBlockResolution = {
+  kind: "SINGLE_BLOCK_CONFIRMED" | "MULTI_BLOCK_LEGACY" | "INSUFFICIENT_DATA";
+  blockId: number | null;
+  blockPublicId: string | null;
+  blockTitle: string | null;
+  participatingBlocks: Array<{
+    blockId: number;
+    blockPublicId: string;
+    blockTitle: string;
+    completedSetsCount: number;
+    totalSetsCount: number;
+  }>;
+};
+
+/**
+ * Resolves the block identity for historical/legacy sessions where workout_block_id is NULL.
+ * Criteria:
+ * 1. SINGLE_BLOCK_CONFIRMED: Unequivocal evidence — all completed sets (completed_at != null and is_skipped = 0)
+ *    belong to exactly ONE workout_block_id. Resolves to this block.
+ * 2. MULTI_BLOCK_LEGACY: Multiple blocks have completed sets. All sets are preserved; block identity indicates multi-division.
+ * 3. INSUFFICIENT_DATA: No completed sets exist in any block of the session.
+ */
+export async function resolveLegacySessionBlocks(
+  connection: PoolConnection,
+  sessionId: number
+): Promise<LegacyBlockResolution> {
+  const [rows] = await connection.execute<RowDataPacket[]>(
+    `SELECT
+      wb.id AS block_id,
+      wb.public_id AS block_public_id,
+      wb.title AS block_title,
+      COUNT(wex.id) AS total_sets,
+      COUNT(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 END) AS completed_sets
+     FROM workout_execution_sets wex
+     INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+     INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+     WHERE wex.execution_session_id = ?
+     GROUP BY wb.id, wb.public_id, wb.title, wb.sort_order
+     ORDER BY completed_sets DESC, wb.sort_order ASC;`,
+    [sessionId]
+  );
+
+  const participatingBlocks = (rows || []).map((r) => ({
+    blockId: Number(r.block_id),
+    blockPublicId: String(r.block_public_id),
+    blockTitle: String(r.block_title),
+    completedSetsCount: Number(r.completed_sets || 0),
+    totalSetsCount: Number(r.total_sets || 0),
+  }));
+
+  const executedBlocks = participatingBlocks.filter((b) => b.completedSetsCount > 0);
+
+  if (executedBlocks.length === 1) {
+    return {
+      kind: "SINGLE_BLOCK_CONFIRMED",
+      blockId: executedBlocks[0].blockId,
+      blockPublicId: executedBlocks[0].blockPublicId,
+      blockTitle: executedBlocks[0].blockTitle,
+      participatingBlocks,
+    };
+  }
+
+  if (executedBlocks.length > 1) {
+    return {
+      kind: "MULTI_BLOCK_LEGACY",
+      blockId: null,
+      blockPublicId: null,
+      blockTitle: "Sessão Multi-divisões (Legada)",
+      participatingBlocks,
+    };
+  }
+
+  return {
+    kind: "INSUFFICIENT_DATA",
+    blockId: null,
+    blockPublicId: null,
+    blockTitle: "Sessão anterior sem divisão definida",
+    participatingBlocks,
+  };
+}
+
 async function resolveAssignmentForExecution(
   connection: PoolConnection,
   rawIdentifier: string,
@@ -334,28 +415,21 @@ export async function startOrResumeWorkoutExecution(
         ? String(activeSession.workout_block_title)
         : null;
 
+      let legacyResolution: LegacyBlockResolution | null = null;
       if (activeBlockId == null) {
-        const [legacyBlockRows] = await connection.execute<RowDataPacket[]>(
-          `SELECT wb.id, wb.public_id, wb.title
-           FROM workout_execution_sets wex
-           INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-           INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-           WHERE wex.execution_session_id = ?
-           ORDER BY wex.set_number ASC
-           LIMIT 1;`,
-          [activeSession.id]
-        );
-        if (legacyBlockRows && legacyBlockRows.length > 0) {
-          activeBlockId = Number(legacyBlockRows[0].id);
-          activeBlockPublicId = String(legacyBlockRows[0].public_id);
-          activeBlockTitle = String(legacyBlockRows[0].title);
-        }
+        legacyResolution = await resolveLegacySessionBlocks(connection, activeSession.id);
+        activeBlockId = legacyResolution.blockId;
+        activeBlockPublicId = legacyResolution.blockPublicId;
+        activeBlockTitle = legacyResolution.blockTitle;
       }
 
+      // Conflict logic:
+      // A conflict occurs if the student requested a target division AND:
+      // (a) The active session belongs to a different block (activeBlockId !== requestedTargetBlock.id), OR
+      // (b) The active session is a legacy session where activeBlockId is null (multi-block or insufficient data).
       const isConflict =
         requestedTargetBlock != null &&
-        activeBlockId != null &&
-        requestedTargetBlock.id !== activeBlockId;
+        (activeBlockId == null || requestedTargetBlock.id !== activeBlockId);
 
       if (isConflict) {
         if (options?.resolveConflict === "RESUME") {
@@ -422,7 +496,7 @@ export async function startOrResumeWorkoutExecution(
           );
           // Proceed to create new session for requestedTargetBlock below!
         } else if (options?.resolveConflict === "ABANDON") {
-          // Discard previous session: mark ABANDONED
+          // End previous session as interrupted: mark ABANDONED (preserves all sets, reps, and loads)
           await connection.execute<ResultSetHeader>(
             `UPDATE workout_execution_sessions
              SET status = 'ABANDONED', updated_at = NOW(3)
@@ -433,8 +507,15 @@ export async function startOrResumeWorkoutExecution(
         } else {
           // No resolution specified: throw conflict error for explicit user choice
           await connection.commit();
+          let conflictMsg = `Já existe uma sessão de treino em andamento para a divisão "${activeBlockTitle || "Divisão ativa"}". Deseja retomar a sessão ativa, concluí-la antecipadamente ou encerrá-la como interrompida para iniciar a divisão "${requestedTargetBlock!.title}"?`;
+          if (legacyResolution?.kind === "MULTI_BLOCK_LEGACY") {
+            conflictMsg = `Identificamos uma sessão em andamento do formato anterior contendo exercícios de múltiplas divisões. Deseja retomar a sessão para visualizar todas as séries, concluí-la antecipadamente ou encerrá-la como interrompida para iniciar a divisão "${requestedTargetBlock!.title}"?`;
+          } else if (legacyResolution?.kind === "INSUFFICIENT_DATA") {
+            conflictMsg = `Você possui uma sessão em andamento do formato anterior sem séries realizadas. Deseja retomar esta sessão, concluí-la ou encerrá-la como interrompida para iniciar a divisão "${requestedTargetBlock!.title}"?`;
+          }
+
           throw new TrainingSessionConflictError(
-            `Já existe uma sessão de treino em andamento para a divisão "${activeBlockTitle || "Divisão ativa"}". Deseja retomar a sessão ativa, concluí-la antecipadamente ou descartá-la para iniciar uma nova divisão?`,
+            conflictMsg,
             {
               publicId: String(activeSession.public_id),
               workoutBlockId: activeBlockId,
@@ -930,21 +1011,10 @@ export async function getActiveStudentWorkoutExecution(
     let activeBlockTitle = s.workout_block_title ? String(s.workout_block_title) : null;
 
     if (activeBlockId == null && setRows.length > 0) {
-      const [legacyBlockRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT wb.id, wb.public_id, wb.title
-         FROM workout_execution_sets wex
-         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-         WHERE wex.execution_session_id = ?
-         ORDER BY wex.set_number ASC
-         LIMIT 1;`,
-        [s.id]
-      );
-      if (legacyBlockRows && legacyBlockRows.length > 0) {
-        activeBlockId = Number(legacyBlockRows[0].id);
-        activeBlockPublicId = String(legacyBlockRows[0].public_id);
-        activeBlockTitle = String(legacyBlockRows[0].title);
-      }
+      const legacyRes = await resolveLegacySessionBlocks(connection, s.id);
+      activeBlockId = legacyRes.blockId;
+      activeBlockPublicId = legacyRes.blockPublicId;
+      activeBlockTitle = legacyRes.blockTitle;
     }
 
     return {
@@ -1075,21 +1145,10 @@ export async function getActiveOrLatestStudentWorkoutExecution(
     let activeBlockTitle = s.workout_block_title ? String(s.workout_block_title) : null;
 
     if (activeBlockId == null && setRows.length > 0) {
-      const [legacyBlockRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT wb.id, wb.public_id, wb.title
-         FROM workout_execution_sets wex
-         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-         WHERE wex.execution_session_id = ?
-         ORDER BY wex.set_number ASC
-         LIMIT 1;`,
-        [s.id]
-      );
-      if (legacyBlockRows && legacyBlockRows.length > 0) {
-        activeBlockId = Number(legacyBlockRows[0].id);
-        activeBlockPublicId = String(legacyBlockRows[0].public_id);
-        activeBlockTitle = String(legacyBlockRows[0].title);
-      }
+      const legacyRes = await resolveLegacySessionBlocks(connection, s.id);
+      activeBlockId = legacyRes.blockId;
+      activeBlockPublicId = legacyRes.blockPublicId;
+      activeBlockTitle = legacyRes.blockTitle;
     }
 
     return {
@@ -1203,21 +1262,10 @@ export async function getStudentWorkoutExecution(
     let activeBlockTitle = s.workout_block_title ? String(s.workout_block_title) : null;
 
     if (activeBlockId == null && setRows.length > 0) {
-      const [legacyBlockRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT wb.id, wb.public_id, wb.title
-         FROM workout_execution_sets wex
-         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-         WHERE wex.execution_session_id = ?
-         ORDER BY wex.set_number ASC
-         LIMIT 1;`,
-        [s.id]
-      );
-      if (legacyBlockRows && legacyBlockRows.length > 0) {
-        activeBlockId = Number(legacyBlockRows[0].id);
-        activeBlockPublicId = String(legacyBlockRows[0].public_id);
-        activeBlockTitle = String(legacyBlockRows[0].title);
-      }
+      const legacyRes = await resolveLegacySessionBlocks(connection, s.id);
+      activeBlockId = legacyRes.blockId;
+      activeBlockPublicId = legacyRes.blockPublicId;
+      activeBlockTitle = legacyRes.blockTitle;
     }
 
     return {
@@ -1499,26 +1547,23 @@ export async function completeWorkoutExecution(
       throw new TrainingAuthorizationError("Acesso negado: sessão pertence a outro aluno.", "FORBIDDEN", 403);
     }
 
+    if (s.status === "ABANDONED") {
+      throw new TrainingAuthorizationError(
+        "Esta sessão de treino foi encerrada como interrompida e não pode ser finalizada.",
+        "SESSION_ABANDONED",
+        400
+      );
+    }
+
     let activeBlockId = s.workout_block_id != null ? Number(s.workout_block_id) : null;
     let activeBlockPublicId = s.workout_block_public_id ? String(s.workout_block_public_id) : null;
     let activeBlockTitle = s.workout_block_title ? String(s.workout_block_title) : null;
 
     if (activeBlockId == null) {
-      const [legacyBlockRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT wb.id, wb.public_id, wb.title
-         FROM workout_execution_sets wex
-         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-         WHERE wex.execution_session_id = ?
-         ORDER BY wex.set_number ASC
-         LIMIT 1;`,
-        [s.id]
-      );
-      if (legacyBlockRows && legacyBlockRows.length > 0) {
-        activeBlockId = Number(legacyBlockRows[0].id);
-        activeBlockPublicId = String(legacyBlockRows[0].public_id);
-        activeBlockTitle = String(legacyBlockRows[0].title);
-      }
+      const legacyRes = await resolveLegacySessionBlocks(connection, s.id);
+      activeBlockId = legacyRes.blockId;
+      activeBlockPublicId = legacyRes.blockPublicId;
+      activeBlockTitle = legacyRes.blockTitle;
     }
 
     // Idempotent: already completed
@@ -1570,6 +1615,25 @@ export async function completeWorkoutExecution(
 
     // 2. Pending sets handling
     if (options?.allowEarlyCompletion) {
+      // Validate that at least one set was performed
+      const [performedRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT COUNT(*) AS performed_count
+         FROM workout_execution_sets
+         WHERE execution_session_id = ?
+           AND completed_at IS NOT NULL
+           AND (is_skipped = 0 OR is_skipped IS NULL);`,
+        [s.id]
+      );
+      const performedCount = Number(performedRows[0]?.performed_count || 0);
+
+      if (performedCount === 0) {
+        throw new TrainingAuthorizationError(
+          "Nenhuma série foi realizada nesta sessão. Para encerrar sem realizar exercícios, encerre a sessão como interrompida.",
+          "WORKOUT_EXECUTION_NO_SETS_PERFORMED",
+          400
+        );
+      }
+
       // Mark all remaining pending sets as skipped
       await connection.execute<ResultSetHeader>(
         `UPDATE workout_execution_sets
@@ -1793,6 +1857,7 @@ export async function listStudentWorkoutExecutionHistory(
         wex.prescribed_rest_seconds,
         wex.actual_reps,
         wex.actual_load_kg,
+        wex.is_skipped,
         wex.completed_at,
         wbi.public_id AS block_item_public_id,
         wbi.exercise_name_snapshot
@@ -1885,6 +1950,7 @@ export async function listStudentWorkoutExecutionHistory(
         prescribedRestSeconds: r.prescribed_rest_seconds != null ? Number(r.prescribed_rest_seconds) : null,
         actualReps: r.actual_reps != null ? Number(r.actual_reps) : null,
         actualLoadKg: r.actual_load_kg != null ? Number(r.actual_load_kg) : null,
+        isSkipped: Boolean(r.is_skipped),
         completedAt: r.completed_at ? new Date(r.completed_at) : null,
       });
     }
@@ -1921,8 +1987,9 @@ export interface SyncOfflineWorkoutExecutionInput {
   completedAt: string;
   sets: Array<{
     setPublicId?: string;
-    actualReps: number;
-    actualLoadKg: number | null;
+    actualReps?: number | null;
+    actualLoadKg?: number | null;
+    isSkipped?: boolean;
     completedAt?: string | null;
   }>;
 }
@@ -1992,11 +2059,14 @@ export async function syncOfflineWorkoutExecution(
       // Update sets
       for (const s of input.sets) {
         if (s.setPublicId) {
+          const isSkipped = Boolean(s.isSkipped);
+          const actualReps = isSkipped ? null : (s.actualReps ?? null);
+          const actualLoad = isSkipped ? null : (s.actualLoadKg ?? null);
           await connection.execute<ResultSetHeader>(
             `UPDATE workout_execution_sets
-             SET actual_reps = ?, actual_load_kg = ?, completed_at = COALESCE(?, NOW(3)), updated_at = NOW(3)
+             SET actual_reps = ?, actual_load_kg = ?, is_skipped = ?, completed_at = COALESCE(?, NOW(3)), updated_at = NOW(3)
              WHERE execution_session_id = ? AND public_id = ?;`,
-            [s.actualReps, s.actualLoadKg, s.completedAt ? new Date(s.completedAt) : null, existing.id, s.setPublicId]
+            [actualReps, actualLoad, isSkipped ? 1 : 0, s.completedAt ? new Date(s.completedAt) : null, existing.id, s.setPublicId]
           );
         }
       }
@@ -2088,8 +2158,9 @@ export async function syncOfflineWorkoutExecution(
     for (let i = 0; i < prescribedSets.length; i++) {
       const ps = prescribedSets[i];
       const matchSet = input.sets[i];
-      const actualReps = matchSet?.actualReps ?? ps.target_reps;
-      const actualLoad = matchSet?.actualLoadKg ?? ps.target_load_kg;
+      const isSkipped = Boolean(matchSet?.isSkipped);
+      const actualReps = isSkipped ? null : (matchSet?.actualReps ?? null);
+      const actualLoad = isSkipped ? null : (matchSet?.actualLoadKg ?? null);
       const completedAt = matchSet?.completedAt ? new Date(matchSet.completedAt) : new Date(input.completedAt);
       const setPublicId = matchSet?.setPublicId || crypto.randomUUID();
 
@@ -2107,8 +2178,9 @@ export async function syncOfflineWorkoutExecution(
           prescribed_rest_seconds,
           actual_reps,
           actual_load_kg,
+          is_skipped,
           completed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           setPublicId,
           sessionId,
@@ -2122,6 +2194,7 @@ export async function syncOfflineWorkoutExecution(
           ps.target_rest_seconds,
           actualReps,
           actualLoad,
+          isSkipped ? 1 : 0,
           completedAt,
         ]
       );

@@ -257,16 +257,19 @@ export async function resolveStudentDailyWorkout(
       }
       if (!activeBlock) {
         const [blockInExecRows] = await connection.execute<RowDataPacket[]>(
-          `SELECT wb.id, wb.public_id, wb.title, wb.sort_order
+          `SELECT wb.id, wb.public_id, wb.title, wb.sort_order,
+                  COUNT(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 END) AS completed_sets
            FROM workout_execution_sets wex
            INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
            INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
            WHERE wex.execution_session_id = ?
-           ORDER BY wex.completed_at DESC, wex.set_number ASC
-           LIMIT 1;`,
+           GROUP BY wb.id, wb.public_id, wb.title, wb.sort_order
+           HAVING completed_sets > 0;`,
           [activeSession.session_id]
         );
-        activeBlock = blockInExecRows && blockInExecRows.length > 0 ? (blockInExecRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number }) : null;
+        activeBlock = blockInExecRows && blockInExecRows.length === 1
+          ? (blockInExecRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number })
+          : null;
       }
 
       // Carrega blocos para opções de troca
@@ -337,11 +340,27 @@ export async function resolveStudentDailyWorkout(
       try {
         const [progRows] = await connection.execute<RowDataPacket[]>(
           `SELECT
-             COUNT(DISTINCT wex.block_item_id) AS completed_exercises_count,
-             COUNT(*) AS completed_sets_count
-           FROM workout_execution_sets wex
-           WHERE wex.execution_session_id = ? AND wex.completed_at IS NOT NULL;`,
-          [activeSession.session_id]
+             COUNT(DISTINCT fully_done.block_item_id) AS completed_exercises_count,
+             COALESCE(SUM(total_done.perf_sets), 0) AS completed_sets_count
+           FROM (
+             SELECT
+               wex.block_item_id,
+               COUNT(*) AS total_item_sets,
+               SUM(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 ELSE 0 END) AS perf_sets
+             FROM workout_execution_sets wex
+             WHERE wex.execution_session_id = ?
+             GROUP BY wex.block_item_id
+           ) total_done
+           LEFT JOIN (
+             SELECT
+               wex2.block_item_id
+             FROM workout_execution_sets wex2
+             WHERE wex2.execution_session_id = ?
+             GROUP BY wex2.block_item_id
+             HAVING COUNT(*) > 0
+                AND COUNT(*) = SUM(CASE WHEN wex2.completed_at IS NOT NULL AND (wex2.is_skipped = 0 OR wex2.is_skipped IS NULL) THEN 1 ELSE 0 END)
+           ) fully_done ON fully_done.block_item_id = total_done.block_item_id;`,
+          [activeSession.session_id, activeSession.session_id]
         );
         completedExercisesCount = Number(progRows[0]?.completed_exercises_count || 0);
         completedSetsCount = Number(progRows[0]?.completed_sets_count || 0);
@@ -516,7 +535,7 @@ contextNote: isSessionStartedToday
              FROM workout_execution_sets wex
              INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
              INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-             WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL
+             WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL)
              ORDER BY wex.completed_at DESC, wex.id DESC
              LIMIT 1
            )
@@ -528,7 +547,7 @@ contextNote: isSessionStartedToday
              FROM workout_execution_sets wex
              INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
              INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-             WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL
+             WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL)
              ORDER BY wex.completed_at DESC, wex.id DESC
              LIMIT 1
            )

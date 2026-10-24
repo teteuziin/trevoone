@@ -341,8 +341,9 @@ export async function runOfflineSync(consultancySlug: string): Promise<{
             completedAt?: string | null;
             sets: Array<{
               setPublicId: string;
-              actualReps: number;
-              actualLoadKg: number | null;
+              actualReps?: number | null;
+              actualLoadKg?: number | null;
+              isSkipped?: boolean;
               completedAt?: string | null;
             }>;
           };

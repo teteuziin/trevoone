@@ -89,6 +89,7 @@ export interface WorkoutOfflineSession {
     prescribedRestSeconds?: number | null;
     actualReps?: number | null;
     actualLoadKg?: number | null;
+    isSkipped?: boolean;
     completedAt?: string | null;
   }>;
   updatedAt: string;

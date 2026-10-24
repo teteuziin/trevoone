@@ -1013,18 +1013,25 @@ export async function getStudentWorkoutViewDetailed(
       if (activeSession.session_block_public_id) {
         activeBlockPublicId = String(activeSession.session_block_public_id);
       } else {
-        const [lastSetRows] = await connection.execute<RowDataPacket[]>(
-          `SELECT wb.public_id
+        // Resolve legacy session block using unequivocal execution evidence
+        const [execSets] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+            wb.id,
+            wb.public_id,
+            COUNT(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 END) AS completed_sets
            FROM workout_execution_sets wex
            INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
            INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
            WHERE wex.execution_session_id = ?
-           ORDER BY wex.set_number ASC
-           LIMIT 1;`,
+           GROUP BY wb.id, wb.public_id
+           HAVING completed_sets > 0;`,
           [activeSession.session_id]
         );
-        if (lastSetRows && lastSetRows.length > 0) {
-          activeBlockPublicId = String(lastSetRows[0].public_id);
+        if (execSets && execSets.length === 1) {
+          activeBlockPublicId = String(execSets[0].public_id);
+        } else {
+          // If multiple blocks or none, activeBlockPublicId remains null so all blocks and sets are visible!
+          activeBlockPublicId = null;
         }
       }
     }

@@ -618,9 +618,19 @@ export function StudentWorkoutRenderer({
     }).catch(() => {});
   }, [workout, initialExecution, completedSessions, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
 
+  const performedSets = activeSession?.sets?.filter((s) => s.completedAt != null && !s.isSkipped).length || 0;
+  const skippedSets = activeSession?.sets?.filter((s) => s.isSkipped).length || 0;
   const totalSets = activeSession?.sets?.length || 0;
-  const completedSets = activeSession?.sets?.filter((s) => s.completedAt != null).length || 0;
-  const allSetsCompleted = totalSets > 0 && completedSets === totalSets;
+  const pendingSets = totalSets - performedSets - skippedSets;
+  const allSetsCompleted = totalSets > 0 && pendingSets === 0;
+
+  const fullyCompletedExercisesCount = (workout.blocks || [])
+    .flatMap((b) => b.items || [])
+    .filter((item) => {
+      const isSets = (activeSession?.sets || []).filter((s) => (s.blockItemPublicId ?? "") === item.publicId);
+      return isSets.length > 0 && isSets.every((s) => s.completedAt != null && !s.isSkipped);
+    }).length;
+  const totalExercisesCount = (workout.blocks || []).flatMap((b) => b.items || []).length;
 
   async function handleStartWorkout() {
     if (isPreview || !consultancySlug || isStarting || activeSession?.status === "IN_PROGRESS") return;
@@ -1349,11 +1359,11 @@ export function StudentWorkoutRenderer({
         ))}
 
         {/* Early Complete Prompt */}
-        {activeSession && activeSession.status === "IN_PROGRESS" && !allSetsCompleted && completedSets > 0 && (
+        {activeSession && activeSession.status === "IN_PROGRESS" && !allSetsCompleted && performedSets > 0 && (
           <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
             <div className="space-y-0.5">
               <p className="text-xs sm:text-base font-bold text-[var(--foreground)]">
-                {completedSets} de {totalSets} séries concluídas
+                {performedSets} de {totalSets} séries realizadas{skippedSets > 0 ? ` · ${skippedSets} ${skippedSets === 1 ? "pulada" : "puladas"}` : ""}
               </p>
               <p className="text-xs text-[var(--foreground-muted)]">
                 Precisa encerrar mais cedo? Você pode concluir seu treino agora.
@@ -1489,14 +1499,40 @@ export function StudentWorkoutRenderer({
       {showEarlyCompleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <h3 className="text-base font-bold text-[var(--foreground)]">
                 Concluir treino antecipadamente?
               </h3>
               <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
-                Você realizou {completedSets} de {totalSets} séries. As {totalSets - completedSets} séries restantes serão marcadas como não realizadas nesta sessão.
+                Confira o resumo das séries desta sessão antes de finalizar:
               </p>
             </div>
+
+            <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[var(--foreground-muted)]">Séries realizadas:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                  {performedSets} de {totalSets}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[var(--foreground-muted)]">Séries restantes (marcadas como não realizadas):</span>
+                <span className="font-bold text-amber-700 dark:text-amber-400">
+                  {pendingSets}
+                </span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-[var(--border-subtle)]">
+                <span className="text-[var(--foreground-muted)]">Exercícios integralmente executados:</span>
+                <span className="font-bold text-[var(--foreground)]">
+                  {fullyCompletedExercisesCount} de {totalExercisesCount}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+              <strong>Importante:</strong> Ao finalizar antecipadamente, apenas as séries e cargas efetivamente executadas constarão no seu histórico e evolução. Séries puladas não pontuam repetições nem carga.
+            </div>
+
             {completeError && (
               <p className="text-xs text-red-500 font-medium">{completeError}</p>
             )}
@@ -1515,7 +1551,7 @@ export function StudentWorkoutRenderer({
                 disabled={isCompleting}
                 className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-md shadow-emerald-600/20 cursor-pointer flex items-center justify-center gap-2"
               >
-                {isCompleting ? "Finalizando..." : "Sim, finalizar treino"}
+                {isCompleting ? "Finalizando..." : "Confirmar e finalizar antecipadamente"}
               </button>
             </div>
           </div>
@@ -1558,9 +1594,12 @@ export function StudentWorkoutRenderer({
                 type="button"
                 onClick={() => handleResolveConflict("ABANDON")}
                 disabled={isStarting}
-                className="w-full px-4 py-2.5 rounded-2xl border border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/10 text-xs font-semibold cursor-pointer text-center"
+                className="w-full px-4 py-3 rounded-2xl border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 text-xs font-semibold cursor-pointer text-center space-y-1"
               >
-                Descartar divisão anterior e iniciar esta
+                <div>Encerrar divisão anterior como interrompida e iniciar esta</div>
+                <div className="text-[10px] text-[var(--foreground-muted)] font-normal">
+                  Preserva todas as séries e cargas já registradas no histórico, marcando a sessão anterior como interrompida.
+                </div>
               </button>
               <button
                 type="button"
@@ -2088,6 +2127,12 @@ function ItemCard({
   const itemSets = activeSession?.sets?.filter(
     (s) => (s.blockItemPublicId ?? "") === item.publicId
   ) || [];
+  const performedItemSets = itemSets.filter((s) => s.completedAt != null && !s.isSkipped);
+  const skippedItemSets = itemSets.filter((s) => s.isSkipped);
+  const totalItemSets = itemSets.length;
+  const isItemFullyCompleted = totalItemSets > 0 && performedItemSets.length === totalItemSets;
+  const isItemAllSkipped = totalItemSets > 0 && skippedItemSets.length === totalItemSets;
+  const isItemPartiallyPerformed = performedItemSets.length > 0 && performedItemSets.length < totalItemSets;
   const hasStartedSets = itemSets.some((s) => s.completedAt !== null);
   const [showMedia, setShowMedia] = useState(false);
   const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
@@ -2136,6 +2181,22 @@ function ItemCard({
             {isCustom && !isSubstituted && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400">
                 Personalizado
+              </span>
+            )}
+            {isItemFullyCompleted && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                <Check className="w-3 h-3" />
+                Integralmente executado
+              </span>
+            )}
+            {isItemAllSkipped && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400">
+                Não realizado nesta sessão
+              </span>
+            )}
+            {isItemPartiallyPerformed && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--foreground-muted)]">
+                {performedItemSets.length}/{totalItemSets} séries realizadas
               </span>
             )}
           </div>
@@ -2378,6 +2439,24 @@ function SetCheckoffControl({
   if (!executionSet) return null;
 
   if (executionSet.completedAt != null) {
+    if (executionSet.isSkipped) {
+      return (
+        <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wider">
+              Status:
+            </span>
+            <span className="font-bold text-amber-700 dark:text-amber-400">
+              Não realizada / Pulada
+            </span>
+          </div>
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20 shrink-0">
+            <span>Pulada</span>
+          </span>
+        </div>
+      );
+    }
+
     const repsPart =
       executionSet.actualReps != null ? `${executionSet.actualReps} reps` : null;
     const loadPart = formatActualLoad(executionSet.actualLoadKg);
@@ -2703,8 +2782,32 @@ function StandardSetsPrescription({
           const isCompleted = executionSet && executionSet.completedAt != null;
           const isCurrent = activeSession?.status === "IN_PROGRESS" && s.setNumber === firstPendingSetNumber;
 
-          // CASE 1: Concluída (Compacta, 1 linha)
+          // CASE 1: Concluída ou Pulada (Compacta, 1 linha)
           if (isCompleted && executionSet) {
+            if (executionSet.isSkipped) {
+              return (
+                <div
+                  key={s.setNumber || idx}
+                  className="px-3.5 py-2.5 rounded-xl bg-amber-500/5 border border-amber-500/20 flex flex-wrap items-center justify-between gap-2 text-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0 text-[10px] font-bold">
+                      —
+                    </span>
+                    <span className="font-bold text-[var(--foreground)]">
+                      {idx + 1}ª série
+                    </span>
+                    <span className="text-[var(--foreground-muted)]">
+                      — Não realizada / Pulada
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                    Pulada
+                  </span>
+                </div>
+              );
+            }
+
             const repsPart = executionSet.actualReps != null ? `${executionSet.actualReps} reps` : null;
             const loadPart = formatActualLoad(executionSet.actualLoadKg);
             const realizedText = [repsPart, loadPart].filter(Boolean).join(" · ");
@@ -3351,6 +3454,14 @@ function formatPrescribedSet(set: WorkoutExecutionHistorySetDto): string {
 }
 
 function formatActualSet(set: WorkoutExecutionHistorySetDto) {
+  if (set.isSkipped) {
+    return (
+      <span className="font-semibold text-amber-700 dark:text-amber-400">
+        Não realizada / Pulada
+      </span>
+    );
+  }
+
   // If actualReps is null: legacy session or unregistered
   if (set.actualReps == null) {
     return (
@@ -3432,7 +3543,8 @@ function HistorySessionCard({
     }
   }
 
-  const completedSetsCount = session.sets.filter((s) => s.completedAt != null).length;
+  const completedSetsCount = session.sets.filter((s) => s.completedAt != null && !s.isSkipped).length;
+  const skippedSetsCount = session.sets.filter((s) => s.isSkipped).length;
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 transition-all">
@@ -3445,7 +3557,7 @@ function HistorySessionCard({
             {formatHistoryDate(session.completedAt || session.startedAt)}
           </p>
           <p className="text-xs text-[var(--foreground-muted)]">
-            {completedSetsCount} {completedSetsCount === 1 ? "série concluída" : "séries concluídas"}
+            {completedSetsCount} {completedSetsCount === 1 ? "série realizada" : "séries realizadas"}{skippedSetsCount > 0 ? ` · ${skippedSetsCount} ${skippedSetsCount === 1 ? "pulada" : "puladas"}` : ""}
           </p>
         </div>
 

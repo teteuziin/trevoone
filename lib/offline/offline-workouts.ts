@@ -305,7 +305,8 @@ export async function completeOfflineSet(
             return {
               ...s,
               actualReps: input.actualReps ?? null,
-              actualLoadKg: input.actualLoadKg,
+              actualLoadKg: input.actualLoadKg ?? null,
+              isSkipped: input.isSkipped ?? false,
               completedAt: nowIso,
             };
           }

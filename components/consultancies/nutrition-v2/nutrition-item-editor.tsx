@@ -9,10 +9,18 @@ import type {
   AddSubstitutionInput,
   UpdateSubstitutionInput,
 } from "@/lib/nutrition-v2/plan-repository";
+import dynamic from "next/dynamic";
 import { NutritionSubstitutionEditor } from "./nutrition-substitution-editor";
-import { NutritionSubstitutionCompareModal } from "./nutrition-substitution-compare-modal";
 import { NutritionFoodPicker } from "./nutrition-food-picker";
-import { NutritionEquivalentsModal } from "./nutrition-equivalents-modal";
+
+const NutritionSubstitutionCompareModal = dynamic(
+  () => import("./nutrition-substitution-compare-modal").then((m) => m.NutritionSubstitutionCompareModal),
+  { ssr: false }
+);
+const NutritionEquivalentsModal = dynamic(
+  () => import("./nutrition-equivalents-modal").then((m) => m.NutritionEquivalentsModal),
+  { ssr: false }
+);
 import {
   NutritionCustomMeasureModal,
   type FoodPortionOption,

@@ -1,12 +1,16 @@
 "use client";
 
 import React from "react";
-import {
-  DashboardStudentView,
-  type StudentOnboardingInfo,
-  type StudentActiveTrainingSummary,
-  type StudentActiveNutritionSummary,
+import dynamic from "next/dynamic";
+import type {
+  StudentOnboardingInfo,
+  StudentActiveTrainingSummary,
+  StudentActiveNutritionSummary,
 } from "./dashboard-student-view";
+
+const DashboardStudentView = dynamic(
+  () => import("./dashboard-student-view").then((m) => m.DashboardStudentView)
+);
 import type { DailyCheckinRecord } from "@/lib/checkins/service";
 import type { CheckinRequestDetailDto } from "@/lib/nutrition-v2/checkin-types";
 import type { StudentPendingRequestDto } from "@/lib/consultancies/student-requests";

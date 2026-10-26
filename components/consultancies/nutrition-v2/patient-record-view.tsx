@@ -39,11 +39,19 @@ import type {
   PatientPlanning,
   PatientPlanningStaleStatus,
 } from "@/lib/nutrition-v2/patient-planning-types";
+import dynamic from "next/dynamic";
 import { NutritionTemplatesModal } from "./nutrition-templates-modal";
 import { NutritionCopyPlanDialog } from "./nutrition-copy-plan-dialog";
 import { NutritionSaveTemplateDialog } from "./nutrition-save-template-dialog";
-import { NutritionAiGenerateModal } from "./nutrition-ai-generate-modal";
-import { NutritionAiImportModal } from "./nutrition-ai-import-modal";
+
+const NutritionAiGenerateModal = dynamic(
+  () => import("./nutrition-ai-generate-modal").then((m) => m.NutritionAiGenerateModal),
+  { ssr: false }
+);
+const NutritionAiImportModal = dynamic(
+  () => import("./nutrition-ai-import-modal").then((m) => m.NutritionAiImportModal),
+  { ssr: false }
+);
 import { NutritionPlanChoiceModal, type NutritionPlanCreationChoice } from "./nutrition-plan-choice-modal";
 import { PatientAnamneseDrawer } from "./patient-anamnese-drawer";
 import { PatientCadastralModal } from "./patient-cadastral-modal";

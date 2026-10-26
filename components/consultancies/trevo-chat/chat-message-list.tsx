@@ -120,6 +120,8 @@ export function ChatMessageList({
                       <video
                         src={attachmentApiUrl}
                         controls
+                        playsInline
+                        preload="metadata"
                         className="max-h-64 sm:max-h-80 w-full rounded-lg bg-black"
                       />
                     </div>

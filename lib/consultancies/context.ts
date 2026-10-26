@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import {
@@ -180,7 +181,7 @@ export async function listUserConsultancies(
   }
 }
 
-export async function resolveConsultancyContext(
+async function resolveConsultancyContextInternal(
   userId: number,
   slug: string
 ): Promise<AccessibleConsultancy | null> {
@@ -270,6 +271,13 @@ export async function resolveConsultancyContext(
     }
   }
 }
+
+/**
+ * Request-scoped deduplicating accessor for Next.js App Router.
+ * Automatically deduplicates calls with identical (userId, slug) in a single request.
+ */
+export const resolveConsultancyContext = cache(resolveConsultancyContextInternal);
+export const getFreshConsultancyContext = resolveConsultancyContextInternal;
 
 /**
  * Resolves consultancy context and verifies that operational access is allowed.

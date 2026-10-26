@@ -22,25 +22,10 @@ const geistMono = localFont({
 });
 
 const plusJakartaSans = localFont({
-  src: [
-    {
-      path: "./fonts/PlusJakartaSans-Medium.woff2",
-      weight: "500",
-      style: "normal",
-    },
-    {
-      path: "./fonts/PlusJakartaSans-SemiBold.woff2",
-      weight: "600",
-      style: "normal",
-    },
-    {
-      path: "./fonts/PlusJakartaSans-Bold.woff2",
-      weight: "700",
-      style: "normal",
-    },
-  ],
+  src: "./fonts/PlusJakartaSans-Variable.woff2",
   variable: "--font-heading",
   display: "swap",
+  weight: "500 800",
 });
 
 export const metadata: Metadata = {

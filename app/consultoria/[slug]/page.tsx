@@ -32,26 +32,46 @@ import { getStudentPhotoEvaluationsData } from "@/lib/consultancies/photo-evalua
 import { listInfluencerMissions } from "@/lib/consultancies/missions";
 import { getReferrerDashboardData } from "@/lib/referrals/service";
 import { listPersonalStudents } from "@/lib/consultancies/personal-student-hub";
+import dynamic from "next/dynamic";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { listUnreadAnnouncementsForUser } from "@/lib/consultancies/announcements";
 import { DashboardContext } from "@/components/dashboard/dashboard-context";
-import { DashboardStudentView } from "@/components/dashboard/dashboard-student-view";
 import { listStudentPendingRequests } from "@/lib/consultancies/student-requests";
 import { getTodayCheckin } from "@/lib/checkins/service";
 import { getPendingCheckinForStudent } from "@/lib/nutrition-v2/checkin-repository";
 import { trackMemberActivity } from "@/lib/monitoring/activity-tracker";
-import { DashboardPersonalView } from "@/components/dashboard/dashboard-personal-view";
-import { DashboardNutritionistView } from "@/components/dashboard/dashboard-nutritionist-view";
 import {
   isPlanActive,
   hasPlanDraftOrRevision,
   getPlanCanonicalStatus,
 } from "@/lib/nutrition-v2/plan-classification";
-import { DashboardInfluencerView } from "@/components/dashboard/dashboard-influencer-view";
-import { DashboardAdminView } from "@/components/dashboard/dashboard-admin-view";
-import { DashboardCombinedPersonalAdminView } from "@/components/dashboard/dashboard-combined-personal-admin-view";
-import { DashboardCombinedNutritionistAdminView } from "@/components/dashboard/dashboard-combined-nutritionist-admin-view";
-import { DashboardCombinedStudentVipView } from "@/components/dashboard/dashboard-combined-student-vip-view";
+
+// Dynamic imports to code-split bulky role dashboard views
+// Prevents students from loading admin/personal/nutritionist JS and vice-versa
+const DashboardStudentView = dynamic(
+  () => import("@/components/dashboard/dashboard-student-view").then((m) => m.DashboardStudentView)
+);
+const DashboardPersonalView = dynamic(
+  () => import("@/components/dashboard/dashboard-personal-view").then((m) => m.DashboardPersonalView)
+);
+const DashboardNutritionistView = dynamic(
+  () => import("@/components/dashboard/dashboard-nutritionist-view").then((m) => m.DashboardNutritionistView)
+);
+const DashboardInfluencerView = dynamic(
+  () => import("@/components/dashboard/dashboard-influencer-view").then((m) => m.DashboardInfluencerView)
+);
+const DashboardAdminView = dynamic(
+  () => import("@/components/dashboard/dashboard-admin-view").then((m) => m.DashboardAdminView)
+);
+const DashboardCombinedPersonalAdminView = dynamic(
+  () => import("@/components/dashboard/dashboard-combined-personal-admin-view").then((m) => m.DashboardCombinedPersonalAdminView)
+);
+const DashboardCombinedNutritionistAdminView = dynamic(
+  () => import("@/components/dashboard/dashboard-combined-nutritionist-admin-view").then((m) => m.DashboardCombinedNutritionistAdminView)
+);
+const DashboardCombinedStudentVipView = dynamic(
+  () => import("@/components/dashboard/dashboard-combined-student-vip-view").then((m) => m.DashboardCombinedStudentVipView)
+);
 
 type PageProps = {
   params: Promise<{
@@ -76,9 +96,11 @@ export default async function ConsultancyPage({ params }: PageProps) {
     trackMemberActivity(context.consultancyId, context.membershipId).catch(() => {});
   }
 
-  // Resolve presentation mode state server-side
-  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
-  const unreadAnnouncements = await listUnreadAnnouncementsForUser(session.userId, context.consultancyId);
+  // Resolve presentation mode state and unread announcements in parallel
+  const [effectiveState, unreadAnnouncements] = await Promise.all([
+    resolveEffectiveViewMode(slug, context.roles),
+    listUnreadAnnouncementsForUser(session.userId, context.consultancyId),
+  ]);
   const { effectiveMode } = effectiveState;
 
   const roles = Array.isArray(context.roles) ? context.roles : [];

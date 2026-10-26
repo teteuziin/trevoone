@@ -1,17 +1,23 @@
 "use client";
 
 import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import { CockpitRoleModeSwitcher } from "./cockpit-role-mode-switcher";
-import {
-  DashboardPersonalView,
-  type PersonalWorkoutSummaryItem,
-  type StudentWithoutWorkoutItem,
-  type PersonalTodayConsultationItem,
+import type {
+  PersonalWorkoutSummaryItem,
+  StudentWithoutWorkoutItem,
+  PersonalTodayConsultationItem,
 } from "./dashboard-personal-view";
-import { DashboardAdminView } from "./dashboard-admin-view";
 import type { ConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import type { PlatformEffectiveAccessState } from "@/lib/platform-admin/billing";
 import type { ConsultancyPresentationMode } from "@/lib/consultancies/view-mode";
+
+const DashboardPersonalView = dynamic(
+  () => import("./dashboard-personal-view").then((m) => m.DashboardPersonalView)
+);
+const DashboardAdminView = dynamic(
+  () => import("./dashboard-admin-view").then((m) => m.DashboardAdminView)
+);
 
 interface DashboardCombinedPersonalAdminViewProps {
   consultancySlug: string;

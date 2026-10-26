@@ -525,6 +525,7 @@ export function CustomExerciseInlineModal({
                       src={videoUrl}
                       controls
                       playsInline
+                      preload="metadata"
                       className="max-h-48 w-auto rounded-lg"
                     />
                     <span className="text-[10px] text-gray-400 py-1">Preview de execução do exercício</span>

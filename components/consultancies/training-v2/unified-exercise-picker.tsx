@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useRef } from "react";
 import type { ExerciseItemDto } from "@/lib/training-v2/types";
 import { searchExercisesForPickerAction } from "@/app/consultoria/[slug]/rotinas/actions";
 import { ExerciseExecutionModal } from "./exercise-execution-modal";
@@ -113,29 +113,39 @@ export function UnifiedExercisePicker({
   const [previewingExerciseId, setPreviewingExerciseId] = useState<string | null>(null);
   const [executionModalExercise, setExecutionModalExercise] = useState<ExerciseItemDto | null>(null);
   const [isPending, startTransition] = useTransition();
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    let active = true;
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
 
-    startTransition(async () => {
-      const res = await searchExercisesForPickerAction(consultancySlug, {
-        source,
-        query: searchQuery.trim() || undefined,
-      });
+    const currentReqId = ++requestIdRef.current;
+    debounceTimerRef.current = setTimeout(() => {
+      startTransition(async () => {
+        const res = await searchExercisesForPickerAction(consultancySlug, {
+          source,
+          query: searchQuery.trim() || undefined,
+        });
 
-      if (active) {
+        // Discard stale responses from out-of-order search requests
+        if (currentReqId !== requestIdRef.current) return;
+
         if (res.ok && res.data) {
           setExercises(res.data);
         } else {
           setExercises([]);
         }
-      }
-    });
+      });
+    }, 200);
 
     return () => {
-      active = false;
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
     };
   }, [isOpen, source, searchQuery, consultancySlug]);
 

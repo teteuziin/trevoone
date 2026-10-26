@@ -70,19 +70,23 @@ export function NutritionMealInlineSearch({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const requestIdRef = useRef(0);
 
   // Focus on mount
   useEffect(() => {
     searchInputRef.current?.focus();
   }, []);
 
-  // Fetch foods with debounce
+  // Fetch foods with debounce and out-of-order race-condition protection
   const fetchFoods = useCallback(
     async (searchTerm: string, source: "ALL" | "TACO" | "USDA" | "CONSULTANCY") => {
+      const currentReqId = ++requestIdRef.current;
       setIsLoading(true);
       try {
         const effectiveQuery = searchTerm.trim() || "arroz";
         const res = await searchFoodsForPickerAction(slug, effectiveQuery, "ALL", 1, source);
+        // Discard stale responses from older search requests
+        if (currentReqId !== requestIdRef.current) return;
         if (res.success && res.data) {
           setFoods(res.data.items || []);
           setActiveIndex(-1);
@@ -90,9 +94,13 @@ export function NutritionMealInlineSearch({
           setFoods([]);
         }
       } catch {
-        setFoods([]);
+        if (currentReqId === requestIdRef.current) {
+          setFoods([]);
+        }
       } finally {
-        setIsLoading(false);
+        if (currentReqId === requestIdRef.current) {
+          setIsLoading(false);
+        }
       }
     },
     [slug]

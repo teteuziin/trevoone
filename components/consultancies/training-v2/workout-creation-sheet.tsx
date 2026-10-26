@@ -4,9 +4,17 @@ import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import dynamic from "next/dynamic";
 import { WorkoutTemplatePicker } from "./workout-template-picker";
-import { TrainingAiImportModal } from "./training-ai-import-modal";
-import { TrainingAiGenerateModal } from "./training-ai-generate-modal";
+
+const TrainingAiImportModal = dynamic(
+  () => import("./training-ai-import-modal").then((m) => m.TrainingAiImportModal),
+  { ssr: false }
+);
+const TrainingAiGenerateModal = dynamic(
+  () => import("./training-ai-generate-modal").then((m) => m.TrainingAiGenerateModal),
+  { ssr: false }
+);
 
 const emptySubscribe = () => () => {};
 

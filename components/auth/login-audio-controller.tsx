@@ -125,7 +125,7 @@ export function LoginAudioController() {
 
     const audio = new Audio(AUDIO_SRC);
     audio.loop = true;
-    audio.preload = "auto";
+    audio.preload = "none";
     audio.volume = 0;
     audioRef.current = audio;
 

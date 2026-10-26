@@ -326,14 +326,35 @@ export async function getPlatformEffectiveAccessState(
   try {
     connection = await getDbConnection();
 
-    // 1. Fetch platform subscription row
-    const [subRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT administrative_status, manual_suspension_reason, cancellation_reason
-       FROM consultancy_platform_subscriptions
-       WHERE consultancy_id = ?
-       LIMIT 1;`,
-      [consultancyId]
-    );
+    // Execute platform subscription and open charges queries in parallel to eliminate sequential latency
+    const [subResult, chargeResult] = await Promise.all([
+      connection.execute<RowDataPacket[]>(
+        `SELECT administrative_status, manual_suspension_reason, cancellation_reason
+         FROM consultancy_platform_subscriptions
+         WHERE consultancy_id = ?
+         LIMIT 1;`,
+        [consultancyId]
+      ),
+      connection.execute<RowDataPacket[]>(
+        `SELECT
+          cpc.id,
+          cpc.public_id,
+          cpc.title,
+          cpc.amount_cents,
+          DATE_FORMAT(cpc.due_on, '%Y-%m-%d') AS due_on_str,
+          cpc.grace_days_snapshot
+         FROM consultancy_platform_charges cpc
+         LEFT JOIN consultancy_platform_payments cpp ON cpp.charge_id = cpc.id
+         WHERE cpc.consultancy_id = ?
+           AND cpc.status = 'OPEN'
+           AND cpp.id IS NULL
+         ORDER BY cpc.due_on ASC, cpc.id ASC;`,
+        [consultancyId]
+      ),
+    ]);
+
+    const [subRows] = subResult;
+    const [chargeRows] = chargeResult;
 
     if (!Array.isArray(subRows) || subRows.length === 0) {
       // Configuration / integrity missing subscription -> safe fail closed
@@ -372,24 +393,6 @@ export async function getPlatformEffectiveAccessState(
         manualSuspensionReason: manualReason,
       };
     }
-
-    // 2. Fetch OPEN unpaid charges for this consultancy
-    const [chargeRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        cpc.id,
-        cpc.public_id,
-        cpc.title,
-        cpc.amount_cents,
-        DATE_FORMAT(cpc.due_on, '%Y-%m-%d') AS due_on_str,
-        cpc.grace_days_snapshot
-       FROM consultancy_platform_charges cpc
-       LEFT JOIN consultancy_platform_payments cpp ON cpp.charge_id = cpc.id
-       WHERE cpc.consultancy_id = ?
-         AND cpc.status = 'OPEN'
-         AND cpp.id IS NULL
-       ORDER BY cpc.due_on ASC, cpc.id ASC;`,
-      [consultancyId]
-    );
 
     if (!Array.isArray(chargeRows) || chargeRows.length === 0) {
       // No open unpaid charges -> ACTIVE

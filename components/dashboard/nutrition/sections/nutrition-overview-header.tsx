@@ -3,18 +3,26 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   DuotoneStudentsIcon,
   DuotoneNutritionIcon,
   DuotoneFormsIcon,
 } from "@/components/ui/icons/duotone-icons";
-import { NutritionAiImportModal } from "@/components/consultancies/nutrition-v2/nutrition-ai-import-modal";
 import {
   NutritionPlanChoiceModal,
   type NutritionPlanCreationChoice,
 } from "@/components/consultancies/nutrition-v2/nutrition-plan-choice-modal";
-import { NutritionAiGenerateModal } from "@/components/consultancies/nutrition-v2/nutrition-ai-generate-modal";
 import { NutritionTemplatePickerModal } from "@/components/consultancies/nutrition-v2/nutrition-template-picker-modal";
+
+const NutritionAiImportModal = dynamic(
+  () => import("@/components/consultancies/nutrition-v2/nutrition-ai-import-modal").then((m) => m.NutritionAiImportModal),
+  { ssr: false }
+);
+const NutritionAiGenerateModal = dynamic(
+  () => import("@/components/consultancies/nutrition-v2/nutrition-ai-generate-modal").then((m) => m.NutritionAiGenerateModal),
+  { ssr: false }
+);
 
 export interface NutritionOverviewHeaderProps {
   consultancySlug: string;

@@ -13,6 +13,13 @@ export function SplashRedirect({ target = "/login" }: SplashRedirectProps) {
   const router = useRouter();
 
   useEffect(() => {
+    // Warm up the target route during splash animation for instant transition
+    try {
+      router.prefetch(target);
+    } catch {
+      // Non-blocking fallback
+    }
+
     const timer = setTimeout(() => {
       router.replace(target);
     }, 1300);

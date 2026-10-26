@@ -1,16 +1,22 @@
 "use client";
 
 import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import { Tabs, type TabItem } from "@/components/ui/tabs";
-import {
-  DashboardNutritionistView,
-  type NutritionistPlanSummaryItem,
-  type AttentionItem,
-  type TodayConsultationItem,
+import type {
+  NutritionistPlanSummaryItem,
+  AttentionItem,
+  TodayConsultationItem,
 } from "./dashboard-nutritionist-view";
-import { DashboardAdminView } from "./dashboard-admin-view";
 import type { ConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import type { PlatformEffectiveAccessState } from "@/lib/platform-admin/billing";
+
+const DashboardNutritionistView = dynamic(
+  () => import("./dashboard-nutritionist-view").then((m) => m.DashboardNutritionistView)
+);
+const DashboardAdminView = dynamic(
+  () => import("./dashboard-admin-view").then((m) => m.DashboardAdminView)
+);
 
 interface DashboardCombinedNutritionistAdminViewProps {
   consultancySlug: string;

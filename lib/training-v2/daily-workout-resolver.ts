@@ -101,30 +101,7 @@ const WEEKDAY_NAMES_PT = [
 
 const WEEKDAY_SHORT_NAMES_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-/**
- * Normaliza texto e extrai os dias da semana prescritos (0 = Domingo ... 6 = Sábado).
- */
-export function parseScheduledWeekdays(
-  title?: string | null,
-  instructions?: string | null
-): number[] {
-  const text = `${title || ""} ${instructions || ""}`
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, ""); // remove acentos
-
-  const days: number[] = [];
-
-  if (/\b(segunda(?:-feira)?|seg)\b/.test(text)) days.push(1);
-  if (/\b(terca(?:-feira)?|terça(?:-feira)?|ter)\b/.test(text)) days.push(2);
-  if (/\b(quarta(?:-feira)?|qua)\b/.test(text)) days.push(3);
-  if (/\b(quinta(?:-feira)?|qui)\b/.test(text)) days.push(4);
-  if (/\b(sexta(?:-feira)?|sex)\b/.test(text)) days.push(5);
-  if (/\b(sabado|sab)\b/.test(text)) days.push(6);
-  if (/\b(domingo|dom)\b/.test(text)) days.push(0);
-
-  return Array.from(new Set(days)).sort((a, b) => a - b);
-}
+export { parseScheduledWeekdays } from "./route-helpers";
 
 export function formatScheduledWeekdaysLabel(days: number[]): string | null {
   if (!days || days.length === 0) return null;
@@ -303,34 +280,41 @@ export async function resolveStudentDailyWorkout(
         }
       }
       if (!activeBlock) {
-        // Look up the block corresponding to the first pending set in this session
+        // Resolve a divisão pelo modelo persistido (NÃO pela primeira série pendente, para não mudar conforme o aluno avança)
         try {
-          const [pendingBlockRows] = await connection.execute<RowDataPacket[]>(
-            `SELECT wb.id, wb.public_id, wb.title, wb.sort_order
+          // 1. Bloco com séries concluídas registradas (histórico persistido estável)
+          const [completedBlockRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT wb.id, wb.public_id, wb.title, wb.sort_order, COUNT(*) AS done_cnt
              FROM workout_execution_sets wex
              INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
              INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-             WHERE wex.execution_session_id = ? AND wex.completed_at IS NULL
-             ORDER BY wex.set_number ASC, wex.id ASC
+             WHERE wex.execution_session_id = ? AND wex.completed_at IS NOT NULL
+             GROUP BY wb.id, wb.public_id, wb.title, wb.sort_order
+             ORDER BY done_cnt DESC, wb.sort_order ASC
              LIMIT 1;`,
             [activeSession.session_id]
           );
-          if (pendingBlockRows && pendingBlockRows.length > 0) {
-            activeBlock = pendingBlockRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number };
-          } else {
-            // If all sets are completed, pick the block of the last completed set
-            const [lastBlockRows] = await connection.execute<RowDataPacket[]>(
-              `SELECT wb.id, wb.public_id, wb.title, wb.sort_order
-               FROM workout_execution_sets wex
-               INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-               INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-               WHERE wex.execution_session_id = ?
-               ORDER BY wex.completed_at DESC, wex.set_number DESC, wex.id DESC
-               LIMIT 1;`,
-              [activeSession.session_id]
-            );
-            if (lastBlockRows && lastBlockRows.length > 0) {
-              activeBlock = lastBlockRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number };
+          if (completedBlockRows && completedBlockRows.length > 0) {
+            activeBlock = completedBlockRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number };
+          } else if (activeSession.started_at) {
+            // 2. Se nenhuma série foi feita ainda, vincula pelo dia da semana de início da sessão
+            const sDate = new Date(activeSession.started_at);
+            if (!Number.isNaN(sDate.getTime())) {
+              const startWeekday = sDate.getDay();
+              const [allCandidateBlocks] = await connection.execute<RowDataPacket[]>(
+                `SELECT wb.id, wb.public_id, wb.title, wb.sort_order, wb.instructions
+                 FROM workout_blocks wb
+                 WHERE wb.workout_version_id = ?
+                 ORDER BY wb.sort_order ASC;`,
+                [activeSession.workout_version_id]
+              );
+              for (const cand of allCandidateBlocks || []) {
+                const days = parseScheduledWeekdays(cand.title, cand.instructions);
+                if (days.includes(startWeekday)) {
+                  activeBlock = cand as unknown as { id: number; public_id: string; title: string; sort_order: number };
+                  break;
+                }
+              }
             }
           }
         } catch {

@@ -137,6 +137,7 @@ export default async function StudentWorkoutDetailPage({ params, searchParams }:
       consultancyPublicId={context.consultancyPublicId}
       activeRole="STUDENT"
       showDashboardWallpaper={true}
+      themeVariant="dark-overview"
     >
       <div className="w-full max-w-6xl mx-auto pb-12 space-y-4">
         {/* Workout Renderer with Execution State and History */}

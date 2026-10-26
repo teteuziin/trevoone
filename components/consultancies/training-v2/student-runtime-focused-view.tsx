@@ -19,6 +19,24 @@ import {
 } from "@/lib/training-v2/sequence-media";
 import { resolveExerciseExecutionMedia } from "@/lib/training-v2/execution-media-resolver";
 import { SequenceExecutionModal } from "./sequence-execution-modal";
+import { parseScheduledWeekdays } from "@/lib/training-v2/route-helpers";
+
+function FastForward({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <polygon points="13 19 22 12 13 5 13 19" fill="currentColor" />
+      <polygon points="2 19 11 12 2 5 2 19" fill="currentColor" />
+    </svg>
+  );
+}
+
+function Flag({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7" />
+    </svg>
+  );
+}
 
 function Check({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -159,19 +177,49 @@ export function StudentRuntimeFocusedView({
   // 1. Resolve active division/block
   const currentBlock: WorkoutBlockDto | null = (() => {
     if (!workout.blocks || workout.blocks.length === 0) return null;
+    // 1. Se workoutBlockPublicId explícito existe, utiliza-o (sessões modernas)
     if (activeSession.workoutBlockPublicId) {
       const match = workout.blocks.find((b) => b.publicId === activeSession.workoutBlockPublicId);
       if (match) return match;
     }
-    const allPending = (activeSession.sets || []).filter((s) => s.completedAt == null);
-    const targetSet = allPending[0] || (activeSession.sets || [])[0];
-    if (targetSet) {
-      for (const b of workout.blocks) {
-        if ((b.items || []).some((it) => it.publicId === targetSet.blockItemPublicId)) {
-          return b;
+    // 2. Para sessões legadas: resolve por séries concluídas (modelo persistido estável)
+    const setsWithCompletion = (activeSession.sets || []).filter((s) => s.completedAt != null);
+    if (setsWithCompletion.length > 0) {
+      const countPerBlock = new Map<string, number>();
+      for (const s of setsWithCompletion) {
+        for (const b of workout.blocks) {
+          if ((b.items || []).some((it) => it.publicId === s.blockItemPublicId)) {
+            countPerBlock.set(b.publicId, (countPerBlock.get(b.publicId) || 0) + 1);
+            break;
+          }
         }
       }
+      let bestBlockPublicId: string | null = null;
+      let maxCount = 0;
+      for (const [bId, count] of countPerBlock.entries()) {
+        if (count > maxCount) {
+          maxCount = count;
+          bestBlockPublicId = bId;
+        }
+      }
+      if (bestBlockPublicId) {
+        const match = workout.blocks.find((b) => b.publicId === bestBlockPublicId);
+        if (match) return match;
+      }
     }
+    // 3. Se nenhuma série foi feita ainda, vincula pelo dia da semana de início da sessão
+    if (activeSession.startedAt) {
+      const sessionDate = new Date(activeSession.startedAt);
+      if (!Number.isNaN(sessionDate.getTime())) {
+        const sessionWeekday = sessionDate.getDay();
+        const matchingBlock = workout.blocks.find((b) => {
+          const days = parseScheduledWeekdays(b.title, b.instructions);
+          return days.includes(sessionWeekday);
+        });
+        if (matchingBlock) return matchingBlock;
+      }
+    }
+    // 4. Fallback padrão para primeiro bloco
     return workout.blocks[0];
   })();
 
@@ -196,7 +244,6 @@ export function StudentRuntimeFocusedView({
   const totalSetsCount = sets.length;
   const completedCount = completedSets.length;
   const skippedCount = skippedSets.length;
-  const doneCount = completedCount + skippedCount;
   const allCompleted = totalSetsCount > 0 && pendingSets.length === 0;
 
   // Selected item override when student clicks an exercise in the index
@@ -302,6 +349,7 @@ export function StudentRuntimeFocusedView({
   const [isExecutionSheetOpen, setIsExecutionSheetOpen] = useState(false);
   const [isSequenceModalOpen, setIsSequenceModalOpen] = useState(false);
   const [isOptionalInputOpen, setIsOptionalInputOpen] = useState(false);
+  const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
   const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
   const [failedImgUrl, setFailedImgUrl] = useState<string | null>(null);
 
@@ -379,14 +427,16 @@ export function StudentRuntimeFocusedView({
   };
 
   // Human-readable prescription text formatted according to requirements
-  // E.g.: "3 séries · 8–12 repetições · 30 s de descanso"
-  const prescriptionSummaryText = (() => {
-    if (!currentItemContext || !currentSet) return "";
+  // E.g.: "3 séries" & "8 a 12 repetições · Descanso de 30 segundos"
+  const prescriptionParts = (() => {
+    if (!currentItemContext || !currentSet) {
+      return { setsText: "", repsText: "", restText: "", loadText: "" };
+    }
     const totalItemSets = currentItemContext.totalItemSets;
     const setsText = `${totalItemSets} ${totalItemSets === 1 ? "série" : "séries"}`;
     let repsText = "";
     if (currentSet.prescribedRepsMax && currentSet.prescribedRepsMax !== currentSet.prescribedReps) {
-      repsText = `${currentSet.prescribedReps}–${currentSet.prescribedRepsMax} repetições`;
+      repsText = `${currentSet.prescribedReps} a ${currentSet.prescribedRepsMax} repetições`;
     } else if (currentSet.prescribedReps) {
       repsText = `${currentSet.prescribedReps} repetições`;
     } else {
@@ -394,19 +444,19 @@ export function StudentRuntimeFocusedView({
     }
     let restText = "";
     if (currentSet.prescribedRestSeconds && currentSet.prescribedRestSeconds > 0) {
-      restText = `${currentSet.prescribedRestSeconds} s de descanso`;
+      restText = `Descanso de ${currentSet.prescribedRestSeconds} segundos`;
     } else {
-      restText = "Sem descanso prescrito";
+      restText = "Sem descanso programado";
     }
     let loadText = "";
     if (currentSet.prescribedLoadKg != null && currentSet.prescribedLoadKg > 0) {
       loadText = ` · ${currentSet.prescribedLoadKg} kg`;
     }
-    return `${setsText} · ${repsText} · ${restText}${loadText}`;
+    return { setsText, repsText, restText, loadText };
   })();
 
-  // Overall workout progress metrics
-  const progressPercent = totalSetsCount > 0 ? Math.round((doneCount / totalSetsCount) * 100) : 0;
+  // Overall workout progress metrics: Séries puladas não entram na contagem de concluídas
+  const progressPercent = totalSetsCount > 0 ? Math.round((completedCount / totalSetsCount) * 100) : 0;
 
   // Active rest activity name
   const activeRestInfo = (() => {
@@ -791,9 +841,7 @@ export function StudentRuntimeFocusedView({
     item,
     combination,
     combLetter,
-    nextCombItem,
     totalItemSets,
-    currentRoundOrSet,
   } = currentItemContext;
 
   const isSequence = Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence);
@@ -893,49 +941,19 @@ export function StudentRuntimeFocusedView({
         {/* DESKTOP STICKY EXERCISE INDEX (lg+) */}
         {/* ================================================================== */}
         <aside className="hidden lg:block sticky top-6 space-y-4">
-          <div className="p-4 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-xs space-y-3.5 depth-surface">
-            <div className="space-y-1">
+          <div className="p-4 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-xs space-y-3 depth-surface">
+            <div className="space-y-0.5">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block truncate">
                 {workout.title}
               </span>
               <h2 className="text-base font-bold text-[var(--text-primary)] leading-tight">
-                {block.title || "Divisão de Treino"}
+                {currentBlock?.title || "Divisão de Treino"}
               </h2>
             </div>
 
-            {/* Overall Progress Widget */}
-            <div className="space-y-1.5 pt-1 border-t border-[var(--border-subtle)]">
-              <div className="flex items-center justify-between text-xs font-semibold text-[var(--text-secondary)]">
-                <span>Progresso da sessão</span>
-                <span className="font-bold text-[var(--text-primary)] tabular-nums">{progressPercent}%</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                  style={{ width: `${Math.max(4, progressPercent)}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-[var(--text-tertiary)] pt-0.5">
-                <span>{doneCount} de {totalSetsCount} séries</span>
-                <span className="tabular-nums">{timingLabel || (elapsedMinutes > 0 ? `${elapsedMinutes} min decorridos` : "< 1 min")}</span>
-              </div>
-            </div>
-
             {/* Scrollable Checklist */}
-            <div className="pt-2 border-t border-[var(--border-subtle)] max-h-[calc(100vh-340px)] overflow-y-auto pr-1">
+            <div className="pt-2 border-t border-[var(--border-subtle)] max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
               {renderExerciseIndexList()}
-            </div>
-
-            {/* Sidebar Finalization Action */}
-            <div className="pt-2 border-t border-[var(--border-subtle)]">
-              <button
-                type="button"
-                onClick={() => setShowEarlyCompleteModal(true)}
-                disabled={isCompleting}
-                className="w-full min-h-[44px] px-3.5 py-2 rounded-xl border border-[var(--border-default)] hover:border-amber-500/40 text-xs font-bold text-[var(--text-secondary)] hover:text-amber-600 dark:hover:text-amber-400 transition-colors flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>Finalizar treino agora</span>
-              </button>
             </div>
           </div>
         </aside>
@@ -944,44 +962,54 @@ export function StudentRuntimeFocusedView({
         {/* CENTER / RIGHT STAGE: GUIDED EXECUTION EXPERIENCE */}
         {/* ================================================================== */}
         <div className="min-w-0 space-y-4">
-          {/* MOBILE RUNTIME TOP BAR: PROGRESS & OVERVIEW TOGGLE (< lg) */}
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-xs space-y-2 lg:hidden">
-            <div className="flex items-center justify-between text-xs font-semibold">
+          {/* CABEÇALHO ÚNICO: Voltar, Divisão, Botão Exercícios, Barra de progresso com contagem clara */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-xs space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <Link
+                href={consultancySlug ? `/consultoria/${consultancySlug}/treinos` : "/app"}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors py-1 group min-h-[44px]"
+              >
+                <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+                <span>Voltar aos meus treinos</span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setIsIndexDrawerOpen(true)}
+                className="inline-flex lg:hidden items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface)] border border-[var(--border-subtle)] transition-colors cursor-pointer min-h-[44px]"
+              >
+                <ListIcon className="w-4 h-4" />
+                <span>Exercícios</span>
+              </button>
+            </div>
+
+            <div className="flex items-baseline justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="text-[var(--text-primary)] font-bold truncate">
-                  {block.title || workout.title}
-                </span>
+                <h2 className="text-base sm:text-lg font-black text-[var(--text-primary)] tracking-tight truncate">
+                  {currentBlock?.title || workout.title}
+                </h2>
                 {isOffline && (
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20 shrink-0">
                     Offline
                   </span>
                 )}
               </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsIndexDrawerOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface)] border border-[var(--border-subtle)] transition-colors cursor-pointer min-h-[38px]"
-                >
-                  <ListIcon className="w-3.5 h-3.5" />
-                  <span>Índice ({doneCount}/{totalSetsCount})</span>
-                </button>
-              </div>
+              <span className="text-xs font-bold text-[var(--text-secondary)] tabular-nums shrink-0">
+                {progressPercent}%
+              </span>
             </div>
 
-            {/* Mobile Progress Bar */}
+            {/* Uma barra de progresso com contagem clara */}
             <div className="space-y-1">
-              <div className="flex items-center justify-between text-[11px] text-[var(--text-tertiary)]">
-                <span>Série {doneCount + 1} de {totalSetsCount}</span>
-                <span className="tabular-nums font-bold">{progressPercent}%</span>
-              </div>
               <div className="w-full h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
                 <div
                   className="h-full bg-emerald-500 rounded-full transition-all duration-300"
                   style={{ width: `${Math.max(4, progressPercent)}%` }}
                 />
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-[var(--text-tertiary)] pt-0.5">
+                <span>{completedCount} de {totalSetsCount} séries concluídas</span>
+                {timingLabel && <span className="tabular-nums">{timingLabel}</span>}
               </div>
             </div>
           </div>
@@ -999,174 +1027,101 @@ export function StudentRuntimeFocusedView({
           )}
 
           {/* ================================================================ */}
-          {/* FOCUSED EXERCISE STAGE ("O QUE TENHO PARA FAZER AGORA") */}
+          {/* EXERCÍCIO */}
           {/* ================================================================ */}
-          <div className="p-5 sm:p-7 rounded-3xl bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-xs space-y-4 depth-surface">
-            {/* 1. Voltar aos meus treinos & Finalizar Treino */}
-            <div className="flex items-center justify-between gap-2 pb-1">
-              <Link
-                href={consultancySlug ? `/consultoria/${consultancySlug}/treinos` : "/app"}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors py-1 group min-h-[44px]"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
-                <span>Voltar aos meus treinos</span>
-              </Link>
-
-              <button
-                type="button"
-                onClick={() => setShowEarlyCompleteModal(true)}
-                className="min-h-[44px] px-3.5 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                title="Finalizar treino agora"
-              >
-                <Clock className="w-3.5 h-3.5" />
-                <span>Finalizar treino</span>
-              </button>
-            </div>
-
-            {/* 2. Nome da divisão e progresso */}
-            <div className="flex items-center justify-between gap-2 pb-3 border-b border-[var(--border-subtle)]">
-              <div className="flex items-center gap-2 min-w-0">
-                {combination ? (
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
-                      {combination.combinationType.replace("_", "-")} ({combLetter})
-                    </span>
-                    {nextCombItem && (
-                      <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg hidden sm:inline">
-                        A seguir: {nextCombItem.exerciseNameSnapshot}
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider truncate">
-                    {block.title || "Treino"}
-                  </span>
-                )}
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] shrink-0">
-                Série {currentRoundOrSet} de {totalItemSets}
+          <div className="p-5 sm:p-7 rounded-3xl bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-xs space-y-5 depth-surface">
+            {/* Header: Exercício X de Y */}
+            <div className="flex items-center justify-between gap-2 pb-2 border-b border-[var(--border-subtle)]">
+              <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                Exercício {exerciseNumber} de {totalExercisesCount}
               </span>
+              {combination && (
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                  {combination.combinationType.replace("_", "-")} ({combLetter})
+                </span>
+              )}
             </div>
 
-            {/* 3. Nome do exercício */}
-            <div className="space-y-1.5">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight font-heading leading-tight">
+            {/* Nome completo do exercício */}
+            <div className="space-y-1">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-[var(--text-primary)] tracking-tight font-heading leading-tight">
                 {substitutedInfo ? substitutedInfo.performedExerciseName : item.exerciseNameSnapshot}
               </h1>
 
+              {item.muscleGroupSnapshot && (
+                <p className="text-xs text-[var(--text-tertiary)]">
+                  {item.muscleGroupSnapshot}{item.equipmentSnapshot ? ` · ${item.equipmentSnapshot}` : ""}
+                </p>
+              )}
+
               {substitutedInfo && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                   <span>Substituição realizada (Original: {item.exerciseNameSnapshot})</span>
                 </div>
               )}
             </div>
 
-            {/* 4. Vídeo ou instruções, quando disponíveis */}
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                {sequenceExperience?.hasPlayableMedia ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsSequenceModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow-xs transition-colors cursor-pointer min-h-[40px]"
-                  >
-                    <VideoIcon className="w-4 h-4" />
-                    <span>Ver sequência em vídeo</span>
-                  </button>
-                ) : hasVideo ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsExecutionSheetOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-colors cursor-pointer min-h-[40px]"
-                  >
-                    <VideoIcon className="w-4 h-4" />
-                    <span>Ver execução técnica</span>
-                  </button>
-                ) : null}
-
-                {item.muscleGroupSnapshot && (
-                  <span className="text-xs text-[var(--text-tertiary)] px-2.5 py-1 bg-[var(--surface-subtle)] rounded-lg">
-                    {item.muscleGroupSnapshot}
-                    {item.equipmentSnapshot ? ` · ${item.equipmentSnapshot}` : ""}
-                  </span>
-                )}
+            {/* "Ver demonstração", quando houver mídia */}
+            {sequenceExperience?.hasPlayableMedia ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setIsSequenceModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow-xs transition-colors cursor-pointer min-h-[44px]"
+                >
+                  <VideoIcon className="w-4 h-4" />
+                  <span>Ver sequência em vídeo</span>
+                </button>
               </div>
+            ) : hasVideo ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setIsExecutionSheetOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-colors cursor-pointer min-h-[44px]"
+                >
+                  <VideoIcon className="w-4 h-4" />
+                  <span>Ver demonstração</span>
+                </button>
+              </div>
+            ) : null}
 
-              {isSequence && (
-                <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2 text-xs">
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs uppercase tracking-wider block">
-                    Movimentos da Sequência Prescrita
-                  </span>
-                  {Array.isArray((item.methodConfig?.customSequence as { movements?: unknown[] })?.movements) &&
-                  (((item.methodConfig?.customSequence as { movements?: unknown[] })?.movements?.length ?? 0) > 0) ? (
-                    <ol className="list-decimal pl-4 space-y-1.5 text-[var(--text-primary)] font-medium">
-                      {((item.methodConfig?.customSequence as { movements: unknown[] }).movements).map((m: unknown, idx: number) => {
-                        const label = typeof m === "string" ? m : (m as { label?: string })?.label || `Movimento ${idx + 1}`;
-                        const hint = typeof m === "object" && m !== null
-                          ? ((m as { repsText?: string })?.repsText || (m as { durationText?: string })?.durationText)
-                          : null;
-                        return (
-                          <li key={idx}>
-                            <span>{label}</span>
-                            {hint && <span className="ml-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">({hint})</span>}
-                          </li>
-                        );
-                      })}
-                    </ol>
-                  ) : null}
-                  {item.instructionsSnapshot && (
-                    <p className="text-[var(--text-secondary)] whitespace-pre-line pt-1 text-xs">
-                      {item.instructionsSnapshot}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {!isSequence && item.instructionsSnapshot && (
-                <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] space-y-1">
-                  <span className="font-bold text-[var(--text-primary)] text-xs block">Instruções de Execução:</span>
-                  <p className="whitespace-pre-line leading-relaxed">{item.instructionsSnapshot}</p>
-                </div>
-              )}
-            </div>
-
-            {/* 5. Observações e cuidados do personal, quando existentes */}
+            {/* Observações do personal, quando existentes */}
             {item.notes && item.notes.trim().length > 0 && (
               <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-medium space-y-1">
                 <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
                   <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                  <span>Observações e Cuidados do Personal:</span>
+                  <span>Observações do personal:</span>
                 </div>
                 <p className="leading-relaxed whitespace-pre-line pl-5">{item.notes}</p>
               </div>
             )}
 
-            {/* 6. Prescrição legível */}
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex flex-wrap items-center justify-between gap-2.5">
-              <div className="space-y-0.5">
-                <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider block">
-                  Prescrição
-                </span>
-                <span className="text-sm sm:text-base font-extrabold text-emerald-950 dark:text-emerald-100">
-                  {prescriptionSummaryText}
-                </span>
+            {/* Prescrição: Direta, sem caixa verde gigante, sem rótulo "PRESCRIÇÃO" */}
+            <div className="py-1 space-y-0.5">
+              <div className="text-base sm:text-lg font-black text-[var(--text-primary)]">
+                {prescriptionParts.setsText}
+              </div>
+              <div className="text-xs sm:text-sm font-semibold text-[var(--text-secondary)]">
+                {prescriptionParts.repsText} · {prescriptionParts.restText}{prescriptionParts.loadText}
               </div>
               {lastPerformance && (
-                <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-200 bg-emerald-500/15 px-2.5 py-1 rounded-xl">
-                  Último: {lastPerformance}
-                </span>
+                <div className="text-[11px] text-[var(--text-tertiary)] pt-0.5">
+                  Último registro: <strong className="font-semibold text-[var(--text-secondary)]">{lastPerformance}</strong>
+                </div>
               )}
             </div>
 
-            {/* 7. Séries com estado visual claro (A fazer, Concluída, Pulada) */}
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                Séries deste exercício
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                {sets
-                  .filter((s) => s.blockItemPublicId === item.publicId)
-                  .map((s, sIdx) => {
+            {/* EXECUÇÃO */}
+            <div className="space-y-3 pt-3 border-t border-[var(--border-subtle)]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-[var(--text-primary)]">
+                  Série {currentSetNumberInItem} de {totalItemSets}
+                </span>
+
+                {/* Indicadores pequenos das séries locais (1, 2, 3...) */}
+                <div className="flex items-center gap-1.5" role="group" aria-label="Séries deste exercício">
+                  {itemSets.map((s, sIdx) => {
                     const isDone = s.completedAt != null && !s.isSkipped;
                     const isSkipped = s.completedAt != null && s.isSkipped;
                     const isCurrent = s.publicId === currentSet.publicId;
@@ -1174,142 +1129,141 @@ export function StudentRuntimeFocusedView({
                     return (
                       <div
                         key={s.publicId}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                        aria-label={`Série ${sIdx + 1}: ${isCurrent ? "Em execução" : isDone ? "Concluída" : isSkipped ? "Pulada" : "A fazer"}`}
+                        className={`min-w-[32px] h-8 px-2 rounded-lg flex items-center justify-center text-xs font-bold transition-all ${
                           isCurrent
-                            ? "bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-500/30"
+                            ? "bg-emerald-600 text-white font-extrabold shadow-xs ring-2 ring-emerald-500/30"
                             : isDone
-                            ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-800 dark:text-emerald-300"
+                            ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300"
                             : isSkipped
-                            ? "bg-zinc-100 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 line-through"
-                            : "bg-[var(--surface-subtle)] border-[var(--border-default)] text-[var(--text-secondary)]"
+                            ? "bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 line-through"
+                            : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)]"
                         }`}
                       >
-                        <span>Série {s.setNumber || sIdx + 1}</span>
-                        <span className="text-[10px] opacity-90">
-                          {isDone ? "✓ Concluída" : isSkipped ? "Pulada" : isCurrent ? "• Em execução" : "• A fazer"}
-                        </span>
+                        <span>{isDone ? `✓ ${sIdx + 1}` : sIdx + 1}</span>
                       </div>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Botão principal "Concluir série" */}
+              <button
+                type="button"
+                onClick={handleConfirmCurrentSet}
+                disabled={Boolean(loadingSetPublicId) || isSubmitting}
+                className="w-full min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+              >
+                {loadingSetPublicId === currentSet.publicId || isSubmitting ? (
+                  <>
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Registrando série...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-5 h-5 stroke-[2.5]" />
+                    <span>Concluir série {currentSetNumberInItem}</span>
+                  </>
+                )}
+              </button>
+
+              {/* Área recolhível "Registrar carga e repetições — opcional" */}
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] overflow-hidden transition-all">
+                <button
+                  type="button"
+                  onClick={() => setIsOptionalInputOpen((prev) => !prev)}
+                  className="w-full px-4 py-3 min-h-[44px] flex items-center justify-between gap-3 text-left hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                      Registrar carga e repetições (opcional)
+                    </span>
+                    {(currentDraft?.hasEditedReps || currentDraft?.hasEditedLoad) && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                        {currentDraft.hasEditedReps ? `${currentDraft.reps} reps` : ""}
+                        {currentDraft.hasEditedReps && currentDraft.hasEditedLoad ? " · " : ""}
+                        {currentDraft.hasEditedLoad ? `${currentDraft.loadKg} kg` : ""}
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200 shrink-0 ${
+                      isOptionalInputOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {isOptionalInputOpen && (
+                  <div className="p-4 pt-1 border-t border-[var(--border-subtle)] space-y-3 animate-in fade-in duration-150">
+                    <p className="text-[11px] text-[var(--text-tertiary)]">
+                      Opcional. Campos em branco permanecem vazios (NULL) e não assumem a prescrição automaticamente.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Repetições */}
+                      <div className="p-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border-default)] space-y-1.5 text-center">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                          Repetições Realizadas
+                        </span>
+                        <div className="flex items-center justify-between gap-2 max-w-[180px] mx-auto">
+                          <button
+                            type="button"
+                            onClick={() => handleStepReps(-1)}
+                            className="w-9 h-9 min-h-[44px] min-w-[44px] rounded-lg bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] font-extrabold text-base flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                            aria-label="Diminuir repetições"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={displayedReps != null ? String(displayedReps) : ""}
+                            onChange={(e) => handleRepsInputChange(e.target.value)}
+                            placeholder={currentSet.prescribedReps != null ? String(currentSet.prescribedReps) : "—"}
+                            className="w-16 h-10 rounded-lg text-center text-base font-extrabold text-[var(--text-primary)] bg-[var(--surface-subtle)] border border-[var(--border-default)] focus:border-emerald-500 focus:outline-hidden transition-all tabular-nums"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleStepReps(1)}
+                            className="w-9 h-9 min-h-[44px] min-w-[44px] rounded-lg bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] font-extrabold text-base flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                            aria-label="Aumentar repetições"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <span className="text-[10px] text-[var(--text-tertiary)] block">
+                          {currentDraft?.hasEditedReps ? "Modificado para esta série" : currentSet.prescribedReps ? `Prescrito: ${currentSet.prescribedReps}` : "Livre"}
+                        </span>
+                      </div>
+
+                      {/* Carga Utilizada (kg) */}
+                      <div className="p-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border-default)] space-y-1.5 text-center">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                          Carga Utilizada (kg)
+                        </span>
+                        <div className="flex items-center justify-center gap-1.5 max-w-[180px] mx-auto">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={displayedLoad}
+                            onChange={(e) => handleLoadChange(e.target.value)}
+                            placeholder={currentSet.prescribedLoadKg != null && currentSet.prescribedLoadKg > 0 ? String(currentSet.prescribedLoadKg) : "—"}
+                            className="w-20 h-10 rounded-lg text-center text-base font-extrabold text-[var(--text-primary)] bg-[var(--surface-subtle)] border border-[var(--border-default)] focus:border-emerald-500 focus:outline-hidden transition-all tabular-nums"
+                          />
+                          <span className="text-xs font-bold text-[var(--text-tertiary)]">kg</span>
+                        </div>
+                        <span className="text-[10px] text-[var(--text-tertiary)] block">
+                          {currentDraft?.hasEditedLoad ? "Modificado para esta série" : currentSet.prescribedLoadKg ? `Prescrito: ${currentSet.prescribedLoadKg} kg` : "Sem carga"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* 8. Botão principal "Concluir série" */}
-            <button
-              type="button"
-              onClick={handleConfirmCurrentSet}
-              disabled={Boolean(loadingSetPublicId) || isSubmitting}
-              className="w-full min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
-            >
-              {loadingSetPublicId === currentSet.publicId || isSubmitting ? (
-                <>
-                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Registrando série...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-5 h-5 stroke-[2.5]" />
-                  <span>Concluir série {currentRoundOrSet}</span>
-                </>
-              )}
-            </button>
-
-            {/* 8. Registro opcional de carga e repetições */}
-            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] overflow-hidden transition-all">
-              <button
-                type="button"
-                onClick={() => setIsOptionalInputOpen((prev) => !prev)}
-                className="w-full px-4 py-3 flex items-center justify-between gap-3 text-left hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                    Registrar carga e repetições (opcional)
-                  </span>
-                  {(currentDraft?.hasEditedReps || currentDraft?.hasEditedLoad) && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-                      {currentDraft.hasEditedReps ? `${currentDraft.reps} reps` : ""}
-                      {currentDraft.hasEditedReps && currentDraft.hasEditedLoad ? " · " : ""}
-                      {currentDraft.hasEditedLoad ? `${currentDraft.loadKg} kg` : ""}
-                    </span>
-                  )}
-                </div>
-                <ChevronDown
-                  className={`w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200 shrink-0 ${
-                    isOptionalInputOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-
-              {isOptionalInputOpen && (
-                <div className="p-4 pt-1 border-t border-[var(--border-subtle)] space-y-3 animate-in fade-in duration-150">
-                  <p className="text-[11px] text-[var(--text-tertiary)]">
-                    Opcional. Campos em branco permanecem vazios (NULL) e não assumem a prescrição automaticamente.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Repetições */}
-                    <div className="p-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border-default)] space-y-1.5 text-center">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                        Repetições Realizadas
-                      </span>
-                      <div className="flex items-center justify-between gap-2 max-w-[180px] mx-auto">
-                        <button
-                          type="button"
-                          onClick={() => handleStepReps(-1)}
-                          className="w-9 h-9 rounded-lg bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] font-extrabold text-base flex items-center justify-center cursor-pointer active:scale-95 transition-all"
-                          aria-label="Diminuir repetições"
-                        >
-                          -
-                        </button>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={displayedReps != null ? String(displayedReps) : ""}
-                          onChange={(e) => handleRepsInputChange(e.target.value)}
-                          placeholder={currentSet.prescribedReps != null ? String(currentSet.prescribedReps) : "—"}
-                          className="w-16 h-9 rounded-lg text-center text-base font-extrabold text-[var(--text-primary)] bg-[var(--surface-subtle)] border border-[var(--border-default)] focus:border-emerald-500 focus:outline-hidden transition-all tabular-nums"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleStepReps(1)}
-                          className="w-9 h-9 rounded-lg bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] font-extrabold text-base flex items-center justify-center cursor-pointer active:scale-95 transition-all"
-                          aria-label="Aumentar repetições"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">
-                        {currentDraft?.hasEditedReps ? "Modificado para esta série" : currentSet.prescribedReps ? `Prescrito: ${currentSet.prescribedReps}` : "Livre"}
-                      </span>
-                    </div>
-
-                    {/* Carga Utilizada (kg) */}
-                    <div className="p-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border-default)] space-y-1.5 text-center">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                        Carga Utilizada (kg)
-                      </span>
-                      <div className="flex items-center justify-center gap-1.5 max-w-[180px] mx-auto">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={displayedLoad}
-                          onChange={(e) => handleLoadChange(e.target.value)}
-                          placeholder={currentSet.prescribedLoadKg != null && currentSet.prescribedLoadKg > 0 ? String(currentSet.prescribedLoadKg) : "—"}
-                          className="w-20 h-9 rounded-lg text-center text-base font-extrabold text-[var(--text-primary)] bg-[var(--surface-subtle)] border border-[var(--border-default)] focus:border-emerald-500 focus:outline-hidden transition-all tabular-nums"
-                        />
-                        <span className="text-xs font-bold text-[var(--text-tertiary)]">kg</span>
-                      </div>
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">
-                        {currentDraft?.hasEditedLoad ? "Modificado para esta série" : currentSet.prescribedLoadKg ? `Prescrito: ${currentSet.prescribedLoadKg} kg` : "Sem carga"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 10. Ações complementares: substituir, pular série, pular exercício, navegar */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--border-subtle)]">
-              <div className="flex flex-wrap items-center gap-2">
+            {/* AÇÕES COMPLEMENTARES */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-[var(--border-subtle)]">
+              <div className="flex items-center gap-2">
                 {onOpenSwapModal && remainingSwaps > 0 && (
                   <button
                     type="button"
@@ -1320,51 +1274,102 @@ export function StudentRuntimeFocusedView({
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  onClick={handleSkipCurrentSet}
-                  disabled={Boolean(loadingSetPublicId) || isSubmitting}
-                  className="min-h-[44px] px-3.5 py-2 rounded-xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="Pular esta série"
-                >
-                  <SkipForward className="w-4 h-4" />
-                  <span>Pular série</span>
-                </button>
+                {/* Menu "Mais opções": Pular série, Pular exercício e Finalizar treino */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsMoreOptionsOpen((prev) => !prev)}
+                    className="min-h-[44px] px-3.5 py-2 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1.5 cursor-pointer"
+                    aria-expanded={isMoreOptionsOpen}
+                    aria-haspopup="menu"
+                  >
+                    <span>Mais opções</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isMoreOptionsOpen ? "rotate-180" : ""}`} />
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={handleSkipCurrentExercise}
-                  disabled={Boolean(loadingSetPublicId) || isSubmitting}
-                  className="min-h-[44px] px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/60 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="Pular todas as séries deste exercício"
-                >
-                  <span>Pular exercício</span>
-                </button>
+                  {isMoreOptionsOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-20 cursor-default"
+                        onClick={() => setIsMoreOptionsOpen(false)}
+                      />
+                      <div
+                        className="absolute left-0 bottom-full mb-2 w-52 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-lg p-1.5 space-y-1 z-30 animate-in fade-in zoom-in-95 duration-100"
+                        role="menu"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMoreOptionsOpen(false);
+                            handleSkipCurrentSet();
+                          }}
+                          disabled={Boolean(loadingSetPublicId) || isSubmitting}
+                          className="w-full min-h-[44px] px-3 py-2 rounded-xl text-left text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                          role="menuitem"
+                        >
+                          <SkipForward className="w-4 h-4 text-zinc-500" />
+                          <span>Pular esta série</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMoreOptionsOpen(false);
+                            handleSkipCurrentExercise();
+                          }}
+                          disabled={Boolean(loadingSetPublicId) || isSubmitting}
+                          className="w-full min-h-[44px] px-3 py-2 rounded-xl text-left text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                          role="menuitem"
+                        >
+                          <FastForward className="w-4 h-4 text-zinc-500" />
+                          <span>Pular exercício</span>
+                        </button>
+
+                        <div className="border-t border-[var(--border-subtle)] my-1" />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMoreOptionsOpen(false);
+                            setShowEarlyCompleteModal(true);
+                          }}
+                          disabled={isCompleting}
+                          className="w-full min-h-[44px] px-3 py-2 rounded-xl text-left text-xs font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                          role="menuitem"
+                        >
+                          <Flag className="w-4 h-4 text-amber-600" />
+                          <span>Finalizar treino</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
 
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleNavigateItem("prev")}
-                  disabled={blockItems.length <= 1}
-                  className="min-h-[44px] px-3 py-2 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-secondary)] transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-40"
-                  title="Exercício anterior"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  <span className="hidden sm:inline">Anterior</span>
-                </button>
+              {/* Navegação simples sem concluir nada ao navegar */}
+              {blockItems.length > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleNavigateItem("prev")}
+                    className="min-h-[44px] px-3 py-2 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-secondary)] transition-colors flex items-center gap-1 cursor-pointer"
+                    title="Exercício anterior"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Anterior</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleNavigateItem("next")}
-                  disabled={blockItems.length <= 1}
-                  className="min-h-[44px] px-3 py-2 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-secondary)] transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-40"
-                  title="Próximo exercício"
-                >
-                  <span className="hidden sm:inline">Próximo</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => handleNavigateItem("next")}
+                    className="min-h-[44px] px-3 py-2 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-secondary)] transition-colors flex items-center gap-1 cursor-pointer"
+                    title="Próximo exercício"
+                  >
+                    <span className="hidden sm:inline">Próximo</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1431,8 +1436,8 @@ export function StudentRuntimeFocusedView({
       <MobileBottomSheet
         isOpen={isIndexDrawerOpen}
         onClose={() => setIsIndexDrawerOpen(false)}
-        title={block.title || "Exercícios da Divisão"}
-        subtitle={`${doneCount} de ${totalSetsCount} séries concluídas`}
+        title={currentBlock?.title || "Exercícios da Divisão"}
+        subtitle={`${completedCount} de ${totalSetsCount} séries concluídas`}
       >
         <div className="space-y-4 py-2">
           {renderExerciseIndexList()}

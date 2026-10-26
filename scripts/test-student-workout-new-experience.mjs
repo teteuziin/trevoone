@@ -51,10 +51,10 @@ const resolverCode = fs.readFileSync(
   "utf8"
 );
 
-// 1. Deve verificar primeiro pending set para resolver activeBlock em sessões legadas
+// 1. Deve verificar séries concluídas persistidas para resolver activeBlock de forma estável
 assert.ok(
-  resolverCode.includes("wex.execution_session_id = ? AND wex.completed_at IS NULL"),
-  "daily-workout-resolver deve resolver o activeBlock pelo primeiro pending set na sessão legada"
+  resolverCode.includes("wex.execution_session_id = ? AND wex.completed_at IS NOT NULL"),
+  "daily-workout-resolver deve resolver o activeBlock por séries concluídas persistidas (estável durante o avanço do aluno)"
 );
 
 // 2. A query de progresso de exercícios e séries DEVE conter 'AND wbi.block_id = ?'
@@ -176,10 +176,18 @@ assert.ok(
   "Botão 'Finalizar treino' deve ser acessível durante toda a sessão"
 );
 
-// 3. Séries com estado visual claro
+// 3. Séries com estado visual claro e contadores
 assert.ok(
-  runtimeViewCode.includes("Séries deste exercício") && runtimeViewCode.includes("✓ Concluída"),
+  runtimeViewCode.includes("Séries deste exercício") && runtimeViewCode.includes("Concluída"),
   "StudentRuntimeFocusedView deve exibir as séries com estados visuais claros (Concluída, Pulada, A fazer)"
+);
+assert.ok(
+  runtimeViewCode.includes("Mais opções"),
+  "StudentRuntimeFocusedView deve agrupar ações secundárias em 'Mais opções'"
+);
+assert.ok(
+  runtimeViewCode.includes("Exercício") && runtimeViewCode.includes("totalExercisesCount"),
+  "StudentRuntimeFocusedView deve exibir posição do treino 'Exercício X de Y'"
 );
 
 // 4. Pular exercício

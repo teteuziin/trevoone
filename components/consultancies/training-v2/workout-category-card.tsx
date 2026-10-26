@@ -31,7 +31,12 @@ import {
   type CombinationVisualTheme,
 } from "./training-studio-tokens";
 import { GuidedCombinationModal } from "./guided-combination-modal";
-import { addExerciseItemToBlockAction, createCustomExerciseAction } from "@/app/consultoria/[slug]/rotinas/actions";
+import {
+  addExerciseItemToBlockAction,
+  createCustomExerciseAction,
+  updateExerciseAlternativesAction,
+} from "@/app/consultoria/[slug]/rotinas/actions";
+import { WorkoutItemAlternativesModal } from "./workout-item-alternatives-modal";
 import type { WorkoutNextExerciseDefault } from "./workout-next-exercise-default-modal";
 
 function Sliders({ className = "w-4 h-4" }: { className?: string }) {
@@ -781,6 +786,7 @@ export function WorkoutCategoryCard({
     combinationPublicId?: string;
   } | null>(null);
   const [executionModalItem, setExecutionModalItem] = useState<WorkoutBlockItemDto | null>(null);
+  const [managingAlternativesItem, setManagingAlternativesItem] = useState<WorkoutBlockItemDto | null>(null);
 
   const [, startTransition] = useTransition();
 
@@ -1731,6 +1737,7 @@ export function WorkoutCategoryCard({
                                     ? (type) => handleStartGuidedCombination(type, item, subBlock.publicId)
                                     : undefined
                                 }
+                                onOpenAlternatives={() => setManagingAlternativesItem(item)}
                               />
                             </div>
                           </div>
@@ -1946,6 +1953,7 @@ export function WorkoutCategoryCard({
                               ? (type) => handleStartGuidedCombination(type, item, undefined)
                               : undefined
                           }
+                          onOpenAlternatives={() => setManagingAlternativesItem(item)}
                         />
                       </div>
                     </div>
@@ -2274,6 +2282,34 @@ export function WorkoutCategoryCard({
                 }
               : undefined
           }
+          onOpenAlternatives={() => {
+            const it = actionsSheetItem.item;
+            setActionsSheetItem(null);
+            setManagingAlternativesItem(it);
+          }}
+        />
+      )}
+
+      {/* Alternatives Modal */}
+      {managingAlternativesItem && (
+        <WorkoutItemAlternativesModal
+          isOpen={true}
+          onClose={() => setManagingAlternativesItem(null)}
+          consultancySlug={consultancySlug || ""}
+          item={managingAlternativesItem}
+          onSaveAlternatives={async (newAlternatives) => {
+            if (consultancySlug) {
+              const res = await updateExerciseAlternativesAction(
+                consultancySlug,
+                managingAlternativesItem.publicId,
+                newAlternatives
+              );
+              if (!res.ok) {
+                throw new Error(res.error || "Erro ao salvar alternativas.");
+              }
+            }
+            setManagingAlternativesItem((prev) => (prev ? { ...prev, alternatives: newAlternatives } : null));
+          }}
         />
       )}
 
@@ -2775,6 +2811,7 @@ export function LegacyCombinationCard({
                 onRemoveFromCombination={() =>
                   onRemoveItemFromCombination?.(combination.publicId, item.publicId) || Promise.resolve()
                 }
+                onOpenAlternatives={() => setManagingAlternativesItem(item)}
               />
 
               {/* Direct Transition Connector between Items */}
@@ -2862,6 +2899,7 @@ type ExerciseRowProps = {
   isFirstInComb?: boolean;
   isLastInComb?: boolean;
   consultancySlug?: string;
+  onOpenAlternatives?: () => void;
 };
 
 function ExerciseRow({
@@ -2907,6 +2945,7 @@ function ExerciseRow({
   onRemoveFromCombination,
   isFirstInComb,
   isLastInComb,
+  onOpenAlternatives,
 }: ExerciseRowProps) {
   const sets = item.sets || [];
   const initialSeriesCount = sets.length > 0 ? sets.length : 4;
@@ -3132,6 +3171,25 @@ function ExerciseRow({
                 }`}>
                   {isSequence ? "Sequência personalizada" : "Personalizado"}
                 </span>
+              )}
+
+              {isDraft && onOpenAlternatives && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenAlternatives();
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors shrink-0 cursor-pointer"
+                  title="Configurar substituições prescritas para este exercício"
+                >
+                  <span>⇄</span>
+                  <span>
+                    {item.alternatives && item.alternatives.length > 0
+                      ? `Substituições (${item.alternatives.length})`
+                      : "Substituições"}
+                  </span>
+                </button>
               )}
 
               {isUnmatched && (
@@ -3471,6 +3529,27 @@ function ExerciseRow({
                           <Copy className="w-3.5 h-3.5 text-blue-500" />
                           <span>Duplicar exercício</span>
                         </button>
+
+                        {onOpenAlternatives && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onCloseMenu();
+                              onOpenAlternatives();
+                            }}
+                            className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 flex items-center justify-between text-left cursor-pointer min-h-[40px] sm:min-h-[34px] font-bold text-xs"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>⇄</span>
+                              <span>Substituições prescritas</span>
+                            </div>
+                            <span className="text-[11px] font-semibold text-[var(--foreground-muted)]">
+                              {item.alternatives && item.alternatives.length > 0
+                                ? `${item.alternatives.length}`
+                                : "Adicionar"}
+                            </span>
+                          </button>
+                        )}
 
                         {!inCombination && onStartGuidedCombination && (
                           <>
@@ -5817,6 +5896,7 @@ export function ExerciseActionsSheet({
   onOpenRename,
   onCombineFromHere,
   onStartGuidedCombination,
+  onOpenAlternatives,
 }: {
   isOpen: boolean;
   item: WorkoutBlockItemDto;
@@ -5841,6 +5921,7 @@ export function ExerciseActionsSheet({
   onOpenRename?: () => void;
   onCombineFromHere?: () => void;
   onStartGuidedCombination?: (type: WorkoutCombinationType) => void;
+  onOpenAlternatives?: () => void;
 }) {
   const [isMovingCategory, setIsMovingCategory] = useState(false);
   const otherCategories = (allCategories || []).filter((c) => c.publicId !== categoryPublicId);
@@ -5973,6 +6054,27 @@ export function ExerciseActionsSheet({
                 <span>Criar circuito com este exercício</span>
               </button>
             </div>
+          )}
+
+          {onOpenAlternatives && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenAlternatives();
+              }}
+              className="w-full px-4 py-3 rounded-xl hover:bg-emerald-500/10 flex items-center justify-between text-left font-bold text-xs sm:text-sm text-emerald-700 dark:text-emerald-300 min-h-[48px] cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-base">⇄</span>
+                <span>Substituições prescritas</span>
+              </div>
+              <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">
+                {item.alternatives && item.alternatives.length > 0
+                  ? `${item.alternatives.length} cadastradas`
+                  : "Adicionar"}
+              </span>
+            </button>
           )}
 
           <button

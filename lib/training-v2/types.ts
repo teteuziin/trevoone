@@ -255,6 +255,25 @@ export type WorkoutSubBlockDto = {
   updatedAt?: Date;
 };
 
+export type WorkoutBlockItemAlternativeDto = {
+  id: string;
+  exerciseId?: number | null;
+  exercisePublicId?: string | null;
+  customExerciseId?: number | null;
+  customExercisePublicId?: string | null;
+  isCustomExercise?: boolean;
+  exerciseName: string;
+  muscleGroup?: string | null;
+  equipment?: string | null;
+  instructions?: string | null;
+  customVideoUrl?: string | null;
+  targetReps?: number | null;
+  targetRepsMax?: number | null;
+  targetLoadKg?: number | null;
+  targetRestSeconds?: number | null;
+  notes?: string | null;
+};
+
 export type WorkoutBlockItemDto = {
   publicId: string;
   exercisePublicId: string | null;
@@ -280,6 +299,7 @@ export type WorkoutBlockItemDto = {
   notes: string | null;
   pinnedMedia: BlockItemMediaDto[];
   sets: WorkoutItemSetDto[];
+  alternatives?: WorkoutBlockItemAlternativeDto[];
 };
 
 export type WorkoutBlockDto = {

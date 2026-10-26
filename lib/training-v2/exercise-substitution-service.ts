@@ -282,18 +282,18 @@ export async function requestExerciseAlternatives(params: {
 
     const item = itemRows[0];
 
-    // 4. Verify no set of this item has already been completed in this session
-    const [completedSetsRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT COUNT(*) AS completed_count
+    // 4. Verify there are still pending sets for this item (completed sets are preserved!)
+    const [pendingSetsRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) AS pending_count
        FROM workout_execution_sets
-       WHERE execution_session_id = ? AND block_item_id = ? AND completed_at IS NOT NULL;`,
+       WHERE execution_session_id = ? AND block_item_id = ? AND completed_at IS NULL;`,
       [s.id, item.id]
     );
-    const completedSetsCount = Number(completedSetsRows[0]?.completed_count || 0);
-    if (completedSetsCount > 0) {
+    const pendingSetsCount = Number(pendingSetsRows[0]?.pending_count || 0);
+    if (pendingSetsCount === 0) {
       throw new TrainingAuthorizationError(
-        "Este exercício já foi iniciado. Finalize ou pule antes de substituir.",
-        "EXERCISE_ALREADY_STARTED",
+        "Todas as séries deste exercício já foram concluídas ou puladas.",
+        "ALL_SETS_COMPLETED",
         400
       );
     }
@@ -646,14 +646,28 @@ export async function confirmExerciseSubstitution(params: {
     const nextSequenceNumber = currentTotal + 1;
 
     // 3. Lock and validate block item
-    const [itemRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, exercise_id, exercise_name_snapshot, muscle_group_snapshot
-       FROM workout_block_items
-       WHERE public_id = ?
-       LIMIT 1
-       FOR UPDATE;`,
-      [blockItemPublicId]
-    );
+    let itemRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, exercise_id, exercise_name_snapshot, muscle_group_snapshot, alternatives_json
+         FROM workout_block_items
+         WHERE public_id = ?
+         LIMIT 1
+         FOR UPDATE;`,
+        [blockItemPublicId]
+      );
+      itemRows = rows;
+    } catch {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, exercise_id, exercise_name_snapshot, muscle_group_snapshot
+         FROM workout_block_items
+         WHERE public_id = ?
+         LIMIT 1
+         FOR UPDATE;`,
+        [blockItemPublicId]
+      );
+      itemRows = rows;
+    }
 
     if (!itemRows || itemRows.length === 0) {
       await connection.rollback();
@@ -662,46 +676,111 @@ export async function confirmExerciseSubstitution(params: {
 
     const item = itemRows[0];
 
-    // 4. Verify no set of this item has already been completed in this session
-    const [completedSetsRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT COUNT(*) AS completed_count
+    // 4. Verify there are still pending sets for this item (completed sets are preserved!)
+    const [pendingSetsRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) AS pending_count
        FROM workout_execution_sets
-       WHERE execution_session_id = ? AND block_item_id = ? AND completed_at IS NOT NULL
+       WHERE execution_session_id = ? AND block_item_id = ? AND completed_at IS NULL
        FOR UPDATE;`,
       [s.id, item.id]
     );
-    const completedSetsCount = Number(completedSetsRows[0]?.completed_count || 0);
-    if (completedSetsCount > 0) {
+    const pendingSetsCount = Number(pendingSetsRows[0]?.pending_count || 0);
+    if (pendingSetsCount === 0) {
       await connection.rollback();
       throw new TrainingAuthorizationError(
-        "Este exercício já foi iniciado. Finalize ou pule antes de substituir.",
-        "EXERCISE_ALREADY_STARTED",
+        "Todas as séries deste exercício já foram concluídas ou puladas.",
+        "ALL_SETS_COMPLETED",
         400
       );
     }
 
-    // 5. Validate performed exercise from library (Exercise Library is authority!)
-    const [performedRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, public_id, name, muscle_group_primary, equipment
-       FROM exercises
-       WHERE public_id = ?
-         AND status = 'PUBLISHED'
-         AND deleted_at IS NULL
-         AND (scope = 'GLOBAL' OR (scope = 'CONSULTANCY' AND consultancy_id = ?))
-       LIMIT 1;`,
-      [performedExercisePublicId, ctx.consultancyId]
-    );
+    // 5. Validate performed exercise: check prescribed alternatives or library
+    let performedId: number | null = null;
+    let performedName: string = "";
+    let performedMuscleGroup: string | null = null;
+    let performedEquipment: string | null = null;
 
-    if (!performedRows || performedRows.length === 0) {
-      await connection.rollback();
-      throw new TrainingAuthorizationError(
-        "Exercício substituto inválido ou indisponível na biblioteca.",
-        "INVALID_EXERCISE",
-        400
-      );
+    let prescribedAlt: {
+      id: string;
+      exerciseId?: number | null;
+      exercisePublicId?: string | null;
+      exerciseName: string;
+      muscleGroup?: string | null;
+      equipment?: string | null;
+      targetReps?: number | null;
+      targetRepsMax?: number | null;
+      targetLoadKg?: number | null;
+      targetRestSeconds?: number | null;
+    } | null = null;
+
+    if (item.alternatives_json) {
+      try {
+        const parsed =
+          typeof item.alternatives_json === "string"
+            ? JSON.parse(item.alternatives_json)
+            : item.alternatives_json;
+        if (Array.isArray(parsed)) {
+          prescribedAlt =
+            parsed.find(
+              (a: { id?: string; exercisePublicId?: string }) =>
+                a.id === performedExercisePublicId || a.exercisePublicId === performedExercisePublicId
+            ) || null;
+        }
+      } catch {
+        // ignore parsing errors
+      }
     }
 
-    const performed = performedRows[0];
+    if (prescribedAlt) {
+      performedName = prescribedAlt.exerciseName;
+      performedMuscleGroup = prescribedAlt.muscleGroup || null;
+      performedEquipment = prescribedAlt.equipment || null;
+      if (prescribedAlt.exerciseId) {
+        performedId = Number(prescribedAlt.exerciseId);
+      } else if (prescribedAlt.exercisePublicId) {
+        const [exRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT id FROM exercises WHERE public_id = ? LIMIT 1;`,
+          [prescribedAlt.exercisePublicId]
+        );
+        if (exRows && exRows.length > 0) {
+          performedId = Number(exRows[0].id);
+        }
+      }
+    }
+
+    if (!performedId) {
+      const [performedRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, public_id, name, muscle_group_primary, equipment
+         FROM exercises
+         WHERE public_id = ?
+           AND status = 'PUBLISHED'
+           AND deleted_at IS NULL
+           AND (scope = 'GLOBAL' OR (scope = 'CONSULTANCY' AND consultancy_id = ?))
+         LIMIT 1;`,
+        [performedExercisePublicId, ctx.consultancyId]
+      );
+
+      if (performedRows && performedRows.length > 0) {
+        const performed = performedRows[0];
+        performedId = Number(performed.id);
+        if (!performedName) performedName = String(performed.name);
+        if (!performedMuscleGroup) performedMuscleGroup = performed.muscle_group_primary ? String(performed.muscle_group_primary) : null;
+        if (!performedEquipment) performedEquipment = performed.equipment ? String(performed.equipment) : null;
+      }
+    }
+
+    if (!performedId) {
+      if (prescribedAlt && item.exercise_id) {
+        performedId = Number(item.exercise_id);
+      } else {
+        await connection.rollback();
+        throw new TrainingAuthorizationError(
+          "Exercício substituto inválido ou indisponível na biblioteca.",
+          "INVALID_EXERCISE",
+          400
+        );
+      }
+    }
 
     // 6. Resolve original prescribed exercise ID
     let originalExerciseId: number;
@@ -710,11 +789,11 @@ export async function confirmExerciseSubstitution(params: {
     if (item.exercise_id) {
       originalExerciseId = Number(item.exercise_id);
     } else {
-      // If custom without exercise_id, fallback to first substitution's original or performed id
-      originalExerciseId = Number(performed.id);
+      originalExerciseId = Number(performedId);
     }
 
     const substitutionPublicId = crypto.randomUUID();
+    const sourceString = prescribedAlt ? "STUDENT_PRESCRIBED_ALTERNATIVE" : "STUDENT_AI_SUGGESTION";
 
     // 7. Insert substitution record atomically
     await connection.execute<ResultSetHeader>(
@@ -731,7 +810,7 @@ export async function confirmExerciseSubstitution(params: {
         sequence_number,
         idempotency_key,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'STUDENT_AI_SUGGESTION', ?, ?, NOW(3));`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3));`,
       [
         substitutionPublicId,
         ctx.consultancyId,
@@ -739,15 +818,36 @@ export async function confirmExerciseSubstitution(params: {
         ctx.membershipId,
         item.id,
         originalExerciseId,
-        performed.id,
+        performedId,
         reason,
+        sourceString,
         nextSequenceNumber,
         params.idempotencyKey || null,
       ]
     );
 
-    // 8. Fetch media for the performed exercise
-    const media = await fetchMediaForExercise(connection, Number(performed.id));
+    // Update prescription targets for remaining pending sets if prescribed alternative defined custom values
+    if (prescribedAlt && (prescribedAlt.targetReps != null || prescribedAlt.targetLoadKg != null || prescribedAlt.targetRestSeconds != null)) {
+      await connection.execute(
+        `UPDATE workout_execution_sets
+         SET prescribed_reps = COALESCE(?, prescribed_reps),
+             prescribed_reps_max = ?,
+             prescribed_load_kg = COALESCE(?, prescribed_load_kg),
+             prescribed_rest_seconds = COALESCE(?, prescribed_rest_seconds)
+         WHERE execution_session_id = ? AND block_item_id = ? AND completed_at IS NULL;`,
+        [
+          prescribedAlt.targetReps ?? null,
+          prescribedAlt.targetRepsMax ?? null,
+          prescribedAlt.targetLoadKg ?? null,
+          prescribedAlt.targetRestSeconds ?? null,
+          s.id,
+          item.id,
+        ]
+      );
+    }
+
+    // 8. Fetch media for the performed exercise (if linked to an exercise id)
+    const media = performedId ? await fetchMediaForExercise(connection, Number(performedId)) : [];
 
     await connection.commit();
 
@@ -763,14 +863,14 @@ export async function confirmExerciseSubstitution(params: {
       module: "STUDENT",
       resourceType: "WORKOUT_EXECUTION_SESSION",
       resourcePublicId: String(s.public_id),
-      summary: `Substituiu o exercício "${originalExerciseName}" por "${performed.name}" no treino (Motivo: ${SWAP_REASON_LABELS[reason]} · Troca #${nextSequenceNumber})`,
+      summary: `Substituiu o exercício "${originalExerciseName}" por "${performedName}" no treino (Motivo: ${SWAP_REASON_LABELS[reason]} · Troca #${nextSequenceNumber})`,
       metadata: {
         workoutExecutionPublicId: String(s.public_id),
         blockItemPublicId,
         prescribedExercisePublicId: item.exercise_id ? String(item.exercise_id) : null,
         prescribedExerciseName: originalExerciseName,
-        performedExercisePublicId: String(performed.public_id),
-        performedExerciseName: String(performed.name),
+        performedExercisePublicId: String(performedExercisePublicId),
+        performedExerciseName: String(performedName),
         reason,
         reasonLabel: SWAP_REASON_LABELS[reason],
         swapSequence: nextSequenceNumber,
@@ -782,10 +882,10 @@ export async function confirmExerciseSubstitution(params: {
       substitutionPublicId,
       remainingSwaps,
       performedExercise: {
-        publicId: String(performed.public_id),
-        name: String(performed.name),
-        muscleGroupPrimary: performed.muscle_group_primary ? String(performed.muscle_group_primary) : null,
-        equipment: performed.equipment ? String(performed.equipment) : null,
+        publicId: String(performedExercisePublicId),
+        name: String(performedName),
+        muscleGroupPrimary: performedMuscleGroup ? String(performedMuscleGroup) : null,
+        equipment: performedEquipment ? String(performedEquipment) : null,
         pinnedMedia: media,
       },
     };

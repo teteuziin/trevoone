@@ -4,6 +4,7 @@ import { useState } from "react";
 import type {
   WorkoutBlockDto,
   WorkoutBlockItemDto,
+  WorkoutBlockItemAlternativeDto,
   WorkoutBlockType,
   PrescriptionMode,
   CardioMethodConfig,
@@ -15,6 +16,8 @@ import { DropSetEditor } from "./drop-set-editor";
 import { RestPauseEditor } from "./rest-pause-editor";
 import { CardioEditor } from "./cardio-editor";
 import { WarmupEditor } from "./warmup-editor";
+import { WorkoutItemAlternativesModal } from "./workout-item-alternatives-modal";
+import { updateExerciseAlternativesAction } from "@/app/consultoria/[slug]/rotinas/actions";
 
 function ChevronUp({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -115,6 +118,14 @@ function SlidersHorizontal({ className = "w-4 h-4" }: { className?: string }) {
       <line x1="1" y1="14" x2="7" y2="14" />
       <line x1="9" y1="8" x2="15" y2="8" />
       <line x1="17" y1="16" x2="23" y2="16" />
+    </svg>
+  );
+}
+
+function Repeat({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
     </svg>
   );
 }
@@ -316,6 +327,11 @@ type WorkoutBlockCardProps = {
       config: WarmupMethodConfig;
     }
   ) => Promise<void>;
+  consultancySlug?: string;
+  onUpdateAlternatives?: (
+    itemPublicId: string,
+    alternatives: WorkoutBlockItemAlternativeDto[]
+  ) => Promise<void>;
 };
 
 export function WorkoutBlockCard({
@@ -337,7 +353,11 @@ export function WorkoutBlockCard({
   onReplaceRestPause,
   onUpdateCardio,
   onUpdateWarmup,
+  consultancySlug = "",
+  onUpdateAlternatives,
 }: WorkoutBlockCardProps) {
+  const [managingAlternativesItem, setManagingAlternativesItem] = useState<WorkoutBlockItemDto | null>(null);
+  const [itemAlternativesMap, setItemAlternativesMap] = useState<Record<string, WorkoutBlockItemAlternativeDto[]>>({});
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(block.title || "");
   const [savingTitle, setSavingTitle] = useState(false);
@@ -867,6 +887,27 @@ export function WorkoutBlockCard({
                           <span>{item.notes.trim()}</span>
                         </div>
                       )}
+
+                      {/* Prescribed Alternatives Badge / Trigger */}
+                      {(() => {
+                        const currentAlts = itemAlternativesMap[item.publicId] ?? item.alternatives ?? [];
+                        const count = currentAlts.length;
+                        return (
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setManagingAlternativesItem(item)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[var(--border-default)] hover:border-emerald-500/40 bg-[var(--surface-sunken)] hover:bg-[var(--surface)] text-[11px] font-bold text-[var(--foreground)] transition-colors min-h-[32px] cursor-pointer"
+                              title="Configurar exercícios alternativos pré-autorizados para o aluno"
+                            >
+                              <Repeat className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                              <span>
+                                {count > 0 ? `Substituições (${count})` : "Adicionar substituições"}
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -1278,6 +1319,38 @@ export function WorkoutBlockCard({
         )}
       </div>
         </>
+      )}
+      {managingAlternativesItem && (
+        <WorkoutItemAlternativesModal
+          isOpen={true}
+          onClose={() => setManagingAlternativesItem(null)}
+          consultancySlug={consultancySlug}
+          item={{
+            ...managingAlternativesItem,
+            alternatives:
+              itemAlternativesMap[managingAlternativesItem.publicId] ??
+              managingAlternativesItem.alternatives ??
+              [],
+          }}
+          onSaveAlternatives={async (newAlternatives) => {
+            if (onUpdateAlternatives) {
+              await onUpdateAlternatives(managingAlternativesItem.publicId, newAlternatives);
+            } else if (consultancySlug) {
+              const res = await updateExerciseAlternativesAction(
+                consultancySlug,
+                managingAlternativesItem.publicId,
+                newAlternatives
+              );
+              if (!res.ok) {
+                throw new Error(res.error || "Erro ao salvar alternativas.");
+              }
+            }
+            setItemAlternativesMap((prev) => ({
+              ...prev,
+              [managingAlternativesItem.publicId]: newAlternatives,
+            }));
+          }}
+        />
       )}
     </div>
   );

@@ -17,11 +17,13 @@ import {
   inspectWorkoutVersionForPublish,
   sanitizeVideoUrl,
 } from "./validation";
+import { isMissingColumnError } from "./schema-resilience";
 import type {
   WorkoutRootDto,
   WorkoutVersionDto,
   WorkoutBlockDto,
   WorkoutBlockItemDto,
+  WorkoutBlockItemAlternativeDto,
   WorkoutItemCombinationDto,
   WorkoutCombinationType,
   WorkoutItemSetDto,
@@ -309,26 +311,56 @@ export async function getWorkoutVersionTree(
     );
 
     // 3. Fetch items for all blocks
-    const [iRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wbi.id, wbi.public_id, wbi.block_id, wbi.sub_block_id, wbi.combination_id, wbi.sort_order,
-              wbi.exercise_name_snapshot, wbi.muscle_group_snapshot,
-              wbi.equipment_snapshot, wbi.instructions_snapshot,
-              wbi.prescription_mode, wbi.target_cadence, wbi.target_rpe,
-              wbi.target_rir, wbi.duration_unit, wbi.method_config_json, wbi.custom_video_url,
-              wbi.notes, wbi.exercise_id, wbi.custom_exercise_id,
-              e.public_id AS exercise_public_id, e.name AS original_exercise_name, e.scope AS exercise_scope,
-              ce.public_id AS custom_exercise_public_id,
-              wsb.public_id AS sub_block_public_id, wsb.title AS sub_block_title,
-              wic.public_id AS combination_public_id, wic.combination_type
-       FROM workout_block_items wbi
-       LEFT JOIN exercises e ON e.id = wbi.exercise_id
-       LEFT JOIN exercises ce ON ce.id = wbi.custom_exercise_id
-       LEFT JOIN workout_sub_blocks wsb ON wsb.id = wbi.sub_block_id
-       LEFT JOIN workout_item_combinations wic ON wic.id = wbi.combination_id
-       WHERE wbi.block_id IN (${blockIds.map(() => "?").join(",")})
-       ORDER BY wbi.sort_order ASC;`,
-      blockIds
-    );
+    let iRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT wbi.id, wbi.public_id, wbi.block_id, wbi.sub_block_id, wbi.combination_id, wbi.sort_order,
+                wbi.exercise_name_snapshot, wbi.muscle_group_snapshot,
+                wbi.equipment_snapshot, wbi.instructions_snapshot,
+                wbi.prescription_mode, wbi.target_cadence, wbi.target_rpe,
+                wbi.target_rir, wbi.duration_unit, wbi.method_config_json, wbi.alternatives_json, wbi.custom_video_url,
+                wbi.notes, wbi.exercise_id, wbi.custom_exercise_id,
+                e.public_id AS exercise_public_id, e.name AS original_exercise_name, e.scope AS exercise_scope,
+                ce.public_id AS custom_exercise_public_id,
+                wsb.public_id AS sub_block_public_id, wsb.title AS sub_block_title,
+                wic.public_id AS combination_public_id, wic.combination_type
+         FROM workout_block_items wbi
+         LEFT JOIN exercises e ON e.id = wbi.exercise_id
+         LEFT JOIN exercises ce ON ce.id = wbi.custom_exercise_id
+         LEFT JOIN workout_sub_blocks wsb ON wsb.id = wbi.sub_block_id
+         LEFT JOIN workout_item_combinations wic ON wic.id = wbi.combination_id
+         WHERE wbi.block_id IN (${blockIds.map(() => "?").join(",")})
+         ORDER BY wbi.sort_order ASC;`,
+        blockIds
+      );
+      iRows = rows;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["alternatives_json"])) {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT wbi.id, wbi.public_id, wbi.block_id, wbi.sub_block_id, wbi.combination_id, wbi.sort_order,
+                  wbi.exercise_name_snapshot, wbi.muscle_group_snapshot,
+                  wbi.equipment_snapshot, wbi.instructions_snapshot,
+                  wbi.prescription_mode, wbi.target_cadence, wbi.target_rpe,
+                  wbi.target_rir, wbi.duration_unit, wbi.method_config_json, wbi.custom_video_url,
+                  wbi.notes, wbi.exercise_id, wbi.custom_exercise_id,
+                  e.public_id AS exercise_public_id, e.name AS original_exercise_name, e.scope AS exercise_scope,
+                  ce.public_id AS custom_exercise_public_id,
+                  wsb.public_id AS sub_block_public_id, wsb.title AS sub_block_title,
+                  wic.public_id AS combination_public_id, wic.combination_type
+           FROM workout_block_items wbi
+           LEFT JOIN exercises e ON e.id = wbi.exercise_id
+           LEFT JOIN exercises ce ON ce.id = wbi.custom_exercise_id
+           LEFT JOIN workout_sub_blocks wsb ON wsb.id = wbi.sub_block_id
+           LEFT JOIN workout_item_combinations wic ON wic.id = wbi.combination_id
+           WHERE wbi.block_id IN (${blockIds.map(() => "?").join(",")})
+           ORDER BY wbi.sort_order ASC;`,
+          blockIds
+        );
+        iRows = rows;
+      } else {
+        throw err;
+      }
+    }
 
     const itemIds = iRows.map((i) => i.id);
 
@@ -537,6 +569,18 @@ export async function getWorkoutVersionTree(
           notes: item.notes ? String(item.notes) : null,
           pinnedMedia,
           sets: itemSets,
+          alternatives: (() => {
+            if (!item.alternatives_json) return [];
+            try {
+              const parsed =
+                typeof item.alternatives_json === "string"
+                  ? JSON.parse(item.alternatives_json)
+                  : item.alternatives_json;
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          })(),
         };
       });
 
@@ -1272,16 +1316,36 @@ async function cloneVersionTree(
     }
 
     // 2. Fetch source items of this block
-    const [sourceItems] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, sub_block_id, combination_id, exercise_id, custom_exercise_id, sort_order, exercise_name_snapshot, muscle_group_snapshot,
-              equipment_snapshot, instructions_snapshot, prescription_mode,
-              target_cadence, target_rpe, target_rir, duration_unit, method_config_json,
-              custom_video_url, notes
-       FROM workout_block_items
-       WHERE block_id = ?
-       ORDER BY sort_order ASC;`,
-      [b.id]
-    );
+    let sourceItems: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, sub_block_id, combination_id, exercise_id, custom_exercise_id, sort_order, exercise_name_snapshot, muscle_group_snapshot,
+                equipment_snapshot, instructions_snapshot, prescription_mode,
+                target_cadence, target_rpe, target_rir, duration_unit, method_config_json, alternatives_json,
+                custom_video_url, notes
+         FROM workout_block_items
+         WHERE block_id = ?
+         ORDER BY sort_order ASC;`,
+        [b.id]
+      );
+      sourceItems = rows;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["alternatives_json"])) {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT id, sub_block_id, combination_id, exercise_id, custom_exercise_id, sort_order, exercise_name_snapshot, muscle_group_snapshot,
+                  equipment_snapshot, instructions_snapshot, prescription_mode,
+                  target_cadence, target_rpe, target_rir, duration_unit, method_config_json,
+                  custom_video_url, notes
+           FROM workout_block_items
+           WHERE block_id = ?
+           ORDER BY sort_order ASC;`,
+          [b.id]
+        );
+        sourceItems = rows;
+      } else {
+        throw err;
+      }
+    }
 
     for (const item of sourceItems) {
       const newItemPublicId = crypto.randomUUID();
@@ -1299,37 +1363,82 @@ async function cloneVersionTree(
             ? JSON.stringify(item.method_config_json)
             : item.method_config_json
           : null;
+      const alternativesValue =
+        item.alternatives_json != null
+          ? typeof item.alternatives_json === "object"
+            ? JSON.stringify(item.alternatives_json)
+            : item.alternatives_json
+          : null;
 
-      const [iRes] = await connection.execute<ResultSetHeader>(
-        `INSERT INTO workout_block_items (
-          public_id, block_id, sub_block_id, combination_id, exercise_id, custom_exercise_id, sort_order, exercise_name_snapshot,
-          muscle_group_snapshot, equipment_snapshot, instructions_snapshot,
-          prescription_mode, target_cadence, target_rpe, target_rir,
-          duration_unit, method_config_json, custom_video_url, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        [
-          newItemPublicId,
-          newBlockId,
-          targetSubBlockId,
-          targetCombinationId,
-          item.exercise_id,
-          item.custom_exercise_id,
-          item.sort_order,
-          item.exercise_name_snapshot,
-          item.muscle_group_snapshot,
-          item.equipment_snapshot,
-          item.instructions_snapshot,
-          item.prescription_mode,
-          item.target_cadence,
-          item.target_rpe,
-          item.target_rir,
-          item.duration_unit || null,
-          methodConfigValue,
-          item.custom_video_url,
-          item.notes,
-        ]
-      );
-      const newItemId = iRes.insertId;
+      let newItemId: number;
+      try {
+        const [iRes] = await connection.execute<ResultSetHeader>(
+          `INSERT INTO workout_block_items (
+            public_id, block_id, sub_block_id, combination_id, exercise_id, custom_exercise_id, sort_order, exercise_name_snapshot,
+            muscle_group_snapshot, equipment_snapshot, instructions_snapshot,
+            prescription_mode, target_cadence, target_rpe, target_rir,
+            duration_unit, method_config_json, alternatives_json, custom_video_url, notes
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          [
+            newItemPublicId,
+            newBlockId,
+            targetSubBlockId,
+            targetCombinationId,
+            item.exercise_id,
+            item.custom_exercise_id,
+            item.sort_order,
+            item.exercise_name_snapshot,
+            item.muscle_group_snapshot,
+            item.equipment_snapshot,
+            item.instructions_snapshot,
+            item.prescription_mode,
+            item.target_cadence,
+            item.target_rpe,
+            item.target_rir,
+            item.duration_unit || null,
+            methodConfigValue,
+            alternativesValue,
+            item.custom_video_url,
+            item.notes,
+          ]
+        );
+        newItemId = iRes.insertId;
+      } catch (err: unknown) {
+        if (isMissingColumnError(err, ["alternatives_json"])) {
+          const [iRes] = await connection.execute<ResultSetHeader>(
+            `INSERT INTO workout_block_items (
+              public_id, block_id, sub_block_id, combination_id, exercise_id, custom_exercise_id, sort_order, exercise_name_snapshot,
+              muscle_group_snapshot, equipment_snapshot, instructions_snapshot,
+              prescription_mode, target_cadence, target_rpe, target_rir,
+              duration_unit, method_config_json, custom_video_url, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [
+              newItemPublicId,
+              newBlockId,
+              targetSubBlockId,
+              targetCombinationId,
+              item.exercise_id,
+              item.custom_exercise_id,
+              item.sort_order,
+              item.exercise_name_snapshot,
+              item.muscle_group_snapshot,
+              item.equipment_snapshot,
+              item.instructions_snapshot,
+              item.prescription_mode,
+              item.target_cadence,
+              item.target_rpe,
+              item.target_rir,
+              item.duration_unit || null,
+              methodConfigValue,
+              item.custom_video_url,
+              item.notes,
+            ]
+          );
+          newItemId = iRes.insertId;
+        } else {
+          throw err;
+        }
+      }
 
       // 3. Clone pinned media associations (reusing immutable media_asset_id)
       const [pinnedMedia] = await connection.execute<RowDataPacket[]>(
@@ -3138,16 +3247,36 @@ export async function duplicateBlockInDraft(
     }
 
     // 4. Fetch and duplicate items
-    const [sourceItems] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, sub_block_id, combination_id, exercise_id, custom_exercise_id, sort_order,
-              exercise_name_snapshot, muscle_group_snapshot, equipment_snapshot, instructions_snapshot,
-              prescription_mode, target_cadence, target_rpe, target_rir, duration_unit, method_config_json,
-              custom_video_url, notes
-       FROM workout_block_items
-       WHERE block_id = ?
-       ORDER BY sort_order ASC;`,
-      [sourceBlock.id]
-    );
+    let sourceItems: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, sub_block_id, combination_id, exercise_id, custom_exercise_id, sort_order,
+                exercise_name_snapshot, muscle_group_snapshot, equipment_snapshot, instructions_snapshot,
+                prescription_mode, target_cadence, target_rpe, target_rir, duration_unit, method_config_json,
+                alternatives_json, custom_video_url, notes
+         FROM workout_block_items
+         WHERE block_id = ?
+         ORDER BY sort_order ASC;`,
+        [sourceBlock.id]
+      );
+      sourceItems = rows;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["alternatives_json"])) {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT id, sub_block_id, combination_id, exercise_id, custom_exercise_id, sort_order,
+                  exercise_name_snapshot, muscle_group_snapshot, equipment_snapshot, instructions_snapshot,
+                  prescription_mode, target_cadence, target_rpe, target_rir, duration_unit, method_config_json,
+                  custom_video_url, notes
+           FROM workout_block_items
+           WHERE block_id = ?
+           ORDER BY sort_order ASC;`,
+          [sourceBlock.id]
+        );
+        sourceItems = rows;
+      } else {
+        throw err;
+      }
+    }
 
     for (const item of sourceItems) {
       const newItemPublicId = crypto.randomUUID();
@@ -3165,37 +3294,82 @@ export async function duplicateBlockInDraft(
             ? JSON.stringify(item.method_config_json)
             : item.method_config_json
           : null;
+      const alternativesValue =
+        item.alternatives_json != null
+          ? typeof item.alternatives_json === "object"
+            ? JSON.stringify(item.alternatives_json)
+            : item.alternatives_json
+          : null;
 
-      const [iRes] = await connection.execute<ResultSetHeader>(
-        `INSERT INTO workout_block_items (
-          public_id, block_id, sub_block_id, combination_id, exercise_id, custom_exercise_id,
-          sort_order, exercise_name_snapshot, muscle_group_snapshot, equipment_snapshot,
-          instructions_snapshot, prescription_mode, target_cadence, target_rpe, target_rir,
-          duration_unit, method_config_json, custom_video_url, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        [
-          newItemPublicId,
-          newBlockId,
-          targetSubBlockId,
-          targetCombinationId,
-          item.exercise_id,
-          item.custom_exercise_id,
-          item.sort_order,
-          item.exercise_name_snapshot,
-          item.muscle_group_snapshot,
-          item.equipment_snapshot,
-          item.instructions_snapshot,
-          item.prescription_mode,
-          item.target_cadence,
-          item.target_rpe,
-          item.target_rir,
-          item.duration_unit,
-          methodConfigValue,
-          item.custom_video_url,
-          item.notes,
-        ]
-      );
-      const newItemId = iRes.insertId;
+      let newItemId: number;
+      try {
+        const [iRes] = await connection.execute<ResultSetHeader>(
+          `INSERT INTO workout_block_items (
+            public_id, block_id, sub_block_id, combination_id, exercise_id, custom_exercise_id,
+            sort_order, exercise_name_snapshot, muscle_group_snapshot, equipment_snapshot,
+            instructions_snapshot, prescription_mode, target_cadence, target_rpe, target_rir,
+            duration_unit, method_config_json, alternatives_json, custom_video_url, notes
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          [
+            newItemPublicId,
+            newBlockId,
+            targetSubBlockId,
+            targetCombinationId,
+            item.exercise_id,
+            item.custom_exercise_id,
+            item.sort_order,
+            item.exercise_name_snapshot,
+            item.muscle_group_snapshot,
+            item.equipment_snapshot,
+            item.instructions_snapshot,
+            item.prescription_mode,
+            item.target_cadence,
+            item.target_rpe,
+            item.target_rir,
+            item.duration_unit,
+            methodConfigValue,
+            alternativesValue,
+            item.custom_video_url,
+            item.notes,
+          ]
+        );
+        newItemId = iRes.insertId;
+      } catch (err: unknown) {
+        if (isMissingColumnError(err, ["alternatives_json"])) {
+          const [iRes] = await connection.execute<ResultSetHeader>(
+            `INSERT INTO workout_block_items (
+              public_id, block_id, sub_block_id, combination_id, exercise_id, custom_exercise_id,
+              sort_order, exercise_name_snapshot, muscle_group_snapshot, equipment_snapshot,
+              instructions_snapshot, prescription_mode, target_cadence, target_rpe, target_rir,
+              duration_unit, method_config_json, custom_video_url, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [
+              newItemPublicId,
+              newBlockId,
+              targetSubBlockId,
+              targetCombinationId,
+              item.exercise_id,
+              item.custom_exercise_id,
+              item.sort_order,
+              item.exercise_name_snapshot,
+              item.muscle_group_snapshot,
+              item.equipment_snapshot,
+              item.instructions_snapshot,
+              item.prescription_mode,
+              item.target_cadence,
+              item.target_rpe,
+              item.target_rir,
+              item.duration_unit,
+              methodConfigValue,
+              item.custom_video_url,
+              item.notes,
+            ]
+          );
+          newItemId = iRes.insertId;
+        } else {
+          throw err;
+        }
+      }
 
       // Duplicate pinned media associations
       const [pinnedMedia] = await connection.execute<RowDataPacket[]>(
@@ -7587,5 +7761,109 @@ export async function updateItemCustomSequence(
     connection.release();
   }
 }
+
+/**
+ * Updates prescribed exercise alternatives for a block item in draft.
+ */
+export async function updateExerciseAlternativesInDraft(
+  ctx: TrainingAccessContext,
+  itemPublicId: string,
+  alternatives: WorkoutBlockItemAlternativeDto[]
+): Promise<WorkoutBlockItemAlternativeDto[]> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. Validate item belongs to a draft version in this consultancy
+    const [itemRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wbi.id, wbi.block_id, wb.version_id, wv.status, wv.consultancy_id
+       FROM workout_block_items wbi
+       INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+       INNER JOIN workout_versions wv ON wv.id = wb.version_id
+       WHERE wbi.public_id = ?
+       LIMIT 1
+       FOR UPDATE;`,
+      [itemPublicId]
+    );
+
+    if (!itemRows || itemRows.length === 0) {
+      await connection.rollback();
+      throw new TrainingAuthorizationError("Exercício não encontrado.", "NOT_FOUND", 404);
+    }
+
+    const item = itemRows[0];
+    if (Number(item.consultancy_id) !== ctx.consultancyId) {
+      await connection.rollback();
+      throw new TrainingAuthorizationError("Acesso negado a este treino.", "FORBIDDEN", 403);
+    }
+
+    if (item.status !== "DRAFT") {
+      await connection.rollback();
+      throw new TrainingAuthorizationError(
+        "Apenas treinos em rascunho podem ter alternativas modificadas.",
+        "NOT_DRAFT",
+        400
+      );
+    }
+
+    // 2. Validate and clean alternatives
+    const cleaned: WorkoutBlockItemAlternativeDto[] = (alternatives || []).map((alt) => ({
+      id: alt.id || crypto.randomUUID(),
+      exerciseId: alt.exerciseId ?? null,
+      exercisePublicId: alt.exercisePublicId ?? null,
+      customExerciseId: alt.customExerciseId ?? null,
+      customExercisePublicId: alt.customExercisePublicId ?? null,
+      isCustomExercise: Boolean(alt.isCustomExercise),
+      exerciseName: String(alt.exerciseName || "").trim() || "Exercício Alternativo",
+      muscleGroup: alt.muscleGroup ? String(alt.muscleGroup) : null,
+      equipment: alt.equipment ? String(alt.equipment) : null,
+      instructions: alt.instructions ? String(alt.instructions) : null,
+      customVideoUrl: alt.customVideoUrl ? String(alt.customVideoUrl) : null,
+      targetReps: alt.targetReps != null ? Number(alt.targetReps) : null,
+      targetRepsMax: alt.targetRepsMax != null ? Number(alt.targetRepsMax) : null,
+      targetLoadKg: alt.targetLoadKg != null ? Number(alt.targetLoadKg) : null,
+      targetRestSeconds: alt.targetRestSeconds != null ? Number(alt.targetRestSeconds) : null,
+      notes: alt.notes ? String(alt.notes).trim() : null,
+    }));
+
+    const jsonVal = cleaned.length > 0 ? JSON.stringify(cleaned) : null;
+
+    try {
+      await connection.execute(
+        `UPDATE workout_block_items SET alternatives_json = ?, updated_at = NOW(3) WHERE id = ?;`,
+        [jsonVal, item.id]
+      );
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["alternatives_json"])) {
+        try {
+          await connection.execute(
+            `ALTER TABLE workout_block_items ADD COLUMN IF NOT EXISTS alternatives_json JSON NULL DEFAULT NULL AFTER method_config_json;`
+          );
+          await connection.execute(
+            `UPDATE workout_block_items SET alternatives_json = ?, updated_at = NOW(3) WHERE id = ?;`,
+            [jsonVal, item.id]
+          );
+        } catch {
+          // Column could not be added; return cleaned in-memory
+        }
+      } else {
+        throw err;
+      }
+    }
+
+    await connection.commit();
+    return cleaned;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 
 

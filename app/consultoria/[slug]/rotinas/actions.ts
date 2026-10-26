@@ -2043,3 +2043,48 @@ export async function updateItemCustomSequenceAction(
     };
   }
 }
+
+/**
+ * Loads exercise details for the exercise picker modal.
+ */
+export async function getExerciseDetailsForPickerAction(
+  slug: string,
+  publicId: string
+): Promise<ActionResponse<import("@/lib/training-v2/types").ExerciseItemDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const { getExerciseByIdOrPublicId } = await import("@/lib/training-v2/exercise-repository");
+    const exercise = await getExerciseByIdOrPublicId(ctx, { publicId });
+    if (!exercise) {
+      return { ok: false, error: "Exercício não encontrado." };
+    }
+    return { ok: true, data: exercise };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao carregar detalhes do exercício.",
+    };
+  }
+}
+
+/**
+ * Updates prescribed exercise alternatives for a block item in draft.
+ */
+export async function updateExerciseAlternativesAction(
+  slug: string,
+  itemPublicId: string,
+  alternatives: import("@/lib/training-v2/types").WorkoutBlockItemAlternativeDto[]
+): Promise<ActionResponse<import("@/lib/training-v2/types").WorkoutBlockItemAlternativeDto[]>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const { updateExerciseAlternativesInDraft } = await import("@/lib/training-v2/workout-repository");
+    const updated = await updateExerciseAlternativesInDraft(ctx, itemPublicId, alternatives);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: updated };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao salvar alternativas.",
+    };
+  }
+}

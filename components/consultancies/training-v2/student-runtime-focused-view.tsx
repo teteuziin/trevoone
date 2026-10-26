@@ -484,6 +484,30 @@ export function StudentRuntimeFocusedView({
     }
   };
 
+  // Skip all remaining pending sets of the current exercise
+  const handleSkipCurrentExercise = async () => {
+    if (!currentItemContext || !onCompleteSet || loadingSetPublicId || isSubmitting) return;
+    const targetItem = currentItemContext.item;
+    const itemPendingSets = sets.filter(
+      (s) => s.blockItemPublicId === targetItem.publicId && s.completedAt == null
+    );
+    if (itemPendingSets.length === 0) return;
+
+    setIsSubmitting(true);
+    try {
+      for (const s of itemPendingSets) {
+        await onCompleteSet(s.publicId, {
+          actualReps: null,
+          actualLoadKg: null,
+          isSkipped: true,
+        });
+      }
+      setSelectedBlockItemId(null);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Previous / Next item navigation without completing sets
   const handleNavigateItem = (direction: "prev" | "next") => {
     if (!currentItemContext || blockItems.length <= 1) return;
@@ -536,6 +560,138 @@ export function StudentRuntimeFocusedView({
     const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
   }, [activeSession.startedAt]);
+
+  // --------------------------------------------------------------------------
+  // WORKOUT COMPLETED SUMMARY SCREEN (Requirement 5)
+  // --------------------------------------------------------------------------
+  if (activeSession.status === "COMPLETED") {
+    const startedDate = activeSession.startedAt ? new Date(activeSession.startedAt) : null;
+    const completedDate = activeSession.completedAt ? new Date(activeSession.completedAt) : new Date();
+
+    const startedTimeFormatted = startedDate && !Number.isNaN(startedDate.getTime())
+      ? new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(startedDate)
+      : "";
+    const completedTimeFormatted = completedDate && !Number.isNaN(completedDate.getTime())
+      ? new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(completedDate)
+      : "";
+    const sessionDateFormatted = startedDate && !Number.isNaN(startedDate.getTime())
+      ? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(startedDate)
+      : "";
+
+    const durationMinutes = startedDate && completedDate && !Number.isNaN(startedDate.getTime()) && !Number.isNaN(completedDate.getTime())
+      ? Math.max(1, Math.round((completedDate.getTime() - startedDate.getTime()) / 60000))
+      : elapsedMinutes > 0 ? elapsedMinutes : 1;
+
+    const optionalLoadsTracked = sets.filter((s) => s.actualLoadKg != null && s.actualLoadKg > 0).length;
+    const optionalRepsTracked = sets.filter((s) => s.actualReps != null && s.actualReps > 0).length;
+
+    return (
+      <div className="space-y-6 pt-6 pb-20 max-w-xl mx-auto px-4 animate-in fade-in duration-300">
+        <div className="text-center space-y-3">
+          <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-sm">
+            <TrophyIcon className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              Treino Finalizado com Sucesso
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-black text-[var(--text-primary)] font-heading">
+              Resumo do Treino
+            </h1>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+              {workout.title} • {currentBlock?.title || "Divisão de Treino"}
+            </p>
+          </div>
+        </div>
+
+        {/* Resumo ao Concluir */}
+        <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-xs space-y-4 depth-surface">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+              <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block">
+                Duração Real
+              </span>
+              <span className="text-lg font-black text-[var(--text-primary)] tabular-nums">
+                {durationMinutes} min
+              </span>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+              <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block">
+                Séries Feitas
+              </span>
+              <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
+                {completedCount}
+              </span>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+              <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block">
+                Séries Puladas
+              </span>
+              <span className="text-lg font-black text-zinc-500 dark:text-zinc-400 tabular-nums">
+                {skippedCount}
+              </span>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+              <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block">
+                Exercícios
+              </span>
+              <span className="text-lg font-black text-[var(--text-primary)] tabular-nums">
+                {blockItems.length}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+            <div className="flex items-center justify-between">
+              <span>Data da sessão:</span>
+              <strong className="text-[var(--text-primary)]">{sessionDateFormatted}</strong>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Horário:</span>
+              <strong className="text-[var(--text-primary)]">
+                {startedTimeFormatted} até {completedTimeFormatted}
+              </strong>
+            </div>
+            {(optionalLoadsTracked > 0 || optionalRepsTracked > 0) && (
+              <div className="flex items-center justify-between pt-1 border-t border-[var(--border-subtle)]">
+                <span>Registros opcionais:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                  {optionalLoadsTracked > 0 ? `${optionalLoadsTracked} cargas registradas` : ""}
+                  {optionalLoadsTracked > 0 && optionalRepsTracked > 0 ? " • " : ""}
+                  {optionalRepsTracked > 0 ? `${optionalRepsTracked} contagens de reps` : ""}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Botão Principal: Voltar aos meus treinos */}
+        <div className="space-y-3 pt-2">
+          <Link
+            href={consultancySlug ? `/consultoria/${consultancySlug}/treinos` : "/app"}
+            className="w-full min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>Voltar aos meus treinos</span>
+            <span>→</span>
+          </Link>
+
+          {onToggleOverview && (
+            <button
+              type="button"
+              onClick={onToggleOverview}
+              className="w-full min-h-[44px] rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer"
+            >
+              Revisar ficha completa
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // --------------------------------------------------------------------------
   // WORKOUT COMPLETED CELEBRATION VIEW
@@ -846,15 +1002,25 @@ export function StudentRuntimeFocusedView({
           {/* FOCUSED EXERCISE STAGE ("O QUE TENHO PARA FAZER AGORA") */}
           {/* ================================================================ */}
           <div className="p-5 sm:p-7 rounded-3xl bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-xs space-y-4 depth-surface">
-            {/* 1. Voltar aos meus treinos */}
-            <div className="pb-1">
+            {/* 1. Voltar aos meus treinos & Finalizar Treino */}
+            <div className="flex items-center justify-between gap-2 pb-1">
               <Link
                 href={consultancySlug ? `/consultoria/${consultancySlug}/treinos` : "/app"}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors py-1 group"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors py-1 group min-h-[44px]"
               >
                 <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
                 <span>Voltar aos meus treinos</span>
               </Link>
+
+              <button
+                type="button"
+                onClick={() => setShowEarlyCompleteModal(true)}
+                className="min-h-[44px] px-3.5 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Finalizar treino agora"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Finalizar treino</span>
+              </button>
             </div>
 
             {/* 2. Nome da divisão e progresso */}
@@ -964,7 +1130,18 @@ export function StudentRuntimeFocusedView({
               )}
             </div>
 
-            {/* 5. Prescrição legível */}
+            {/* 5. Observações e cuidados do personal, quando existentes */}
+            {item.notes && item.notes.trim().length > 0 && (
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-medium space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>Observações e Cuidados do Personal:</span>
+                </div>
+                <p className="leading-relaxed whitespace-pre-line pl-5">{item.notes}</p>
+              </div>
+            )}
+
+            {/* 6. Prescrição legível */}
             <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex flex-wrap items-center justify-between gap-2.5">
               <div className="space-y-0.5">
                 <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider block">
@@ -981,18 +1158,43 @@ export function StudentRuntimeFocusedView({
               )}
             </div>
 
-            {/* 6. Observações e cuidados do personal, quando existentes */}
-            {item.notes && item.notes.trim().length > 0 && (
-              <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-medium space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
-                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                  <span>Observações e Cuidados do Personal:</span>
-                </div>
-                <p className="leading-relaxed whitespace-pre-line pl-5">{item.notes}</p>
-              </div>
-            )}
+            {/* 7. Séries com estado visual claro (A fazer, Concluída, Pulada) */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                Séries deste exercício
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                {sets
+                  .filter((s) => s.blockItemPublicId === item.publicId)
+                  .map((s, sIdx) => {
+                    const isDone = s.completedAt != null && !s.isSkipped;
+                    const isSkipped = s.completedAt != null && s.isSkipped;
+                    const isCurrent = s.publicId === currentSet.publicId;
 
-            {/* 7. Botão principal "Concluir série" */}
+                    return (
+                      <div
+                        key={s.publicId}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                          isCurrent
+                            ? "bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-500/30"
+                            : isDone
+                            ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-800 dark:text-emerald-300"
+                            : isSkipped
+                            ? "bg-zinc-100 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 line-through"
+                            : "bg-[var(--surface-subtle)] border-[var(--border-default)] text-[var(--text-secondary)]"
+                        }`}
+                      >
+                        <span>Série {s.setNumber || sIdx + 1}</span>
+                        <span className="text-[10px] opacity-90">
+                          {isDone ? "✓ Concluída" : isSkipped ? "Pulada" : isCurrent ? "• Em execução" : "• A fazer"}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* 8. Botão principal "Concluir série" */}
             <button
               type="button"
               onClick={handleConfirmCurrentSet}
@@ -1007,7 +1209,7 @@ export function StudentRuntimeFocusedView({
               ) : (
                 <>
                   <Check className="w-5 h-5 stroke-[2.5]" />
-                  <span>CONCLUIR SÉRIE {currentRoundOrSet}</span>
+                  <span>Concluir série {currentRoundOrSet}</span>
                 </>
               )}
             </button>
@@ -1105,14 +1307,14 @@ export function StudentRuntimeFocusedView({
               )}
             </div>
 
-            {/* 9. Ações complementares: substituir, pular e navegar */}
+            {/* 10. Ações complementares: substituir, pular série, pular exercício, navegar */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--border-subtle)]">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {onOpenSwapModal && remainingSwaps > 0 && (
                   <button
                     type="button"
                     onClick={() => onOpenSwapModal(item)}
-                    className="min-h-[42px] px-3.5 py-2 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="min-h-[44px] px-3.5 py-2 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>⇄ Trocar exercício</span>
                   </button>
@@ -1122,11 +1324,21 @@ export function StudentRuntimeFocusedView({
                   type="button"
                   onClick={handleSkipCurrentSet}
                   disabled={Boolean(loadingSetPublicId) || isSubmitting}
-                  className="min-h-[42px] px-3.5 py-2 rounded-xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   title="Pular esta série"
                 >
                   <SkipForward className="w-4 h-4" />
                   <span>Pular série</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSkipCurrentExercise}
+                  disabled={Boolean(loadingSetPublicId) || isSubmitting}
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/60 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Pular todas as séries deste exercício"
+                >
+                  <span>Pular exercício</span>
                 </button>
               </div>
 
@@ -1135,7 +1347,7 @@ export function StudentRuntimeFocusedView({
                   type="button"
                   onClick={() => handleNavigateItem("prev")}
                   disabled={blockItems.length <= 1}
-                  className="min-h-[42px] px-3 py-2 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-secondary)] transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                  className="min-h-[44px] px-3 py-2 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-secondary)] transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-40"
                   title="Exercício anterior"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -1146,7 +1358,7 @@ export function StudentRuntimeFocusedView({
                   type="button"
                   onClick={() => handleNavigateItem("next")}
                   disabled={blockItems.length <= 1}
-                  className="min-h-[42px] px-3 py-2 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-secondary)] transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                  className="min-h-[44px] px-3 py-2 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-secondary)] transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-40"
                   title="Próximo exercício"
                 >
                   <span className="hidden sm:inline">Próximo</span>
@@ -1173,11 +1385,10 @@ export function StudentRuntimeFocusedView({
                 Finalizar treino agora?
               </h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Você concluiu <strong>{doneCount}</strong> de <strong>{totalSetsCount}</strong> séries prescritas.
-                Existem <strong>{pendingSets.length}</strong> séries pendentes.
+                Você ainda tem <strong>{pendingSets.length}</strong> {pendingSets.length === 1 ? "série para fazer" : "séries para fazer"}. Deseja finalizar agora?
               </p>
               <p className="text-[11px] text-[var(--text-tertiary)] pt-1">
-                Ao finalizar, as séries não realizadas serão registradas como encerradas antecipadamente.
+                Ao finalizar, as séries não realizadas serão registradas como encerradas antecipadamente e seu progresso será salvo.
               </p>
             </div>
 

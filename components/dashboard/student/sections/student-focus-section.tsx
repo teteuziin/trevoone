@@ -71,7 +71,9 @@ export function StudentFocusSection({
   const hasTraining = !isError && Boolean(dailyWorkoutResolution?.assignmentPublicId || activeTraining);
 
   // Status tag e cores contextuais de Treino
-  const isSessionInProgress = status === "IN_PROGRESS" || hasActiveSession;
+  const isSessionInProgress = dailyWorkoutResolution
+    ? status === "IN_PROGRESS"
+    : Boolean(hasActiveSession);
   const isCompletedToday = status === "COMPLETED_TODAY" || status === "SEQUENCE_COMPLETED";
   const isRestDay = status === "REST_DAY";
 
@@ -189,6 +191,11 @@ export function StudentFocusSection({
             ) : hasTraining ? (
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-3">
                 <div>
+                  {dailyWorkoutResolution?.unfinishedSession && (
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 dark:text-emerald-400 block mb-1">
+                      Treino previsto para hoje
+                    </span>
+                  )}
                   {/* Nome da Divisão em Destaque Forte */}
                   <h3 className="text-base sm:text-lg font-black text-zinc-900 dark:text-white tracking-tight">
                     {divisionTitle}
@@ -222,30 +229,47 @@ export function StudentFocusSection({
                   </div>
                 )}
 
-                {/* Aviso quando a sessão aberta for de um dia anterior */}
-                {isSessionInProgress && dailyWorkoutResolution?.isSessionStartedToday === false && dailyWorkoutResolution.todayRecommendedWorkout && (
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs space-y-1.5">
+                {/* Se houver sessão aberta anterior: mostrar separadamente com divisão e data real de início */}
+                {dailyWorkoutResolution?.unfinishedSession && (
+                  <div className="p-3.5 sm:p-4 rounded-xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/30 text-xs space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                        <span>📅</span>
-                        <span>Treino previsto para hoje ({dailyWorkoutResolution.todayWeekdayName})</span>
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                        <span>Treino não finalizado</span>
                       </span>
-                      {dailyWorkoutResolution.todayRecommendedWorkout.isRestDay ? (
-                        <span className="text-[11px] text-amber-800 dark:text-amber-300 font-medium">
-                          Descanso programado
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-amber-800 dark:text-amber-300 font-medium">
-                          Divisão recomendada
-                        </span>
+                      <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+                        Iniciado em {dailyWorkoutResolution.unfinishedSession.startedFormatted}
+                      </span>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-extrabold text-amber-950 dark:text-amber-100">
+                        {dailyWorkoutResolution.unfinishedSession.divisionTitle}
+                      </h4>
+                      <p className="text-[11px] text-amber-900/80 dark:text-amber-200/80 mt-0.5">
+                        Progresso: <strong>{dailyWorkoutResolution.unfinishedSession.completedSetsCount} de {dailyWorkoutResolution.unfinishedSession.totalSetsCount} séries concluídas</strong>
+                        {dailyWorkoutResolution.unfinishedSession.totalExercisesCount > 0 && (
+                          <span> ({dailyWorkoutResolution.unfinishedSession.completedExercisesCount} de {dailyWorkoutResolution.unfinishedSession.totalExercisesCount} exercícios)</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <Link
+                        href={dailyWorkoutResolution.unfinishedSession.actionHref}
+                        className="px-3.5 py-2 min-h-[44px] rounded-xl font-bold text-xs bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <span>Continuar treino anterior</span>
+                        <span>→</span>
+                      </Link>
+                      {dailyWorkoutResolution.canChangeDivision && (
+                        <button
+                          type="button"
+                          onClick={() => setIsPickerOpen(true)}
+                          className="px-3.5 py-2 min-h-[44px] rounded-xl font-semibold text-xs bg-white dark:bg-[#1B1D21] hover:bg-zinc-100 dark:hover:bg-[#252830] text-amber-900 dark:text-amber-200 border border-amber-500/30 transition-colors cursor-pointer"
+                        >
+                          Escolher outro
+                        </button>
                       )}
                     </div>
-                    <p className="text-amber-900 dark:text-amber-100 font-semibold text-xs">
-                      {dailyWorkoutResolution.todayRecommendedWorkout.divisionTitle}
-                    </p>
-                    <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
-                      Você pode retomar a sessão aberta ({divisionTitle}) ou tocar em &ldquo;Escolher outro treino&rdquo; para treinar a divisão de hoje. Suas séries já salvas continuam preservadas com total segurança.
-                    </p>
                   </div>
                 )}
 

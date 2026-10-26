@@ -231,18 +231,18 @@ export function RestTimer({
         </button>
         <button
           type="button"
-          onClick={() => setAdjustmentSeconds((prev) => prev + 30)}
+          onClick={() => setAdjustmentSeconds((prev) => prev + 15)}
           className="min-h-[44px] px-3 py-1.5 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--foreground)] text-xs font-bold transition-all cursor-pointer active:scale-95"
-          title="Adicionar 30 segundos de descanso"
+          title="Adicionar 15 segundos de descanso"
         >
-          +30s
+          +15s
         </button>
         <button
           type="button"
           onClick={onSkip}
-          className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
+          className="min-h-[44px] px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
         >
-          Pular
+          Pular descanso
         </button>
       </div>
     </div>

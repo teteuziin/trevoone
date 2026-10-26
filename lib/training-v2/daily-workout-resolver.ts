@@ -70,6 +70,20 @@ export interface DailyWorkoutResolution {
     blockPublicId?: string;
     isRestDay: boolean;
   } | null;
+  unfinishedSession?: {
+    sessionPublicId: string;
+    divisionTitle: string;
+    blockPublicId?: string | null;
+    startedAt: string | null;
+    startedFormatted: string;
+    completedSetsCount: number;
+    totalSetsCount: number;
+    completedExercisesCount: number;
+    totalExercisesCount: number;
+    actionHref: string;
+    assignmentPublicId: string;
+    isAmbiguousLegacy?: boolean;
+  } | null;
 }
 
 import { buildStudentWorkoutExecutionUrl } from "./route-helpers";
@@ -289,41 +303,39 @@ export async function resolveStudentDailyWorkout(
         }
       }
       if (!activeBlock) {
-        let blockInExecRows: RowDataPacket[] = [];
+        // Look up the block corresponding to the first pending set in this session
         try {
-          const [rows] = await connection.execute<RowDataPacket[]>(
-            `SELECT wb.id, wb.public_id, wb.title, wb.sort_order,
-                    COUNT(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 END) AS completed_sets
+          const [pendingBlockRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT wb.id, wb.public_id, wb.title, wb.sort_order
              FROM workout_execution_sets wex
              INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
              INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-             WHERE wex.execution_session_id = ?
-             GROUP BY wb.id, wb.public_id, wb.title, wb.sort_order
-             HAVING completed_sets > 0;`,
+             WHERE wex.execution_session_id = ? AND wex.completed_at IS NULL
+             ORDER BY wex.set_number ASC, wex.id ASC
+             LIMIT 1;`,
             [activeSession.session_id]
           );
-          blockInExecRows = rows;
-        } catch (err: unknown) {
-          if (isMissingColumnError(err, ["is_skipped"])) {
-            const [rows] = await connection.execute<RowDataPacket[]>(
-              `SELECT wb.id, wb.public_id, wb.title, wb.sort_order,
-                      COUNT(CASE WHEN wex.completed_at IS NOT NULL THEN 1 END) AS completed_sets
+          if (pendingBlockRows && pendingBlockRows.length > 0) {
+            activeBlock = pendingBlockRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number };
+          } else {
+            // If all sets are completed, pick the block of the last completed set
+            const [lastBlockRows] = await connection.execute<RowDataPacket[]>(
+              `SELECT wb.id, wb.public_id, wb.title, wb.sort_order
                FROM workout_execution_sets wex
                INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
                INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
                WHERE wex.execution_session_id = ?
-               GROUP BY wb.id, wb.public_id, wb.title, wb.sort_order
-               HAVING completed_sets > 0;`,
+               ORDER BY wex.completed_at DESC, wex.set_number DESC, wex.id DESC
+               LIMIT 1;`,
               [activeSession.session_id]
             );
-            blockInExecRows = rows;
-          } else {
-            throw err;
+            if (lastBlockRows && lastBlockRows.length > 0) {
+              activeBlock = lastBlockRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number };
+            }
           }
+        } catch {
+          activeBlock = null;
         }
-        activeBlock = blockInExecRows && blockInExecRows.length === 1
-          ? (blockInExecRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number })
-          : null;
       }
 
       // Carrega blocos para opções de troca
@@ -365,7 +377,6 @@ export async function resolveStudentDailyWorkout(
           ? getConsultancyLocalDate(timeZone, startedAtDate)
           : null;
       const isSessionStartedToday = sessionLocalDateStr != null ? sessionLocalDateStr === todayDateStr : undefined;
-      const activeSessionIsToday = isSessionStartedToday;
       let activeSessionWeekdayName: string | null = null;
       if (sessionLocalDateStr) {
         const [sY, sM, sD] = sessionLocalDateStr.split("-").map(Number);
@@ -388,146 +399,254 @@ export async function resolveStudentDailyWorkout(
           }).format(startedAtDate)
         : "";
 
-      // Progresso real das séries concluídas na sessão em andamento
+      // Progresso real das séries concluídas na sessão em andamento (estritamente escopado ao activeBlock)
       let completedExercisesCount = 0;
       let completedSetsCount = 0;
-      try {
-        const [progRows] = await connection.execute<RowDataPacket[]>(
-          `SELECT
-             COUNT(DISTINCT fully_done.block_item_id) AS completed_exercises_count,
-             COALESCE(SUM(total_done.perf_sets), 0) AS completed_sets_count
-           FROM (
-             SELECT
-               wex.block_item_id,
-               COUNT(*) AS total_item_sets,
-               SUM(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 ELSE 0 END) AS perf_sets
-             FROM workout_execution_sets wex
-             WHERE wex.execution_session_id = ?
-             GROUP BY wex.block_item_id
-           ) total_done
-           LEFT JOIN (
-             SELECT
-               wex2.block_item_id
-             FROM workout_execution_sets wex2
-             WHERE wex2.execution_session_id = ?
-             GROUP BY wex2.block_item_id
-             HAVING COUNT(*) > 0
-                AND COUNT(*) = SUM(CASE WHEN wex2.completed_at IS NOT NULL AND (wex2.is_skipped = 0 OR wex2.is_skipped IS NULL) THEN 1 ELSE 0 END)
-           ) fully_done ON fully_done.block_item_id = total_done.block_item_id;`,
-          [activeSession.session_id, activeSession.session_id]
-        );
-        completedExercisesCount = Number(progRows[0]?.completed_exercises_count || 0);
-        completedSetsCount = Number(progRows[0]?.completed_sets_count || 0);
-      } catch (err: unknown) {
-        if (isMissingColumnError(err, ["is_skipped"])) {
-          try {
-            const [progRows] = await connection.execute<RowDataPacket[]>(
-              `SELECT
-                 COUNT(DISTINCT fully_done.block_item_id) AS completed_exercises_count,
-                 COALESCE(SUM(total_done.perf_sets), 0) AS completed_sets_count
-               FROM (
-                 SELECT
-                   wex.block_item_id,
-                   COUNT(*) AS total_item_sets,
-                   SUM(CASE WHEN wex.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS perf_sets
-                 FROM workout_execution_sets wex
-                 WHERE wex.execution_session_id = ?
-                 GROUP BY wex.block_item_id
-               ) total_done
-               LEFT JOIN (
-                 SELECT
-                   wex2.block_item_id
-                 FROM workout_execution_sets wex2
-                 WHERE wex2.execution_session_id = ?
-                 GROUP BY wex2.block_item_id
-                 HAVING COUNT(*) > 0
-                    AND COUNT(*) = SUM(CASE WHEN wex2.completed_at IS NOT NULL THEN 1 ELSE 0 END)
-               ) fully_done ON fully_done.block_item_id = total_done.block_item_id;`,
-              [activeSession.session_id, activeSession.session_id]
-            );
-            completedExercisesCount = Number(progRows[0]?.completed_exercises_count || 0);
-            completedSetsCount = Number(progRows[0]?.completed_sets_count || 0);
-          } catch {
-            completedExercisesCount = 0;
-            completedSetsCount = 0;
+      let totalSetsCount = 0;
+      if (activeBlock) {
+        try {
+          const [progRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT
+               COUNT(DISTINCT fully_done.block_item_id) AS completed_exercises_count,
+               COALESCE(SUM(total_done.perf_sets), 0) AS completed_sets_count,
+               COALESCE(SUM(total_done.total_item_sets), 0) AS total_sets_count
+             FROM (
+               SELECT
+                 wex.block_item_id,
+                 COUNT(*) AS total_item_sets,
+                 SUM(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 ELSE 0 END) AS perf_sets
+               FROM workout_execution_sets wex
+               INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+               WHERE wex.execution_session_id = ? AND wbi.block_id = ?
+               GROUP BY wex.block_item_id
+             ) total_done
+             LEFT JOIN (
+               SELECT
+                 wex2.block_item_id
+               FROM workout_execution_sets wex2
+               INNER JOIN workout_block_items wbi2 ON wbi2.id = wex2.block_item_id
+               WHERE wex2.execution_session_id = ? AND wbi2.block_id = ?
+               GROUP BY wex2.block_item_id
+               HAVING COUNT(*) > 0
+                  AND COUNT(*) = SUM(CASE WHEN wex2.completed_at IS NOT NULL AND (wex2.is_skipped = 0 OR wex2.is_skipped IS NULL) THEN 1 ELSE 0 END)
+             ) fully_done ON fully_done.block_item_id = total_done.block_item_id;`,
+            [activeSession.session_id, activeBlock.id, activeSession.session_id, activeBlock.id]
+          );
+          completedExercisesCount = Number(progRows[0]?.completed_exercises_count || 0);
+          completedSetsCount = Number(progRows[0]?.completed_sets_count || 0);
+          totalSetsCount = Number(progRows[0]?.total_sets_count || 0);
+        } catch (err: unknown) {
+          if (isMissingColumnError(err, ["is_skipped"])) {
+            try {
+              const [progRows] = await connection.execute<RowDataPacket[]>(
+                `SELECT
+                   COUNT(DISTINCT fully_done.block_item_id) AS completed_exercises_count,
+                   COALESCE(SUM(total_done.perf_sets), 0) AS completed_sets_count,
+                   COALESCE(SUM(total_done.total_item_sets), 0) AS total_sets_count
+                 FROM (
+                   SELECT
+                     wex.block_item_id,
+                     COUNT(*) AS total_item_sets,
+                     COUNT(CASE WHEN wex.completed_at IS NOT NULL THEN 1 END) AS completed_sets,
+                     SUM(CASE WHEN wex.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS perf_sets
+                   FROM workout_execution_sets wex
+                   INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+                   WHERE wex.execution_session_id = ? AND wbi.block_id = ?
+                   GROUP BY wex.block_item_id
+                 ) total_done
+                 LEFT JOIN (
+                   SELECT
+                     wex2.block_item_id
+                   FROM workout_execution_sets wex2
+                   INNER JOIN workout_block_items wbi2 ON wbi2.id = wex2.block_item_id
+                   WHERE wex2.execution_session_id = ? AND wbi2.block_id = ?
+                   GROUP BY wex2.block_item_id
+                   HAVING COUNT(*) > 0
+                      AND COUNT(*) = SUM(CASE WHEN wex2.completed_at IS NOT NULL THEN 1 ELSE 0 END)
+                 ) fully_done ON fully_done.block_item_id = total_done.block_item_id;`,
+                [activeSession.session_id, activeBlock.id, activeSession.session_id, activeBlock.id]
+              );
+              completedExercisesCount = Number(progRows[0]?.completed_exercises_count || 0);
+              completedSetsCount = Number(progRows[0]?.completed_sets_count || 0);
+              totalSetsCount = Number(progRows[0]?.total_sets_count || 0);
+            } catch {
+              completedExercisesCount = 0;
+              completedSetsCount = 0;
+              totalSetsCount = 0;
+            }
           }
-        } else {
-          // Fallback seguro em caso de indisponibilidade
-          completedExercisesCount = 0;
-          completedSetsCount = 0;
         }
       }
 
-      // Treino recomendado para hoje caso a sessão seja de um dia anterior
-      let todayRecommendedWorkout: {
-        divisionTitle: string;
-        blockPublicId?: string;
-        isRestDay: boolean;
-      } | null = null;
+      const sessionBlockExerciseCount = activeBlock
+        ? availableDivisions.find((d) => d.publicId === activeBlock.public_id)?.exerciseCount ?? 0
+        : (allBlocksRows[0]?.exercise_count ? Number(allBlocksRows[0].exercise_count) : 0);
 
-      const hasCalendar = (allBlocksRows || []).some(
-        (b) => parseScheduledWeekdays(b.title, b.instructions).length > 0
-      );
-      if (hasCalendar) {
-        const scheduledTodayBlock = (allBlocksRows || []).find((b) => {
-          const weekdays = parseScheduledWeekdays(b.title, b.instructions);
-          return weekdays.includes(todayWeekday);
-        });
-        if (scheduledTodayBlock) {
-          todayRecommendedWorkout = {
-            divisionTitle: String(scheduledTodayBlock.title || "Treino de hoje"),
-            blockPublicId: String(scheduledTodayBlock.public_id),
-            isRestDay: false,
-          };
-        } else {
-          todayRecommendedWorkout = {
-            divisionTitle: "Dia de descanso",
-            isRestDay: true,
-          };
-        }
-      }
-
-      return {
-        status: "IN_PROGRESS",
-        headlineTitle: "Meu Treino",
-        divisionTitle,
-        routineTitle: String(activeSession.routine_title),
-        versionNumber: Number(activeSession.version_number),
-        assignmentPublicId: String(activeSession.assignment_public_id),
-        activeSessionPublicId: String(activeSession.session_public_id),
-        activeSessionStartedAt: startedAtDate && !Number.isNaN(startedAtDate.getTime()) ? startedAtDate.toISOString() : null,
-        activeSessionWeekdayName,
-        activeSessionIsToday,
-        targetBlockPublicId: activeBlock ? String(activeBlock.public_id) : null,
-        targetBlockIndex: activeBlock ? availableDivisions.findIndex((d) => d.publicId === activeBlock.public_id) : 0,
+      const unfinishedSession = {
+        sessionPublicId: String(activeSession.session_public_id),
+        divisionTitle: activeBlock?.title ? String(activeBlock.title) : availableDivisions[0]?.title || "Sessão anterior",
+        blockPublicId: activeBlock ? String(activeBlock.public_id) : null,
+        startedAt: startedAtDate && !Number.isNaN(startedAtDate.getTime()) ? startedAtDate.toISOString() : null,
+        startedFormatted: isSessionStartedToday
+          ? `Iniciado hoje às ${sessionTimeFormatted}`
+          : `${sessionDateFormatted} às ${sessionTimeFormatted}`,
+        completedSetsCount,
+        totalSetsCount,
+        completedExercisesCount,
+        totalExercisesCount: sessionBlockExerciseCount,
         actionHref: buildStudentWorkoutExecutionUrl(
           consultancySlug,
           String(activeSession.assignment_public_id),
           activeBlock ? String(activeBlock.public_id) : null
         ),
-        actionLabel: "Continuar treino",
-        canChangeDivision: availableDivisions.length > 1,
-contextNote: isSessionStartedToday
-          ? "Sessão iniciada hoje. Continue de onde parou."
-          : (sessionDateFormatted && sessionTimeFormatted
-              ? `Sessão iniciada em ${sessionDateFormatted} às ${sessionTimeFormatted}. Retome de onde parou para concluir ou escolha outro treino.`
-              : "Você possui uma sessão em andamento. Continue de onde parou."),
-        exerciseCount: activeBlock
-          ? availableDivisions.find((d) => d.publicId === activeBlock.public_id)?.exerciseCount
-          : (allBlocksRows[0]?.exercise_count ? Number(allBlocksRows[0].exercise_count) : undefined),
-        availableDivisions,
-        todayWeekday,
-        todayWeekdayName,
-        todayDateStr,
-        consultancyTimezone: timeZone,
-        activeSessionStartedFormatted: isSessionStartedToday
-          ? `Iniciado hoje às ${sessionTimeFormatted}`
-          : `${sessionDateFormatted} às ${sessionTimeFormatted}`,
-        isSessionStartedToday,
-        completedExercisesCount,
-        completedSetsCount,
-        todayRecommendedWorkout,
+        assignmentPublicId: String(activeSession.assignment_public_id),
+        isAmbiguousLegacy: !activeSession.workout_block_id,
       };
+
+      // Se a sessão em andamento foi iniciada HOJE, ela é a resolução ativa do dia
+      if (isSessionStartedToday) {
+        return {
+          status: "IN_PROGRESS",
+          headlineTitle: "Meu Treino",
+          divisionTitle,
+          routineTitle: String(activeSession.routine_title),
+          versionNumber: Number(activeSession.version_number),
+          assignmentPublicId: String(activeSession.assignment_public_id),
+          activeSessionPublicId: String(activeSession.session_public_id),
+          activeSessionStartedAt: startedAtDate && !Number.isNaN(startedAtDate.getTime()) ? startedAtDate.toISOString() : null,
+          activeSessionWeekdayName,
+          activeSessionIsToday: true,
+          targetBlockPublicId: activeBlock ? String(activeBlock.public_id) : null,
+          targetBlockIndex: activeBlock ? availableDivisions.findIndex((d) => d.publicId === activeBlock.public_id) : 0,
+          actionHref: unfinishedSession.actionHref,
+          actionLabel: "Continuar treino",
+          canChangeDivision: availableDivisions.length > 1,
+          contextNote: "Sessão iniciada hoje. Continue de onde parou.",
+          exerciseCount: sessionBlockExerciseCount,
+          availableDivisions,
+          todayWeekday,
+          todayWeekdayName,
+          todayDateStr,
+          consultancyTimezone: timeZone,
+          activeSessionStartedFormatted: `Iniciado hoje às ${sessionTimeFormatted}`,
+          isSessionStartedToday: true,
+          completedExercisesCount,
+          completedSetsCount,
+          unfinishedSession: null,
+        };
+      }
+
+      // Se a sessão foi iniciada em dia ANTERIOR, separamos o treino recomendado de hoje da sessão anterior
+      const hasCalendar = (allBlocksRows || []).some(
+        (b) => parseScheduledWeekdays(b.title, b.instructions).length > 0
+      );
+      const scheduledTodayBlock = hasCalendar
+        ? (allBlocksRows || []).find((b) => {
+            const weekdays = parseScheduledWeekdays(b.title, b.instructions);
+            return weekdays.includes(todayWeekday);
+          })
+        : null;
+
+      if (scheduledTodayBlock) {
+        return {
+          status: "SCHEDULED_TODAY",
+          headlineTitle: "Treino de Hoje",
+          divisionTitle: String(scheduledTodayBlock.title || "Treino de hoje"),
+          routineTitle: String(activeSession.routine_title),
+          versionNumber: Number(activeSession.version_number),
+          assignmentPublicId: String(activeSession.assignment_public_id),
+          activeSessionPublicId: String(activeSession.session_public_id),
+          activeSessionStartedAt: startedAtDate && !Number.isNaN(startedAtDate.getTime()) ? startedAtDate.toISOString() : null,
+          activeSessionWeekdayName,
+          activeSessionIsToday: false,
+          targetBlockPublicId: String(scheduledTodayBlock.public_id),
+          targetBlockIndex: availableDivisions.findIndex((d) => d.publicId === scheduledTodayBlock.public_id),
+          actionHref: buildStudentWorkoutExecutionUrl(
+            consultancySlug,
+            String(activeSession.assignment_public_id),
+            String(scheduledTodayBlock.public_id)
+          ),
+          actionLabel: "Começar treino",
+          canChangeDivision: availableDivisions.length > 1,
+          contextNote: `Treino previsto para ${todayWeekdayName}. Você possui uma sessão não finalizada de ${sessionDateFormatted}.`,
+          exerciseCount: Number(scheduledTodayBlock.exercise_count || 0),
+          availableDivisions,
+          todayWeekday,
+          todayWeekdayName,
+          todayDateStr,
+          consultancyTimezone: timeZone,
+          activeSessionStartedFormatted: `${sessionDateFormatted} às ${sessionTimeFormatted}`,
+          isSessionStartedToday: false,
+          completedExercisesCount: 0,
+          completedSetsCount: 0,
+          unfinishedSession,
+        };
+      } else if (hasCalendar) {
+        return {
+          status: "REST_DAY",
+          headlineTitle: "Meu Treino",
+          divisionTitle: "Dia de descanso",
+          routineTitle: String(activeSession.routine_title),
+          versionNumber: Number(activeSession.version_number),
+          assignmentPublicId: String(activeSession.assignment_public_id),
+          activeSessionPublicId: String(activeSession.session_public_id),
+          activeSessionStartedAt: startedAtDate && !Number.isNaN(startedAtDate.getTime()) ? startedAtDate.toISOString() : null,
+          activeSessionWeekdayName,
+          activeSessionIsToday: false,
+          targetBlockPublicId: null,
+          targetBlockIndex: 0,
+          actionHref: `/consultoria/${consultancySlug}/treinos`,
+          actionLabel: "Escolher um treino",
+          canChangeDivision: availableDivisions.length > 1,
+          contextNote: `Descanso programado para ${todayWeekdayName}. Você possui uma sessão não finalizada de ${sessionDateFormatted}.`,
+          exerciseCount: undefined,
+          availableDivisions,
+          todayWeekday,
+          todayWeekdayName,
+          todayDateStr,
+          consultancyTimezone: timeZone,
+          activeSessionStartedFormatted: `${sessionDateFormatted} às ${sessionTimeFormatted}`,
+          isSessionStartedToday: false,
+          completedExercisesCount: 0,
+          completedSetsCount: 0,
+          unfinishedSession,
+        };
+      } else {
+        const defaultBlock = allBlocksRows[0];
+        return {
+          status: "AVAILABLE",
+          headlineTitle: "Meu Treino",
+          divisionTitle: defaultBlock?.title ? String(defaultBlock.title) : "Ficha de treino",
+          routineTitle: String(activeSession.routine_title),
+          versionNumber: Number(activeSession.version_number),
+          assignmentPublicId: String(activeSession.assignment_public_id),
+          activeSessionPublicId: String(activeSession.session_public_id),
+          activeSessionStartedAt: startedAtDate && !Number.isNaN(startedAtDate.getTime()) ? startedAtDate.toISOString() : null,
+          activeSessionWeekdayName,
+          activeSessionIsToday: false,
+          targetBlockPublicId: defaultBlock ? String(defaultBlock.public_id) : null,
+          targetBlockIndex: 0,
+          actionHref: buildStudentWorkoutExecutionUrl(
+            consultancySlug,
+            String(activeSession.assignment_public_id),
+            defaultBlock ? String(defaultBlock.public_id) : null
+          ),
+          actionLabel: "Começar treino",
+          canChangeDivision: availableDivisions.length > 1,
+          contextNote: `Você possui uma sessão não finalizada de ${sessionDateFormatted}.`,
+          exerciseCount: defaultBlock ? Number(defaultBlock.exercise_count || 0) : undefined,
+          availableDivisions,
+          todayWeekday,
+          todayWeekdayName,
+          todayDateStr,
+          consultancyTimezone: timeZone,
+          activeSessionStartedFormatted: `${sessionDateFormatted} às ${sessionTimeFormatted}`,
+          isSessionStartedToday: false,
+          completedExercisesCount: 0,
+          completedSetsCount: 0,
+          unfinishedSession,
+        };
+      }
     }
 
     // 3. Busca prescrição ativa do aluno

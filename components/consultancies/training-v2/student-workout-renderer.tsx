@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useSyncExternalStore, useEffect } from "react";
+import Link from "next/link";
 import type {
   StudentWorkoutViewContract,
   WorkoutExecutionSessionDto,
@@ -1071,12 +1072,11 @@ export function StudentWorkoutRenderer({
       : blocks[0];
   const activeBlockTitle = activeBlock?.title || "Treino Principal";
   const activeBlockExerciseCount = (activeBlock?.items || []).length;
-  const activeBlockDuration = activeBlock?.estimatedDurationMinutes || workout.estimatedDurationMinutes;
 
   return (
     <>
       {/* GUIDED WORKOUT EXECUTION RUNTIME (DESKTOP & MOBILE) */}
-      {activeSession && activeSession.status === "IN_PROGRESS" && mobileViewMode === "FOCUSED" ? (
+      {activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED") && mobileViewMode === "FOCUSED" ? (
         <StudentRuntimeFocusedView
           workout={workout}
           activeSession={activeSession}
@@ -1097,6 +1097,16 @@ export function StudentWorkoutRenderer({
         />
       ) : (
         <div className="space-y-6 w-full max-w-5xl mx-auto pb-16">
+          {/* Voltar aos meus treinos */}
+          <div>
+            <Link
+              href={consultancySlug ? `/consultoria/${consultancySlug}/treinos` : "/app"}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] bg-[var(--surface-subtle)] hover:bg-[var(--surface)] border border-[var(--border-subtle)] transition-all min-h-[44px]"
+            >
+              ← Voltar aos meus treinos
+            </Link>
+          </div>
+
           {/* If inspecting overview during active session, banner to return to guided execution */}
           {activeSession && activeSession.status === "IN_PROGRESS" && (
             <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
@@ -1109,6 +1119,21 @@ export function StudentWorkoutRenderer({
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-all cursor-pointer min-h-[44px] shrink-0"
               >
                 <span>Voltar à execução guiada →</span>
+              </button>
+            </div>
+          )}
+
+          {activeSession && activeSession.status === "COMPLETED" && (
+            <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
+              <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                Treino concluído. Suas séries e cargas foram salvas.
+              </span>
+              <button
+                type="button"
+                onClick={() => setMobileViewMode("FOCUSED")}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-all cursor-pointer min-h-[44px] shrink-0"
+              >
+                <span>Ver resumo do treino →</span>
               </button>
             </div>
           )}
@@ -1213,12 +1238,6 @@ export function StudentWorkoutRenderer({
               <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
                 {activeBlockExerciseCount} {activeBlockExerciseCount === 1 ? "exercício" : "exercícios"}
               </span>
-              {activeBlockDuration != null && activeBlockDuration > 0 && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
-                  <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>{activeBlockDuration} min estimados</span>
-                </span>
-              )}
               {workout.difficultyLevel && (
                 <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
                   Nível {workout.difficultyLevel === "BEGINNER"
@@ -1303,12 +1322,12 @@ export function StudentWorkoutRenderer({
                       {isStarting ? (
                         <>
                           <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Iniciando divisão...</span>
+                          <span>Iniciando...</span>
                         </>
                       ) : (
                         <>
                           <Play className="w-4 h-4 fill-current" />
-                          <span>Iniciar {activeBlockTitle}</span>
+                          <span>Começar treino</span>
                         </>
                       )}
                     </button>

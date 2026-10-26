@@ -132,6 +132,8 @@ async function queryExecutionSessionWithBlock(
         wes.workout_version_id,
         wes.workout_block_id,
         wes.status,
+        wes.student_completion_state,
+        wes.student_feedback_notes,
         wes.started_at,
         wes.completed_at,
         wes.created_at,
@@ -162,6 +164,8 @@ async function queryExecutionSessionWithBlock(
           wes.workout_version_id,
           NULL AS workout_block_id,
           wes.status,
+          wes.student_completion_state,
+          wes.student_feedback_notes,
           wes.started_at,
           wes.completed_at,
           wes.created_at,
@@ -1201,6 +1205,8 @@ export async function getActiveStudentWorkoutExecution(
       workoutBlockPublicId: activeBlockPublicId,
       workoutBlockTitle: activeBlockTitle,
       status: s.status as WorkoutExecutionSessionStatus,
+      studentCompletionState: (s.student_completion_state as "ALL" | "PARTIAL" | "NONE") || null,
+      studentFeedbackNotes: s.student_feedback_notes ? String(s.student_feedback_notes) : null,
       startedAt: new Date(s.started_at),
       completedAt: s.completed_at ? new Date(s.completed_at) : null,
       createdAt: new Date(s.created_at),
@@ -1871,6 +1877,8 @@ export async function completeWorkoutExecution(
       workoutBlockPublicId: activeBlockPublicId,
       workoutBlockTitle: activeBlockTitle,
       status: "COMPLETED",
+      studentCompletionState: (studentCompletionState as "ALL" | "PARTIAL" | "NONE") || null,
+      studentFeedbackNotes: studentFeedbackNotes,
       startedAt: new Date(s.started_at),
       completedAt: now,
       createdAt: new Date(s.created_at),
@@ -1950,14 +1958,32 @@ export async function listStudentWorkoutExecutionHistory(
 
     // 2. Fetch COMPLETED sessions for this assignment (newest first, limit bounded)
     const safeLimit = Math.max(1, Math.min(limit, 100));
-    const [sessionRows] = await connection.query<RowDataPacket[]>(
-      `SELECT id, public_id, started_at, completed_at
-       FROM workout_execution_sessions
-       WHERE workout_assignment_id = ? AND status = 'COMPLETED'
-       ORDER BY completed_at DESC, created_at DESC
-       LIMIT ?;`,
-      [assign.id, safeLimit]
-    );
+    let sessionRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.query<RowDataPacket[]>(
+        `SELECT id, public_id, started_at, completed_at, student_completion_state, student_feedback_notes
+         FROM workout_execution_sessions
+         WHERE workout_assignment_id = ? AND status = 'COMPLETED'
+         ORDER BY completed_at DESC, created_at DESC
+         LIMIT ?;`,
+        [assign.id, safeLimit]
+      );
+      sessionRows = rows;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["student_completion_state", "student_feedback_notes"])) {
+        const [rows] = await connection.query<RowDataPacket[]>(
+          `SELECT id, public_id, started_at, completed_at
+           FROM workout_execution_sessions
+           WHERE workout_assignment_id = ? AND status = 'COMPLETED'
+           ORDER BY completed_at DESC, created_at DESC
+           LIMIT ?;`,
+          [assign.id, safeLimit]
+        );
+        sessionRows = rows;
+      } else {
+        throw err;
+      }
+    }
 
     if (!sessionRows || sessionRows.length === 0) {
       return [];
@@ -2069,6 +2095,8 @@ export async function listStudentWorkoutExecutionHistory(
         publicId: String(s.public_id),
         startedAt: new Date(s.started_at),
         completedAt: s.completed_at ? new Date(s.completed_at) : null,
+        studentCompletionState: (s.student_completion_state as "ALL" | "PARTIAL" | "NONE") || null,
+        studentFeedbackNotes: s.student_feedback_notes ? String(s.student_feedback_notes) : null,
         sets: setsBySessionId.get(sId) || [],
         substitutions: sessionSubs.length > 0 ? sessionSubs : undefined,
       };

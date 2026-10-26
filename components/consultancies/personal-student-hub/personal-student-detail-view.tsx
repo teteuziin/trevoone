@@ -1439,12 +1439,29 @@ export function PersonalStudentDetailView({
                     {completedSessions.map((session) => (
                       <div
                         key={session.publicId}
-                        className="py-2.5 flex items-center justify-between text-xs gap-3"
+                        className="py-3 flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2"
                       >
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-[var(--text-primary)] truncate">
-                            {session.workoutTitle}
-                          </p>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-bold text-[var(--text-primary)]">
+                              {session.workoutTitle}
+                            </p>
+                            {session.studentCompletionState === "ALL" && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                                Fez tudo
+                              </span>
+                            )}
+                            {session.studentCompletionState === "PARTIAL" && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                                Fez parte
+                              </span>
+                            )}
+                            {session.studentCompletionState === "NONE" && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+                                Não conseguiu
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[11px] text-[var(--text-tertiary)]">
                             {new Date(session.completedAt).toLocaleDateString("pt-BR")} às{" "}
                             {new Date(session.completedAt).toLocaleTimeString("pt-BR", {
@@ -1452,8 +1469,28 @@ export function PersonalStudentDetailView({
                               minute: "2-digit",
                             })}
                           </p>
+                          {session.studentFeedbackNotes && (
+                            <div className="mt-1.5 p-2 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] italic">
+                              <span className="font-semibold not-italic text-[10px] uppercase text-[var(--text-tertiary)] block mb-0.5">
+                                Mensagem do aluno:
+                              </span>
+                              &ldquo;{session.studentFeedbackNotes}&rdquo;
+                            </div>
+                          )}
+                          {session.substitutions && session.substitutions.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {session.substitutions.map((sub, sIdx) => (
+                                <span
+                                  key={sIdx}
+                                  className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded"
+                                >
+                                  Substituiu {sub.originalExerciseName} por {sub.performedExerciseName} ({sub.reason})
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <Badge variant="success" size="sm" className="shrink-0">
+                        <Badge variant="success" size="sm" className="shrink-0 self-start sm:self-center">
                           {session.completedSetsCount} séries concluídas
                         </Badge>
                       </div>

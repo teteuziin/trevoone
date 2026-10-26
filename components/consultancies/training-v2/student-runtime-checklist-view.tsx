@@ -576,7 +576,12 @@ export function StudentRuntimeChecklistView({
           const restSeconds = firstSet?.targetRestSeconds || null;
 
           const media = resolveExerciseExecutionMedia({ item });
-          const hasNotes = Boolean(item.notes || item.instructionsSnapshot);
+          const hasPersonalNotes = Boolean(item.notes && item.notes.trim().length > 0);
+          const hasInstructions = Boolean(item.instructionsSnapshot && item.instructionsSnapshot.trim().length > 0);
+          const hasAuthorizedAlternatives = Boolean(
+            (item.alternatives && item.alternatives.length > 0) ||
+            activeSubstitutions[item.publicId]
+          );
           const isAccordionOpen = Boolean(expandedAccordions[item.publicId]);
 
           const itemSets = sessionSetsByItemPublicId.get(item.publicId) || [];
@@ -586,12 +591,12 @@ export function StudentRuntimeChecklistView({
               key={item.publicId}
               className={`p-4 sm:p-5 rounded-2xl border transition-all depth-surface ${
                 isDone
-                  ? "bg-emerald-500/5 dark:bg-emerald-500/5 border-emerald-500/30"
+                  ? "bg-white dark:bg-[#181A1E] border-emerald-500/40 shadow-xs"
                   : isSkipped
-                  ? "bg-zinc-100/60 dark:bg-[#181A1E] border-zinc-300 dark:border-zinc-700 opacity-75"
+                  ? "bg-zinc-50 dark:bg-[#141518] border-zinc-200 dark:border-zinc-800 opacity-75"
                   : isNext
-                  ? "bg-white dark:bg-[#151619] border-emerald-500/50 shadow-sm ring-1 ring-emerald-500/30"
-                  : "bg-white dark:bg-[#151619] border-[var(--border-default)]"
+                  ? "bg-white dark:bg-[#181A1E] border-emerald-500/60 shadow-sm ring-1 ring-emerald-500/30"
+                  : "bg-white dark:bg-[#181A1E] border-zinc-200 dark:border-[#2C2F36]"
               }`}
             >
               {/* Top Row: Ordem + Status Badge + Músculo */}
@@ -659,31 +664,42 @@ export function StudentRuntimeChecklistView({
                 </p>
               </div>
 
-              {/* Observações / Cuidados Clínicos do Personal */}
-              {hasNotes && (
-                <div className="p-3 rounded-xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/25 text-xs text-amber-900 dark:text-amber-200 mb-3 space-y-0.5">
-                  <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300 text-[11px] uppercase tracking-wider">
-                    <AlertCircleIcon className="w-3.5 h-3.5 shrink-0" />
-                    <span>Observações do personal:</span>
+              {/* Observações e Orientações do Personal */}
+              {hasPersonalNotes && (
+                <div className="p-3 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 text-xs text-zinc-800 dark:text-zinc-200 mb-3 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400 text-[11px] uppercase tracking-wider">
+                    <AlertCircleIcon className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>Orientações do personal:</span>
                   </div>
-                  <p className="text-xs leading-relaxed">
-                    {item.notes || item.instructionsSnapshot}
+                  <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+                    {item.notes}
                   </p>
                 </div>
               )}
 
-              {/* Botões de Apoio: Ver Execução + Iniciar Descanso */}
+              {/* Botões de Apoio: Ver vídeo / Como fazer + Iniciar descanso */}
               <div className="flex flex-wrap items-center gap-2 mb-3">
-                {media.hasMedia && (
+                {media.hasMedia && media.videoUrl ? (
                   <button
                     type="button"
                     onClick={() => setVideoModalItem(item)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] cursor-pointer"
                   >
                     <PlayIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>Ver execução</span>
+                    <span>Ver vídeo</span>
                   </button>
-                )}
+                ) : (hasInstructions || (media.hasMedia && !media.videoUrl)) ? (
+                  <button
+                    type="button"
+                    onClick={() => setVideoModalItem(item)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    <span>Como fazer</span>
+                  </button>
+                ) : null}
 
                 {restSeconds && restSeconds > 0 && (
                   <button
@@ -692,7 +708,7 @@ export function StudentRuntimeChecklistView({
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] cursor-pointer"
                   >
                     <ClockIcon className="w-3.5 h-3.5 text-blue-500" />
-                    <span>Descanso: {restSeconds}s</span>
+                    <span>Iniciar descanso · {restSeconds} s</span>
                   </button>
                 )}
               </div>
@@ -734,14 +750,16 @@ export function StudentRuntimeChecklistView({
 
                 {/* Ações Complementares: Trocar / Pular */}
                 <div className="flex items-center justify-end gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setSwapModalItem(item)}
-                    className="px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors min-h-[44px] flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <SwapIcon className="w-3.5 h-3.5" />
-                    <span>Trocar</span>
-                  </button>
+                  {hasAuthorizedAlternatives && (
+                    <button
+                      type="button"
+                      onClick={() => setSwapModalItem(item)}
+                      className="px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors min-h-[44px] flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <SwapIcon className="w-3.5 h-3.5" />
+                      <span>Trocar</span>
+                    </button>
+                  )}
 
                   {!isDone && !isSkipped && (
                     <button
@@ -1080,7 +1098,6 @@ export function StudentRuntimeChecklistView({
                   <video
                     src={m.url}
                     controls
-                    autoPlay
                     playsInline
                     className="w-full rounded-2xl max-h-[60vh] object-contain bg-black"
                   />

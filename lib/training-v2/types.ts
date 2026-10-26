@@ -416,6 +416,8 @@ export type WorkoutExecutionSetDto = {
 
 export type WorkoutExecutionSessionDto = {
   publicId: string;
+  studentCompletionState?: "ALL" | "PARTIAL" | "NONE" | null;
+  studentFeedbackNotes?: string | null;
   consultancyId: number;
   studentMembershipId: number;
   workoutAssignmentPublicId: string;
@@ -460,6 +462,8 @@ export type WorkoutExecutionHistorySetDto = {
 
 export type WorkoutExecutionHistorySessionDto = {
   publicId: string;
+  studentCompletionState?: "ALL" | "PARTIAL" | "NONE" | null;
+  studentFeedbackNotes?: string | null;
   startedAt: Date;
   completedAt: Date | null;
   sets: WorkoutExecutionHistorySetDto[];

@@ -163,6 +163,8 @@ export interface CompletedWorkoutSession {
   startedAt: string;
   completedAt: string;
   completedSetsCount: number;
+  studentCompletionState?: "ALL" | "PARTIAL" | "NONE" | null;
+  studentFeedbackNotes?: string | null;
   substitutions?: Array<{
     originalExerciseName: string;
     performedExerciseName: string;
@@ -896,30 +898,64 @@ export async function getPersonalStudentDetail(params: {
     }));
 
     // 7. Fetch Completed Workout Sessions
-    const [completedRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        wes.public_id,
-        wes.started_at,
-        wes.completed_at,
-        COALESCE(wv.title, w.title) AS workout_title,
-        (
-          SELECT COUNT(*)
-          FROM workout_execution_sets weset
-          WHERE weset.execution_session_id = wes.id
-            AND weset.completed_at IS NOT NULL
-            AND (weset.is_skipped = 0 OR weset.is_skipped IS NULL)
-        ) AS completed_sets_count
-       FROM workout_execution_sessions wes
-       INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
-       INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
-       INNER JOIN workouts w ON w.id = wv.workout_id
-       WHERE wes.consultancy_id = ?
-         AND wes.student_membership_id = ?
-         AND wes.status = 'COMPLETED'
-       ORDER BY wes.completed_at DESC, wes.id DESC
-       LIMIT 10;`,
-      [consultancyId, membershipId]
-    );
+    let completedRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          wes.public_id,
+          wes.started_at,
+          wes.completed_at,
+          wes.student_completion_state,
+          wes.student_feedback_notes,
+          COALESCE(NULLIF(TRIM(wa.custom_title), ''), wv.title, w.title) AS workout_title,
+          (
+            SELECT COUNT(*)
+            FROM workout_execution_sets weset
+            WHERE weset.execution_session_id = wes.id
+              AND weset.completed_at IS NOT NULL
+              AND (weset.is_skipped = 0 OR weset.is_skipped IS NULL)
+          ) AS completed_sets_count
+         FROM workout_execution_sessions wes
+         INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
+         INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+         INNER JOIN workouts w ON w.id = wv.workout_id
+         WHERE wes.consultancy_id = ?
+           AND wes.student_membership_id = ?
+           AND wes.status = 'COMPLETED'
+         ORDER BY wes.completed_at DESC, wes.id DESC
+         LIMIT 10;`,
+        [consultancyId, membershipId]
+      );
+      completedRows = rows;
+    } catch {
+      // Defensive fallback if 068 columns are missing
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          wes.public_id,
+          wes.started_at,
+          wes.completed_at,
+          NULL AS student_completion_state,
+          NULL AS student_feedback_notes,
+          COALESCE(wv.title, w.title) AS workout_title,
+          (
+            SELECT COUNT(*)
+            FROM workout_execution_sets weset
+            WHERE weset.execution_session_id = wes.id
+              AND weset.completed_at IS NOT NULL
+          ) AS completed_sets_count
+         FROM workout_execution_sessions wes
+         INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
+         INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+         INNER JOIN workouts w ON w.id = wv.workout_id
+         WHERE wes.consultancy_id = ?
+           AND wes.student_membership_id = ?
+           AND wes.status = 'COMPLETED'
+         ORDER BY wes.completed_at DESC, wes.id DESC
+         LIMIT 10;`,
+        [consultancyId, membershipId]
+      );
+      completedRows = rows;
+    }
 
     const sessionSubstitutionsMap = new Map<string, Array<{ originalExerciseName: string; performedExerciseName: string; reason: string }>>();
     if (completedRows && completedRows.length > 0) {
@@ -965,6 +1001,8 @@ export async function getPersonalStudentDetail(params: {
         startedAt: new Date(r.started_at).toISOString(),
         completedAt: new Date(r.completed_at).toISOString(),
         completedSetsCount: Number(r.completed_sets_count || 0),
+        studentCompletionState: (r.student_completion_state as "ALL" | "PARTIAL" | "NONE") || null,
+        studentFeedbackNotes: r.student_feedback_notes ? String(r.student_feedback_notes) : null,
         substitutions: subs && subs.length > 0 ? subs : undefined,
       };
     });

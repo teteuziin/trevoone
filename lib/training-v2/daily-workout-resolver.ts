@@ -3,7 +3,6 @@ import { getDbConnection } from "../db/mysql";
 import { assertStudentContext, type TrainingAccessContext } from "./access";
 import { getConsultancyLocalDate, isValidIanaTimezone } from "../consultancies/timezone";
 import { isMissingColumnError } from "./schema-resilience";
-import { listStudentWorkoutCards } from "./assignment-repository";
 
 export type DailyWorkoutDecisionStatus =
   | "IN_PROGRESS"        // Prioridade A: Sessão atualmente em andamento
@@ -1064,38 +1063,7 @@ export async function resolveStudentDailyWorkout(
       consultancyTimezone: timeZone,
     };
   } catch (error) {
-    console.error("[DailyWorkoutResolver] Error resolving daily workout, attempting card fallback:", error);
-    try {
-      const cards = await listStudentWorkoutCards(ctx);
-      if (cards && cards.length > 0) {
-        const primaryCard = cards[0];
-        const consultancySlug = options?.consultancySlug || "";
-        return {
-          status: "AVAILABLE",
-          headlineTitle: "Meu Treino",
-          divisionTitle: primaryCard.workoutTitle,
-          routineTitle: primaryCard.workoutTitle,
-          versionNumber: primaryCard.versionNumber,
-          assignmentPublicId: primaryCard.assignmentPublicId,
-          targetBlockPublicId: null,
-          targetBlockIndex: 0,
-          actionHref: `/consultoria/${consultancySlug}/treinos/${primaryCard.assignmentPublicId}`,
-          actionLabel: "Começar treino",
-          canChangeDivision: primaryCard.blockCount > 1,
-          contextNote: primaryCard.notesForStudent || "Ficha de treino prescrita pelo seu treinador.",
-          exerciseCount: undefined,
-          estimatedDurationMinutes: primaryCard.estimatedDurationMinutes,
-          availableDivisions: [],
-          todayWeekday: 0,
-          todayWeekdayName: "",
-          todayDateStr: "",
-          consultancyTimezone: "America/Sao_Paulo",
-        };
-      }
-    } catch (fallbackErr) {
-      console.warn("[DailyWorkoutResolver] Card fallback failed:", fallbackErr);
-    }
-
+    console.error("[DailyWorkoutResolver] Error resolving daily workout:", error);
     return {
       status: "ERROR",
       headlineTitle: "Falha ao consultar treino",

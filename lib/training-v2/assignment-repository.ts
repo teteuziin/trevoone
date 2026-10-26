@@ -57,6 +57,7 @@ export type ProfessionalAssignmentListItem = {
   studentEmail: string;
   workoutPublicId: string;
   workoutTitle: string;
+  customTitle?: string | null;
   assignedVersionPublicId: string;
   assignedVersionNumber: number;
   currentPublishedVersionPublicId: string | null;
@@ -307,6 +308,13 @@ export async function createAssignment(
       );
     } catch (insErr: unknown) {
       if (isMissingColumnError(insErr, ["custom_title"])) {
+        if (customTitle) {
+          throw new TrainingAuthorizationError(
+            "Não foi possível salvar o nome personalizado da ficha pois a coluna custom_title não existe no banco de dados (Migration 068 pendente).",
+            "MIGRATION_068_REQUIRED",
+            500
+          );
+        }
         await connection.execute<ResultSetHeader>(
           `INSERT INTO workout_assignments (
             public_id, consultancy_id, student_membership_id, workout_version_id,
@@ -547,44 +555,94 @@ export async function listAssignmentsForProfessional(
 
     // List query
     const listParams = [...params, limit, offset];
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-         wa.public_id AS assignment_public_id,
-         cm.public_id AS student_membership_public_id,
-         u.full_name AS student_name,
-         u.email AS student_email,
-         w.public_id AS workout_public_id,
-         w.title AS workout_title,
-         wv.public_id AS assigned_version_public_id,
-         wv.version_number AS assigned_version_number,
-         latest_pub.public_id AS current_published_version_public_id,
-         latest_pub.version_number AS current_published_version_number,
-         DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
-         DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
-         wa.status,
-         wa.notes_for_student,
-         wa.created_at
-       FROM workout_assignments wa
-       INNER JOIN consultancy_members cm ON cm.id = wa.student_membership_id
-       INNER JOIN users u ON u.id = cm.user_id
-       INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
-       INNER JOIN workouts w ON w.id = wv.workout_id
-       LEFT JOIN (
-         SELECT wv2.workout_id, wv2.public_id, wv2.version_number
-         FROM workout_versions wv2
-         INNER JOIN (
-           SELECT workout_id, MAX(version_number) AS max_version
-           FROM workout_versions
-           WHERE status = 'PUBLISHED'
-           GROUP BY workout_id
-         ) m ON m.workout_id = wv2.workout_id AND m.max_version = wv2.version_number
-         WHERE wv2.status = 'PUBLISHED'
-       ) latest_pub ON latest_pub.workout_id = w.id
-       WHERE ${whereClause}
-       ORDER BY wa.status ASC, wa.starts_on DESC, wa.created_at DESC
-       LIMIT ? OFFSET ?;`,
-      listParams
-    );
+    let rows: RowDataPacket[] = [];
+    try {
+      const [queriedRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           wa.public_id AS assignment_public_id,
+           cm.public_id AS student_membership_public_id,
+           u.full_name AS student_name,
+           u.email AS student_email,
+           w.public_id AS workout_public_id,
+           COALESCE(NULLIF(TRIM(wa.custom_title), ''), w.title) AS workout_title,
+           wa.custom_title,
+           wv.public_id AS assigned_version_public_id,
+           wv.version_number AS assigned_version_number,
+           latest_pub.public_id AS current_published_version_public_id,
+           latest_pub.version_number AS current_published_version_number,
+           DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
+           DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
+           wa.status,
+           wa.notes_for_student,
+           wa.created_at
+         FROM workout_assignments wa
+         INNER JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+         INNER JOIN users u ON u.id = cm.user_id
+         INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+         INNER JOIN workouts w ON w.id = wv.workout_id
+         LEFT JOIN (
+           SELECT wv2.workout_id, wv2.public_id, wv2.version_number
+           FROM workout_versions wv2
+           INNER JOIN (
+             SELECT workout_id, MAX(version_number) AS max_version
+             FROM workout_versions
+             WHERE status = 'PUBLISHED'
+             GROUP BY workout_id
+           ) m ON m.workout_id = wv2.workout_id AND m.max_version = wv2.version_number
+           WHERE wv2.status = 'PUBLISHED'
+         ) latest_pub ON latest_pub.workout_id = w.id
+         WHERE ${whereClause}
+         ORDER BY wa.status ASC, wa.starts_on DESC, wa.created_at DESC
+         LIMIT ? OFFSET ?;`,
+        listParams
+      );
+      rows = queriedRows;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["custom_title"])) {
+        const [queriedRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+             wa.public_id AS assignment_public_id,
+             cm.public_id AS student_membership_public_id,
+             u.full_name AS student_name,
+             u.email AS student_email,
+             w.public_id AS workout_public_id,
+             w.title AS workout_title,
+             NULL AS custom_title,
+             wv.public_id AS assigned_version_public_id,
+             wv.version_number AS assigned_version_number,
+             latest_pub.public_id AS current_published_version_public_id,
+             latest_pub.version_number AS current_published_version_number,
+             DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
+             DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
+             wa.status,
+             wa.notes_for_student,
+             wa.created_at
+           FROM workout_assignments wa
+           INNER JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+           INNER JOIN users u ON u.id = cm.user_id
+           INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+           INNER JOIN workouts w ON w.id = wv.workout_id
+           LEFT JOIN (
+             SELECT wv2.workout_id, wv2.public_id, wv2.version_number
+             FROM workout_versions wv2
+             INNER JOIN (
+               SELECT workout_id, MAX(version_number) AS max_version
+               FROM workout_versions
+               WHERE status = 'PUBLISHED'
+               GROUP BY workout_id
+             ) m ON m.workout_id = wv2.workout_id AND m.max_version = wv2.version_number
+             WHERE wv2.status = 'PUBLISHED'
+           ) latest_pub ON latest_pub.workout_id = w.id
+           WHERE ${whereClause}
+           ORDER BY wa.status ASC, wa.starts_on DESC, wa.created_at DESC
+           LIMIT ? OFFSET ?;`,
+          listParams
+        );
+        rows = queriedRows;
+      } else {
+        throw err;
+      }
+    }
 
     const items: ProfessionalAssignmentListItem[] = rows.map((r) => {
       const assignedVer = Number(r.assigned_version_number);
@@ -598,6 +656,7 @@ export async function listAssignmentsForProfessional(
         studentEmail: String(r.student_email),
         workoutPublicId: String(r.workout_public_id),
         workoutTitle: String(r.workout_title),
+        customTitle: r.custom_title ? String(r.custom_title) : null,
         assignedVersionPublicId: String(r.assigned_version_public_id),
         assignedVersionNumber: assignedVer,
         currentPublishedVersionPublicId: r.current_published_version_public_id ? String(r.current_published_version_public_id) : null,
@@ -1424,6 +1483,13 @@ export async function updateAssignmentScheduleOrNotes(
       return res.affectedRows > 0;
     } catch (err: unknown) {
       if (isMissingColumnError(err, ["custom_title"])) {
+        if (input.customTitle !== undefined && input.customTitle !== null && input.customTitle.trim() !== "") {
+          throw new TrainingAuthorizationError(
+            "Não foi possível atualizar o nome personalizado da ficha pois a coluna custom_title não existe no banco de dados (Migration 068 pendente).",
+            "MIGRATION_068_REQUIRED",
+            500
+          );
+        }
         const filteredUpdates = updates.filter((u) => !u.includes("custom_title"));
         if (filteredUpdates.length === 0) return true;
         const filteredValues = values.slice(0, updates.length).filter((_, idx) => !updates[idx].includes("custom_title"));

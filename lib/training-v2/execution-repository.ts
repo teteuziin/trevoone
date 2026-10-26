@@ -1794,6 +1794,13 @@ export async function completeWorkoutExecution(
       );
     } catch (updErr: unknown) {
       if (isMissingColumnError(updErr, ["student_completion_state", "student_feedback_notes", "student_feedback_at"])) {
+        if (studentCompletionState || studentFeedbackNotes) {
+          throw new TrainingAuthorizationError(
+            "Não foi possível salvar o feedback ou conclusão do treino pois as colunas necessárias não existem no banco de dados (Migration 068 pendente).",
+            "MIGRATION_068_REQUIRED",
+            500
+          );
+        }
         await connection.execute<ResultSetHeader>(
           `UPDATE workout_execution_sessions
            SET status = 'COMPLETED', completed_at = NOW(3), updated_at = NOW(3)
@@ -2466,9 +2473,14 @@ export async function toggleWorkoutExecutionExercise(
         );
       }
     } catch (itemErr: unknown) {
-      if (!isMissingTableError(itemErr, ["workout_execution_items"])) {
-        console.warn("[toggleWorkoutExecutionExercise] Non-fatal items table error:", itemErr);
+      if (isMissingTableError(itemErr, ["workout_execution_items"])) {
+        throw new TrainingAuthorizationError(
+          "Não foi possível salvar o estado do exercício no checklist pois a tabela workout_execution_items não existe no banco de dados (Migration 068 pendente).",
+          "MIGRATION_068_REQUIRED",
+          500
+        );
       }
+      throw itemErr;
     }
 
     if (completed) {
@@ -2598,9 +2610,14 @@ export async function skipWorkoutExecutionExercise(
         [itemPublicId, s.id, item.id, cleanReason, cleanReason]
       );
     } catch (itemErr: unknown) {
-      if (!isMissingTableError(itemErr, ["workout_execution_items"])) {
-        console.warn("[skipWorkoutExecutionExercise] Non-fatal items table error:", itemErr);
+      if (isMissingTableError(itemErr, ["workout_execution_items"])) {
+        throw new TrainingAuthorizationError(
+          "Não foi possível marcar o exercício como pulado no checklist pois a tabela workout_execution_items não existe no banco de dados (Migration 068 pendente).",
+          "MIGRATION_068_REQUIRED",
+          500
+        );
       }
+      throw itemErr;
     }
 
     try {

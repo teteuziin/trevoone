@@ -90,6 +90,7 @@ import type {
 import { workoutBlockTypeSchema } from "@/lib/training-v2/validation";
 import {
   createAssignment,
+  updateAssignmentScheduleOrNotes,
   repointAssignmentToNewVersion,
   getActiveAssignmentForStudentAndWorkout,
   terminateAssignment,
@@ -1159,6 +1160,38 @@ export async function updateWorkoutAssignmentVersionAction(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Erro ao atualizar versão da prescrição.",
+    };
+  }
+}
+
+/**
+ * Updates the custom title of an already assigned workout routine.
+ */
+export async function updateWorkoutAssignmentCustomTitleAction(
+  slug: string,
+  assignmentPublicId: string,
+  customTitle: string | null
+): Promise<ActionResponse<{ success: boolean; customTitle: string | null }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+
+    if (!assignmentPublicId || !assignmentPublicId.trim()) {
+      return { ok: false, error: "Identificador da prescrição é obrigatório." };
+    }
+
+    const success = await updateAssignmentScheduleOrNotes(ctx, assignmentPublicId.trim(), {
+      customTitle: customTitle !== null ? customTitle.trim() || null : null,
+    });
+
+    revalidatePath(`/consultoria/${slug}`);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidatePath(`/consultoria/${slug}/treinos`);
+
+    return { ok: true, data: { success, customTitle: customTitle?.trim() || null } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao atualizar nome da ficha do aluno.",
     };
   }
 }

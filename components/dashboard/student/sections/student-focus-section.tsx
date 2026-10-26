@@ -66,20 +66,31 @@ export function StudentFocusSection({
 }: StudentFocusSectionProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
-  const hasTraining = Boolean(dailyWorkoutResolution?.assignmentPublicId || activeTraining);
+  const status = dailyWorkoutResolution?.status;
+  const isError = status === "ERROR";
+  const hasTraining = !isError && Boolean(dailyWorkoutResolution?.assignmentPublicId || activeTraining);
 
   // Status tag e cores contextuais de Treino
-  const status = dailyWorkoutResolution?.status;
   const isSessionInProgress = status === "IN_PROGRESS" || hasActiveSession;
   const isCompletedToday = status === "COMPLETED_TODAY" || status === "SEQUENCE_COMPLETED";
   const isRestDay = status === "REST_DAY";
 
-// Título e divisão sem repetição de "Em andamento"
-  const headlineTitle = dailyWorkoutResolution?.headlineTitle || "Meu Treino";
+  // Título e divisão sem repetição de "Em andamento"
+  const headlineTitle = isError
+    ? "Meu Treino"
+    : (dailyWorkoutResolution?.headlineTitle || "Meu Treino");
   const divisionTitle = dailyWorkoutResolution?.divisionTitle || activeTraining?.title || "Ficha de treino";
   const routineTitle = dailyWorkoutResolution?.routineTitle || activeTraining?.title || "";
-  const exerciseCount = dailyWorkoutResolution?.exerciseCount ?? activeTraining?.blockCount ?? 0;
-  const durationEstimate = dailyWorkoutResolution?.estimatedDurationMinutes || 40;
+  const exerciseCount = isError
+    ? 0
+    : (dailyWorkoutResolution?.exerciseCount != null
+        ? Number(dailyWorkoutResolution.exerciseCount)
+        : (activeTraining?.blockCount ?? 0));
+  const durationEstimate = isError
+    ? null
+    : (dailyWorkoutResolution?.estimatedDurationMinutes != null
+        ? Number(dailyWorkoutResolution.estimatedDurationMinutes)
+        : null);
 
   let trainingActionHref = dailyWorkoutResolution?.actionHref || `/consultoria/${consultancySlug}/treinos`;
   let trainingActionLabel = dailyWorkoutResolution?.actionLabel || (isSessionInProgress ? "Retomar treino" : "Iniciar treino");
@@ -132,7 +143,11 @@ export function StudentFocusSection({
               </div>
 
               {/* Status Badge Real ÚNICO (sem repetição de status no card) */}
-              {hasTraining ? (
+              {isError ? (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                  Atenção
+                </span>
+              ) : hasTraining ? (
                 isSessionInProgress ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -159,7 +174,19 @@ export function StudentFocusSection({
             </div>
 
             {/* Conteúdo Central */}
-            {hasTraining ? (
+            {isError ? (
+              <div className="p-4 rounded-xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/25 space-y-2">
+                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 font-bold text-sm">
+                  <svg className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span>Consulta de treino indisponível no momento</span>
+                </div>
+                <p className="text-xs text-amber-900/80 dark:text-amber-300/80 leading-relaxed">
+                  {dailyWorkoutResolution?.contextNote || "Não foi possível carregar a programação do treino neste momento. Suas prescrições e histórico permanecem preservados."}
+                </p>
+              </div>
+            ) : hasTraining ? (
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-3">
                 <div>
                   {/* Nome da Divisão em Destaque Forte */}
@@ -229,7 +256,7 @@ export function StudentFocusSection({
                       {exerciseCount} {exerciseCount === 1 ? "exercício" : "exercícios"}
                     </span>
                   )}
-                  {durationEstimate > 0 && (
+                  {durationEstimate !== null && durationEstimate > 0 && (
                     <>
                       {exerciseCount > 0 && <span>•</span>}
                       <span>
@@ -270,7 +297,22 @@ export function StudentFocusSection({
 
           {/* Ações do Card de Treino */}
           <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 border-t border-zinc-100 dark:border-[#303238]/80">
-            {hasTraining ? (
+            {isError ? (
+              <div className="flex flex-wrap items-center gap-2.5 w-full justify-between">
+                <Link
+                  href={`/consultoria/${consultancySlug}/treinos`}
+                  className="px-4 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 flex items-center justify-center gap-2 transition-opacity cursor-pointer"
+                >
+                  Ver meus treinos
+                </Link>
+                <Link
+                  href={`/consultoria/${consultancySlug}`}
+                  className="px-3.5 min-h-[44px] rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  Tentar novamente
+                </Link>
+              </div>
+            ) : hasTraining ? (
               <div className="flex flex-wrap items-center gap-2.5 w-full justify-between">
                 <div className="flex items-center gap-2 flex-wrap flex-1">
                   {/* Ação Principal: Iniciar / Retomar / Continuar */}

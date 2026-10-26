@@ -24,6 +24,7 @@ import type {
   StudentWorkoutViewContract,
   WorkoutAssignmentStatus,
 } from "./types";
+import { isMissingColumnError } from "./schema-resilience";
 
 export type CreateAssignmentInput = {
   workoutPublicId?: string;
@@ -944,27 +945,57 @@ export async function getStudentWorkoutViewDetailed(
     }
 
     // 2. Check for an IN_PROGRESS execution session for this assignment / student
-    const [inProgressRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-         wes.id AS session_id,
-         wes.public_id AS session_public_id,
-         wes.workout_version_id,
-         wes.workout_block_id,
-         wb.public_id AS session_block_public_id,
-         wb.title AS session_block_title,
-         wv.public_id AS session_version_public_id,
-         wv.version_number AS session_version_number,
-         wv.title AS session_title
-       FROM workout_execution_sessions wes
-       INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
-       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
-       WHERE wes.workout_assignment_id = ?
-         AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
-         AND wes.status = 'IN_PROGRESS'
-       ORDER BY wes.started_at DESC
-       LIMIT 1;`,
-      [a.id, a.student_membership_id, ctx.userId, ctx.consultancyId!]
-    );
+    let inProgressRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           wes.id AS session_id,
+           wes.public_id AS session_public_id,
+           wes.workout_version_id,
+           wes.workout_block_id,
+           wb.public_id AS session_block_public_id,
+           wb.title AS session_block_title,
+           wv.public_id AS session_version_public_id,
+           wv.version_number AS session_version_number,
+           wv.title AS session_title
+         FROM workout_execution_sessions wes
+         INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+         LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
+         WHERE wes.workout_assignment_id = ?
+           AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+           AND wes.status = 'IN_PROGRESS'
+         ORDER BY wes.started_at DESC
+         LIMIT 1;`,
+        [a.id, a.student_membership_id, ctx.userId, ctx.consultancyId!]
+      );
+      inProgressRows = rows;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["workout_block_id"])) {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+             wes.id AS session_id,
+             wes.public_id AS session_public_id,
+             wes.workout_version_id,
+             NULL AS workout_block_id,
+             NULL AS session_block_public_id,
+             NULL AS session_block_title,
+             wv.public_id AS session_version_public_id,
+             wv.version_number AS session_version_number,
+             wv.title AS session_title
+           FROM workout_execution_sessions wes
+           INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+           WHERE wes.workout_assignment_id = ?
+             AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+             AND wes.status = 'IN_PROGRESS'
+           ORDER BY wes.started_at DESC
+           LIMIT 1;`,
+          [a.id, a.student_membership_id, ctx.userId, ctx.consultancyId!]
+        );
+        inProgressRows = rows;
+      } else {
+        throw err;
+      }
+    }
 
     const hasActiveSession = inProgressRows && inProgressRows.length > 0;
     const activeSession = hasActiveSession ? inProgressRows[0] : null;
@@ -1014,19 +1045,42 @@ export async function getStudentWorkoutViewDetailed(
         activeBlockPublicId = String(activeSession.session_block_public_id);
       } else {
         // Resolve legacy session block using unequivocal execution evidence
-        const [execSets] = await connection.execute<RowDataPacket[]>(
-          `SELECT
-            wb.id,
-            wb.public_id,
-            COUNT(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 END) AS completed_sets
-           FROM workout_execution_sets wex
-           INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-           INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-           WHERE wex.execution_session_id = ?
-           GROUP BY wb.id, wb.public_id
-           HAVING completed_sets > 0;`,
-          [activeSession.session_id]
-        );
+        let execSets: RowDataPacket[] = [];
+        try {
+          const [rows] = await connection.execute<RowDataPacket[]>(
+            `SELECT
+              wb.id,
+              wb.public_id,
+              COUNT(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 END) AS completed_sets
+             FROM workout_execution_sets wex
+             INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+             INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+             WHERE wex.execution_session_id = ?
+             GROUP BY wb.id, wb.public_id
+             HAVING completed_sets > 0;`,
+            [activeSession.session_id]
+          );
+          execSets = rows;
+        } catch (err: unknown) {
+          if (isMissingColumnError(err, ["is_skipped"])) {
+            const [rows] = await connection.execute<RowDataPacket[]>(
+              `SELECT
+                wb.id,
+                wb.public_id,
+                COUNT(CASE WHEN wex.completed_at IS NOT NULL THEN 1 END) AS completed_sets
+               FROM workout_execution_sets wex
+               INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+               INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+               WHERE wex.execution_session_id = ?
+               GROUP BY wb.id, wb.public_id
+               HAVING completed_sets > 0;`,
+              [activeSession.session_id]
+            );
+            execSets = rows;
+          } else {
+            throw err;
+          }
+        }
         if (execSets && execSets.length === 1) {
           activeBlockPublicId = String(execSets[0].public_id);
         } else {

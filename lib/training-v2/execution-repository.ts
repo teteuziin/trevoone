@@ -16,6 +16,7 @@ import {
   createNotificationInTransaction,
   deliverNotificationAfterCommit,
 } from "@/services/notification-service";
+import { isMissingColumnError } from "./schema-resilience";
 export class TrainingSessionConflictError extends Error {
   public readonly code = "ACTIVE_SESSION_CONFLICT";
   public readonly statusCode = 409;
@@ -111,6 +112,263 @@ async function verifyUserMembershipOwnership(
   return Array.isArray(rows) && rows.length > 0;
 }
 
+async function queryExecutionSessionWithBlock(
+  connection: PoolConnection,
+  whereClause: string,
+  params: unknown[],
+  forUpdate = false,
+  orderByClause?: string
+): Promise<RowDataPacket[]> {
+  const lock = forUpdate ? " FOR UPDATE" : "";
+  const order = orderByClause ? ` ORDER BY ${orderByClause}` : "";
+  try {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        wes.id,
+        wes.public_id,
+        wes.consultancy_id,
+        wes.student_membership_id,
+        wes.workout_assignment_id,
+        wes.workout_version_id,
+        wes.workout_block_id,
+        wes.status,
+        wes.started_at,
+        wes.completed_at,
+        wes.created_at,
+        wes.updated_at,
+        wa.public_id AS assignment_public_id,
+        wv.public_id AS version_public_id,
+        wv.public_id AS session_version_public_id,
+        wb.public_id AS workout_block_public_id,
+        wb.title AS workout_block_title
+       FROM workout_execution_sessions wes
+       INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
+       INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
+       WHERE ${whereClause}${order}
+       LIMIT 1${lock};`,
+      params
+    );
+    return rows;
+  } catch (err: unknown) {
+    if (isMissingColumnError(err, ["workout_block_id"])) {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          wes.id,
+          wes.public_id,
+          wes.consultancy_id,
+          wes.student_membership_id,
+          wes.workout_assignment_id,
+          wes.workout_version_id,
+          NULL AS workout_block_id,
+          wes.status,
+          wes.started_at,
+          wes.completed_at,
+          wes.created_at,
+          wes.updated_at,
+          wa.public_id AS assignment_public_id,
+          wv.public_id AS version_public_id,
+          wv.public_id AS session_version_public_id,
+          NULL AS workout_block_public_id,
+          NULL AS workout_block_title
+         FROM workout_execution_sessions wes
+         INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
+         INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+         WHERE ${whereClause}${order}
+         LIMIT 1${lock};`,
+        params
+      );
+      return rows;
+    }
+    throw err;
+  }
+}
+
+async function queryExecutionSetsBySessionId(
+  connection: PoolConnection,
+  sessionId: number
+): Promise<RowDataPacket[]> {
+  try {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        wex.id,
+        wex.public_id,
+        wex.execution_session_id,
+        wex.workout_item_set_id,
+        wex.block_item_id,
+        wbi.public_id AS block_item_public_id,
+        wex.set_number,
+        wex.set_type,
+        wex.prescribed_reps,
+        wex.prescribed_reps_max,
+        wex.prescribed_load_kg,
+        wex.prescribed_rest_seconds,
+        wex.actual_reps,
+        wex.actual_load_kg,
+        wex.is_skipped,
+        wex.completed_at,
+        wex.created_at,
+        wex.updated_at
+       FROM workout_execution_sets wex
+       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+       WHERE wex.execution_session_id = ?
+       ORDER BY wex.set_number ASC;`,
+      [sessionId]
+    );
+    return rows;
+  } catch (err: unknown) {
+    if (isMissingColumnError(err, ["is_skipped"])) {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          wex.id,
+          wex.public_id,
+          wex.execution_session_id,
+          wex.workout_item_set_id,
+          wex.block_item_id,
+          wbi.public_id AS block_item_public_id,
+          wex.set_number,
+          wex.set_type,
+          wex.prescribed_reps,
+          wex.prescribed_reps_max,
+          wex.prescribed_load_kg,
+          wex.prescribed_rest_seconds,
+          wex.actual_reps,
+          wex.actual_load_kg,
+          0 AS is_skipped,
+          wex.completed_at,
+          wex.created_at,
+          wex.updated_at
+         FROM workout_execution_sets wex
+         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+         WHERE wex.execution_session_id = ?
+         ORDER BY wex.set_number ASC;`,
+        [sessionId]
+      );
+      return rows;
+    }
+    throw err;
+  }
+}
+
+async function queryExecutionSetsBySessionIdsBatch(
+  connection: PoolConnection,
+  sessionIds: number[]
+): Promise<RowDataPacket[]> {
+  try {
+    const [rows] = await connection.query<RowDataPacket[]>(
+      `SELECT
+        wex.public_id,
+        wex.execution_session_id,
+        wex.block_item_id,
+        wex.set_number,
+        wex.set_type,
+        wex.prescribed_reps,
+        wex.prescribed_reps_max,
+        wex.prescribed_load_kg,
+        wex.prescribed_rest_seconds,
+        wex.actual_reps,
+        wex.actual_load_kg,
+        wex.is_skipped,
+        wex.completed_at,
+        wbi.public_id AS block_item_public_id,
+        wbi.exercise_name_snapshot
+       FROM workout_execution_sets wex
+       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+       WHERE wex.execution_session_id IN (?)
+       ORDER BY wex.execution_session_id ASC, wex.set_number ASC;`,
+      [sessionIds]
+    );
+    return rows;
+  } catch (err: unknown) {
+    if (isMissingColumnError(err, ["is_skipped"])) {
+      const [rows] = await connection.query<RowDataPacket[]>(
+        `SELECT
+          wex.public_id,
+          wex.execution_session_id,
+          wex.block_item_id,
+          wex.set_number,
+          wex.set_type,
+          wex.prescribed_reps,
+          wex.prescribed_reps_max,
+          wex.prescribed_load_kg,
+          wex.prescribed_rest_seconds,
+          wex.actual_reps,
+          wex.actual_load_kg,
+          0 AS is_skipped,
+          wex.completed_at,
+          wbi.public_id AS block_item_public_id,
+          wbi.exercise_name_snapshot
+         FROM workout_execution_sets wex
+         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+         WHERE wex.execution_session_id IN (?)
+         ORDER BY wex.execution_session_id ASC, wex.set_number ASC;`,
+        [sessionIds]
+      );
+      return rows;
+    }
+    throw err;
+  }
+}
+
+async function insertExecutionSessionSafely(
+  connection: PoolConnection,
+  params: {
+    publicId: string;
+    consultancyId: number;
+    membershipId: number;
+    assignmentId: number;
+    versionId: number;
+    blockId: number;
+  }
+): Promise<number> {
+  try {
+    const [res] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO workout_execution_sessions (
+        public_id,
+        consultancy_id,
+        student_membership_id,
+        workout_assignment_id,
+        workout_version_id,
+        workout_block_id,
+        status,
+        started_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'IN_PROGRESS', NOW(3));`,
+      [
+        params.publicId,
+        params.consultancyId,
+        params.membershipId,
+        params.assignmentId,
+        params.versionId,
+        params.blockId,
+      ]
+    );
+    return res.insertId;
+  } catch (err: unknown) {
+    if (isMissingColumnError(err, ["workout_block_id"])) {
+      const [res] = await connection.execute<ResultSetHeader>(
+        `INSERT INTO workout_execution_sessions (
+          public_id,
+          consultancy_id,
+          student_membership_id,
+          workout_assignment_id,
+          workout_version_id,
+          status,
+          started_at
+        ) VALUES (?, ?, ?, ?, ?, 'IN_PROGRESS', NOW(3));`,
+        [
+          params.publicId,
+          params.consultancyId,
+          params.membershipId,
+          params.assignmentId,
+          params.versionId,
+        ]
+      );
+      return res.insertId;
+    }
+    throw err;
+  }
+}
+
 export type LegacyBlockResolution = {
   kind: "SINGLE_BLOCK_CONFIRMED" | "MULTI_BLOCK_LEGACY" | "INSUFFICIENT_DATA";
   blockId: number | null;
@@ -137,21 +395,46 @@ export async function resolveLegacySessionBlocks(
   connection: PoolConnection,
   sessionId: number
 ): Promise<LegacyBlockResolution> {
-  const [rows] = await connection.execute<RowDataPacket[]>(
-    `SELECT
-      wb.id AS block_id,
-      wb.public_id AS block_public_id,
-      wb.title AS block_title,
-      COUNT(wex.id) AS total_sets,
-      COUNT(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 END) AS completed_sets
-     FROM workout_execution_sets wex
-     INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-     INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-     WHERE wex.execution_session_id = ?
-     GROUP BY wb.id, wb.public_id, wb.title, wb.sort_order
-     ORDER BY completed_sets DESC, wb.sort_order ASC;`,
-    [sessionId]
-  );
+  let rows: RowDataPacket[] = [];
+  try {
+    const [result] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        wb.id AS block_id,
+        wb.public_id AS block_public_id,
+        wb.title AS block_title,
+        COUNT(wex.id) AS total_sets,
+        COUNT(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 END) AS completed_sets
+       FROM workout_execution_sets wex
+       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+       INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+       WHERE wex.execution_session_id = ?
+       GROUP BY wb.id, wb.public_id, wb.title, wb.sort_order
+       ORDER BY completed_sets DESC, wb.sort_order ASC;`,
+      [sessionId]
+    );
+    rows = result;
+  } catch (err: unknown) {
+    if (isMissingColumnError(err, ["is_skipped"])) {
+      const [result] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          wb.id AS block_id,
+          wb.public_id AS block_public_id,
+          wb.title AS block_title,
+          COUNT(wex.id) AS total_sets,
+          COUNT(CASE WHEN wex.completed_at IS NOT NULL THEN 1 END) AS completed_sets
+         FROM workout_execution_sets wex
+         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+         WHERE wex.execution_session_id = ?
+         GROUP BY wb.id, wb.public_id, wb.title, wb.sort_order
+         ORDER BY completed_sets DESC, wb.sort_order ASC;`,
+        [sessionId]
+      );
+      rows = result;
+    } else {
+      throw err;
+    }
+  }
 
   const participatingBlocks = (rows || []).map((r) => ({
     blockId: Number(r.block_id),
@@ -377,30 +660,11 @@ export async function startOrResumeWorkoutExecution(
     }
 
     // 3. Check for an existing IN_PROGRESS execution session for this assignment
-    const [existingSessions] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        wes.id,
-        wes.public_id,
-        wes.consultancy_id,
-        wes.student_membership_id,
-        wes.workout_assignment_id,
-        wes.workout_version_id,
-        wes.workout_block_id,
-        wes.status,
-        wes.started_at,
-        wes.completed_at,
-        wes.created_at,
-        wes.updated_at,
-        wv.public_id AS session_version_public_id,
-        wb.public_id AS workout_block_public_id,
-        wb.title AS workout_block_title
-       FROM workout_execution_sessions wes
-       INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
-       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
-       WHERE wes.workout_assignment_id = ? AND wes.status = 'IN_PROGRESS'
-       LIMIT 1
-       FOR UPDATE;`,
-      [a.id]
+    const existingSessions = await queryExecutionSessionWithBlock(
+      connection,
+      "wes.workout_assignment_id = ? AND wes.status = 'IN_PROGRESS'",
+      [a.id],
+      true
     );
 
     if (existingSessions && existingSessions.length > 0) {
@@ -434,32 +698,7 @@ export async function startOrResumeWorkoutExecution(
       if (isConflict) {
         if (options?.resolveConflict === "RESUME") {
           // Explicit resume of active session
-          const [setRows] = await connection.execute<RowDataPacket[]>(
-            `SELECT
-              wex.id,
-              wex.public_id,
-              wex.execution_session_id,
-              wex.workout_item_set_id,
-              wex.block_item_id,
-              wbi.public_id AS block_item_public_id,
-              wex.set_number,
-              wex.set_type,
-              wex.prescribed_reps,
-              wex.prescribed_reps_max,
-              wex.prescribed_load_kg,
-              wex.prescribed_rest_seconds,
-              wex.actual_reps,
-              wex.actual_load_kg,
-              wex.is_skipped,
-              wex.completed_at,
-              wex.created_at,
-              wex.updated_at
-             FROM workout_execution_sets wex
-             INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-             WHERE wex.execution_session_id = ?
-             ORDER BY wex.set_number ASC;`,
-            [activeSession.id]
-          );
+          const setRows = await queryExecutionSetsBySessionId(connection, Number(activeSession.id));
 
           await connection.commit();
 
@@ -481,12 +720,25 @@ export async function startOrResumeWorkoutExecution(
           };
         } else if (options?.resolveConflict === "COMPLETE_EARLY") {
           // Conclude previous session early: mark pending sets as skipped and session COMPLETED
-          await connection.execute<ResultSetHeader>(
-            `UPDATE workout_execution_sets
-             SET completed_at = NOW(3), is_skipped = 1, updated_at = NOW(3)
-             WHERE execution_session_id = ? AND completed_at IS NULL;`,
-            [activeSession.id]
-          );
+          try {
+            await connection.execute<ResultSetHeader>(
+              `UPDATE workout_execution_sets
+               SET completed_at = NOW(3), is_skipped = 1, updated_at = NOW(3)
+               WHERE execution_session_id = ? AND completed_at IS NULL;`,
+              [activeSession.id]
+            );
+          } catch (err: unknown) {
+            if (isMissingColumnError(err, ["is_skipped"])) {
+              await connection.execute<ResultSetHeader>(
+                `UPDATE workout_execution_sets
+                 SET completed_at = NOW(3), updated_at = NOW(3)
+                 WHERE execution_session_id = ? AND completed_at IS NULL;`,
+                [activeSession.id]
+              );
+            } else {
+              throw err;
+            }
+          }
 
           await connection.execute<ResultSetHeader>(
             `UPDATE workout_execution_sessions
@@ -532,32 +784,7 @@ export async function startOrResumeWorkoutExecution(
         }
       } else {
         // No conflict: student is resuming the active session
-        const [setRows] = await connection.execute<RowDataPacket[]>(
-          `SELECT
-            wex.id,
-            wex.public_id,
-            wex.execution_session_id,
-            wex.workout_item_set_id,
-            wex.block_item_id,
-            wbi.public_id AS block_item_public_id,
-            wex.set_number,
-            wex.set_type,
-            wex.prescribed_reps,
-            wex.prescribed_reps_max,
-            wex.prescribed_load_kg,
-            wex.prescribed_rest_seconds,
-            wex.actual_reps,
-            wex.actual_load_kg,
-            wex.is_skipped,
-            wex.completed_at,
-            wex.created_at,
-            wex.updated_at
-           FROM workout_execution_sets wex
-           INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-           WHERE wex.execution_session_id = ?
-           ORDER BY wex.set_number ASC;`,
-          [activeSession.id]
-        );
+        const setRows = await queryExecutionSetsBySessionId(connection, Number(activeSession.id));
 
         await connection.commit();
 
@@ -811,21 +1038,14 @@ export async function startOrResumeWorkoutExecution(
 
     const sessionPublicId = crypto.randomUUID();
 
-    const [insertSessionRes] = await connection.execute<ResultSetHeader>(
-      `INSERT INTO workout_execution_sessions (
-        public_id,
-        consultancy_id,
-        student_membership_id,
-        workout_assignment_id,
-        workout_version_id,
-        workout_block_id,
-        status,
-        started_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'IN_PROGRESS', NOW(3));`,
-      [sessionPublicId, ctx.consultancyId!, ctx.membershipId!, a.id, a.workout_version_id, targetBlock.id]
-    );
-
-    const sessionId = insertSessionRes.insertId;
+    const sessionId = await insertExecutionSessionSafely(connection, {
+      publicId: sessionPublicId,
+      consultancyId: ctx.consultancyId!,
+      membershipId: ctx.membershipId!,
+      assignmentId: a.id,
+      versionId: a.workout_version_id,
+      blockId: targetBlock.id,
+    });
 
     // Snapshot each prescribed set with sequential set_number
     const createdSets: WorkoutExecutionSetDto[] = [];
@@ -931,30 +1151,9 @@ export async function getActiveStudentWorkoutExecution(
     );
     const assignTargetId = resolved ? resolved.id : null;
 
-    const [sessionRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        wes.id,
-        wes.public_id,
-        wes.consultancy_id,
-        wes.student_membership_id,
-        wes.workout_block_id,
-        wes.status,
-        wes.started_at,
-        wes.completed_at,
-        wes.created_at,
-        wes.updated_at,
-        wa.public_id AS assignment_public_id,
-        wv.public_id AS version_public_id,
-        wb.public_id AS workout_block_public_id,
-        wb.title AS workout_block_title
-       FROM workout_execution_sessions wes
-       INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
-       INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
-       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
-       WHERE ${assignTargetId ? "wa.id = ?" : "wa.public_id = ?"}
-         AND wes.status = 'IN_PROGRESS'
-         AND wa.deleted_at IS NULL
-       LIMIT 1;`,
+    const sessionRows = await queryExecutionSessionWithBlock(
+      connection,
+      `${assignTargetId ? "wa.id = ?" : "wa.public_id = ?"} AND wes.status = 'IN_PROGRESS' AND wa.deleted_at IS NULL`,
       [assignTargetId ? assignTargetId : assignmentPublicId]
     );
 
@@ -979,32 +1178,7 @@ export async function getActiveStudentWorkoutExecution(
       return null;
     }
 
-    const [setRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        wex.id,
-        wex.public_id,
-        wex.execution_session_id,
-        wex.workout_item_set_id,
-        wex.block_item_id,
-        wbi.public_id AS block_item_public_id,
-        wex.set_number,
-        wex.set_type,
-        wex.prescribed_reps,
-        wex.prescribed_reps_max,
-        wex.prescribed_load_kg,
-        wex.prescribed_rest_seconds,
-        wex.actual_reps,
-        wex.actual_load_kg,
-        wex.is_skipped,
-        wex.completed_at,
-        wex.created_at,
-        wex.updated_at
-       FROM workout_execution_sets wex
-       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-       WHERE wex.execution_session_id = ?
-       ORDER BY wex.set_number ASC;`,
-      [s.id]
-    );
+    const setRows = await queryExecutionSetsBySessionId(connection, Number(s.id));
 
     let activeBlockId = s.workout_block_id != null ? Number(s.workout_block_id) : null;
     let activeBlockPublicId = s.workout_block_public_id ? String(s.workout_block_public_id) : null;
@@ -1061,35 +1235,12 @@ export async function getActiveOrLatestStudentWorkoutExecution(
     );
     const assignTargetId = resolved ? resolved.id : null;
 
-    const [sessionRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        wes.id,
-        wes.public_id,
-        wes.consultancy_id,
-        wes.student_membership_id,
-        wes.workout_block_id,
-        wes.status,
-        wes.started_at,
-        wes.completed_at,
-        wes.created_at,
-        wes.updated_at,
-        wa.public_id AS assignment_public_id,
-        wv.public_id AS version_public_id,
-        wb.public_id AS workout_block_public_id,
-        wb.title AS workout_block_title
-       FROM workout_execution_sessions wes
-       INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
-       INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
-       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
-       WHERE ${assignTargetId ? "wa.id = ?" : "wa.public_id = ?"}
-         AND wa.deleted_at IS NULL
-         AND wes.status IN ('IN_PROGRESS', 'COMPLETED')
-       ORDER BY
-         CASE WHEN wes.status = 'IN_PROGRESS' THEN 0 ELSE 1 END ASC,
-         wes.completed_at DESC,
-         wes.created_at DESC
-       LIMIT 1;`,
-      [assignTargetId ? assignTargetId : assignmentPublicId]
+    const sessionRows = await queryExecutionSessionWithBlock(
+      connection,
+      `${assignTargetId ? "wa.id = ?" : "wa.public_id = ?"} AND wa.deleted_at IS NULL AND wes.status IN ('IN_PROGRESS', 'COMPLETED')`,
+      [assignTargetId ? assignTargetId : assignmentPublicId],
+      false,
+      "CASE WHEN wes.status = 'IN_PROGRESS' THEN 0 ELSE 1 END ASC, wes.completed_at DESC, wes.created_at DESC"
     );
 
     if (!sessionRows || sessionRows.length === 0) return null;
@@ -1113,32 +1264,7 @@ export async function getActiveOrLatestStudentWorkoutExecution(
       return null;
     }
 
-    const [setRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        wex.id,
-        wex.public_id,
-        wex.execution_session_id,
-        wex.workout_item_set_id,
-        wex.block_item_id,
-        wbi.public_id AS block_item_public_id,
-        wex.set_number,
-        wex.set_type,
-        wex.prescribed_reps,
-        wex.prescribed_reps_max,
-        wex.prescribed_load_kg,
-        wex.prescribed_rest_seconds,
-        wex.actual_reps,
-        wex.actual_load_kg,
-        wex.is_skipped,
-        wex.completed_at,
-        wex.created_at,
-        wex.updated_at
-       FROM workout_execution_sets wex
-       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-       WHERE wex.execution_session_id = ?
-       ORDER BY wex.set_number ASC;`,
-      [s.id]
-    );
+    const setRows = await queryExecutionSetsBySessionId(connection, Number(s.id));
 
     let activeBlockId = s.workout_block_id != null ? Number(s.workout_block_id) : null;
     let activeBlockPublicId = s.workout_block_public_id ? String(s.workout_block_public_id) : null;
@@ -1184,28 +1310,9 @@ export async function getStudentWorkoutExecution(
   try {
     connection = await getDbConnection();
 
-    const [sessionRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        wes.id,
-        wes.public_id,
-        wes.consultancy_id,
-        wes.student_membership_id,
-        wes.workout_block_id,
-        wes.status,
-        wes.started_at,
-        wes.completed_at,
-        wes.created_at,
-        wes.updated_at,
-        wa.public_id AS assignment_public_id,
-        wv.public_id AS version_public_id,
-        wb.public_id AS workout_block_public_id,
-        wb.title AS workout_block_title
-       FROM workout_execution_sessions wes
-       INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
-       INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
-       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
-       WHERE wes.public_id = ?
-       LIMIT 1;`,
+    const sessionRows = await queryExecutionSessionWithBlock(
+      connection,
+      "wes.public_id = ?",
       [sessionPublicId]
     );
 
@@ -1230,32 +1337,7 @@ export async function getStudentWorkoutExecution(
       return null;
     }
 
-    const [setRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        wex.id,
-        wex.public_id,
-        wex.execution_session_id,
-        wex.workout_item_set_id,
-        wex.block_item_id,
-        wbi.public_id AS block_item_public_id,
-        wex.set_number,
-        wex.set_type,
-        wex.prescribed_reps,
-        wex.prescribed_reps_max,
-        wex.prescribed_load_kg,
-        wex.prescribed_rest_seconds,
-        wex.actual_reps,
-        wex.actual_load_kg,
-        wex.is_skipped,
-        wex.completed_at,
-        wex.created_at,
-        wex.updated_at
-       FROM workout_execution_sets wex
-       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-       WHERE wex.execution_session_id = ?
-       ORDER BY wex.set_number ASC;`,
-      [s.id]
-    );
+    const setRows = await queryExecutionSetsBySessionId(connection, Number(s.id));
 
     let activeBlockId = s.workout_block_id != null ? Number(s.workout_block_id) : null;
     let activeBlockPublicId = s.workout_block_public_id ? String(s.workout_block_public_id) : null;
@@ -1397,33 +1479,70 @@ export async function completeWorkoutExecutionSet(
     }
 
     // 2. Lock and validate execution set
-    const [setRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        wex.id,
-        wex.public_id,
-        wex.execution_session_id,
-        wex.workout_item_set_id,
-        wex.block_item_id,
-        wbi.public_id AS block_item_public_id,
-        wex.set_number,
-        wex.set_type,
-        wex.prescribed_reps,
-        wex.prescribed_reps_max,
-        wex.prescribed_load_kg,
-        wex.prescribed_rest_seconds,
-        wex.actual_reps,
-        wex.actual_load_kg,
-        wex.is_skipped,
-        wex.completed_at,
-        wex.created_at,
-        wex.updated_at
-       FROM workout_execution_sets wex
-       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-       WHERE wex.public_id = ? AND wex.execution_session_id = ?
-       LIMIT 1
-       FOR UPDATE;`,
-      [setPublicId, session.id]
-    );
+    let setRows: RowDataPacket[];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          wex.id,
+          wex.public_id,
+          wex.execution_session_id,
+          wex.workout_item_set_id,
+          wex.block_item_id,
+          wbi.public_id AS block_item_public_id,
+          wex.set_number,
+          wex.set_type,
+          wex.prescribed_reps,
+          wex.prescribed_reps_max,
+          wex.prescribed_load_kg,
+          wex.prescribed_rest_seconds,
+          wex.actual_reps,
+          wex.actual_load_kg,
+          wex.is_skipped,
+          wex.completed_at,
+          wex.created_at,
+          wex.updated_at
+         FROM workout_execution_sets wex
+         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+         WHERE wex.public_id = ? AND wex.execution_session_id = ?
+         LIMIT 1
+         FOR UPDATE;`,
+        [setPublicId, session.id]
+      );
+      setRows = rows;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["is_skipped"])) {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+            wex.id,
+            wex.public_id,
+            wex.execution_session_id,
+            wex.workout_item_set_id,
+            wex.block_item_id,
+            wbi.public_id AS block_item_public_id,
+            wex.set_number,
+            wex.set_type,
+            wex.prescribed_reps,
+            wex.prescribed_reps_max,
+            wex.prescribed_load_kg,
+            wex.prescribed_rest_seconds,
+            wex.actual_reps,
+            wex.actual_load_kg,
+            0 AS is_skipped,
+            wex.completed_at,
+            wex.created_at,
+            wex.updated_at
+           FROM workout_execution_sets wex
+           INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+           WHERE wex.public_id = ? AND wex.execution_session_id = ?
+           LIMIT 1
+           FOR UPDATE;`,
+          [setPublicId, session.id]
+        );
+        setRows = rows;
+      } else {
+        throw err;
+      }
+    }
 
     if (!setRows || setRows.length === 0) {
       throw new TrainingAuthorizationError("Série de execução não encontrada nesta sessão.", "NOT_FOUND", 404);
@@ -1434,12 +1553,25 @@ export async function completeWorkoutExecutionSet(
     // 3. Apply completion idempotently: atomic update of completed_at, actual_reps, actual_load_kg, is_skipped
     const now = new Date();
     if (targetSet.completed_at == null) {
-      await connection.execute<ResultSetHeader>(
-        `UPDATE workout_execution_sets
-         SET completed_at = ?, actual_reps = ?, actual_load_kg = ?, is_skipped = ?, updated_at = NOW(3)
-         WHERE id = ?;`,
-        [now, validatedActualReps, validatedActualLoadKg, isSkipped ? 1 : 0, targetSet.id]
-      );
+      try {
+        await connection.execute<ResultSetHeader>(
+          `UPDATE workout_execution_sets
+           SET completed_at = ?, actual_reps = ?, actual_load_kg = ?, is_skipped = ?, updated_at = NOW(3)
+           WHERE id = ?;`,
+          [now, validatedActualReps, validatedActualLoadKg, isSkipped ? 1 : 0, targetSet.id]
+        );
+      } catch (err: unknown) {
+        if (isMissingColumnError(err, ["is_skipped"])) {
+          await connection.execute<ResultSetHeader>(
+            `UPDATE workout_execution_sets
+             SET completed_at = ?, actual_reps = ?, actual_load_kg = ?, updated_at = NOW(3)
+             WHERE id = ?;`,
+            [now, validatedActualReps, validatedActualLoadKg, targetSet.id]
+          );
+        } else {
+          throw err;
+        }
+      }
       targetSet.completed_at = now;
       targetSet.actual_reps = validatedActualReps;
       targetSet.actual_load_kg = validatedActualLoadKg;
@@ -1501,32 +1633,11 @@ export async function completeWorkoutExecution(
     await connection.beginTransaction();
 
     // 1. Lock and validate session
-    const [sessionRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        wes.id,
-        wes.public_id,
-        wes.consultancy_id,
-        wes.student_membership_id,
-        wes.workout_assignment_id,
-        wes.workout_version_id,
-        wes.workout_block_id,
-        wes.status,
-        wes.started_at,
-        wes.completed_at,
-        wes.created_at,
-        wes.updated_at,
-        wa.public_id AS assignment_public_id,
-        wv.public_id AS version_public_id,
-        wb.public_id AS workout_block_public_id,
-        wb.title AS workout_block_title
-       FROM workout_execution_sessions wes
-       INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
-       INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
-       LEFT JOIN workout_blocks wb ON wb.id = wes.workout_block_id
-       WHERE wes.public_id = ?
-       LIMIT 1
-       FOR UPDATE;`,
-      [sessionPublicId]
+    const sessionRows = await queryExecutionSessionWithBlock(
+      connection,
+      "wes.public_id = ?",
+      [sessionPublicId],
+      true
     );
 
     if (!sessionRows || sessionRows.length === 0) {
@@ -1568,32 +1679,7 @@ export async function completeWorkoutExecution(
 
     // Idempotent: already completed
     if (s.status === "COMPLETED") {
-      const [setRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT
-          wex.id,
-          wex.public_id,
-          wex.execution_session_id,
-          wex.workout_item_set_id,
-          wex.block_item_id,
-          wbi.public_id AS block_item_public_id,
-          wex.set_number,
-          wex.set_type,
-          wex.prescribed_reps,
-          wex.prescribed_reps_max,
-          wex.prescribed_load_kg,
-          wex.prescribed_rest_seconds,
-          wex.actual_reps,
-          wex.actual_load_kg,
-          wex.is_skipped,
-          wex.completed_at,
-          wex.created_at,
-          wex.updated_at
-         FROM workout_execution_sets wex
-         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-         WHERE wex.execution_session_id = ?
-         ORDER BY wex.set_number ASC;`,
-        [s.id]
-      );
+      const setRows = await queryExecutionSetsBySessionId(connection, Number(s.id));
       await connection.commit();
       return {
         publicId: String(s.public_id),
@@ -1616,15 +1702,31 @@ export async function completeWorkoutExecution(
     // 2. Pending sets handling
     if (options?.allowEarlyCompletion) {
       // Validate that at least one set was performed
-      const [performedRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT COUNT(*) AS performed_count
-         FROM workout_execution_sets
-         WHERE execution_session_id = ?
-           AND completed_at IS NOT NULL
-           AND (is_skipped = 0 OR is_skipped IS NULL);`,
-        [s.id]
-      );
-      const performedCount = Number(performedRows[0]?.performed_count || 0);
+      let performedCount = 0;
+      try {
+        const [performedRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT COUNT(*) AS performed_count
+           FROM workout_execution_sets
+           WHERE execution_session_id = ?
+             AND completed_at IS NOT NULL
+             AND (is_skipped = 0 OR is_skipped IS NULL);`,
+          [s.id]
+        );
+        performedCount = Number(performedRows[0]?.performed_count || 0);
+      } catch (err: unknown) {
+        if (isMissingColumnError(err, ["is_skipped"])) {
+          const [performedRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT COUNT(*) AS performed_count
+             FROM workout_execution_sets
+             WHERE execution_session_id = ?
+               AND completed_at IS NOT NULL;`,
+            [s.id]
+          );
+          performedCount = Number(performedRows[0]?.performed_count || 0);
+        } else {
+          throw err;
+        }
+      }
 
       if (performedCount === 0) {
         throw new TrainingAuthorizationError(
@@ -1635,12 +1737,25 @@ export async function completeWorkoutExecution(
       }
 
       // Mark all remaining pending sets as skipped
-      await connection.execute<ResultSetHeader>(
-        `UPDATE workout_execution_sets
-         SET completed_at = NOW(3), is_skipped = 1, updated_at = NOW(3)
-         WHERE execution_session_id = ? AND completed_at IS NULL;`,
-        [s.id]
-      );
+      try {
+        await connection.execute<ResultSetHeader>(
+          `UPDATE workout_execution_sets
+           SET completed_at = NOW(3), is_skipped = 1, updated_at = NOW(3)
+           WHERE execution_session_id = ? AND completed_at IS NULL;`,
+          [s.id]
+        );
+      } catch (err: unknown) {
+        if (isMissingColumnError(err, ["is_skipped"])) {
+          await connection.execute<ResultSetHeader>(
+            `UPDATE workout_execution_sets
+             SET completed_at = NOW(3), updated_at = NOW(3)
+             WHERE execution_session_id = ? AND completed_at IS NULL;`,
+            [s.id]
+          );
+        } else {
+          throw err;
+        }
+      }
     } else {
       // Pending sets guard: reject if any set is not completed
       const [pendingRows] = await connection.execute<RowDataPacket[]>(
@@ -1669,32 +1784,7 @@ export async function completeWorkoutExecution(
       [s.id]
     );
 
-    const [setRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        wex.id,
-        wex.public_id,
-        wex.execution_session_id,
-        wex.workout_item_set_id,
-        wex.block_item_id,
-        wbi.public_id AS block_item_public_id,
-        wex.set_number,
-        wex.set_type,
-        wex.prescribed_reps,
-        wex.prescribed_reps_max,
-        wex.prescribed_load_kg,
-        wex.prescribed_rest_seconds,
-        wex.actual_reps,
-        wex.actual_load_kg,
-        wex.is_skipped,
-        wex.completed_at,
-        wex.created_at,
-        wex.updated_at
-       FROM workout_execution_sets wex
-       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-       WHERE wex.execution_session_id = ?
-       ORDER BY wex.set_number ASC;`,
-      [s.id]
-    );
+    const setRows = await queryExecutionSetsBySessionId(connection, Number(s.id));
 
     // 4. Dispatch notification to responsible Personal Trainer
     let notifIdToDeliver: number | null = null;
@@ -1844,29 +1934,7 @@ export async function listStudentWorkoutExecutionHistory(
 
     // 3. Batch fetch all execution sets for these sessions in ONE single query (zero N+1)
     const sessionIds = sessionRows.map((s) => Number(s.id));
-    const [setRows] = await connection.query<RowDataPacket[]>(
-      `SELECT
-        wex.public_id,
-        wex.execution_session_id,
-        wex.block_item_id,
-        wex.set_number,
-        wex.set_type,
-        wex.prescribed_reps,
-        wex.prescribed_reps_max,
-        wex.prescribed_load_kg,
-        wex.prescribed_rest_seconds,
-        wex.actual_reps,
-        wex.actual_load_kg,
-        wex.is_skipped,
-        wex.completed_at,
-        wbi.public_id AS block_item_public_id,
-        wbi.exercise_name_snapshot
-       FROM workout_execution_sets wex
-       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-       WHERE wex.execution_session_id IN (?)
-       ORDER BY wex.execution_session_id ASC, wex.set_number ASC;`,
-      [sessionIds]
-    );
+    const setRows = await queryExecutionSetsBySessionIdsBatch(connection, sessionIds);
 
     // 4. Batch fetch substitutions for these sessions
     const subsBySessionId = new Map<number, Array<{
@@ -2062,12 +2130,25 @@ export async function syncOfflineWorkoutExecution(
           const isSkipped = Boolean(s.isSkipped);
           const actualReps = isSkipped ? null : (s.actualReps ?? null);
           const actualLoad = isSkipped ? null : (s.actualLoadKg ?? null);
-          await connection.execute<ResultSetHeader>(
-            `UPDATE workout_execution_sets
-             SET actual_reps = ?, actual_load_kg = ?, is_skipped = ?, completed_at = COALESCE(?, NOW(3)), updated_at = NOW(3)
-             WHERE execution_session_id = ? AND public_id = ?;`,
-            [actualReps, actualLoad, isSkipped ? 1 : 0, s.completedAt ? new Date(s.completedAt) : null, existing.id, s.setPublicId]
-          );
+          try {
+            await connection.execute<ResultSetHeader>(
+              `UPDATE workout_execution_sets
+               SET actual_reps = ?, actual_load_kg = ?, is_skipped = ?, completed_at = COALESCE(?, NOW(3)), updated_at = NOW(3)
+               WHERE execution_session_id = ? AND public_id = ?;`,
+              [actualReps, actualLoad, isSkipped ? 1 : 0, s.completedAt ? new Date(s.completedAt) : null, existing.id, s.setPublicId]
+            );
+          } catch (err: unknown) {
+            if (isMissingColumnError(err, ["is_skipped"])) {
+              await connection.execute<ResultSetHeader>(
+                `UPDATE workout_execution_sets
+                 SET actual_reps = ?, actual_load_kg = ?, completed_at = COALESCE(?, NOW(3)), updated_at = NOW(3)
+                 WHERE execution_session_id = ? AND public_id = ?;`,
+                [actualReps, actualLoad, s.completedAt ? new Date(s.completedAt) : null, existing.id, s.setPublicId]
+              );
+            } else {
+              throw err;
+            }
+          }
         }
       }
 
@@ -2164,40 +2245,79 @@ export async function syncOfflineWorkoutExecution(
       const completedAt = matchSet?.completedAt ? new Date(matchSet.completedAt) : new Date(input.completedAt);
       const setPublicId = matchSet?.setPublicId || crypto.randomUUID();
 
-      await connection.execute<ResultSetHeader>(
-        `INSERT INTO workout_execution_sets (
-          public_id,
-          execution_session_id,
-          workout_item_set_id,
-          block_item_id,
-          set_number,
-          set_type,
-          prescribed_reps,
-          prescribed_reps_max,
-          prescribed_load_kg,
-          prescribed_rest_seconds,
-          actual_reps,
-          actual_load_kg,
-          is_skipped,
-          completed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        [
-          setPublicId,
-          sessionId,
-          ps.workout_item_set_id,
-          ps.block_item_id,
-          ps.set_number,
-          ps.set_type,
-          ps.target_reps,
-          ps.target_reps_max,
-          ps.target_load_kg,
-          ps.target_rest_seconds,
-          actualReps,
-          actualLoad,
-          isSkipped ? 1 : 0,
-          completedAt,
-        ]
-      );
+      try {
+        await connection.execute<ResultSetHeader>(
+          `INSERT INTO workout_execution_sets (
+            public_id,
+            execution_session_id,
+            workout_item_set_id,
+            block_item_id,
+            set_number,
+            set_type,
+            prescribed_reps,
+            prescribed_reps_max,
+            prescribed_load_kg,
+            prescribed_rest_seconds,
+            actual_reps,
+            actual_load_kg,
+            is_skipped,
+            completed_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          [
+            setPublicId,
+            sessionId,
+            ps.workout_item_set_id,
+            ps.block_item_id,
+            ps.set_number,
+            ps.set_type,
+            ps.target_reps,
+            ps.target_reps_max,
+            ps.target_load_kg,
+            ps.target_rest_seconds,
+            actualReps,
+            actualLoad,
+            isSkipped ? 1 : 0,
+            completedAt,
+          ]
+        );
+      } catch (err: unknown) {
+        if (isMissingColumnError(err, ["is_skipped"])) {
+          await connection.execute<ResultSetHeader>(
+            `INSERT INTO workout_execution_sets (
+              public_id,
+              execution_session_id,
+              workout_item_set_id,
+              block_item_id,
+              set_number,
+              set_type,
+              prescribed_reps,
+              prescribed_reps_max,
+              prescribed_load_kg,
+              prescribed_rest_seconds,
+              actual_reps,
+              actual_load_kg,
+              completed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [
+              setPublicId,
+              sessionId,
+              ps.workout_item_set_id,
+              ps.block_item_id,
+              ps.set_number,
+              ps.set_type,
+              ps.target_reps,
+              ps.target_reps_max,
+              ps.target_load_kg,
+              ps.target_rest_seconds,
+              actualReps,
+              actualLoad,
+              completedAt,
+            ]
+          );
+        } else {
+          throw err;
+        }
+      }
     }
 
     // 4. Notification

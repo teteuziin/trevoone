@@ -109,11 +109,19 @@ export default async function StudentWorkoutDetailPage({ params, searchParams }:
   const canonicalAssignmentId = result.resolvedAssignmentPublicId;
   const effectiveBlockId = targetBlockPublicId || result.activeBlockPublicId || null;
 
-  // Load execution state & history for this canonical assignment
-  const [initialExecution, executionHistory] = await Promise.all([
-    getActiveOrLatestStudentWorkoutExecution(ctx, canonicalAssignmentId),
-    listStudentWorkoutExecutionHistory(ctx, canonicalAssignmentId),
-  ]);
+  // Load execution state & history for this canonical assignment (defensive fallback on runtime unapplied migrations)
+  let initialExecution = null;
+  let executionHistory: Awaited<ReturnType<typeof listStudentWorkoutExecutionHistory>> = [];
+  try {
+    const [exec, hist] = await Promise.all([
+      getActiveOrLatestStudentWorkoutExecution(ctx, canonicalAssignmentId),
+      listStudentWorkoutExecutionHistory(ctx, canonicalAssignmentId),
+    ]);
+    initialExecution = exec;
+    executionHistory = hist;
+  } catch (err) {
+    console.error("[StudentWorkoutDetailPage] Failed to load execution/history state:", err);
+  }
 
   return (
     <ConsultancyAppShell

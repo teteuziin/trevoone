@@ -2,6 +2,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { assertStudentContext, type TrainingAccessContext } from "./access";
 import { getConsultancyLocalDate } from "../consultancies/timezone";
+import { isMissingColumnError } from "./schema-resilience";
 
 export type DailyWorkoutDecisionStatus =
   | "IN_PROGRESS"        // Prioridade A: Sessão atualmente em andamento
@@ -215,28 +216,60 @@ export async function resolveStudentDailyWorkout(
     const consultancySlug = options?.consultancySlug || "";
 
     // 2. PRIORIDADE A: Sessão em andamento
-    const [inProgressRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-         wes.id AS session_id,
-         wes.public_id AS session_public_id,
-         wes.workout_assignment_id,
-         wes.workout_version_id,
-         wes.workout_block_id,
-         wes.started_at,
-         wa.public_id AS assignment_public_id,
-         wa.status AS assignment_status,
-         wv.title AS routine_title,
-         wv.version_number
-       FROM workout_execution_sessions wes
-       INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
-       INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
-       WHERE wes.consultancy_id = ?
-         AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
-         AND wes.status = 'IN_PROGRESS'
-         AND wa.deleted_at IS NULL
-       LIMIT 1;`,
-      [ctx.consultancyId!, ctx.membershipId!, ctx.userId, ctx.consultancyId!]
-    );
+    let inProgressRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           wes.id AS session_id,
+           wes.public_id AS session_public_id,
+           wes.workout_assignment_id,
+           wes.workout_version_id,
+           wes.workout_block_id,
+           wes.started_at,
+           wa.public_id AS assignment_public_id,
+           wa.status AS assignment_status,
+           wv.title AS routine_title,
+           wv.version_number
+         FROM workout_execution_sessions wes
+         INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
+         INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+         WHERE wes.consultancy_id = ?
+           AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+           AND wes.status = 'IN_PROGRESS'
+           AND wa.deleted_at IS NULL
+         LIMIT 1;`,
+        [ctx.consultancyId!, ctx.membershipId!, ctx.userId, ctx.consultancyId!]
+      );
+      inProgressRows = rows;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["workout_block_id"])) {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+             wes.id AS session_id,
+             wes.public_id AS session_public_id,
+             wes.workout_assignment_id,
+             wes.workout_version_id,
+             NULL AS workout_block_id,
+             wes.started_at,
+             wa.public_id AS assignment_public_id,
+             wa.status AS assignment_status,
+             wv.title AS routine_title,
+             wv.version_number
+           FROM workout_execution_sessions wes
+           INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
+           INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+           WHERE wes.consultancy_id = ?
+             AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+             AND wes.status = 'IN_PROGRESS'
+             AND wa.deleted_at IS NULL
+           LIMIT 1;`,
+          [ctx.consultancyId!, ctx.membershipId!, ctx.userId, ctx.consultancyId!]
+        );
+        inProgressRows = rows;
+      } else {
+        throw err;
+      }
+    }
 
     if (inProgressRows && inProgressRows.length > 0) {
       const activeSession = inProgressRows[0];
@@ -256,17 +289,38 @@ export async function resolveStudentDailyWorkout(
         }
       }
       if (!activeBlock) {
-        const [blockInExecRows] = await connection.execute<RowDataPacket[]>(
-          `SELECT wb.id, wb.public_id, wb.title, wb.sort_order,
-                  COUNT(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 END) AS completed_sets
-           FROM workout_execution_sets wex
-           INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-           INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-           WHERE wex.execution_session_id = ?
-           GROUP BY wb.id, wb.public_id, wb.title, wb.sort_order
-           HAVING completed_sets > 0;`,
-          [activeSession.session_id]
-        );
+        let blockInExecRows: RowDataPacket[] = [];
+        try {
+          const [rows] = await connection.execute<RowDataPacket[]>(
+            `SELECT wb.id, wb.public_id, wb.title, wb.sort_order,
+                    COUNT(CASE WHEN wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL) THEN 1 END) AS completed_sets
+             FROM workout_execution_sets wex
+             INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+             INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+             WHERE wex.execution_session_id = ?
+             GROUP BY wb.id, wb.public_id, wb.title, wb.sort_order
+             HAVING completed_sets > 0;`,
+            [activeSession.session_id]
+          );
+          blockInExecRows = rows;
+        } catch (err: unknown) {
+          if (isMissingColumnError(err, ["is_skipped"])) {
+            const [rows] = await connection.execute<RowDataPacket[]>(
+              `SELECT wb.id, wb.public_id, wb.title, wb.sort_order,
+                      COUNT(CASE WHEN wex.completed_at IS NOT NULL THEN 1 END) AS completed_sets
+               FROM workout_execution_sets wex
+               INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+               INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+               WHERE wex.execution_session_id = ?
+               GROUP BY wb.id, wb.public_id, wb.title, wb.sort_order
+               HAVING completed_sets > 0;`,
+              [activeSession.session_id]
+            );
+            blockInExecRows = rows;
+          } else {
+            throw err;
+          }
+        }
         activeBlock = blockInExecRows && blockInExecRows.length === 1
           ? (blockInExecRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number })
           : null;
@@ -364,10 +418,44 @@ export async function resolveStudentDailyWorkout(
         );
         completedExercisesCount = Number(progRows[0]?.completed_exercises_count || 0);
         completedSetsCount = Number(progRows[0]?.completed_sets_count || 0);
-      } catch {
-        // Fallback seguro em caso de indisponibilidade
-        completedExercisesCount = 0;
-        completedSetsCount = 0;
+      } catch (err: unknown) {
+        if (isMissingColumnError(err, ["is_skipped"])) {
+          try {
+            const [progRows] = await connection.execute<RowDataPacket[]>(
+              `SELECT
+                 COUNT(DISTINCT fully_done.block_item_id) AS completed_exercises_count,
+                 COALESCE(SUM(total_done.perf_sets), 0) AS completed_sets_count
+               FROM (
+                 SELECT
+                   wex.block_item_id,
+                   COUNT(*) AS total_item_sets,
+                   SUM(CASE WHEN wex.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS perf_sets
+                 FROM workout_execution_sets wex
+                 WHERE wex.execution_session_id = ?
+                 GROUP BY wex.block_item_id
+               ) total_done
+               LEFT JOIN (
+                 SELECT
+                   wex2.block_item_id
+                 FROM workout_execution_sets wex2
+                 WHERE wex2.execution_session_id = ?
+                 GROUP BY wex2.block_item_id
+                 HAVING COUNT(*) > 0
+                    AND COUNT(*) = SUM(CASE WHEN wex2.completed_at IS NOT NULL THEN 1 ELSE 0 END)
+               ) fully_done ON fully_done.block_item_id = total_done.block_item_id;`,
+              [activeSession.session_id, activeSession.session_id]
+            );
+            completedExercisesCount = Number(progRows[0]?.completed_exercises_count || 0);
+            completedSetsCount = Number(progRows[0]?.completed_sets_count || 0);
+          } catch {
+            completedExercisesCount = 0;
+            completedSetsCount = 0;
+          }
+        } else {
+          // Fallback seguro em caso de indisponibilidade
+          completedExercisesCount = 0;
+          completedSetsCount = 0;
+        }
       }
 
       // Treino recomendado para hoje caso a sessão seja de um dia anterior
@@ -522,43 +610,84 @@ contextNote: isSessionStartedToday
     }
 
     // 5. Histórico de sessões concluídas desta prescrição
-    const [historyRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-         wes.id AS session_id,
-         wes.public_id AS session_public_id,
-         wes.started_at,
-         wes.completed_at,
-         COALESCE(
-           wes.workout_block_id,
-           (
-             SELECT wb.id
-             FROM workout_execution_sets wex
-             INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-             INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-             WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL)
-             ORDER BY wex.completed_at DESC, wex.id DESC
-             LIMIT 1
-           )
-         ) AS completed_block_id,
-         COALESCE(
-           (SELECT wb2.public_id FROM workout_blocks wb2 WHERE wb2.id = wes.workout_block_id LIMIT 1),
-           (
-             SELECT wb.public_id
-             FROM workout_execution_sets wex
-             INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
-             INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-             WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL)
-             ORDER BY wex.completed_at DESC, wex.id DESC
-             LIMIT 1
-           )
-         ) AS completed_block_public_id
-       FROM workout_execution_sessions wes
-       WHERE wes.workout_assignment_id = ?
-         AND wes.status = 'COMPLETED'
-       ORDER BY wes.completed_at DESC
-       LIMIT 30;`,
-      [currentAssign.assignment_id]
-    );
+    let historyRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           wes.id AS session_id,
+           wes.public_id AS session_public_id,
+           wes.started_at,
+           wes.completed_at,
+           COALESCE(
+             wes.workout_block_id,
+             (
+               SELECT wb.id
+               FROM workout_execution_sets wex
+               INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+               INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+               WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL)
+               ORDER BY wex.completed_at DESC, wex.id DESC
+               LIMIT 1
+             )
+           ) AS completed_block_id,
+           COALESCE(
+             (SELECT wb2.public_id FROM workout_blocks wb2 WHERE wb2.id = wes.workout_block_id LIMIT 1),
+             (
+               SELECT wb.public_id
+               FROM workout_execution_sets wex
+               INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+               INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+               WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL AND (wex.is_skipped = 0 OR wex.is_skipped IS NULL)
+               ORDER BY wex.completed_at DESC, wex.id DESC
+               LIMIT 1
+             )
+           ) AS completed_block_public_id
+         FROM workout_execution_sessions wes
+         WHERE wes.workout_assignment_id = ?
+           AND wes.status = 'COMPLETED'
+         ORDER BY wes.completed_at DESC
+         LIMIT 30;`,
+        [currentAssign.assignment_id]
+      );
+      historyRows = rows;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["workout_block_id", "is_skipped"])) {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+             wes.id AS session_id,
+             wes.public_id AS session_public_id,
+             wes.started_at,
+             wes.completed_at,
+             (
+               SELECT wb.id
+               FROM workout_execution_sets wex
+               INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+               INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+               WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL
+               ORDER BY wex.completed_at DESC, wex.id DESC
+               LIMIT 1
+             ) AS completed_block_id,
+             (
+               SELECT wb.public_id
+               FROM workout_execution_sets wex
+               INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+               INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+               WHERE wex.execution_session_id = wes.id AND wex.completed_at IS NOT NULL
+               ORDER BY wex.completed_at DESC, wex.id DESC
+               LIMIT 1
+             ) AS completed_block_public_id
+           FROM workout_execution_sessions wes
+           WHERE wes.workout_assignment_id = ?
+             AND wes.status = 'COMPLETED'
+           ORDER BY wes.completed_at DESC
+           LIMIT 30;`,
+          [currentAssign.assignment_id]
+        );
+        historyRows = rows;
+      } else {
+        throw err;
+      }
+    }
 
     // Mapeia histórico com data civil no fuso da consultoria
     const recentCompletedSessions = (historyRows || []).map((r) => {
@@ -777,7 +906,7 @@ contextNote: isSessionStartedToday
       actionHref: `/consultoria/${options?.consultancySlug || ""}/treinos`,
       actionLabel: "Tentar novamente",
       canChangeDivision: false,
-      contextNote: "Ocorreu uma instabilidade momentânea ao carregar a programação do seu treino.",
+      contextNote: "Não foi possível sincronizar o treino neste momento. Tente novamente ou acesse a lista completa de treinos.",
       availableDivisions: [],
       todayWeekday: 0,
       todayWeekdayName: "Hoje",

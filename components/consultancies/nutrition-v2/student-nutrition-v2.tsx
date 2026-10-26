@@ -110,24 +110,27 @@ export function StudentNutritionV2({
 
   const pdfDownloadUrl = `/api/consultancies/${consultancySlug}/nutricao/pdf?download=true`;
 
-  // Calculate next / current meal based on current local time
+  // Calculate next / current meal based on current local time ONLY if meals have explicit schedules
   const nextMeal = React.useMemo(() => {
     if (!plan.meals || plan.meals.length === 0) return null;
+    const mealsWithTimes = plan.meals.filter((m) => Boolean(m.timeFormatted));
+    if (mealsWithTimes.length === 0) {
+      // Do not guess by clock when plan has no meal times!
+      return null;
+    }
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    for (const meal of plan.meals) {
-      if (meal.timeFormatted) {
-        const match = meal.timeFormatted.match(/^(\d{1,2}):(\d{2})/);
-        if (match) {
-          const mealMinutes = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
-          if (mealMinutes >= currentMinutes) {
-            return meal;
-          }
+    for (const meal of mealsWithTimes) {
+      const match = meal.timeFormatted!.match(/^(\d{1,2}):(\d{2})/);
+      if (match) {
+        const mealMinutes = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+        if (mealMinutes >= currentMinutes) {
+          return meal;
         }
       }
     }
-    return plan.meals[0];
+    return null;
   }, [plan.meals]);
 
   // Meal Tracking State (Etapa 12)
@@ -584,51 +587,53 @@ export function StudentNutritionV2({
                 {/* Food Items */}
                 <div className="divide-y divide-[var(--border-subtle)]">
                   {meal.items.map((item) => (
-                    <div key={item.id} className="py-2.5 first:pt-0 last:pb-0 space-y-1.5">
+                    <div key={item.id} className="py-3 first:pt-0 last:pb-0 space-y-1.5">
                       <div className="flex items-baseline justify-between gap-2">
-                        <div className="text-xs font-semibold text-[var(--text-primary)]">
-                          {item.foodName}
+                        <div className="text-sm font-bold text-[var(--text-primary)]">
+                          <span>{item.foodName}</span>
+                          {item.quantityFormatted && (
+                            <span className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-400 ml-1.5 tabular-nums">
+                              — {item.quantityFormatted}
+                            </span>
+                          )}
                         </div>
-                        {item.quantityFormatted && (
-                          <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 shrink-0 tabular-nums">
-                            {item.quantityFormatted}
-                          </div>
-                        )}
                       </div>
 
                       {item.notes && (
-                        <div className="text-[11px] text-[var(--text-tertiary)] italic flex items-start gap-1">
-                          <span>💡</span>
-                          <span>{item.notes}</span>
+                        <div className="text-xs text-[var(--text-secondary)] italic pl-2 border-l-2 border-emerald-500/30">
+                          {item.notes}
                         </div>
                       )}
 
                       {/* Substitutions */}
                       {item.substitutions.length > 0 && (
-                        <div className="mt-1 pl-2.5 py-1.5 border-l-2 border-amber-400 bg-amber-500/5 rounded-r-lg space-y-1">
-                          <div className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">
-                            Pode ser substituído por:
+                        <div className="mt-1.5 pl-3 py-2 border-l-2 border-amber-400/80 bg-amber-500/5 rounded-r-xl space-y-1.5">
+                          <div className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                            <span>⇄</span>
+                            <span>Opções de substituição autorizadas:</span>
                           </div>
-                          {item.substitutions.map((sub) => (
-                            <div
-                              key={sub.id}
-                              className="flex items-baseline justify-between gap-2 text-[11px] text-[var(--text-secondary)]"
-                            >
-                              <div>
-                                <span>{sub.foodName}</span>
-                                {sub.notes && (
-                                  <span className="text-[var(--text-tertiary)] italic ml-1">
-                                    ({sub.notes})
-                                  </span>
-                                )}
+                          <div className="space-y-1">
+                            {item.substitutions.map((sub) => (
+                              <div
+                                key={sub.id}
+                                className="flex items-baseline justify-between gap-2 text-xs text-[var(--text-secondary)]"
+                              >
+                                <div>
+                                  <span className="font-semibold text-[var(--text-primary)]">{sub.foodName}</span>
+                                  {sub.quantityFormatted && (
+                                    <span className="font-medium text-amber-700 dark:text-amber-400 ml-1.5 tabular-nums">
+                                      — {sub.quantityFormatted}
+                                    </span>
+                                  )}
+                                  {sub.notes && (
+                                    <span className="text-[var(--text-tertiary)] italic ml-1">
+                                      ({sub.notes})
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              {sub.quantityFormatted && (
-                                <span className="font-semibold text-[var(--text-primary)] shrink-0 tabular-nums">
-                                  {sub.quantityFormatted}
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -928,30 +933,31 @@ export function StudentNutritionV2({
                       key={item.id}
                       className="border-b border-[var(--border-subtle)] pb-3 last:border-b-0 space-y-2"
                     >
-                      {/* Clean Food Row: Name left, Quantity right */}
-                      <div className="flex items-baseline justify-between gap-3 text-xs sm:text-sm">
+                      {/* Clean Food Row: "Alimento — Quantidade" */}
+                      <div className="flex items-baseline justify-between gap-3 text-sm">
                         <div className="min-w-0 pr-2">
-                          <span className="font-semibold text-[var(--text-primary)]">
+                          <span className="font-bold text-[var(--text-primary)]">
                             {item.foodName}
                           </span>
+                          {item.quantityFormatted && (
+                            <span className="font-semibold text-emerald-700 dark:text-emerald-400 ml-1.5 tabular-nums">
+                              — {item.quantityFormatted}
+                            </span>
+                          )}
                           {item.notes && (
-                            <div className="text-xs text-[var(--text-tertiary)] italic mt-0.5">
+                            <div className="text-xs text-[var(--text-secondary)] italic mt-0.5 pl-2 border-l-2 border-emerald-500/30">
                               {item.notes}
                             </div>
                           )}
                         </div>
-                        {item.quantityFormatted && (
-                          <span className="font-medium text-[var(--text-secondary)] shrink-0 text-right tabular-nums whitespace-nowrap">
-                            {item.quantityFormatted}
-                          </span>
-                        )}
                       </div>
 
                       {/* 7. Substituições — Padrão editorial com borda lateral discreta */}
                       {item.substitutions.length > 0 && (
-                        <div className="mt-2 pl-3 py-1.5 border-l-2 border-amber-400/80 bg-amber-500/5 rounded-r-md space-y-1.5">
-                          <div className="text-[10px] font-semibold text-amber-800 dark:text-amber-400 uppercase tracking-wider">
-                            Pode ser substituído por:
+                        <div className="mt-2 pl-3 py-2 border-l-2 border-amber-400/80 bg-amber-500/5 rounded-r-xl space-y-1.5">
+                          <div className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                            <span>⇄</span>
+                            <span>Opções de substituição autorizadas:</span>
                           </div>
                           <div className="space-y-1">
                             {item.substitutions.map((sub) => (
@@ -960,18 +966,18 @@ export function StudentNutritionV2({
                                 className="flex items-baseline justify-between gap-3 text-xs text-[var(--text-secondary)]"
                               >
                                 <div className="min-w-0 pr-2">
-                                  <span>{sub.foodName}</span>
+                                  <span className="font-semibold text-[var(--text-primary)]">{sub.foodName}</span>
+                                  {sub.quantityFormatted && (
+                                    <span className="font-medium text-amber-700 dark:text-amber-400 ml-1.5 tabular-nums">
+                                      — {sub.quantityFormatted}
+                                    </span>
+                                  )}
                                   {sub.notes && (
                                     <span className="text-[var(--text-tertiary)] italic ml-1">
                                       ({sub.notes})
                                     </span>
                                   )}
                                 </div>
-                                {sub.quantityFormatted && (
-                                  <span className="font-medium text-[var(--text-secondary)] shrink-0 text-right tabular-nums whitespace-nowrap">
-                                    {sub.quantityFormatted}
-                                  </span>
-                                )}
                               </div>
                             ))}
                           </div>

@@ -574,7 +574,7 @@ export function StudentWorkoutRenderer({
       const foundIdx = blocks.findIndex((b) => b.publicId === initialSelectedBlockPublicId);
       if (foundIdx !== -1) return foundIdx;
     }
-    return null;
+    return blocks.length > 0 ? 0 : null;
   });
 
   const [isOffline, setIsOffline] = useState(() =>
@@ -696,10 +696,16 @@ export function StudentWorkoutRenderer({
       }
     }
 
+    const targetBlockPublicId =
+      selectedBlockIndex !== null && blocks[selectedBlockIndex]
+        ? blocks[selectedBlockIndex].publicId
+        : initialSelectedBlockPublicId || null;
+
     try {
       const res = await startOrResumeWorkoutExecutionAction(
         consultancySlug,
-        workout.assignmentPublicId
+        workout.assignmentPublicId,
+        targetBlockPublicId
       );
 
       if (res.success && res.session) {
@@ -1059,206 +1065,263 @@ export function StudentWorkoutRenderer({
     }
   }
 
+  const activeBlock =
+    selectedBlockIndex !== null && blocks[selectedBlockIndex]
+      ? blocks[selectedBlockIndex]
+      : blocks[0];
+  const activeBlockTitle = activeBlock?.title || "Treino Principal";
+  const activeBlockExerciseCount = (activeBlock?.items || []).length;
+  const activeBlockDuration = activeBlock?.estimatedDurationMinutes || workout.estimatedDurationMinutes;
+
   return (
     <>
-      {/* MOBILE PROGRESSIVE FOCUS RUNTIME */}
-      {activeSession && activeSession.status === "IN_PROGRESS" && mobileViewMode === "FOCUSED" && (
-        <div className="sm:hidden">
-          <StudentRuntimeFocusedView
-            workout={workout}
-            activeSession={activeSession}
-            onCompleteSet={handleCompleteSet}
-            loadingSetPublicId={loadingSetPublicId}
-            activeRest={activeRest}
-            onSkipRest={handleSkipRest}
-            onCompleteWorkout={handleCompleteWorkout}
-            isCompleting={isCompleting}
-            completeError={completeError}
-            history={history}
-            consultancySlug={consultancySlug || ""}
-            onToggleOverview={() => setMobileViewMode("OVERVIEW")}
-            isOffline={isOffline}
-          />
-        </div>
-      )}
+      {/* GUIDED WORKOUT EXECUTION RUNTIME (DESKTOP & MOBILE) */}
+      {activeSession && activeSession.status === "IN_PROGRESS" && mobileViewMode === "FOCUSED" ? (
+        <StudentRuntimeFocusedView
+          workout={workout}
+          activeSession={activeSession}
+          onCompleteSet={handleCompleteSet}
+          loadingSetPublicId={loadingSetPublicId}
+          activeRest={activeRest}
+          onSkipRest={handleSkipRest}
+          onCompleteWorkout={handleCompleteWorkout}
+          isCompleting={isCompleting}
+          completeError={completeError}
+          history={history}
+          consultancySlug={consultancySlug || ""}
+          onToggleOverview={() => setMobileViewMode("OVERVIEW")}
+          isOffline={isOffline}
+          activeSubstitutions={swapStatus.activeSubstitutions}
+          remainingSwaps={swapStatus.remainingSwaps}
+          onOpenSwapModal={(item) => setSwapModalItem(item)}
+        />
+      ) : (
+        <div className="space-y-6 w-full max-w-5xl mx-auto pb-16">
+          {/* If inspecting overview during active session, banner to return to guided execution */}
+          {activeSession && activeSession.status === "IN_PROGRESS" && (
+            <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
+              <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                Você está na visão geral. Retorne à tela guiada para registrar suas séries.
+              </span>
+              <button
+                type="button"
+                onClick={() => setMobileViewMode("FOCUSED")}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-all cursor-pointer min-h-[44px] shrink-0"
+              >
+                <span>Voltar à execução guiada →</span>
+              </button>
+            </div>
+          )}
 
-      {/* FULL WORKOUT OVERVIEW / DESKTOP VIEW */}
-      <div
-        className={`space-y-6 max-w-3xl mx-auto pb-16 ${
-          activeSession && activeSession.status === "IN_PROGRESS" && mobileViewMode === "FOCUSED"
-            ? "hidden sm:block"
-            : "block"
-        }`}
-      >
-        {/* Preview Banner for Trainers */}
-        {isPreview && (
-          <div
-            className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs ${
-              isDraft
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-200"
-                : "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-xl shrink-0">👁️</span>
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider">
-                  {isDraft
-                    ? "Prévia do rascunho — ainda não disponível para o aluno"
-                    : `Prévia da versão v${workout.versionNumber} (Publicada)`}
-                </p>
-                <p className="text-xs opacity-90 font-medium">
-                  {isDraft
-                    ? "Esta é a visão que o aluno terá após a publicação. Mutações e gravações estão desabilitadas."
-                    : "Esta é a visão exata que o aluno tem no app. Mutações e gravações estão desabilitadas nesta prévia."}
-                </p>
+          {/* Division Selector Tabs for Multi-Block Workouts (Placed at the top) */}
+          {blocks.length > 1 && (
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--foreground-muted)] px-1">
+                Escolher Divisão para Treinar
+              </span>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                {blocks.map((b, idx) => {
+                  const isSelected = selectedBlockIndex === idx;
+                  const bTitle = b.title || `Divisão ${idx + 1}`;
+                  return (
+                    <button
+                      key={b.publicId || idx}
+                      type="button"
+                      onClick={() => setSelectedBlockIndex(idx)}
+                      className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 border ${
+                        isSelected
+                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                          : "bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border-[var(--border-default)] hover:bg-[var(--surface-subtle)]"
+                      }`}
+                    >
+                      <span>{bTitle}</span>
+                      <span className="ml-1.5 opacity-80">({b.items?.length || 0})</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
-            <span
-              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shrink-0 ${
+          )}
+
+          {/* Preview Banner for Trainers */}
+          {isPreview && (
+            <div
+              className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs ${
                 isDraft
-                  ? "bg-amber-500/20 border-amber-500/40 text-amber-900 dark:text-amber-200"
-                  : "bg-emerald-500/20 border-emerald-500/40 text-emerald-900 dark:text-emerald-200"
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-200"
+                  : "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200"
               }`}
             >
-              Modo Demonstração
-            </span>
-          </div>
-        )}
-
-        {/* Workout Header Card */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--foreground)]">
-              {workout.title}
-            </h1>
-          {workout.subtitle && (
-            <p className="text-xs sm:text-sm text-[var(--foreground-muted)] mt-0.5">
-              {workout.subtitle}
-            </p>
+              <div className="flex items-center gap-3">
+                <span className="text-xl shrink-0">👁️</span>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider">
+                    {isDraft
+                      ? "Prévia do rascunho — ainda não disponível para o aluno"
+                      : `Prévia da versão v${workout.versionNumber} (Publicada)`}
+                  </p>
+                  <p className="text-xs opacity-90 font-medium">
+                    {isDraft
+                      ? "Esta é a visão que o aluno terá após a publicação. Mutações e gravações estão desabilitadas."
+                      : "Esta é a visão exata que o aluno tem no app. Mutações e gravações estão desabilitadas nesta prévia."}
+                  </p>
+                </div>
+              </div>
+              <span
+                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shrink-0 ${
+                  isDraft
+                    ? "bg-amber-500/20 border-amber-500/40 text-amber-900 dark:text-amber-200"
+                    : "bg-emerald-500/20 border-emerald-500/40 text-emerald-900 dark:text-emerald-200"
+                }`}
+              >
+                Modo Demonstração
+              </span>
+            </div>
           )}
-        </div>
 
-        {/* Primary Metadata Chips (Execution Focus) */}
-        <div className="flex flex-wrap items-center gap-2 pt-0.5">
-          {isOffline && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs font-semibold text-amber-600 dark:text-amber-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              <span>Modo Offline (Execução Local)</span>
-            </span>
-          )}
-          <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
-            {blocks.length} {blocks.length === 1 ? "categoria" : "categorias"}
-          </span>
-          {workout.estimatedDurationMinutes != null && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
-              <Clock className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-              <span>{workout.estimatedDurationMinutes} min estimados</span>
-            </span>
-          )}
-          {workout.difficultyLevel && (
-            <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
-              Nível {workout.difficultyLevel === "BEGINNER"
-                ? "Iniciante"
-                : workout.difficultyLevel === "ADVANCED"
-                  ? "Avançado"
-                  : "Intermediário"}
-            </span>
-          )}
-        </div>
-
-        {/* Secondary Metadata Row (Traceability & Prescription) */}
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-[var(--foreground-muted)] pt-1 border-t border-[var(--border-subtle)]">
-          <span className="font-medium text-[var(--foreground)]">{workout.consultancyName}</span>
-          <span>·</span>
-          <span>Versão {workout.versionNumber}</span>
-          {workout.startsOn && (
-            <>
-              <span>·</span>
-              <span>Prescrito em {formatDate(workout.startsOn)}</span>
-            </>
-          )}
-        </div>
-
-        {workout.notesForStudent && (
-          <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-xs text-[var(--foreground)] space-y-0.5">
-            <p className="font-semibold text-emerald-700 dark:text-emerald-400">
-              Orientações do seu treinador:
-            </p>
-            <p className="text-[var(--foreground-muted)] italic leading-relaxed">
-              &ldquo;{workout.notesForStudent}&rdquo;
-            </p>
-          </div>
-        )}
-
-        {workout.objective && (
-          <p className="text-xs text-[var(--foreground-muted)]">
-            <span className="font-medium text-[var(--foreground)]">Objetivo: </span>
-            {workout.objective}
-          </p>
-        )}
-
-        {/* Execution Control Area - Informational status & Single Start Action */}
-        {consultancySlug && !isPreview && (
-          <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
-            {activeSession && activeSession.status === "COMPLETED" ? (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>Treino concluído</span>
-                {activeSession.completedAt && (
-                  <span suppressHydrationWarning className="text-[11px] font-normal text-emerald-600/80 dark:text-emerald-400/80">
-                    • Concluído às {new Date(activeSession.completedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+          {/* Workout / Division Header Card ("Antes de Iniciar") */}
+          <div className="p-6 sm:p-7 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 depth-surface">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  {workout.title} • Versão {workout.versionNumber}
+                </span>
+                {activeSession && activeSession.status === "IN_PROGRESS" && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                    Sessão em andamento
                   </span>
                 )}
               </div>
-            ) : activeSession && activeSession.status === "IN_PROGRESS" ? (
-              allSetsCompleted ? (
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
-                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>Todas as séries concluídas</span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  <span>Treino em andamento</span>
-                  <span suppressHydrationWarning className="text-[11px] font-normal text-emerald-600/80 dark:text-emerald-400/80">
-                    • Iniciado às {new Date(activeSession.startedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </div>
-              )
-            ) : (
-              <div className="w-full sm:w-auto space-y-1.5">
-                <button
-                  type="button"
-                  onClick={handleStartWorkout}
-                  disabled={isStarting}
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {isStarting ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Iniciando treino...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>Iniciar treino</span>
-                    </>
-                  )}
-                </button>
-                {startError && (
-                  <p className="text-xs text-red-500 font-medium">
-                    {startError}
-                  </p>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--foreground)] tracking-tight font-heading leading-tight">
+                {activeBlockTitle}
+              </h1>
+              {workout.subtitle && (
+                <p className="text-xs sm:text-sm text-[var(--foreground-muted)]">
+                  {workout.subtitle}
+                </p>
+              )}
+            </div>
+
+            {/* Primary Metadata Chips (Execution Focus) */}
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              {isOffline && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span>Modo Offline</span>
+                </span>
+              )}
+              <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
+                {activeBlockExerciseCount} {activeBlockExerciseCount === 1 ? "exercício" : "exercícios"}
+              </span>
+              {activeBlockDuration != null && activeBlockDuration > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
+                  <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{activeBlockDuration} min estimados</span>
+                </span>
+              )}
+              {workout.difficultyLevel && (
+                <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
+                  Nível {workout.difficultyLevel === "BEGINNER"
+                    ? "Iniciante"
+                    : workout.difficultyLevel === "ADVANCED"
+                      ? "Avançado"
+                      : "Intermediário"}
+                </span>
+              )}
+            </div>
+
+            {/* Secondary Metadata Row */}
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-[var(--foreground-muted)] pt-1 border-t border-[var(--border-subtle)]">
+              <span className="font-medium text-[var(--foreground)]">{workout.consultancyName}</span>
+              <span>·</span>
+              <span>Versão {workout.versionNumber}</span>
+              {workout.startsOn && (
+                <>
+                  <span>·</span>
+                  <span>Prescrito em {formatDate(workout.startsOn)}</span>
+                </>
+              )}
+            </div>
+
+            {workout.notesForStudent && (
+              <div className="p-3.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/15 text-xs text-[var(--foreground)] space-y-1">
+                <p className="font-bold text-emerald-700 dark:text-emerald-400">
+                  Orientações do seu treinador:
+                </p>
+                <p className="text-[var(--foreground-muted)] italic leading-relaxed">
+                  &ldquo;{workout.notesForStudent}&rdquo;
+                </p>
+              </div>
+            )}
+
+            {workout.objective && (
+              <p className="text-xs text-[var(--foreground-muted)]">
+                <span className="font-medium text-[var(--foreground)]">Objetivo: </span>
+                {workout.objective}
+              </p>
+            )}
+
+            {/* Execution Control Area - Informational status & Single Start Action (48-56px target) */}
+            {consultancySlug && !isPreview && (
+              <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
+                {activeSession && activeSession.status === "COMPLETED" ? (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Treino concluído</span>
+                    {activeSession.completedAt && (
+                      <span suppressHydrationWarning className="text-[11px] font-normal text-emerald-600/80 dark:text-emerald-400/80">
+                        • Concluído às {new Date(activeSession.completedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    )}
+                  </div>
+                ) : activeSession && activeSession.status === "IN_PROGRESS" ? (
+                  <div className="flex items-center justify-between w-full gap-3 flex-wrap">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      <span>Treino em andamento</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setMobileViewMode("FOCUSED")}
+                      className="min-h-[48px] px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
+                    >
+                      Continuar execução guiada →
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full sm:w-auto space-y-1.5">
+                    <button
+                      type="button"
+                      onClick={handleStartWorkout}
+                      disabled={isStarting}
+                      className="w-full sm:w-auto min-h-[52px] px-8 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-sm sm:text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {isStarting ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Iniciando divisão...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4 fill-current" />
+                          <span>Iniciar {activeBlockTitle}</span>
+                        </>
+                      )}
+                    </button>
+                    {startError && (
+                      <p className="text-xs text-red-500 font-medium">
+                        {startError}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             )}
           </div>
-        )}
-      </div>
 
       {offlineSyncedNotice && (
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs sm:text-sm font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2">
@@ -1266,40 +1329,7 @@ export function StudentWorkoutRenderer({
         </div>
       )}
 
-      {/* Category Navigation Bar for Multi-Block Workouts */}
-      {blocks.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
-          <button
-            type="button"
-            onClick={() => setSelectedBlockIndex(null)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 border ${
-              selectedBlockIndex === null
-                ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                : "bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border-[var(--border-default)] hover:bg-[var(--surface-subtle)]"
-            }`}
-          >
-            Todas as categorias ({blocks.length})
-          </button>
-          {blocks.map((b, idx) => {
-            const isSelected = selectedBlockIndex === idx;
-            const bTitle = b.title || `Categoria ${idx + 1}`;
-            return (
-              <button
-                key={b.publicId || idx}
-                type="button"
-                onClick={() => setSelectedBlockIndex(idx)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 border ${
-                  isSelected
-                    ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                    : "bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border-[var(--border-default)] hover:bg-[var(--surface-subtle)]"
-                }`}
-              >
-                {idx + 1}. {bTitle}
-              </button>
-            );
-          })}
-        </div>
-      )}
+
 
       {/* Active Division Context Warning Banner */}
       {activeSession &&
@@ -1617,6 +1647,7 @@ export function StudentWorkoutRenderer({
       {/* Execution History */}
       <WorkoutExecutionHistorySection history={history} />
     </div>
+  )}
 
     {/* Sticky Button to return to Focused Runtime when in Overview on mobile */}
     {activeSession && activeSession.status === "IN_PROGRESS" && mobileViewMode === "OVERVIEW" && (

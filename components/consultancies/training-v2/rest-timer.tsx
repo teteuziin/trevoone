@@ -171,13 +171,16 @@ export function RestTimer({
   activeRest: ActiveRestState;
   onSkip: () => void;
 }) {
+  const [adjustmentSeconds, setAdjustmentSeconds] = useState(0);
+  const effectiveEndAt = activeRest.targetEndAt + adjustmentSeconds * 1000;
+
   const [remaining, setRemaining] = useState<number>(() =>
-    Math.max(0, Math.ceil((activeRest.targetEndAt - Date.now()) / 1000))
+    Math.max(0, Math.ceil((effectiveEndAt - Date.now()) / 1000))
   );
 
   useEffect(() => {
     const update = () => {
-      const rem = Math.max(0, Math.ceil((activeRest.targetEndAt - Date.now()) / 1000));
+      const rem = Math.max(0, Math.ceil((effectiveEndAt - Date.now()) / 1000));
       setRemaining(rem);
       if (rem <= 0) {
         onSkip();
@@ -190,40 +193,58 @@ export function RestTimer({
     return () => {
       clearInterval(intervalId);
     };
-  }, [activeRest.targetEndAt, onSkip]);
+  }, [effectiveEndAt, onSkip]);
 
   const minutes = Math.floor(remaining / 60);
   const seconds = remaining % 60;
   const formattedTime = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 
   return (
-    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between gap-3 text-xs">
-      <div className="flex items-center gap-2.5 min-w-0">
-        <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
-          <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400 animate-pulse" />
+    <div className="p-3 sm:p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
+          <Clock className="w-5 h-5 text-emerald-600 dark:text-emerald-400 animate-pulse" />
         </div>
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="font-bold uppercase tracking-wider text-[10px] text-emerald-600 dark:text-emerald-400">
+          <div className="flex items-center gap-2">
+            <span className="font-bold uppercase tracking-wider text-[11px] text-emerald-700 dark:text-emerald-400">
               Descanso
             </span>
-            <span className="font-mono text-base font-extrabold text-[var(--foreground)]">
+            <span className="font-mono text-lg font-extrabold text-[var(--foreground)]">
               {formattedTime}
             </span>
           </div>
-          <p className="text-[11px] text-[var(--foreground-muted)] truncate">
+          <p className="text-xs text-[var(--foreground-muted)] truncate">
             após a {activeRest.setNumber}ª série
           </p>
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onSkip}
-        className="px-2.5 py-1 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--foreground)] text-[11px] font-semibold transition-colors cursor-pointer shrink-0 active:scale-[0.98]"
-      >
-        Pular descanso
-      </button>
+      <div className="flex items-center gap-1.5 justify-end">
+        <button
+          type="button"
+          onClick={() => setAdjustmentSeconds((prev) => Math.max(-Math.floor((activeRest.targetEndAt - Date.now()) / 1000) + 5, prev - 15))}
+          className="min-h-[44px] px-3 py-1.5 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--foreground)] text-xs font-bold transition-all cursor-pointer active:scale-95"
+          title="Diminuir 15 segundos de descanso"
+        >
+          -15s
+        </button>
+        <button
+          type="button"
+          onClick={() => setAdjustmentSeconds((prev) => prev + 30)}
+          className="min-h-[44px] px-3 py-1.5 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--foreground)] text-xs font-bold transition-all cursor-pointer active:scale-95"
+          title="Adicionar 30 segundos de descanso"
+        >
+          +30s
+        </button>
+        <button
+          type="button"
+          onClick={onSkip}
+          className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
+        >
+          Pular
+        </button>
+      </div>
     </div>
   );
 }

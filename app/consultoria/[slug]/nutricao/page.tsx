@@ -102,7 +102,7 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
       consultancyPublicId={access.context.consultancyPublicId}
       activeRole="STUDENT"
     >
-      <div className="w-full max-w-4xl mx-auto space-y-4">
+      <div className="w-full max-w-5xl mx-auto space-y-6 pb-16">
         {/* Renderização exclusiva Nutrition V2 */}
         {v2Auth.activeAssignment ? (
           <StudentNutritionV2
@@ -122,7 +122,7 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <Link
                 href={`/consultoria/${access.context.consultancySlug}`}
-                className="inline-flex items-center text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                className="inline-flex items-center text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[44px]"
               >
                 ← Voltar ao painel
               </Link>
@@ -154,11 +154,11 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
 
             <PageHeader
               title="Seu Plano Alimentar"
-              description="Acompanhe sua dieta atual, opções de refeições e orientações do seu Nutricionista."
+              description="Acompanhe sua dieta atual, opções de refeições e orientações da sua equipe de nutrição."
             />
             <EmptyState
-              title="Seu plano alimentar ainda não foi disponibilizado"
-              description="Assim que seu Nutricionista liberar e ativar sua prescrição alimentar, ela aparecerá aqui com todas as refeições, alimentos e opções."
+              title="Seu plano alimentar ainda não está disponível."
+              description="Assim que sua equipe de nutrição disponibilizar sua prescrição alimentar, ela aparecerá aqui com todas as refeições e alimentos."
             />
           </div>
         )}

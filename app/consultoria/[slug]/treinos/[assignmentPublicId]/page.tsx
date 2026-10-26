@@ -129,12 +129,12 @@ export default async function StudentWorkoutDetailPage({ params, searchParams }:
       consultancyPublicId={context.consultancyPublicId}
       activeRole="STUDENT"
     >
-      <div className="space-y-4 max-w-3xl mx-auto pb-12">
+      <div className="w-full max-w-6xl mx-auto pb-12 space-y-4">
         {/* Back Link */}
         <div>
           <Link
             href={`/consultoria/${slug}/treinos`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors min-h-[44px]"
           >
             ← Voltar aos meus treinos
           </Link>

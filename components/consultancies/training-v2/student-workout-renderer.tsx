@@ -30,7 +30,7 @@ import {
   type ActiveRestState,
 } from "./rest-timer";
 import { resolveExerciseExecutionMedia } from "@/lib/training-v2/execution-media-resolver";
-import { StudentRuntimeFocusedView } from "./student-runtime-focused-view";
+import { StudentRuntimeChecklistView } from "./student-runtime-checklist-view";
 import { formatDurationToMinutes, formatDurationNatural } from "@/lib/training-v2/reps-normalizer";
 import { getCombinationTheme } from "./training-studio-tokens";
 
@@ -1077,23 +1077,15 @@ export function StudentWorkoutRenderer({
     <>
       {/* GUIDED WORKOUT EXECUTION RUNTIME (DESKTOP & MOBILE) */}
       {activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED") && mobileViewMode === "FOCUSED" ? (
-        <StudentRuntimeFocusedView
+        <StudentRuntimeChecklistView
           workout={workout}
           activeSession={activeSession}
-          onCompleteSet={handleCompleteSet}
-          loadingSetPublicId={loadingSetPublicId}
-          activeRest={activeRest}
-          onSkipRest={handleSkipRest}
-          onCompleteWorkout={handleCompleteWorkout}
-          isCompleting={isCompleting}
-          completeError={completeError}
-          history={history}
           consultancySlug={consultancySlug || ""}
-          onToggleOverview={() => setMobileViewMode("OVERVIEW")}
-          isOffline={isOffline}
+          history={history}
           activeSubstitutions={swapStatus.activeSubstitutions}
           remainingSwaps={swapStatus.remainingSwaps}
-          onOpenSwapModal={(item) => setSwapModalItem(item)}
+          onSessionUpdated={(updated) => setActiveSession(updated)}
+          onToggleOverview={() => setMobileViewMode("OVERVIEW")}
         />
       ) : (
         <div className="space-y-6 w-full max-w-5xl mx-auto pb-16">

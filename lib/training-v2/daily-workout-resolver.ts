@@ -1,7 +1,7 @@
 import type { RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { assertStudentContext, type TrainingAccessContext } from "./access";
-import { getConsultancyLocalDate } from "../consultancies/timezone";
+import { getConsultancyLocalDate, isValidIanaTimezone } from "../consultancies/timezone";
 import { isMissingColumnError } from "./schema-resilience";
 
 export type DailyWorkoutDecisionStatus =
@@ -187,16 +187,26 @@ export async function resolveStudentDailyWorkout(
   try {
     connection = await getDbConnection();
 
-    // 1. Resolução do Fuso Horário e Data Civil Local
+    // 1. Resolução do Fuso Horário e Data Civil Local com validação robusta
     let timeZone = options?.consultancyTimezone;
-    if (!timeZone && ctx.consultancyId) {
-      const [consRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT timezone FROM consultancies WHERE id = ? LIMIT 1;`,
-        [ctx.consultancyId]
-      );
-      timeZone = consRows && consRows[0]?.timezone ? String(consRows[0].timezone) : "America/Sao_Paulo";
+    if (!timeZone || !isValidIanaTimezone(timeZone)) {
+      if (ctx.consultancyId) {
+        try {
+          const [consRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT timezone FROM consultancies WHERE id = ? LIMIT 1;`,
+            [ctx.consultancyId]
+          );
+          if (consRows && consRows[0]?.timezone && isValidIanaTimezone(String(consRows[0].timezone))) {
+            timeZone = String(consRows[0].timezone);
+          }
+        } catch {
+          // Mantém fallback seguro
+        }
+      }
     }
-    if (!timeZone) timeZone = "America/Sao_Paulo";
+    if (!timeZone || !isValidIanaTimezone(timeZone)) {
+      timeZone = "America/Sao_Paulo";
+    }
 
     const todayDateStr = getConsultancyLocalDate(timeZone);
     const [tY, tM, tD] = todayDateStr.split("-").map(Number);
@@ -219,7 +229,7 @@ export async function resolveStudentDailyWorkout(
            wes.started_at,
            wa.public_id AS assignment_public_id,
            wa.status AS assignment_status,
-           wv.title AS routine_title,
+           COALESCE(NULLIF(TRIM(wa.custom_title), ''), wv.title) AS routine_title,
            wv.version_number
          FROM workout_execution_sessions wes
          INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
@@ -233,7 +243,7 @@ export async function resolveStudentDailyWorkout(
       );
       inProgressRows = rows;
     } catch (err: unknown) {
-      if (isMissingColumnError(err, ["workout_block_id"])) {
+      if (isMissingColumnError(err, ["custom_title", "workout_block_id"])) {
         const [rows] = await connection.execute<RowDataPacket[]>(
           `SELECT
              wes.id AS session_id,
@@ -258,7 +268,8 @@ export async function resolveStudentDailyWorkout(
         );
         inProgressRows = rows;
       } else {
-        throw err;
+        console.warn("[DailyWorkoutResolver] Non-fatal: could not query in-progress session:", err);
+        inProgressRows = [];
       }
     }
 
@@ -634,32 +645,69 @@ export async function resolveStudentDailyWorkout(
     }
 
     // 3. Busca prescrição ativa do aluno
-    const [assignRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-         wa.id AS assignment_id,
-         wa.public_id AS assignment_public_id,
-         wa.notes_for_student,
-         DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
-         DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
-         wv.id AS version_id,
-         wv.public_id AS version_public_id,
-         wv.title AS routine_title,
-         wv.subtitle,
-         wv.version_number,
-         wv.estimated_duration_minutes,
-         wv.difficulty_level
-       FROM workout_assignments wa
-       INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
-       INNER JOIN workouts w ON w.id = wv.workout_id
-       WHERE wa.consultancy_id = ?
-         AND wa.student_membership_id = ?
-         AND wa.status = 'ACTIVE'
-         AND wa.deleted_at IS NULL
-         AND w.deleted_at IS NULL
-       ORDER BY wa.starts_on DESC, wa.created_at DESC
-       LIMIT 1;`,
-      [ctx.consultancyId!, ctx.membershipId!]
-    );
+    let assignRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           wa.id AS assignment_id,
+           wa.public_id AS assignment_public_id,
+           wa.notes_for_student,
+           DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
+           DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
+           wv.id AS version_id,
+           wv.public_id AS version_public_id,
+           COALESCE(NULLIF(TRIM(wa.custom_title), ''), wv.title) AS routine_title,
+           wv.subtitle,
+           wv.version_number,
+           wv.estimated_duration_minutes,
+           wv.difficulty_level
+         FROM workout_assignments wa
+         INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+         INNER JOIN workouts w ON w.id = wv.workout_id
+         WHERE wa.consultancy_id = ?
+           AND wa.student_membership_id = ?
+           AND wa.status = 'ACTIVE'
+           AND wa.deleted_at IS NULL
+           AND w.deleted_at IS NULL
+         ORDER BY wa.starts_on DESC, wa.created_at DESC
+         LIMIT 1;`,
+        [ctx.consultancyId!, ctx.membershipId!]
+      );
+      assignRows = rows;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["custom_title"])) {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+             wa.id AS assignment_id,
+             wa.public_id AS assignment_public_id,
+             wa.notes_for_student,
+             DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
+             DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
+             wv.id AS version_id,
+             wv.public_id AS version_public_id,
+             wv.title AS routine_title,
+             wv.subtitle,
+             wv.version_number,
+             wv.estimated_duration_minutes,
+             wv.difficulty_level
+           FROM workout_assignments wa
+           INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+           INNER JOIN workouts w ON w.id = wv.workout_id
+           WHERE wa.consultancy_id = ?
+             AND wa.student_membership_id = ?
+             AND wa.status = 'ACTIVE'
+             AND wa.deleted_at IS NULL
+             AND w.deleted_at IS NULL
+           ORDER BY wa.starts_on DESC, wa.created_at DESC
+           LIMIT 1;`,
+          [ctx.consultancyId!, ctx.membershipId!]
+        );
+        assignRows = rows;
+      } else {
+        console.warn("[DailyWorkoutResolver] Non-fatal: could not query active assignment:", err);
+        assignRows = [];
+      }
+    }
 
     if (!assignRows || assignRows.length === 0) {
       return {
@@ -788,7 +836,8 @@ export async function resolveStudentDailyWorkout(
         );
         historyRows = rows;
       } else {
-        throw err;
+        console.warn("[DailyWorkoutResolver] Non-fatal: could not query past execution history:", err);
+        historyRows = [];
       }
     }
 
@@ -1012,7 +1061,7 @@ export async function resolveStudentDailyWorkout(
       contextNote: "Não foi possível sincronizar o treino neste momento. Tente novamente ou acesse a lista completa de treinos.",
       availableDivisions: [],
       todayWeekday: 0,
-      todayWeekdayName: "Hoje",
+      todayWeekdayName: "",
       todayDateStr: "",
       consultancyTimezone: "America/Sao_Paulo",
     };

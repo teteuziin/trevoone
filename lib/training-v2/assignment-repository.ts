@@ -33,12 +33,14 @@ export type CreateAssignmentInput = {
   startsOn: string;
   endsOn?: string | null;
   notesForStudent?: string | null;
+  customTitle?: string | null;
 };
 
 export type UpdateAssignmentScheduleInput = {
   startsOn?: string;
   endsOn?: string | null;
   notesForStudent?: string | null;
+  customTitle?: string | null;
 };
 
 export type StudentSearchResult = {
@@ -284,22 +286,47 @@ export async function createAssignment(
 
     // 4. Insert assignment
     const assignmentPublicId = crypto.randomUUID();
-    await connection.execute<ResultSetHeader>(
-      `INSERT INTO workout_assignments (
-        public_id, consultancy_id, student_membership_id, workout_version_id,
-        assigned_by_membership_id, starts_on, ends_on, status, notes_for_student
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?);`,
-      [
-        assignmentPublicId,
-        ctx.consultancyId!,
-        student.id,
-        v.id,
-        ctx.membershipId!,
-        input.startsOn.trim(),
-        input.endsOn?.trim() || null,
-        input.notesForStudent?.trim() || null,
-      ]
-    );
+    const customTitle = input.customTitle?.trim() || null;
+    try {
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO workout_assignments (
+          public_id, consultancy_id, student_membership_id, workout_version_id,
+          assigned_by_membership_id, starts_on, ends_on, status, notes_for_student, custom_title
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?);`,
+        [
+          assignmentPublicId,
+          ctx.consultancyId!,
+          student.id,
+          v.id,
+          ctx.membershipId!,
+          input.startsOn.trim(),
+          input.endsOn?.trim() || null,
+          input.notesForStudent?.trim() || null,
+          customTitle,
+        ]
+      );
+    } catch (insErr: unknown) {
+      if (isMissingColumnError(insErr, ["custom_title"])) {
+        await connection.execute<ResultSetHeader>(
+          `INSERT INTO workout_assignments (
+            public_id, consultancy_id, student_membership_id, workout_version_id,
+            assigned_by_membership_id, starts_on, ends_on, status, notes_for_student
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?);`,
+          [
+            assignmentPublicId,
+            ctx.consultancyId!,
+            student.id,
+            v.id,
+            ctx.membershipId!,
+            input.startsOn.trim(),
+            input.endsOn?.trim() || null,
+            input.notesForStudent?.trim() || null,
+          ]
+        );
+      } else {
+        throw insErr;
+      }
+    }
 
     await connection.commit();
 
@@ -604,35 +631,74 @@ export async function listStudentWorkoutCards(
   try {
     connection = await getDbConnection();
 
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-         wa.public_id AS assignment_public_id,
-         wv.title AS workout_title,
-         wv.subtitle,
-         wv.objective,
-         wv.version_number,
-         wv.estimated_duration_minutes,
-         wv.difficulty_level,
-         DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
-         DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
-         wa.notes_for_student,
-         (
-           SELECT COUNT(*)
-           FROM workout_blocks wb
-           WHERE wb.workout_version_id = wv.id
-         ) AS block_count
-       FROM workout_assignments wa
-       INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
-       INNER JOIN workouts w ON w.id = wv.workout_id
-       WHERE wa.consultancy_id = ?
-         AND wa.student_membership_id = ?
-         AND wa.status = 'ACTIVE'
-         AND wa.deleted_at IS NULL
-         AND w.deleted_at IS NULL
-       ORDER BY wa.starts_on DESC, wa.created_at DESC
-       LIMIT 50;`,
-      [ctx.consultancyId!, ctx.membershipId!]
-    );
+    let rows: RowDataPacket[] = [];
+    try {
+      const [r] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           wa.public_id AS assignment_public_id,
+           COALESCE(NULLIF(TRIM(wa.custom_title), ''), wv.title) AS workout_title,
+           wv.subtitle,
+           wv.objective,
+           wv.version_number,
+           wv.estimated_duration_minutes,
+           wv.difficulty_level,
+           DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
+           DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
+           wa.notes_for_student,
+           (
+             SELECT COUNT(*)
+             FROM workout_blocks wb
+             WHERE wb.workout_version_id = wv.id
+           ) AS block_count
+         FROM workout_assignments wa
+         INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+         INNER JOIN workouts w ON w.id = wv.workout_id
+         WHERE wa.consultancy_id = ?
+           AND wa.student_membership_id = ?
+           AND wa.status = 'ACTIVE'
+           AND wa.deleted_at IS NULL
+           AND w.deleted_at IS NULL
+         ORDER BY wa.starts_on DESC, wa.created_at DESC
+         LIMIT 50;`,
+        [ctx.consultancyId!, ctx.membershipId!]
+      );
+      rows = r;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["custom_title"])) {
+        const [r] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+             wa.public_id AS assignment_public_id,
+             wv.title AS workout_title,
+             wv.subtitle,
+             wv.objective,
+             wv.version_number,
+             wv.estimated_duration_minutes,
+             wv.difficulty_level,
+             DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
+             DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
+             wa.notes_for_student,
+             (
+               SELECT COUNT(*)
+               FROM workout_blocks wb
+               WHERE wb.workout_version_id = wv.id
+             ) AS block_count
+           FROM workout_assignments wa
+           INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+           INNER JOIN workouts w ON w.id = wv.workout_id
+           WHERE wa.consultancy_id = ?
+             AND wa.student_membership_id = ?
+             AND wa.status = 'ACTIVE'
+             AND wa.deleted_at IS NULL
+             AND w.deleted_at IS NULL
+           ORDER BY wa.starts_on DESC, wa.created_at DESC
+           LIMIT 50;`,
+          [ctx.consultancyId!, ctx.membershipId!]
+        );
+        rows = r;
+      } else {
+        throw err;
+      }
+    }
 
     return rows.map((r) => ({
       assignmentPublicId: String(r.assignment_public_id),
@@ -1339,18 +1405,39 @@ export async function updateAssignmentScheduleOrNotes(
       updates.push("notes_for_student = ?");
       values.push(input.notesForStudent?.trim() || null);
     }
+    if (input.customTitle !== undefined) {
+      updates.push("custom_title = ?");
+      values.push(input.customTitle?.trim() || null);
+    }
 
     if (updates.length === 0) return true;
 
     values.push(assignmentPublicId, String(ctx.consultancyId!));
 
-    const [res] = await connection.execute<ResultSetHeader>(
-      `UPDATE workout_assignments
-       SET ${updates.join(", ")}, updated_at = NOW(3)
-       WHERE public_id = ? AND consultancy_id = ? AND deleted_at IS NULL;`,
-      values
-    );
-    return res.affectedRows > 0;
+    try {
+      const [res] = await connection.execute<ResultSetHeader>(
+        `UPDATE workout_assignments
+         SET ${updates.join(", ")}, updated_at = NOW(3)
+         WHERE public_id = ? AND consultancy_id = ? AND deleted_at IS NULL;`,
+        values
+      );
+      return res.affectedRows > 0;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["custom_title"])) {
+        const filteredUpdates = updates.filter((u) => !u.includes("custom_title"));
+        if (filteredUpdates.length === 0) return true;
+        const filteredValues = values.slice(0, updates.length).filter((_, idx) => !updates[idx].includes("custom_title"));
+        filteredValues.push(assignmentPublicId, String(ctx.consultancyId!));
+        const [res] = await connection.execute<ResultSetHeader>(
+          `UPDATE workout_assignments
+           SET ${filteredUpdates.join(", ")}, updated_at = NOW(3)
+           WHERE public_id = ? AND consultancy_id = ? AND deleted_at IS NULL;`,
+          filteredValues
+        );
+        return res.affectedRows > 0;
+      }
+      throw err;
+    }
   } finally {
     if (connection) connection.release();
   }

@@ -12,9 +12,12 @@ import {
   startOrResumeWorkoutExecution,
   completeWorkoutExecutionSet,
   completeWorkoutExecution,
+  toggleWorkoutExecutionExercise,
+  skipWorkoutExecutionExercise,
   syncOfflineWorkoutExecution,
   TrainingSessionConflictError,
   type SyncOfflineWorkoutExecutionInput,
+  type ToggleExerciseCompletionResult,
 } from "@/lib/training-v2/execution-repository";
 import type {
   WorkoutExecutionSessionDto,
@@ -199,7 +202,11 @@ export async function completeWorkoutExecutionSetAction(
 export async function completeWorkoutExecutionAction(
   slug: string,
   sessionPublicId: string,
-  options?: { allowEarlyCompletion?: boolean }
+  options?: {
+    allowEarlyCompletion?: boolean;
+    studentCompletionState?: "ALL" | "PARTIAL" | "NONE" | null;
+    studentFeedbackNotes?: string | null;
+  }
 ): Promise<CompleteWorkoutExecutionResult> {
   const session = await getCurrentSession();
   if (!session) {
@@ -228,6 +235,92 @@ export async function completeWorkoutExecutionAction(
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao finalizar treino.";
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+/**
+ * Toggles exercise completion on the student checklist without fabricating reps or load.
+ */
+export async function toggleWorkoutExecutionExerciseAction(
+  slug: string,
+  sessionPublicId: string,
+  blockItemPublicId: string,
+  completed: boolean
+): Promise<{ success: boolean; data?: ToggleExerciseCompletionResult; error?: string }> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Não autenticado." };
+  }
+
+  const ctx = await resolveTrainingAccessContext(slug);
+  if (!ctx) {
+    return { success: false, error: "Acesso não autorizado à consultoria." };
+  }
+
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+    return { success: false, error: "Apenas alunos podem marcar exercícios de treino." };
+  }
+
+  try {
+    const res = await toggleWorkoutExecutionExercise(
+      ctx,
+      sessionPublicId,
+      blockItemPublicId,
+      completed
+    );
+    return {
+      success: true,
+      data: res,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao marcar exercício.";
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+/**
+ * Marks an exercise as skipped on the student checklist.
+ */
+export async function skipWorkoutExecutionExerciseAction(
+  slug: string,
+  sessionPublicId: string,
+  blockItemPublicId: string,
+  reason?: string | null
+): Promise<{ success: boolean; data?: ToggleExerciseCompletionResult; error?: string }> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Não autenticado." };
+  }
+
+  const ctx = await resolveTrainingAccessContext(slug);
+  if (!ctx) {
+    return { success: false, error: "Acesso não autorizado à consultoria." };
+  }
+
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+    return { success: false, error: "Apenas alunos podem pular exercícios de treino." };
+  }
+
+  try {
+    const res = await skipWorkoutExecutionExercise(
+      ctx,
+      sessionPublicId,
+      blockItemPublicId,
+      reason
+    );
+    return {
+      success: true,
+      data: res,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao pular exercício.";
     return {
       success: false,
       error: message,

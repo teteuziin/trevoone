@@ -1083,6 +1083,7 @@ export async function assignWorkoutVersionAction(
     startsOn?: string;
     endsOn?: string | null;
     notesForStudent?: string | null;
+    customTitle?: string | null;
   }
 ): Promise<ActionResponse<{ assignmentPublicId: string }>> {
   try {
@@ -1107,8 +1108,10 @@ export async function assignWorkoutVersionAction(
       startsOn,
       endsOn: options?.endsOn?.trim() || null,
       notesForStudent: options?.notesForStudent?.trim() || null,
+      customTitle: options?.customTitle?.trim() || null,
     });
 
+    revalidatePath(`/consultoria/${slug}`);
     revalidatePath(`/consultoria/${slug}/rotinas`);
     revalidatePath(`/consultoria/${slug}/treinos`);
 

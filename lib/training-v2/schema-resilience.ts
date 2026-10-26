@@ -33,3 +33,27 @@ export function isMissingColumnError(err: unknown, columnNames?: string[]): bool
 
   return true;
 }
+
+export function isMissingTableError(err: unknown, tableNames?: string[]): boolean {
+  if (!err || typeof err !== "object") return false;
+
+  const isBadTable =
+    ("code" in err && (err as { code?: unknown }).code === "ER_NO_SUCH_TABLE") ||
+    ("errno" in err && (err as { errno?: unknown }).errno === 1146) ||
+    ("sqlState" in err && (err as { sqlState?: unknown }).sqlState === "42S02");
+
+  if (!isBadTable) return false;
+
+  if (tableNames && tableNames.length > 0) {
+    const msg =
+      "message" in err && typeof (err as { message?: unknown }).message === "string"
+        ? (err as { message: string }).message.toLowerCase()
+        : "";
+
+    if (msg) {
+      return tableNames.some((tbl) => msg.includes(tbl.toLowerCase()));
+    }
+  }
+
+  return true;
+}

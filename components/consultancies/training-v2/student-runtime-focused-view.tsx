@@ -454,6 +454,7 @@ export function StudentRuntimeFocusedView({
     }
     return { setsText, repsText, restText, loadText };
   })();
+  const prescriptionSummaryText = `${prescriptionParts.setsText} · ${prescriptionParts.repsText} · ${prescriptionParts.restText}${prescriptionParts.loadText}`;
 
   // Overall workout progress metrics: Séries puladas não entram na contagem de concluídas
   const progressPercent = totalSetsCount > 0 ? Math.round((completedCount / totalSetsCount) * 100) : 0;
@@ -772,7 +773,7 @@ export function StudentRuntimeFocusedView({
               Duração
             </span>
             <span className="text-sm sm:text-base font-extrabold text-[var(--text-primary)] tabular-nums truncate block">
-              {timingLabel || (elapsedMinutes > 0 ? `${elapsedMinutes}m` : "< 1m")}
+              {elapsedMinutes > 0 && elapsedMinutes < 720 ? `${elapsedMinutes}m` : "< 1m"}
             </span>
           </div>
           <div className="space-y-0.5 border-x border-[var(--border-subtle)]">
@@ -1098,7 +1099,7 @@ export function StudentRuntimeFocusedView({
             )}
 
             {/* Prescrição: Direta, sem caixa verde gigante, sem rótulo "PRESCRIÇÃO" */}
-            <div className="py-1 space-y-0.5">
+            <div className="py-1 space-y-0.5" aria-label={prescriptionSummaryText}>
               <div className="text-base sm:text-lg font-black text-[var(--text-primary)]">
                 {prescriptionParts.setsText}
               </div>

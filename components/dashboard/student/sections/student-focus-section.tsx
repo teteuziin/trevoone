@@ -136,7 +136,11 @@ export function StudentFocusSection({
                       )
                     ) : (
                       <span>
-                        {dailyWorkoutResolution?.todayWeekdayName ? `Hoje: ${dailyWorkoutResolution.todayWeekdayName} · ` : ""}
+                        {dailyWorkoutResolution?.todayWeekdayName &&
+                        dailyWorkoutResolution.todayWeekdayName !== "Hoje" &&
+                        dailyWorkoutResolution.status !== "ERROR"
+                          ? `${dailyWorkoutResolution.todayWeekdayName} · `
+                          : ""}
                         Prescrição da consultoria
                       </span>
                     )}

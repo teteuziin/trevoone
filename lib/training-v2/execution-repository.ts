@@ -16,7 +16,7 @@ import {
   createNotificationInTransaction,
   deliverNotificationAfterCommit,
 } from "@/services/notification-service";
-import { isMissingColumnError } from "./schema-resilience";
+import { isMissingColumnError, isMissingTableError } from "./schema-resilience";
 export class TrainingSessionConflictError extends Error {
   public readonly code = "ACTIVE_SESSION_CONFLICT";
   public readonly statusCode = 409;
@@ -1610,6 +1610,8 @@ export async function completeWorkoutExecutionSet(
 
 export type CompleteWorkoutExecutionOptions = {
   allowEarlyCompletion?: boolean;
+  studentCompletionState?: "ALL" | "PARTIAL" | "NONE" | null;
+  studentFeedbackNotes?: string | null;
 };
 
 /**
@@ -1775,14 +1777,33 @@ export async function completeWorkoutExecution(
       }
     }
 
-    // 3. Mark session COMPLETED
-    const now = new Date();
-    await connection.execute<ResultSetHeader>(
-      `UPDATE workout_execution_sessions
-       SET status = 'COMPLETED', completed_at = NOW(3), updated_at = NOW(3)
-       WHERE id = ?;`,
-      [s.id]
-    );
+    // 3. Mark session COMPLETED with optional student feedback
+    const studentCompletionState = options?.studentCompletionState || null;
+    const studentFeedbackNotes = options?.studentFeedbackNotes?.trim() || null;
+    try {
+      await connection.execute<ResultSetHeader>(
+        `UPDATE workout_execution_sessions
+         SET status = 'COMPLETED',
+             completed_at = NOW(3),
+             student_completion_state = ?,
+             student_feedback_notes = ?,
+             student_feedback_at = CASE WHEN ? IS NOT NULL OR ? IS NOT NULL THEN NOW(3) ELSE NULL END,
+             updated_at = NOW(3)
+         WHERE id = ?;`,
+        [studentCompletionState, studentFeedbackNotes, studentCompletionState, studentFeedbackNotes, s.id]
+      );
+    } catch (updErr: unknown) {
+      if (isMissingColumnError(updErr, ["student_completion_state", "student_feedback_notes", "student_feedback_at"])) {
+        await connection.execute<ResultSetHeader>(
+          `UPDATE workout_execution_sessions
+           SET status = 'COMPLETED', completed_at = NOW(3), updated_at = NOW(3)
+           WHERE id = ?;`,
+          [s.id]
+        );
+      } else {
+        throw updErr;
+      }
+    }
 
     const setRows = await queryExecutionSetsBySessionId(connection, Number(s.id));
 
@@ -1795,7 +1816,7 @@ export async function completeWorkoutExecution(
           u.name AS student_name,
           cm.public_id AS student_membership_public_id,
           c.slug AS consultancy_slug,
-          wv.title AS workout_title
+          COALESCE(NULLIF(TRIM(wa.custom_title), ''), wv.title) AS workout_title
          FROM workout_assignments wa
          JOIN consultancy_members cm ON cm.id = wa.student_membership_id
          JOIN users u ON u.id = cm.user_id
@@ -1808,11 +1829,14 @@ export async function completeWorkoutExecution(
 
       if (Array.isArray(relRows) && relRows.length > 0 && relRows[0].assigned_by_user_id) {
         const rel = relRows[0];
+        const feedbackSnippet = studentFeedbackNotes
+          ? ` • Observação: "${studentFeedbackNotes.slice(0, 75)}${studentFeedbackNotes.length > 75 ? "..." : ""}"`
+          : "";
         const notif = await createNotificationInTransaction(connection, {
           userId: Number(rel.assigned_by_user_id),
           consultancyId: Number(s.consultancy_id),
           title: "Treino Concluído pelo Aluno",
-          body: `${rel.student_name || "Seu aluno"} concluiu a sessão de treino "${rel.workout_title || "Prescrição"}".`,
+          body: `${rel.student_name || "Seu aluno"} concluiu o treino "${rel.workout_title || "Prescrição"}".${feedbackSnippet}`,
           eventType: "WORKOUT_COMPLETED",
           priority: "NORMAL",
           deepLink: `/consultoria/${rel.consultancy_slug}/progresso/alunos/${rel.student_membership_public_id}`,
@@ -2358,6 +2382,260 @@ export async function syncOfflineWorkoutExecution(
     }
 
     return { success: true, sessionPublicId: input.clientExecutionId, alreadySynced: false };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+export type ToggleExerciseCompletionResult = {
+  sessionPublicId: string;
+  blockItemPublicId: string;
+  isCompleted: boolean;
+  completedAt: string | null;
+  sets: WorkoutExecutionSetDto[];
+};
+
+/**
+ * Toggles exercise completion status on the checklist without fabricating loads or reps.
+ * Persists in workout_execution_items and marks corresponding sets in workout_execution_sets.
+ */
+export async function toggleWorkoutExecutionExercise(
+  ctx: TrainingAccessContext,
+  sessionPublicId: string,
+  blockItemPublicId: string,
+  completed: boolean
+): Promise<ToggleExerciseCompletionResult> {
+  assertStudentContext(ctx);
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const sessionRows = await queryExecutionSessionWithBlock(
+      connection,
+      "wes.public_id = ?",
+      [sessionPublicId],
+      true
+    );
+    if (!sessionRows || sessionRows.length === 0) {
+      throw new TrainingAuthorizationError("Sessão não encontrada.", "NOT_FOUND", 404);
+    }
+    const s = sessionRows[0];
+    if (Number(s.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    const isSessionOwner =
+      Number(s.student_membership_id) === ctx.membershipId ||
+      (await verifyUserMembershipOwnership(connection, s.student_membership_id, ctx.userId, ctx.consultancyId));
+    if (!isSessionOwner) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    if (s.status !== "IN_PROGRESS") {
+      throw new TrainingAuthorizationError("Esta sessão já foi finalizada.", "SESSION_NOT_IN_PROGRESS", 400);
+    }
+
+    const [itemRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id, block_id FROM workout_block_items WHERE public_id = ? LIMIT 1;`,
+      [blockItemPublicId]
+    );
+    if (!itemRows || itemRows.length === 0) {
+      throw new TrainingAuthorizationError("Exercício não encontrado.", "NOT_FOUND", 404);
+    }
+    const item = itemRows[0];
+
+    const itemPublicId = crypto.randomUUID();
+    const completedAtIso = completed ? new Date().toISOString() : null;
+
+    try {
+      if (completed) {
+        await connection.execute<ResultSetHeader>(
+          `INSERT INTO workout_execution_items (
+            public_id, execution_session_id, block_item_id, status, completed_at
+          ) VALUES (?, ?, ?, 'COMPLETED', NOW(3))
+          ON DUPLICATE KEY UPDATE status = 'COMPLETED', completed_at = NOW(3), skip_reason = NULL, updated_at = NOW(3);`,
+          [itemPublicId, s.id, item.id]
+        );
+      } else {
+        await connection.execute<ResultSetHeader>(
+          `DELETE FROM workout_execution_items
+           WHERE execution_session_id = ? AND block_item_id = ?;`,
+          [s.id, item.id]
+        );
+      }
+    } catch (itemErr: unknown) {
+      if (!isMissingTableError(itemErr, ["workout_execution_items"])) {
+        console.warn("[toggleWorkoutExecutionExercise] Non-fatal items table error:", itemErr);
+      }
+    }
+
+    if (completed) {
+      try {
+        await connection.execute<ResultSetHeader>(
+          `UPDATE workout_execution_sets
+           SET completed_at = COALESCE(completed_at, NOW(3)),
+               is_skipped = 0,
+               updated_at = NOW(3)
+           WHERE execution_session_id = ? AND block_item_id = ?;`,
+          [s.id, item.id]
+        );
+      } catch (setErr: unknown) {
+        if (isMissingColumnError(setErr, ["is_skipped"])) {
+          await connection.execute<ResultSetHeader>(
+            `UPDATE workout_execution_sets
+             SET completed_at = COALESCE(completed_at, NOW(3)),
+                 updated_at = NOW(3)
+             WHERE execution_session_id = ? AND block_item_id = ?;`,
+            [s.id, item.id]
+          );
+        } else {
+          throw setErr;
+        }
+      }
+    } else {
+      try {
+        await connection.execute<ResultSetHeader>(
+          `UPDATE workout_execution_sets
+           SET completed_at = NULL,
+               is_skipped = 0,
+               updated_at = NOW(3)
+           WHERE execution_session_id = ? AND block_item_id = ?
+             AND actual_reps IS NULL AND actual_load_kg IS NULL;`,
+          [s.id, item.id]
+        );
+      } catch (setErr: unknown) {
+        if (isMissingColumnError(setErr, ["is_skipped"])) {
+          await connection.execute<ResultSetHeader>(
+            `UPDATE workout_execution_sets
+             SET completed_at = NULL,
+                 updated_at = NOW(3)
+             WHERE execution_session_id = ? AND block_item_id = ?
+               AND actual_reps IS NULL AND actual_load_kg IS NULL;`,
+            [s.id, item.id]
+          );
+        } else {
+          throw setErr;
+        }
+      }
+    }
+
+    const setRows = await queryExecutionSetsBySessionId(connection, Number(s.id));
+    await connection.commit();
+
+    return {
+      sessionPublicId,
+      blockItemPublicId,
+      isCompleted: completed,
+      completedAt: completedAtIso,
+      sets: setRows.map(mapExecutionSetRow),
+    };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Marks an exercise as skipped in the active checklist session.
+ */
+export async function skipWorkoutExecutionExercise(
+  ctx: TrainingAccessContext,
+  sessionPublicId: string,
+  blockItemPublicId: string,
+  reason?: string | null
+): Promise<ToggleExerciseCompletionResult> {
+  assertStudentContext(ctx);
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const sessionRows = await queryExecutionSessionWithBlock(
+      connection,
+      "wes.public_id = ?",
+      [sessionPublicId],
+      true
+    );
+    if (!sessionRows || sessionRows.length === 0) {
+      throw new TrainingAuthorizationError("Sessão não encontrada.", "NOT_FOUND", 404);
+    }
+    const s = sessionRows[0];
+    if (Number(s.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    const isSessionOwner =
+      Number(s.student_membership_id) === ctx.membershipId ||
+      (await verifyUserMembershipOwnership(connection, s.student_membership_id, ctx.userId, ctx.consultancyId));
+    if (!isSessionOwner) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    if (s.status !== "IN_PROGRESS") {
+      throw new TrainingAuthorizationError("Esta sessão já foi finalizada.", "SESSION_NOT_IN_PROGRESS", 400);
+    }
+
+    const [itemRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id, block_id FROM workout_block_items WHERE public_id = ? LIMIT 1;`,
+      [blockItemPublicId]
+    );
+    if (!itemRows || itemRows.length === 0) {
+      throw new TrainingAuthorizationError("Exercício não encontrado.", "NOT_FOUND", 404);
+    }
+    const item = itemRows[0];
+
+    const itemPublicId = crypto.randomUUID();
+    const cleanReason = reason?.trim() || null;
+
+    try {
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO workout_execution_items (
+          public_id, execution_session_id, block_item_id, status, skip_reason, completed_at
+        ) VALUES (?, ?, ?, 'SKIPPED', ?, NOW(3))
+        ON DUPLICATE KEY UPDATE status = 'SKIPPED', skip_reason = ?, completed_at = NOW(3), updated_at = NOW(3);`,
+        [itemPublicId, s.id, item.id, cleanReason, cleanReason]
+      );
+    } catch (itemErr: unknown) {
+      if (!isMissingTableError(itemErr, ["workout_execution_items"])) {
+        console.warn("[skipWorkoutExecutionExercise] Non-fatal items table error:", itemErr);
+      }
+    }
+
+    try {
+      await connection.execute<ResultSetHeader>(
+        `UPDATE workout_execution_sets
+         SET completed_at = NOW(3),
+             is_skipped = 1,
+             updated_at = NOW(3)
+         WHERE execution_session_id = ? AND block_item_id = ?;`,
+        [s.id, item.id]
+      );
+    } catch (setErr: unknown) {
+      if (isMissingColumnError(setErr, ["is_skipped"])) {
+        await connection.execute<ResultSetHeader>(
+          `UPDATE workout_execution_sets
+           SET completed_at = NOW(3),
+               updated_at = NOW(3)
+           WHERE execution_session_id = ? AND block_item_id = ?;`,
+          [s.id, item.id]
+        );
+      } else {
+        throw setErr;
+      }
+    }
+
+    const setRows = await queryExecutionSetsBySessionId(connection, Number(s.id));
+    await connection.commit();
+
+    return {
+      sessionPublicId,
+      blockItemPublicId,
+      isCompleted: false,
+      completedAt: null,
+      sets: setRows.map(mapExecutionSetRow),
+    };
   } catch (err) {
     await connection.rollback();
     throw err;

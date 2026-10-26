@@ -175,7 +175,93 @@ export function StudentTreinosClientView({
         </div>
       )}
 
-      {/* 4. Ficha Principal com Detalhes das Divisões */}
+      {/* 4. Divisões da Ficha (Acesso Direto à Execução da Divisão Escolhida) */}
+      {dailyWorkout?.availableDivisions && dailyWorkout.availableDivisions.length > 0 && primaryAssignment && (
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
+                Divisões de Treino da Ficha
+              </h2>
+            </div>
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              {dailyWorkout.availableDivisions.length} {dailyWorkout.availableDivisions.length === 1 ? "divisão" : "divisões"}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {dailyWorkout.availableDivisions.map((div, dIdx) => {
+              const isTodayDiv = div.publicId === dailyWorkout.targetBlockPublicId;
+              const isDoneToday = div.status === "COMPLETED_TODAY";
+              const href = buildStudentWorkoutExecutionUrl(
+                consultancySlug,
+                primaryAssignment.assignmentPublicId,
+                div.publicId
+              );
+
+              return (
+                <div
+                  key={div.publicId}
+                  className={`p-5 rounded-3xl border transition-all depth-surface flex flex-col justify-between space-y-4 ${
+                    isTodayDiv
+                      ? "bg-white dark:bg-[#151619] border-emerald-500/50 shadow-sm ring-1 ring-emerald-500/25"
+                      : "bg-[var(--surface)] border-[var(--border-default)]"
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center justify-center">
+                        {String.fromCharCode(65 + dIdx)}
+                      </span>
+                      {isTodayDiv && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                          Previsto para hoje
+                        </span>
+                      )}
+                      {isDoneToday && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                          ✓ Realizado hoje
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="text-base sm:text-lg font-black text-[var(--text-primary)] tracking-tight">
+                      {div.title}
+                    </h3>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+                      {div.scheduledDaysLabel && (
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                          {div.scheduledDaysLabel}
+                        </span>
+                      )}
+                      <span>•</span>
+                      <span>
+                        {div.exerciseCount} {div.exerciseCount === 1 ? "exercício" : "exercícios"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <Link
+                    href={href}
+                    className={`w-full min-h-[48px] rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      isTodayDiv
+                        ? "bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white shadow-xs"
+                        : "bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)]"
+                    }`}
+                  >
+                    <span>{isTodayDiv ? "Treinar hoje" : "Treinar esta divisão"}</span>
+                    <span>→</span>
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 5. Ficha Principal com Metadados */}
       {primaryAssignment && (
         <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between">
@@ -223,7 +309,7 @@ export function StudentTreinosClientView({
                   href={buildStudentWorkoutExecutionUrl(consultancySlug, primaryAssignment.assignmentPublicId)}
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 min-h-[48px] transition-colors cursor-pointer"
                 >
-                  <span>Abrir ficha completa →</span>
+                  <span>Abrir treino →</span>
                 </Link>
               </div>
             </div>

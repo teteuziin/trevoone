@@ -75,6 +75,7 @@ export function WorkoutAssignModal({
   const [startsOn, setStartsOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [endsOn, setEndsOn] = useState("");
   const [notesForStudent, setNotesForStudent] = useState("");
+  const [customTitle, setCustomTitle] = useState("");
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -88,6 +89,18 @@ export function WorkoutAssignModal({
   const [isCheckingExisting, setIsCheckingExisting] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const handleSelectStudent = (selectedStudent: ActiveStudentDto | null) => {
+    setSelectedStudent(selectedStudent);
+    if (selectedStudent) {
+      setCustomTitle((prev) => {
+        if (!prev || prev.startsWith("Treino de ")) {
+          return `Treino de ${selectedStudent.name}`;
+        }
+        return prev;
+      });
+    }
+  };
 
   // Load students on open or query change
   useEffect(() => {
@@ -108,11 +121,11 @@ export function WorkoutAssignModal({
               (s) => s.membershipPublicId === initialStudentPublicId
             );
             if (matched) {
-              setSelectedStudent(matched);
+              handleSelectStudent(matched);
             } else {
               getActiveStudentByMembershipAction(slug, initialStudentPublicId).then((directRes) => {
                 if (!cancelled && directRes.ok && directRes.data) {
-                  setSelectedStudent(directRes.data);
+                  handleSelectStudent(directRes.data);
                 }
               });
             }
@@ -182,6 +195,7 @@ export function WorkoutAssignModal({
           startsOn,
           endsOn: endsOn || null,
           notesForStudent: notesForStudent.trim() || null,
+          customTitle: customTitle.trim() || null,
         }
       );
 
@@ -324,7 +338,7 @@ export function WorkoutAssignModal({
                     <button
                       key={student.membershipPublicId}
                       type="button"
-                      onClick={() => setSelectedStudent(student)}
+                      onClick={() => handleSelectStudent(student)}
                       className={`w-full px-4 py-2.5 flex items-center justify-between text-left hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] cursor-pointer ${
                         isSelected ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold" : ""
                       }`}
@@ -400,6 +414,26 @@ export function WorkoutAssignModal({
           {/* Form Options (only when creating new assignment) */}
           {!existingAssignment && (
             <>
+              {/* Nome da Ficha para o Aluno (Personalização Individual) */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[var(--foreground)]">
+                    Nome da ficha para o aluno
+                  </label>
+                  <span className="text-[11px] text-[var(--foreground-muted)]">
+                    Título individual exibido ao aluno
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  placeholder={`Ex: Treino de ${selectedStudent?.name || "Aluno"}`}
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  disabled={isPending}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-emerald-500 transition-colors min-h-[44px]"
+                />
+              </div>
+
               {/* Dates */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">

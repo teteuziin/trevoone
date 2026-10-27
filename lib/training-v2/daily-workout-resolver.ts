@@ -311,15 +311,19 @@ export async function resolveStudentDailyWorkout(
       // Busca qual bloco está sendo executado nesta sessão
       let activeBlock: { id: number; public_id: string; title: string; sort_order: number } | null = null;
       if (activeSession.workout_block_id != null) {
-        const [blockRows] = await connection.execute<RowDataPacket[]>(
-          `SELECT wb.id, wb.public_id, wb.title, wb.sort_order
-           FROM workout_blocks wb
-           WHERE wb.id = ?
-           LIMIT 1;`,
-          [activeSession.workout_block_id]
-        );
-        if (blockRows && blockRows.length > 0) {
-          activeBlock = blockRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number };
+        try {
+          const [blockRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT wb.id, wb.public_id, wb.title, wb.sort_order
+             FROM workout_blocks wb
+             WHERE wb.id = ?
+             LIMIT 1;`,
+            [activeSession.workout_block_id]
+          );
+          if (blockRows && blockRows.length > 0) {
+            activeBlock = blockRows[0] as unknown as { id: number; public_id: string; title: string; sort_order: number };
+          }
+        } catch {
+          activeBlock = null;
         }
       }
       if (!activeBlock) {
@@ -366,14 +370,31 @@ export async function resolveStudentDailyWorkout(
       }
 
       // Carrega blocos para opções de troca
-      const [allBlocksRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT wb.id, wb.public_id, wb.title, wb.sort_order, wb.instructions,
-                (SELECT COUNT(*) FROM workout_block_items wbi WHERE wbi.block_id = wb.id) AS exercise_count
-         FROM workout_blocks wb
-         WHERE wb.workout_version_id = ?
-         ORDER BY wb.sort_order ASC;`,
-        [activeSession.workout_version_id]
-      );
+      let allBlocksRows: RowDataPacket[] = [];
+      try {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT wb.id, wb.public_id, wb.title, wb.sort_order, wb.instructions,
+                  (SELECT COUNT(*) FROM workout_block_items wbi WHERE wbi.block_id = wb.id) AS exercise_count
+           FROM workout_blocks wb
+           WHERE wb.workout_version_id = ?
+           ORDER BY wb.sort_order ASC;`,
+          [activeSession.workout_version_id]
+        );
+        allBlocksRows = rows;
+      } catch {
+        try {
+          const [rows] = await connection.execute<RowDataPacket[]>(
+            `SELECT wb.id, wb.public_id, wb.title, wb.sort_order, wb.instructions, 0 AS exercise_count
+             FROM workout_blocks wb
+             WHERE wb.workout_version_id = ?
+             ORDER BY wb.sort_order ASC;`,
+            [activeSession.workout_version_id]
+          );
+          allBlocksRows = rows;
+        } catch {
+          allBlocksRows = [];
+        }
+      }
 
       const availableDivisions: DailyWorkoutDivisionOption[] = (allBlocksRows || []).map((b, idx) => {
         const weekdays = parseScheduledWeekdays(b.title, b.instructions);
@@ -708,7 +729,76 @@ export async function resolveStudentDailyWorkout(
       assignRows = rows;
     } catch (err: unknown) {
       if (isMissingColumnError(err, ["custom_title"])) {
-        const [rows] = await connection.execute<RowDataPacket[]>(
+        try {
+          const [rows] = await connection.execute<RowDataPacket[]>(
+            `SELECT
+               wa.id AS assignment_id,
+               wa.public_id AS assignment_public_id,
+               wa.notes_for_student,
+               DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
+               DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
+               wv.id AS version_id,
+               wv.public_id AS version_public_id,
+               wv.title AS routine_title,
+               wv.subtitle,
+               wv.version_number,
+               wv.estimated_duration_minutes,
+               wv.difficulty_level
+             FROM workout_assignments wa
+             INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+             INNER JOIN workouts w ON w.id = wv.workout_id
+             WHERE wa.consultancy_id = ?
+               AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+               AND wa.status = 'ACTIVE'
+               AND wa.deleted_at IS NULL
+               AND w.deleted_at IS NULL
+             ORDER BY wa.starts_on DESC, wa.created_at DESC
+             LIMIT 1;`,
+            [ctx.consultancyId!, ctx.membershipId!, ctx.userId, ctx.consultancyId!]
+          );
+          assignRows = rows;
+        } catch {
+          try {
+            const [rows] = await connection.execute<RowDataPacket[]>(
+              `SELECT
+                 wa.id AS assignment_id,
+                 wa.public_id AS assignment_public_id,
+                 wa.notes_for_student,
+                 DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
+                 DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
+                 wv.id AS version_id,
+                 wv.public_id AS version_public_id,
+                 wv.title AS routine_title,
+                 wv.subtitle,
+                 wv.version_number,
+                 wv.estimated_duration_minutes,
+                 wv.difficulty_level
+               FROM workout_assignments wa
+               INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+               INNER JOIN workouts w ON w.id = wv.workout_id
+               WHERE wa.consultancy_id = ?
+                 AND wa.student_membership_id = ?
+                 AND wa.status = 'ACTIVE'
+                 AND wa.deleted_at IS NULL
+                 AND w.deleted_at IS NULL
+               ORDER BY wa.starts_on DESC, wa.created_at DESC
+               LIMIT 1;`,
+              [ctx.consultancyId!, ctx.membershipId!]
+            );
+            assignRows = rows;
+          } catch {
+            assignRows = [];
+          }
+        }
+      } else {
+        console.warn("[DailyWorkoutResolver] Non-fatal: could not query active assignment:", err);
+        assignRows = [];
+      }
+    }
+
+    if (!assignRows || assignRows.length === 0) {
+      try {
+        const [directRows] = await connection.execute<RowDataPacket[]>(
           `SELECT
              wa.id AS assignment_id,
              wa.public_id AS assignment_public_id,
@@ -726,18 +816,19 @@ export async function resolveStudentDailyWorkout(
            INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
            INNER JOIN workouts w ON w.id = wv.workout_id
            WHERE wa.consultancy_id = ?
-             AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+             AND wa.student_membership_id = ?
              AND wa.status = 'ACTIVE'
              AND wa.deleted_at IS NULL
              AND w.deleted_at IS NULL
            ORDER BY wa.starts_on DESC, wa.created_at DESC
            LIMIT 1;`,
-          [ctx.consultancyId!, ctx.membershipId!, ctx.userId, ctx.consultancyId!]
+          [ctx.consultancyId!, ctx.membershipId!]
         );
-        assignRows = rows;
-      } else {
-        console.warn("[DailyWorkoutResolver] Non-fatal: could not query active assignment:", err);
-        assignRows = [];
+        if (directRows && directRows.length > 0) {
+          assignRows = directRows;
+        }
+      } catch {
+        // Safe ignore
       }
     }
 
@@ -763,14 +854,31 @@ export async function resolveStudentDailyWorkout(
     const currentAssign = assignRows[0];
 
     // 4. Carrega os blocos da versão
-    const [blockRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wb.id, wb.public_id, wb.title, wb.sort_order, wb.instructions,
-              (SELECT COUNT(*) FROM workout_block_items wbi WHERE wbi.block_id = wb.id) AS exercise_count
-       FROM workout_blocks wb
-       WHERE wb.workout_version_id = ?
-       ORDER BY wb.sort_order ASC;`,
-      [currentAssign.version_id]
-    );
+    let blockRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT wb.id, wb.public_id, wb.title, wb.sort_order, wb.instructions,
+                (SELECT COUNT(*) FROM workout_block_items wbi WHERE wbi.block_id = wb.id) AS exercise_count
+         FROM workout_blocks wb
+         WHERE wb.workout_version_id = ?
+         ORDER BY wb.sort_order ASC;`,
+        [currentAssign.version_id]
+      );
+      blockRows = rows;
+    } catch {
+      try {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT wb.id, wb.public_id, wb.title, wb.sort_order, wb.instructions, 0 AS exercise_count
+           FROM workout_blocks wb
+           WHERE wb.workout_version_id = ?
+           ORDER BY wb.sort_order ASC;`,
+          [currentAssign.version_id]
+        );
+        blockRows = rows;
+      } catch {
+        blockRows = [];
+      }
+    }
 
     if (!blockRows || blockRows.length === 0) {
       return {

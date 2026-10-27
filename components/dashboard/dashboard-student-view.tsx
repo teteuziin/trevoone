@@ -228,10 +228,11 @@ export function DashboardStudentView({
         activeSessionAssignmentPublicId={activeTrainingPlan?.activeSessionAssignmentPublicId || null}
         activeNutrition={activeNutritionPlan}
         dailyWorkoutResolution={dailyWorkoutResolution}
+        displayMode="workout-only"
       />
 
       {/* ===================================================================== */}
-      {/* C. PENDÊNCIAS COMPACTAS E ACIONÁVEIS ("Para responder")               */}
+      {/* 2. PENDÊNCIAS COMPACTAS E ACIONÁVEIS ("Para responder")               */}
       {/* ===================================================================== */}
       <StudentPendingSection
         consultancySlug={consultancySlug}
@@ -239,7 +240,19 @@ export function DashboardStudentView({
       />
 
       {/* ===================================================================== */}
-      {/* D. CONSULTAS E TREVO CHAT ("Consultas e conversas")                   */}
+      {/* 3. ALIMENTAÇÃO RESUMIDA (Refeições do dia + próxima refeição)         */}
+      {/* ===================================================================== */}
+      <StudentFocusSection
+        consultancySlug={consultancySlug}
+        activeTraining={activeTrainingPlan}
+        hasActiveSession={false}
+        activeNutrition={activeNutritionPlan}
+        dailyWorkoutResolution={dailyWorkoutResolution}
+        displayMode="nutrition-only"
+      />
+
+      {/* ===================================================================== */}
+      {/* 4. CONSULTAS E TREVO CHAT ("Consultas e conversas")                   */}
       {/* ===================================================================== */}
       <StudentConsultationsChatSection
         consultancySlug={consultancySlug}

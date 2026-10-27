@@ -590,6 +590,10 @@ export function StudentRuntimeChecklistView({
             <div
               key={item.publicId}
               className={`p-4 sm:p-5 rounded-2xl border transition-all depth-surface ${
+                item.combinationType
+                  ? "border-l-4 border-l-purple-500 dark:border-l-purple-400 "
+                  : ""
+              }${
                 isDone
                   ? "bg-white dark:bg-[#181A1E] border-emerald-500/40 shadow-xs"
                   : isSkipped
@@ -599,6 +603,27 @@ export function StudentRuntimeChecklistView({
                   : "bg-white dark:bg-[#181A1E] border-zinc-200 dark:border-[#2C2F36]"
               }`}
             >
+              {/* Combinado (Bi-set, Tri-set, Circuito) Header Box */}
+              {item.combinationType && (
+                <div className="mb-3 px-3 py-1.5 rounded-xl bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/25 flex items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-1.5 font-black text-purple-700 dark:text-purple-300 uppercase tracking-wider text-[11px]">
+                    <span className="w-2 h-2 rounded-full bg-purple-500" />
+                    <span>
+                      {item.combinationType === "BI_SET"
+                        ? "Bi-set Combinado"
+                        : item.combinationType === "TRI_SET"
+                        ? "Tri-set Combinado"
+                        : item.combinationType === "CIRCUIT"
+                        ? "Circuito"
+                        : "Série Combinada"}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-purple-600/90 dark:text-purple-300/90 font-semibold">
+                    Executar em sequência
+                  </span>
+                </div>
+              )}
+
               {/* Top Row: Ordem + Status Badge + Músculo */}
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">

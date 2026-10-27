@@ -65,11 +65,11 @@ export function StudentConsultationsChatSection({
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-5 min-w-0">
         {/* ================================================================= */}
         {/* CARD 1: PRÓXIMA CONSULTA                                          */}
         {/* ================================================================= */}
-        <div className="rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] shadow-sm p-5 sm:p-6 flex flex-col justify-between space-y-4 transition-colors">
+        <div className="rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] shadow-sm p-5 sm:p-6 flex flex-col justify-between space-y-4 transition-colors min-w-0">
           <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
@@ -159,7 +159,7 @@ export function StudentConsultationsChatSection({
         {/* ================================================================= */}
         {/* CARD 2: TREVO CHAT & MENSAGENS                                    */}
         {/* ================================================================= */}
-        <div className="rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] shadow-sm p-5 sm:p-6 flex flex-col justify-between space-y-4 transition-colors">
+        <div className="rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] shadow-sm p-5 sm:p-6 flex flex-col justify-between space-y-4 transition-colors min-w-0">
           <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">

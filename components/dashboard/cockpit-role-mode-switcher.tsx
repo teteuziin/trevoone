@@ -152,8 +152,12 @@ export function CockpitRoleModeSwitcher({
         ]
   ).filter((o) => o.isRealRole);
 
-  // If user only has 1 authorized mode, do not show unnecessary switcher
-  if (authorizedOptions.length <= 1) {
+  const hasStaffRole = authorizedOptions.some(
+    (o) => o.mode === "PERSONAL" || o.mode === "ADMIN" || o.mode === "NUTRITIONIST"
+  );
+
+  // If user only has 1 authorized mode or has no staff roles (student/influencer only), do not show unnecessary switcher
+  if (authorizedOptions.length <= 1 || !hasStaffRole) {
     return null;
   }
 

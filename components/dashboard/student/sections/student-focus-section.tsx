@@ -52,6 +52,7 @@ export interface StudentFocusSectionProps {
   activeNutrition: StudentNutritionSummary | null;
   nutritionServiceEnabled?: boolean;
   dailyWorkoutResolution?: DailyWorkoutResolution | null;
+  displayMode?: "all" | "workout-only" | "nutrition-only";
 }
 
 export function StudentFocusSection({
@@ -63,6 +64,7 @@ export function StudentFocusSection({
   activeNutrition,
   nutritionServiceEnabled = true,
   dailyWorkoutResolution,
+  displayMode = "all",
 }: StudentFocusSectionProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
@@ -108,14 +110,18 @@ export function StudentFocusSection({
   const meals = activeNutrition?.meals || [];
   const mealsCount = activeNutrition?.mealsCount || meals.length;
 
+  const showWorkout = displayMode !== "nutrition-only";
+  const showNutrition = displayMode !== "workout-only";
+
   return (
-    <div className="w-full">
-      {/* Grid: 2 Colunas no Desktop, 1 Coluna no Smartphone */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+    <div className="w-full min-w-0">
+      {/* Grid: 2 Colunas no Desktop Amplo (xl: 1280px+), 1 Coluna em Telas Menores */}
+      <div className={displayMode === "all" ? "grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-5 min-w-0" : "w-full min-w-0"}>
         {/* ================================================================= */}
         {/* PAINEL 1: MEU TREINO (Ação Principal com Divisão do Dia)           */}
         {/* ================================================================= */}
-        <div className="rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] shadow-sm p-5 sm:p-6 flex flex-col justify-between space-y-4 transition-colors">
+        {showWorkout && (
+        <div className="rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] shadow-sm p-5 sm:p-6 flex flex-col justify-between space-y-4 transition-colors min-w-0">
           <div className="space-y-3.5">
             {/* Cabeçalho do Card */}
             <div className="flex items-center justify-between gap-3">
@@ -386,11 +392,13 @@ export function StudentFocusSection({
             )}
           </div>
         </div>
+        )}
 
         {/* ================================================================= */}
         {/* PAINEL 2: MINHA ALIMENTAÇÃO (Ação Principal Única Clara)           */}
         {/* ================================================================= */}
-        <div className="rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] shadow-sm p-5 sm:p-6 flex flex-col justify-between space-y-4 transition-colors">
+        {showNutrition && (
+        <div className="rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] shadow-sm p-5 sm:p-6 flex flex-col justify-between space-y-4 transition-colors min-w-0">
           <div className="space-y-3.5">
             {/* Cabeçalho do Card */}
             <div className="flex items-center justify-between gap-3">
@@ -508,6 +516,7 @@ export function StudentFocusSection({
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* Modal para Trocar de Divisão nesta Sessão */}

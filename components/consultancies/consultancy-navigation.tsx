@@ -780,7 +780,7 @@ export function ConsultancyNavigation({
           </Link>
 
           {/* Mode Switcher for Multi-Role on Desktop Sidebar */}
-          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.filter(o => o.isRealRole).length > 1 && (
+          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.filter(o => o.isRealRole).length > 1 && viewModeState.allowedOptions.some(o => o.isRealRole && (o.mode === "PERSONAL" || o.mode === "ADMIN" || o.mode === "NUTRITIONIST")) && (
             <div className="mt-3">
               <CockpitRoleModeSwitcher
                 consultancySlug={consultancySlug}
@@ -1109,7 +1109,7 @@ export function ConsultancyNavigation({
           </nav>
 
           {/* Mode Switcher for Multi-Role on Tablet */}
-          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.filter(o => o.isRealRole).length > 1 && (
+          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.filter(o => o.isRealRole).length > 1 && viewModeState.allowedOptions.some(o => o.isRealRole && (o.mode === "PERSONAL" || o.mode === "ADMIN" || o.mode === "NUTRITIONIST")) && (
             <CockpitRoleModeSwitcher
               consultancySlug={consultancySlug}
               currentMode={viewModeState.effectiveMode}
@@ -1167,7 +1167,7 @@ export function ConsultancyNavigation({
           </Link>
 
           {/* Mode Switcher on Mobile Header (Single switcher for mobile viewport) */}
-          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.filter(o => o.isRealRole).length > 1 ? (
+          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.filter(o => o.isRealRole).length > 1 && viewModeState.allowedOptions.some(o => o.isRealRole && (o.mode === "PERSONAL" || o.mode === "ADMIN" || o.mode === "NUTRITIONIST")) ? (
             <div className="flex-1 flex justify-center min-w-0 px-1">
               <CockpitRoleModeSwitcher
                 consultancySlug={consultancySlug}

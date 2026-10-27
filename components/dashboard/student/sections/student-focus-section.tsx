@@ -12,6 +12,7 @@ import { buildStudentWorkoutExecutionUrl } from "@/lib/training-v2/route-helpers
 import { WorkoutDivisionPickerModal } from "./workout-division-picker-modal";
 import { StudentWorkoutCompletionModal } from "./student-workout-completion-modal";
 import { StudentWorkoutRestartModal } from "./student-workout-restart-modal";
+import { SessionMoreOptionsMenu } from "./session-more-options-menu";
 
 interface SessionToComplete {
   sessionPublicId: string;
@@ -76,79 +77,7 @@ export interface StudentFocusSectionProps {
   displayMode?: "all" | "workout-only" | "nutrition-only";
 }
 
-interface SessionMoreOptionsMenuProps {
-  onRestart: () => void;
-  label?: string;
-}
-
-function SessionMoreOptionsMenu({
-  onRestart,
-  label = "Mais opções",
-}: SessionMoreOptionsMenuProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!isOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
-
-  return (
-    <div className="relative inline-block w-full sm:w-auto" ref={containerRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        aria-expanded={isOpen}
-        aria-haspopup="menu"
-        aria-label="Mais opções da sessão"
-        className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
-      >
-        <span>{label}</span>
-        <span
-          className="text-xs transition-transform duration-150 inline-block text-zinc-400"
-          style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}
-        >
-          ▾
-        </span>
-      </button>
-
-      {isOpen && (
-        <div
-          role="menu"
-          className="absolute right-0 bottom-full sm:bottom-auto sm:top-full mb-1.5 sm:mb-0 sm:mt-1.5 z-30 w-full sm:w-56 rounded-xl bg-white dark:bg-[#1B1D21] border border-zinc-200 dark:border-[#303238] shadow-xl p-1.5 animate-in fade-in duration-100 text-left"
-        >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setIsOpen(false);
-              onRestart();
-            }}
-            className="w-full px-3.5 py-2.5 rounded-lg text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-[#252830] hover:text-zinc-900 dark:hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer text-left select-none"
-          >
-            <span className="text-amber-600 dark:text-amber-400 font-bold">↻</span>
-            <span>Começar do início</span>
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
+export { SessionMoreOptionsMenu };
 
 export function StudentFocusSection({
   consultancySlug,
@@ -170,17 +99,17 @@ export function StudentFocusSection({
   const isError = status === "ERROR";
   const hasTraining = !isError && Boolean(dailyWorkoutResolution?.assignmentPublicId || activeTraining);
 
-  // Status tag e cores contextuais de Treino
+  // Status e flags contextuais
   const isSessionInProgress = dailyWorkoutResolution
     ? status === "IN_PROGRESS"
     : Boolean(hasActiveSession);
   const isCompletedToday = status === "COMPLETED_TODAY" || status === "SEQUENCE_COMPLETED";
   const isRestDay = status === "REST_DAY";
 
-  // Título e divisão sem repetição de "Em andamento"
-  const headlineTitle = isError
-    ? "Treino de hoje"
-    : (dailyWorkoutResolution?.headlineTitle || "Meu treino");
+  // CABEÇALHO PADRÃO UNIFICADO (Regra de Ouro: "Meu treino" para todos os alunos em qualquer estado)
+  const cardHeaderTitle = "Meu treino";
+  const cardHeaderSubtitle = dailyWorkoutResolution?.todayWeekdayName || "Hoje";
+
   const divisionTitle = dailyWorkoutResolution?.divisionTitle || activeTraining?.title || "Ficha de treino";
   const routineTitle = dailyWorkoutResolution?.routineTitle || activeTraining?.title || "";
   const exerciseCount =
@@ -199,7 +128,7 @@ export function StudentFocusSection({
     : isCompletedToday
     ? "Ver resumo do treino"
     : isRestDay
-    ? "Escolher um treino"
+    ? "Escolher outro treino"
     : (dailyWorkoutResolution?.actionLabel === "Iniciar treino" ? "Começar treino" : dailyWorkoutResolution?.actionLabel || "Começar treino");
 
   if ((!dailyWorkoutResolution || status === "ERROR") && hasTraining) {
@@ -308,7 +237,7 @@ export function StudentFocusSection({
         {showWorkout && (
         <div className="rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] shadow-sm p-5 sm:p-6 flex flex-col justify-between space-y-4 transition-colors min-w-0">
           <div className="space-y-3.5">
-            {/* Cabeçalho do Card */}
+            {/* Cabeçalho do Card: Sempre "Meu treino" e Dia do Contexto */}
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
@@ -316,19 +245,15 @@ export function StudentFocusSection({
                 </div>
                 <div>
                   <h2 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
-                    {headlineTitle}
+                    {cardHeaderTitle}
                   </h2>
                   <p className="text-sm text-zinc-500 dark:text-[#8E95A2] mt-0.5">
-                    {isSessionInProgress && dailyWorkoutResolution?.activeSessionStartedFormatted ? (
-                      <span>{dailyWorkoutResolution.activeSessionStartedFormatted}</span>
-                    ) : (
-                      <span>{dailyWorkoutResolution?.todayWeekdayName || "Hoje"}</span>
-                    )}
+                    {cardHeaderSubtitle}
                   </p>
                 </div>
               </div>
 
-              {/* Status Badge Real ÚNICO (apenas quando relevante e sem repetir 'Descanso') */}
+              {/* Status Badge Real ÚNICO (somente quando necessário) */}
               {isError ? (
                 <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                   Atenção
@@ -366,7 +291,7 @@ export function StudentFocusSection({
               </div>
             ) : hasTraining ? (
               <div className="space-y-4">
-                {/* Situação de Hoje */}
+                {/* 1. Situação de Hoje: Descanso, Concluído ou Treino Previsto */}
                 {isRestDay ? (
                   <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-1.5 text-left">
                     <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
@@ -409,27 +334,41 @@ export function StudentFocusSection({
                   </div>
                 )}
 
-                {/* Progresso Real da Sessão em Andamento */}
+                {/* 2. Progresso Real da Sessão em Andamento HOJE */}
                 {isSessionInProgress && (
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 px-3.5 py-2.5 rounded-xl border border-emerald-500/20 text-left">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                    <span>
-                      Progresso da sessão:{" "}
-                      <strong>
-                        {dailyWorkoutResolution?.completedExercisesCount ?? 0} de {exerciseCount}{" "}
-                        {exerciseCount === 1 ? "exercício concluído" : "exercícios concluídos"}
-                      </strong>
-                      {(dailyWorkoutResolution?.completedSetsCount ?? 0) > 0 && (
-                        <span className="text-zinc-500 dark:text-zinc-400 ml-1">
-                          ({dailyWorkoutResolution?.completedSetsCount}{" "}
-                          {dailyWorkoutResolution?.completedSetsCount === 1 ? "série gravada" : "séries gravadas"})
+                  <div className="p-3.5 sm:p-4 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/25 text-left space-y-1.5">
+                    {dailyWorkoutResolution?.activeSessionStartedFormatted && (
+                      <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 font-medium">
+                        Iniciado em {dailyWorkoutResolution.activeSessionStartedFormatted}
+                      </p>
+                    )}
+                    {isActiveSessionAllDone ? (
+                      <div className="inline-flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400 font-semibold">
+                        <span>✓</span>
+                        <span>Todas as séries concluídas. Falta finalizar o treino.</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-emerald-800 dark:text-emerald-300">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        <span>
+                          Progresso da sessão:{" "}
+                          <strong>
+                            {dailyWorkoutResolution?.completedExercisesCount ?? 0} de {exerciseCount}{" "}
+                            {exerciseCount === 1 ? "exercício concluído" : "exercícios concluídos"}
+                          </strong>
+                          {(dailyWorkoutResolution?.completedSetsCount ?? 0) > 0 && (
+                            <span className="text-zinc-500 dark:text-zinc-400 ml-1">
+                              ({dailyWorkoutResolution?.completedSetsCount}{" "}
+                              {dailyWorkoutResolution?.completedSetsCount === 1 ? "série gravada" : "séries gravadas"})
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Se houver sessão aberta anterior: mostrar separadamente com divisão e data real de início */}
+                {/* 3. Se houver sessão aberta anterior: mostrar separadamente com divisão e data real de início */}
                 {unfinished && (
                   <div className="p-4 sm:p-5 rounded-xl bg-amber-500/8 dark:bg-amber-500/5 border border-amber-500/25 space-y-3.5 text-left">
                     <div className="space-y-1">
@@ -576,13 +515,25 @@ export function StudentFocusSection({
                       </button>
                     ) : null
                   ) : isCompletedToday ? (
-                    <Link
-                      href={trainingActionHref}
-                      className="w-full sm:w-auto px-5 py-2.5 min-h-[44px] rounded-xl font-bold text-sm bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
-                    >
-                      <span>Ver resumo do treino</span>
-                      <span>→</span>
-                    </Link>
+                    <>
+                      <Link
+                        href={trainingActionHref}
+                        className="w-full sm:w-auto px-5 py-2.5 min-h-[44px] rounded-xl font-bold text-sm bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
+                      >
+                        <span>Ver resumo do treino</span>
+                        <span>→</span>
+                      </Link>
+                      {dailyWorkoutResolution?.canChangeDivision && (
+                        <button
+                          type="button"
+                          onClick={() => setIsPickerOpen(true)}
+                          className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-[#303238] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                        >
+                          <span>Escolher outro treino</span>
+                          <span>→</span>
+                        </button>
+                      )}
+                    </>
                   ) : isSessionInProgress ? (
                     <>
                       {isActiveSessionAllDone ? (
@@ -596,9 +547,9 @@ export function StudentFocusSection({
                           </button>
                           <Link
                             href={trainingActionHref}
-                            className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-[#303238] flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center select-none"
+                            className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center select-none"
                           >
-                            <span>Continuar treino</span>
+                            <span>Ver treino</span>
                             <span>→</span>
                           </Link>
                         </>
@@ -615,7 +566,7 @@ export function StudentFocusSection({
                           <button
                             type="button"
                             onClick={handleOpenCompletionForActive}
-                            className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-[#303238] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                            className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                           >
                             <span>Finalizar treino</span>
                           </button>
@@ -628,7 +579,8 @@ export function StudentFocusSection({
                           onClick={() => setIsPickerOpen(true)}
                           className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-[#303238] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                         >
-                          <span>Escolher outro dia</span>
+                          <span>Escolher outro treino</span>
+                          <span>→</span>
                         </button>
                       )}
                     </>
@@ -647,7 +599,8 @@ export function StudentFocusSection({
                           onClick={() => setIsPickerOpen(true)}
                           className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-[#303238] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                         >
-                          <span>Escolher outro dia</span>
+                          <span>Escolher outro treino</span>
+                          <span>→</span>
                         </button>
                       )}
                     </>
@@ -663,13 +616,22 @@ export function StudentFocusSection({
                 </Link>
               </div>
             ) : (
-              <Link
-                href={`/consultoria/${consultancySlug}/consultas`}
-                className="w-full min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-[#303238] flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <span>Falar com treinador</span>
-                <span>→</span>
-              </Link>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
+                <Link
+                  href={`/consultoria/${consultancySlug}/consultas`}
+                  className="w-full sm:w-auto px-5 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <span>Falar com treinador</span>
+                  <span>→</span>
+                </Link>
+
+                <Link
+                  href={`/consultoria/${consultancySlug}/treinos`}
+                  className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:underline min-h-[44px] flex items-center justify-center sm:justify-start cursor-pointer whitespace-nowrap self-center sm:self-auto select-none"
+                >
+                  Ver meus treinos →
+                </Link>
+              </div>
             )}
           </div>
         </div>
@@ -681,26 +643,26 @@ export function StudentFocusSection({
         {showNutrition && (
         <div className="rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] shadow-sm p-5 sm:p-6 flex flex-col justify-between space-y-4 transition-colors min-w-0">
           <div className="space-y-3.5">
-            {/* Cabeçalho do Card */}
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
                   <DuotoneNutritionIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-white">
-                    Minha Alimentação
+                  <h2 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                    Minha alimentação
                   </h2>
-                  <span className="text-xs text-zinc-500 dark:text-[#8E95A2]">
-                    Plano alimentar ativo
-                  </span>
+                  <p className="text-sm text-zinc-500 dark:text-[#8E95A2] mt-0.5">
+                    {activeNutrition?.prescriberName
+                      ? `Prescrito por ${activeNutrition.prescriberName}`
+                      : "Prescrição nutricional"}
+                  </p>
                 </div>
               </div>
 
-              {/* Status Real */}
               {hasNutrition ? (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
-                  {mealsCount} {mealsCount === 1 ? "refeição" : "refeições"}
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                  Ativo
                 </span>
               ) : (
                 <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
@@ -709,111 +671,97 @@ export function StudentFocusSection({
               )}
             </div>
 
-            {/* Conteúdo Central */}
             {hasNutrition ? (
-              <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-3">
-                {/* Identificação Segura: Paciente Destinatário vs Título da Prescrição */}
-                <div className="space-y-1.5">
-                  {activeNutrition?.studentName && (
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                      <span className="font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-md">
-                        Destinatário: {activeNutrition.studentName}
-                      </span>
-                      {activeNutrition.prescriberName && (
-                        <span className="text-[11px] text-zinc-500 dark:text-[#8E95A2]">
-                          • Nutricionista: <strong className="font-medium text-zinc-700 dark:text-zinc-300">{activeNutrition.prescriberName}</strong>
-                        </span>
-                      )}
-                    </div>
+              <div className="space-y-3 text-left">
+                <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-1">
+                  <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
+                    {activeNutrition?.title || "Plano Alimentar"}
+                  </h3>
+                  {activeNutrition?.subtitle && (
+                    <p className="text-sm text-zinc-500 dark:text-[#8E95A2]">
+                      {activeNutrition.subtitle}
+                    </p>
                   )}
-                  <div>
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 block">
-                      Título da Prescrição
-                    </span>
-                    <h3 className="text-base font-bold text-zinc-900 dark:text-white truncate">
-                      {activeNutrition?.title}
-                    </h3>
-                    {activeNutrition?.subtitle && (
-                      <p className="text-xs text-zinc-600 dark:text-[#8E95A2] mt-0.5 line-clamp-2">
-                        {activeNutrition.subtitle}
-                      </p>
-                    )}
-                  </div>
                 </div>
 
-                {/* Lista de Refeições */}
-                {meals.length > 0 && (
-                  <div className="space-y-1.5 pt-2 border-t border-zinc-200/60 dark:border-[#303238]/60">
-                    {meals.slice(0, 3).map((m, idx) => (
-                      <div
-                        key={m.publicId || idx}
-                        className="flex items-center justify-between text-xs text-zinc-700 dark:text-zinc-300"
-                      >
-                        <span className="font-medium truncate">{m.title}</span>
-                        {m.scheduledTime && (
-                          <span className="text-zinc-400 dark:text-[#8E95A2] ml-2 text-[11px] shrink-0">
-                            {m.scheduledTime}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                    {meals.length > 3 && (
-                      <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2] pt-0.5">
-                        + {meals.length - 3} refeições no cardápio
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div className="flex flex-wrap items-center gap-2.5 text-sm text-zinc-600 dark:text-[#8E95A2] pt-1">
+                  <span>
+                    {mealsCount} {mealsCount === 1 ? "refeição programada" : "refeições programadas"}
+                  </span>
+                  {activeNutrition?.firstMealTime && (
+                    <>
+                      <span>•</span>
+                      <span>1ª refeição às {activeNutrition.firstMealTime}</span>
+                    </>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] text-center space-y-2">
-                <p className="text-xs sm:text-sm text-zinc-600 dark:text-[#8E95A2]">
+                <p className="text-sm text-zinc-600 dark:text-[#8E95A2]">
                   {nutritionServiceEnabled
-                    ? "Seu plano alimentar ainda não foi disponibilizado. Sua nutricionista está elaborando seu cardápio."
+                    ? "Seu plano alimentar ainda não foi disponibilizado. Sua equipe técnica está preparando sua prescrição personalizada."
                     : "O serviço de nutrição não está habilitado para o seu perfil nesta consultoria."}
                 </p>
               </div>
             )}
           </div>
 
-          {/* Ações do Card de Alimentação: UMA ÚNICA AÇÃO CLARA */}
-          <div className="pt-2 flex items-center justify-between gap-3 border-t border-zinc-100 dark:border-[#303238]/80">
+          <div className="pt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-zinc-100 dark:border-[#303238]/80">
             {hasNutrition ? (
-              <Link
-                href={`/consultoria/${consultancySlug}/nutricao`}
-                className="w-full sm:w-auto px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
-              >
-                <span>Abrir plano alimentar</span>
-                <span>→</span>
-              </Link>
+              <>
+                <Link
+                  href={`/consultoria/${consultancySlug}/nutricao`}
+                  className="w-full sm:w-auto px-5 py-2.5 min-h-[44px] rounded-xl font-bold text-sm bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
+                >
+                  <span>Ver plano alimentar</span>
+                  <span>→</span>
+                </Link>
+
+                <Link
+                  href={`/consultoria/${consultancySlug}/nutricao`}
+                  className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:underline min-h-[44px] flex items-center justify-center sm:justify-start cursor-pointer whitespace-nowrap self-center sm:self-auto select-none"
+                >
+                  Ver minhas refeições →
+                </Link>
+              </>
             ) : (
-              <Link
-                href={`/consultoria/${consultancySlug}/consultas`}
-                className="w-full min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-[#303238] flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <span>Falar com nutricionista</span>
-                <span>→</span>
-              </Link>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
+                <Link
+                  href={`/consultoria/${consultancySlug}/consultas`}
+                  className="w-full sm:w-auto px-5 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <span>Falar com nutricionista</span>
+                  <span>→</span>
+                </Link>
+
+                <Link
+                  href={`/consultoria/${consultancySlug}/nutricao`}
+                  className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:underline min-h-[44px] flex items-center justify-center sm:justify-start cursor-pointer whitespace-nowrap self-center sm:self-auto select-none"
+                >
+                  Ver nutrição →
+                </Link>
+              </div>
             )}
           </div>
         </div>
         )}
       </div>
 
-      {/* Modal para Trocar de Divisão nesta Sessão */}
-      {dailyWorkoutResolution?.assignmentPublicId && (
+      {/* MODAL 1: SELEÇÃO DE OUTRA DIVISÃO */}
+      {isPickerOpen && (
         <WorkoutDivisionPickerModal
           isOpen={isPickerOpen}
           onClose={() => setIsPickerOpen(false)}
           consultancySlug={consultancySlug}
-          assignmentPublicId={dailyWorkoutResolution.assignmentPublicId}
-          divisions={dailyWorkoutResolution.availableDivisions}
-          currentDivisionPublicId={dailyWorkoutResolution.targetBlockPublicId}
+          divisions={dailyWorkoutResolution?.availableDivisions || []}
+          assignmentPublicId={dailyWorkoutResolution?.assignmentPublicId || activeTraining?.workouts?.[0]?.publicId || ""}
+          currentDivisionPublicId={dailyWorkoutResolution?.targetBlockPublicId}
           hasActiveSession={isSessionInProgress}
         />
       )}
 
-      {/* Modal para Finalizar Treino Diretamente com Relato Fiel */}
+      {/* MODAL 2: FINALIZAR TREINO DIRETO */}
       {sessionToComplete && (
         <StudentWorkoutCompletionModal
           key={sessionToComplete.sessionPublicId}
@@ -831,10 +779,10 @@ export function StudentFocusSection({
         />
       )}
 
-      {/* Modal para Reiniciar Execução com Confirmação e Preservação de Histórico */}
+      {/* MODAL 3: RECOMEÇAR TREINO DO INÍCIO */}
       {sessionToRestart && (
         <StudentWorkoutRestartModal
-          key={`${sessionToRestart.assignmentPublicId}-${sessionToRestart.blockPublicId || "default"}`}
+          key={sessionToRestart.assignmentPublicId + (sessionToRestart.blockPublicId || "")}
           isOpen={Boolean(sessionToRestart)}
           onClose={() => setSessionToRestart(null)}
           consultancySlug={consultancySlug}

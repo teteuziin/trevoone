@@ -2,11 +2,15 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { DailyWorkoutResolution, DailyWorkoutDivisionOption } from "@/lib/training-v2/daily-workout-resolver";
 import type { StudentWorkoutCardDto } from "@/lib/training-v2/assignment-repository";
 import type { StudentWorkoutViewContract } from "@/lib/training-v2/types";
 import { parseScheduledWeekdays, formatScheduledWeekdaysLabel } from "@/lib/training-v2/route-helpers";
 import { WorkoutDivisionPickerModal } from "@/components/dashboard/student/sections/workout-division-picker-modal";
+import { StudentWorkoutCompletionModal } from "@/components/dashboard/student/sections/student-workout-completion-modal";
+import { StudentWorkoutRestartModal } from "@/components/dashboard/student/sections/student-workout-restart-modal";
+import { SessionMoreOptionsMenu } from "@/components/dashboard/student/sections/session-more-options-menu";
 import { buildStudentWorkoutExecutionUrl } from "@/lib/training-v2/route-helpers";
 import { DumbbellIcon as Dumbbell } from "@/components/ui/icons";
 
@@ -38,12 +42,74 @@ export function StudentTreinosClientView({
   assignments,
   primaryWorkoutDetail = null,
 }: StudentTreinosClientViewProps) {
+  const router = useRouter();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [sessionToComplete, setSessionToComplete] = useState<{
+    sessionPublicId: string;
+    divisionTitle: string;
+    startedFormatted?: string;
+    totalExercisesCount: number;
+    completedExercisesCount: number;
+    totalSetsCount?: number;
+    completedSetsCount?: number;
+  } | null>(null);
+  const [sessionToRestart, setSessionToRestart] = useState<{
+    assignmentPublicId: string;
+    blockPublicId?: string | null;
+    divisionTitle: string;
+    startedFormatted?: string;
+  } | null>(null);
 
   const primaryAssignment = assignments[0] as StudentWorkoutCardDto | undefined;
   const secondaryAssignments = assignments.slice(1);
 
   const unfinishedSession = dailyWorkout?.unfinishedSession || null;
+
+  const isUnfinishedAllDone = Boolean(
+    unfinishedSession &&
+      ((unfinishedSession.totalSetsCount > 0 &&
+        unfinishedSession.completedSetsCount >= unfinishedSession.totalSetsCount) ||
+        (unfinishedSession.totalExercisesCount > 0 &&
+          unfinishedSession.completedExercisesCount >= unfinishedSession.totalExercisesCount))
+  );
+
+  const handleOpenCompletionForUnfinished = () => {
+    if (!unfinishedSession) return;
+    setSessionToComplete({
+      sessionPublicId: unfinishedSession.sessionPublicId,
+      divisionTitle: unfinishedSession.divisionTitle,
+      startedFormatted: unfinishedSession.startedFormatted,
+      totalExercisesCount: unfinishedSession.totalExercisesCount,
+      completedExercisesCount: unfinishedSession.completedExercisesCount,
+      totalSetsCount: unfinishedSession.totalSetsCount,
+      completedSetsCount: unfinishedSession.completedSetsCount,
+    });
+  };
+
+  const handleOpenRestartForUnfinished = () => {
+    if (!unfinishedSession) return;
+    setSessionToRestart({
+      assignmentPublicId: unfinishedSession.assignmentPublicId,
+      blockPublicId: unfinishedSession.blockPublicId,
+      divisionTitle: unfinishedSession.divisionTitle,
+      startedFormatted: unfinishedSession.startedFormatted,
+    });
+  };
+
+  const handleCompletionSuccess = () => {
+    router.refresh();
+  };
+
+  const handleRestartSuccess = (targetBlockPublicId: string | null) => {
+    const assignmentId =
+      sessionToRestart?.assignmentPublicId || dailyWorkout?.assignmentPublicId;
+    if (assignmentId) {
+      router.push(
+        buildStudentWorkoutExecutionUrl(consultancySlug, assignmentId, targetBlockPublicId)
+      );
+    }
+    router.refresh();
+  };
 
   // Derivação infalível das divisões da ficha: usa dailyWorkout ou primaryWorkoutDetail
   const derivedDivisions: DailyWorkoutDivisionOption[] = useMemo(() => {
@@ -128,52 +194,83 @@ export function StudentTreinosClientView({
 
       {/* 2. Treino Não Finalizado (se houver sessão aberta de data anterior) */}
       {unfinishedSession && (
-        <div className="p-5 sm:p-6 rounded-3xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/30 space-y-4 shadow-sm animate-in fade-in duration-200">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="p-4 sm:p-5 rounded-xl bg-amber-500/8 dark:bg-amber-500/5 border border-amber-500/25 space-y-3.5 text-left">
+          <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-              <span className="text-xs font-bold text-amber-900 dark:text-amber-200 uppercase tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300">
                 Treino não finalizado
               </span>
             </div>
-            <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
-              Iniciado em {unfinishedSession.startedFormatted}
-            </span>
-          </div>
-
-          <div className="space-y-1">
-            <h2 className="text-lg sm:text-xl font-black text-amber-950 dark:text-amber-100 tracking-tight">
+            <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight leading-snug">
               {unfinishedSession.divisionTitle}
             </h2>
-            <p className="text-xs sm:text-sm text-amber-900/90 dark:text-amber-200/90 font-medium">
-              Progresso salvo: <strong>{unfinishedSession.completedSetsCount} de {unfinishedSession.totalSetsCount} séries concluídas</strong>
-              {unfinishedSession.totalExercisesCount > 0 && (
-                <span> ({unfinishedSession.completedExercisesCount} de {unfinishedSession.totalExercisesCount} exercícios)</span>
-              )}
-            </p>
-            <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 pt-0.5">
-              Suas séries registradas anteriormente continuam salvas com total segurança. Você pode continuar esta sessão ou escolher outro treino.
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Iniciado em {unfinishedSession.startedFormatted}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 pt-1">
-            <Link
-              href={unfinishedSession.actionHref}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-xs sm:text-sm bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white min-h-[48px] shadow-sm transition-colors cursor-pointer"
-            >
-              <span>Continuar treino anterior</span>
-              <span>→</span>
-            </Link>
-
-            {dailyWorkout?.canChangeDivision && (
-              <button
-                type="button"
-                onClick={() => setIsPickerOpen(true)}
-                className="inline-flex items-center justify-center px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm bg-white dark:bg-[#1B1D21] hover:bg-zinc-100 dark:hover:bg-[#252830] text-amber-900 dark:text-amber-200 border border-amber-500/30 min-h-[48px] transition-colors cursor-pointer"
-              >
-                <span>Escolher outro treino</span>
-              </button>
+          {/* Progresso sem repetição de números */}
+          <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+            {isUnfinishedAllDone ? (
+              <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold">
+                <span>✓</span>
+                <span>Todas as séries concluídas. Falta finalizar o treino.</span>
+              </span>
+            ) : (
+              <span>
+                Progresso:{" "}
+                <strong>
+                  {unfinishedSession.completedSetsCount} de {unfinishedSession.totalSetsCount} séries concluídas
+                </strong>
+                {unfinishedSession.totalExercisesCount > 0 && (
+                  <span className="text-zinc-600 dark:text-zinc-400 ml-1">
+                    ({unfinishedSession.completedExercisesCount} de {unfinishedSession.totalExercisesCount} exercícios)
+                  </span>
+                )}
+              </span>
             )}
+          </div>
+
+          {/* Ações da Sessão Anterior */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
+            {isUnfinishedAllDone ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleOpenCompletionForUnfinished}
+                  className="w-full sm:w-auto px-5 py-3 min-h-[48px] sm:min-h-[50px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                >
+                  <span>✓ Finalizar treino</span>
+                </button>
+                <Link
+                  href={unfinishedSession.actionHref}
+                  className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center select-none"
+                >
+                  <span>Ver treino</span>
+                  <span>→</span>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href={unfinishedSession.actionHref}
+                  className="w-full sm:w-auto px-5 py-3 min-h-[48px] sm:min-h-[50px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                >
+                  <span>Continuar treino</span>
+                  <span>→</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleOpenCompletionForUnfinished}
+                  className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                >
+                  <span>Finalizar treino</span>
+                </button>
+              </>
+            )}
+
+            <SessionMoreOptionsMenu onRestart={handleOpenRestartForUnfinished} />
           </div>
         </div>
       )}
@@ -499,6 +596,39 @@ export function StudentTreinosClientView({
           divisions={derivedDivisions}
           currentDivisionPublicId={effectiveRecommendedDivision?.assignmentPublicId ? dailyWorkout?.targetBlockPublicId || null : null}
           hasActiveSession={Boolean(unfinishedSession || dailyWorkout?.status === "IN_PROGRESS")}
+        />
+      )}
+
+      {/* MODAL 2: FINALIZAR TREINO DIRETO */}
+      {sessionToComplete && (
+        <StudentWorkoutCompletionModal
+          key={sessionToComplete.sessionPublicId}
+          isOpen={Boolean(sessionToComplete)}
+          onClose={() => setSessionToComplete(null)}
+          consultancySlug={consultancySlug}
+          sessionPublicId={sessionToComplete.sessionPublicId}
+          divisionTitle={sessionToComplete.divisionTitle}
+          startedFormatted={sessionToComplete.startedFormatted}
+          totalExercisesCount={sessionToComplete.totalExercisesCount}
+          completedExercisesCount={sessionToComplete.completedExercisesCount}
+          totalSetsCount={sessionToComplete.totalSetsCount}
+          completedSetsCount={sessionToComplete.completedSetsCount}
+          onSuccess={handleCompletionSuccess}
+        />
+      )}
+
+      {/* MODAL 3: RECOMEÇAR TREINO DO INÍCIO */}
+      {sessionToRestart && (
+        <StudentWorkoutRestartModal
+          key={sessionToRestart.assignmentPublicId + (sessionToRestart.blockPublicId || "")}
+          isOpen={Boolean(sessionToRestart)}
+          onClose={() => setSessionToRestart(null)}
+          consultancySlug={consultancySlug}
+          assignmentPublicId={sessionToRestart.assignmentPublicId}
+          blockPublicId={sessionToRestart.blockPublicId}
+          divisionTitle={sessionToRestart.divisionTitle}
+          startedFormatted={sessionToRestart.startedFormatted}
+          onSuccess={handleRestartSuccess}
         />
       )}
     </div>

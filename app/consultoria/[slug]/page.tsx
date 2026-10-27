@@ -127,7 +127,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
   const isMultiRoleStudentInfluencer = isStudent && isInfluencer && !effectiveState.isPreview;
 
   const needStudentData =
-    (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) && isStudent;
+    ((effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) && isStudent) ||
+    (effectiveState.isPreview && effectiveMode === "STUDENT");
   const needInfluencerData = (effectiveMode === "INFLUENCER" || isMultiRoleStudentInfluencer) && isInfluencer;
   const needPersonalData =
     (effectiveMode === "PERSONAL" || isMultiRolePersonalAdmin) && isPersonal;
@@ -816,8 +817,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
           />
         )}
 
-        {/* 7. Visão do Aluno (Puro ou Preview) */}
-        {((effectiveMode === "STUDENT" && !isInfluencer) || (effectiveState.isPreview && effectiveMode === "STUDENT")) && (
+        {/* 7. Visão do Aluno (Puro, Multi-Role ou Preview) */}
+        {((effectiveMode === "STUDENT" && !(!effectiveState.isPreview && isStudent && isInfluencer && !isPersonal && !isConsultancyAdmin && !isNutritionist)) || (effectiveState.isPreview && effectiveMode === "STUDENT")) && (
           <DashboardStudentView
             consultancySlug={context.consultancySlug}
             consultancyName={context.consultancyName}
@@ -833,8 +834,11 @@ export default async function ConsultancyPage({ params }: PageProps) {
             studentPendingRequests={studentPendingRequests || []}
             upcomingConsultations={normalizedStudentConsultations}
             chatConversations={normalizedStudentChats}
-            isInfluencer={false}
-            isVip={false}
+            isInfluencer={isInfluencer}
+            isVip={isInfluencer}
+            missions={influencerMissionsResult?.items || []}
+            totalMissions={influencerMissionsResult?.total || 0}
+            referrerData={referrerData}
             dailyWorkoutResolution={studentDailyWorkout}
           />
         )}

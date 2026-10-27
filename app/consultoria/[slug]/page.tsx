@@ -69,9 +69,6 @@ const DashboardCombinedPersonalAdminView = dynamic(
 const DashboardCombinedNutritionistAdminView = dynamic(
   () => import("@/components/dashboard/dashboard-combined-nutritionist-admin-view").then((m) => m.DashboardCombinedNutritionistAdminView)
 );
-const DashboardCombinedStudentVipView = dynamic(
-  () => import("@/components/dashboard/dashboard-combined-student-vip-view").then((m) => m.DashboardCombinedStudentVipView)
-);
 
 type PageProps = {
   params: Promise<{
@@ -104,11 +101,16 @@ export default async function ConsultancyPage({ params }: PageProps) {
   const { effectiveMode } = effectiveState;
 
   const roles = Array.isArray(context.roles) ? context.roles : [];
-  const isStudent = roles.includes("STUDENT") || roles.includes("INFLUENCER");
   const isInfluencer = roles.includes("INFLUENCER");
   const isPersonal = roles.includes("PERSONAL");
   const isNutritionist = roles.includes("NUTRITIONIST");
   const isConsultancyAdmin = roles.includes("CONSULTANCY_ADMIN");
+  const isStudent =
+    roles.includes("STUDENT") ||
+    isInfluencer ||
+    isPersonal ||
+    isNutritionist ||
+    isConsultancyAdmin;
 
   // MULTI-ROLE UNIFIED EXPERIENCE: Load real data for all active roles held by the user
   const isMultiRolePersonalAdmin = isPersonal && isConsultancyAdmin && !effectiveState.isPreview;
@@ -127,8 +129,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
   const isMultiRoleStudentInfluencer = isStudent && isInfluencer && !effectiveState.isPreview;
 
   const needStudentData =
-    ((effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) && isStudent) ||
-    (effectiveState.isPreview && effectiveMode === "STUDENT");
+    effectiveMode === "STUDENT" ||
+    (isStudent && isMultiRoleStudentInfluencer);
   const needInfluencerData = (effectiveMode === "INFLUENCER" || isMultiRoleStudentInfluencer) && isInfluencer;
   const needPersonalData =
     (effectiveMode === "PERSONAL" || isMultiRolePersonalAdmin) && isPersonal;
@@ -733,32 +735,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
           />
         )}
 
-        {/* 3. Visão Combinada Aluno + Influenciador/VIP (STUDENT FIRST) */}
-        {!effectiveState.isPreview && isStudent && isInfluencer && !isPersonal && !isConsultancyAdmin && !isNutritionist && (
-          <DashboardCombinedStudentVipView
-            consultancySlug={context.consultancySlug}
-            consultancyName={context.consultancyName}
-            userName={session.fullName}
-            onboarding={studentOnboarding}
-            activeTrainingPlan={activeTrainingPlan}
-            activeNutritionPlan={activeNutritionPlan}
-            latestProgress={latestProgress}
-            previousProgress={previousProgress}
-            pendingPhotoEvaluation={hasPendingPhotoEvaluation}
-            todayCheckin={todayCheckin}
-            pendingNutritionCheckin={pendingNutritionCheckin}
-            studentPendingRequests={studentPendingRequests || []}
-            upcomingConsultations={normalizedStudentConsultations}
-            chatConversations={normalizedStudentChats}
-            missions={influencerMissionsResult?.items || []}
-            totalMissions={influencerMissionsResult?.total || 0}
-            referrerData={referrerData}
-            dailyWorkoutResolution={studentDailyWorkout}
-          />
-        )}
-
         {/* 4. Visão do Influenciador / VIP Puro (ou Preview Manual) */}
-        {((!effectiveState.isPreview && isInfluencer && !isStudent && !isPersonal && !isConsultancyAdmin && !isNutritionist) || (effectiveState.isPreview && effectiveMode === "INFLUENCER")) && (
+        {((!effectiveState.isPreview && isInfluencer && !roles.includes("STUDENT") && !isPersonal && !isConsultancyAdmin && !isNutritionist && effectiveMode === "INFLUENCER") || (effectiveState.isPreview && effectiveMode === "INFLUENCER")) && (
           <DashboardInfluencerView
             consultancySlug={context.consultancySlug}
             userName={session.fullName}
@@ -817,8 +795,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
           />
         )}
 
-        {/* 7. Visão do Aluno (Puro, Multi-Role ou Preview) */}
-        {((effectiveMode === "STUDENT" && !(!effectiveState.isPreview && isStudent && isInfluencer && !isPersonal && !isConsultancyAdmin && !isNutritionist)) || (effectiveState.isPreview && effectiveMode === "STUDENT")) && (
+        {/* 7. Visão do Aluno (Puro, VIP, Influenciador, Multi-Role ou Preview) */}
+        {effectiveMode === "STUDENT" && (
           <DashboardStudentView
             consultancySlug={context.consultancySlug}
             consultancyName={context.consultancyName}

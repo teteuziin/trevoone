@@ -169,7 +169,9 @@ export async function resolveTrainingAccessContext(
     const hasRole = (role: ConsultancyRole) => roles.includes(role);
     const canManageConsultancy = hasRole("CONSULTANCY_ADMIN");
     const canAuthorTraining = canManageConsultancy || hasRole("PERSONAL");
-    const isStudent = hasRole("STUDENT") || hasRole("INFLUENCER");
+    // Qualquer membro ativo da consultoria pode acessar a experiência e acompanhamento de aluno para seus próprios treinos autorizados.
+    // Ter outro cargo (Treinador, Nutricionista, Admin) não impede o usuário de acessar seu acompanhamento pessoal como aluno.
+    const isStudent = hasRole("STUDENT") || hasRole("INFLUENCER") || canManageConsultancy || hasRole("PERSONAL") || hasRole("NUTRITIONIST");
 
     return {
       userId: session.userId,

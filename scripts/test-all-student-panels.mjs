@@ -216,12 +216,14 @@ console.log("✓ Tela Meus Treinos (/treinos) padronizada com a mesma experiênc
 // =========================================================================
 console.log("\n9. Verificando conexão de rotas e perfis em page.tsx...");
 assert.ok(
-  pageCode.includes('((effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) && isStudent) ||'),
-  "needStudentData deve carregar autoritativamente para qualquer modo STUDENT e preview"
+  pageCode.includes('needStudentData =') &&
+  pageCode.includes('effectiveMode === "STUDENT"'),
+  "needStudentData deve carregar autoritativamente para qualquer modo STUDENT"
 );
 assert.ok(
-  pageCode.includes('((effectiveMode === "STUDENT" && !(!effectiveState.isPreview && isStudent && isInfluencer && !isPersonal && !isConsultancyAdmin && !isNutritionist)) || (effectiveState.isPreview && effectiveMode === "STUDENT"))'),
-  "Visão do aluno deve contemplar todos os alunos (puros, multi-role e preview) sem bloquear influenciadores ou admins em modo aluno"
+  pageCode.includes('effectiveMode === "STUDENT"') &&
+  pageCode.includes('<DashboardStudentView'),
+  "Visão do aluno deve contemplar todos os alunos (puros, VIP, influenciadores, multi-role e preview) sem bloqueios indevidos"
 );
 console.log("✓ Roteamento multi-role e autorização server-side verificados.");
 

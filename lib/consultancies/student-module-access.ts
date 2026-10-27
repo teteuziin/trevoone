@@ -72,8 +72,12 @@ export async function resolveStudentModuleAccess(
 
   const isStudent = context.roles.includes("STUDENT");
   const isInfluencer = context.roles.includes("INFLUENCER");
+  const isStaff =
+    context.roles.includes("PERSONAL") ||
+    context.roles.includes("CONSULTANCY_ADMIN") ||
+    context.roles.includes("NUTRITIONIST");
 
-  if (!isStudent && !isInfluencer) {
+  if (!isStudent && !isInfluencer && !isStaff) {
     return {
       allowed: false,
       reason: "NOT_STUDENT",
@@ -81,6 +85,18 @@ export async function resolveStudentModuleAccess(
       confirmedRequirements: 0,
       totalRequirements: 0,
       isComplete: false,
+    };
+  }
+
+  // Membros profissionais (Treinador, Nutricionista, Admin) acessando o acompanhamento de aluno têm acesso imediato aos módulos
+  if (isStaff && !isStudent && !isInfluencer) {
+    return {
+      allowed: true,
+      reason: "ALLOWED",
+      context,
+      confirmedRequirements: 0,
+      totalRequirements: 0,
+      isComplete: true,
     };
   }
 

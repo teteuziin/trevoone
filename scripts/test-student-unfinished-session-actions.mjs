@@ -1,20 +1,32 @@
 /**
- * Automated test script for Student Unfinished Session Actions
+ * Automated test script for Student Workout Card Redesign & Actions
  * Verifies:
  * 1. Completion & Restart modal contracts and props.
  * 2. Unfinished session state logic:
  *    - All completed (e.g. 35/35 sets, 13/13 exercises): "Finalizar treino" is primary CTA.
- *    - Partial (e.g. 10/35 sets): "Continuar treino anterior" is primary CTA.
+ *    - Partial (e.g. 10/35 sets): "Continuar treino" is primary CTA.
  * 3. Safe history preservation on restart via resolveConflict: "ABANDON".
  * 4. Authentic timestamps (startedAt and completedAt) and no fake reps/load on partial completion.
  * 5. Touch target ergonomics (>= 44px min-h) on all buttons.
+ * 6. Clean hierarchy:
+ *    - Header: "Meu treino", real weekday (e.g. "Terça-feira"), absence of "Prescrição da consultoria".
+ *    - Absence of redundant "Descanso" badge on header.
+ *    - Rest day situation: "Hoje é dia de descanso" & "Você pode escolher outro treino sem mudar sua programação."
+ *    - Progress text: "Todas as séries concluídas. Falta finalizar o treino." when all done.
+ * 7. Actions without duplication:
+ *    - Unfinished session has "Finalizar treino" (primary, full-width on mobile), "Ver treino" (when all done), "Mais opções" with "Começar do início".
+ *    - No duplicate "Escolher outro" button inside the unfinished session block.
+ *    - Single entry in footer: "Escolher outro treino".
+ *    - Secondary link: "Ver meus treinos →".
+ *    - Absence of redundant italic footer.
+ *    - Honest counts: exerciseCount is NEVER coerced to blockCount (divisions count).
  */
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-console.log("=== Testing Student Unfinished Session Actions & Modals ===\n");
+console.log("=== Testing Student Workout Card Redesign & Actions ===\n");
 
 // 1. Verify files exist
 const modalCompletionPath = path.resolve("components/dashboard/student/sections/student-workout-completion-modal.tsx");
@@ -71,47 +83,64 @@ assert.strictEqual(
 
 console.log("✓ Unfinished session completion detection logic verified.");
 
-// 3. Verify StudentFocusSection renders primary CTA correctly based on completion state
+// 3. Verify StudentFocusSection clean hierarchy and text specs
 const focusSectionCode = fs.readFileSync(focusSectionPath, "utf-8");
 
+// 3.1 Header cleanup
 assert.ok(
-  focusSectionCode.includes("isUnfinishedAllDone"),
-  "StudentFocusSection must compute isUnfinishedAllDone"
+  !focusSectionCode.includes("Prescrição da consultoria"),
+  "Header must NOT include redundant 'Prescrição da consultoria'"
+);
+assert.ok(
+  !focusSectionCode.includes("border-blue-500/20\">\n                    Descanso"),
+  "Header must NOT render redundant yellow/blue outline 'Descanso' badge"
 );
 
+// 3.2 Today's rest day situation
 assert.ok(
-  focusSectionCode.includes("handleOpenCompletionForUnfinished"),
-  "StudentFocusSection must provide handleOpenCompletionForUnfinished"
+  focusSectionCode.includes("Hoje é dia de descanso"),
+  "Must include 'Hoje é dia de descanso'"
+);
+assert.ok(
+  focusSectionCode.includes("Você pode escolher outro treino sem mudar sua programação."),
+  "Must include 'Você pode escolher outro treino sem mudar sua programação.'"
 );
 
+// 3.3 Unfinished session block
 assert.ok(
-  focusSectionCode.includes("handleOpenRestartForUnfinished"),
-  "StudentFocusSection must provide handleOpenRestartForUnfinished"
+  focusSectionCode.includes("Todas as séries concluídas. Falta finalizar o treino."),
+  "Must render 'Todas as séries concluídas. Falta finalizar o treino.' when all sets done"
+);
+assert.ok(
+  focusSectionCode.includes("Ver treino"),
+  "Must offer 'Ver treino' when all sets completed in unfinished session"
+);
+assert.ok(
+  focusSectionCode.includes("SessionMoreOptionsMenu"),
+  "Must provide SessionMoreOptionsMenu dropdown for secondary options"
 );
 
+// 3.4 Single clear entry for choosing another division
 assert.ok(
-  focusSectionCode.includes("StudentWorkoutCompletionModal"),
-  "StudentFocusSection must import and render StudentWorkoutCompletionModal"
+  focusSectionCode.includes("Escolher outro treino"),
+  "Must offer single clear entry 'Escolher outro treino'"
+);
+assert.ok(
+  !focusSectionCode.includes("bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none\">\n                      <span>Escolher um treino</span>"),
+  "Must NOT render competing solid blue button for 'Escolher um treino'"
 );
 
+// 3.5 Absence of redundant italic footer and false counter
 assert.ok(
-  focusSectionCode.includes("StudentWorkoutRestartModal"),
-  "StudentFocusSection must import and render StudentWorkoutRestartModal"
+  !focusSectionCode.includes("italic pt-1"),
+  "Must NOT render redundant italic footer repeating rest day and unfinished session date"
+);
+assert.ok(
+  !focusSectionCode.includes(": (activeTraining?.blockCount ?? 0)"),
+  "exerciseCount must NEVER fall back to blockCount (divisions count)"
 );
 
-// Check that "✓ Finalizar treino" is rendered when isUnfinishedAllDone is true
-assert.ok(
-  focusSectionCode.includes("✓ Finalizar treino"),
-  "StudentFocusSection must offer '✓ Finalizar treino' as primary action when all exercises are done"
-);
-
-// Check that "Começar do início" is present for unfinished session
-assert.ok(
-  focusSectionCode.includes("Começar do início"),
-  "StudentFocusSection must provide 'Começar do início' action"
-);
-
-console.log("✓ StudentFocusSection integration verified.");
+console.log("✓ StudentFocusSection clean hierarchy, typography & typography verified.");
 
 // 4. Verify StudentWorkoutCompletionModal implementation
 const completionModalCode = fs.readFileSync(modalCompletionPath, "utf-8");
@@ -198,4 +227,4 @@ assert.ok(
 
 console.log("✓ daily-workout-resolver totalSetsCount inclusion verified.");
 
-console.log("\nALL UNFINISHED SESSION ACTION TESTS PASSED SUCCESSFULLY!");
+console.log("\nALL STUDENT WORKOUT CARD REDESIGN & ACTION TESTS PASSED SUCCESSFULLY!");

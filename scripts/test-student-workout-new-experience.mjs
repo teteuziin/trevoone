@@ -172,7 +172,7 @@ assert.ok(
 
 // 2. Finalizar treino acessível durante toda a sessão
 assert.ok(
-  runtimeViewCode.includes("Finalizar treino") && runtimeViewCode.includes("setShowEarlyCompleteModal"),
+  runtimeViewCode.includes("Finalizar treino") && (runtimeViewCode.includes("setShowEarlyCompleteModal") || runtimeViewCode.includes("setIsFeedbackModalOpen")),
   "Botão 'Finalizar treino' deve ser acessível durante toda a sessão"
 );
 

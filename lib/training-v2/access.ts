@@ -169,7 +169,7 @@ export async function resolveTrainingAccessContext(
     const hasRole = (role: ConsultancyRole) => roles.includes(role);
     const canManageConsultancy = hasRole("CONSULTANCY_ADMIN");
     const canAuthorTraining = canManageConsultancy || hasRole("PERSONAL");
-    const isStudent = hasRole("STUDENT");
+    const isStudent = hasRole("STUDENT") || hasRole("INFLUENCER");
 
     return {
       userId: session.userId,

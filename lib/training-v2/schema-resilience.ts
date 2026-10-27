@@ -2,7 +2,7 @@
  * Training V2 Schema Resilience Helper
  *
  * Provides backwards-compatibility and resilience when database schemas are transitioning
- * or when optional columns from recent migrations (e.g. Migration 066: workout_block_id, is_skipped)
+ * or when optional columns from recent migrations (e.g. Migration 066: workout_block_id, is_skipped; Migration 068: custom_title, student feedback)
  * may not yet be present in every environment.
  *
  * This ensures that students and coaches experience ZERO crashes and continuous operation
@@ -20,14 +20,19 @@ export function isMissingColumnError(err: unknown, columnNames?: string[]): bool
   if (!isBadField) return false;
 
   if (columnNames && columnNames.length > 0) {
-    const msg =
+    const rawMsg =
       "message" in err && typeof (err as { message?: unknown }).message === "string"
-        ? (err as { message: string }).message.toLowerCase()
+        ? (err as { message: string }).message
         : "";
+    const sqlMsg =
+      "sqlMessage" in err && typeof (err as { sqlMessage?: unknown }).sqlMessage === "string"
+        ? (err as { sqlMessage: string }).sqlMessage
+        : "";
+    const combinedMsg = `${rawMsg} ${sqlMsg}`.toLowerCase();
 
     // If message is available, match specific column names
-    if (msg) {
-      return columnNames.some((col) => msg.includes(col.toLowerCase()));
+    if (combinedMsg.trim()) {
+      return columnNames.some((col) => combinedMsg.includes(col.toLowerCase()));
     }
   }
 
@@ -45,13 +50,18 @@ export function isMissingTableError(err: unknown, tableNames?: string[]): boolea
   if (!isBadTable) return false;
 
   if (tableNames && tableNames.length > 0) {
-    const msg =
+    const rawMsg =
       "message" in err && typeof (err as { message?: unknown }).message === "string"
-        ? (err as { message: string }).message.toLowerCase()
+        ? (err as { message: string }).message
         : "";
+    const sqlMsg =
+      "sqlMessage" in err && typeof (err as { sqlMessage?: unknown }).sqlMessage === "string"
+        ? (err as { sqlMessage: string }).sqlMessage
+        : "";
+    const combinedMsg = `${rawMsg} ${sqlMsg}`.toLowerCase();
 
-    if (msg) {
-      return tableNames.some((tbl) => msg.includes(tbl.toLowerCase()));
+    if (combinedMsg.trim()) {
+      return tableNames.some((tbl) => combinedMsg.includes(tbl.toLowerCase()));
     }
   }
 

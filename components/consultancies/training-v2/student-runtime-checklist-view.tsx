@@ -89,13 +89,18 @@ function AlertCircleIcon({ className = "w-4 h-4" }: { className?: string }) {
 
 export interface StudentRuntimeChecklistViewProps {
   workout: StudentWorkoutViewContract;
-  activeSession: WorkoutExecutionSessionDto;
+  activeSession?: WorkoutExecutionSessionDto | null;
   consultancySlug: string;
   history?: WorkoutExecutionHistorySessionDto[];
   activeSubstitutions?: Record<string, ActiveSubstitutedItem>;
   remainingSwaps?: number;
+  initialSelectedBlockPublicId?: string | null;
   onSessionUpdated?: (session: WorkoutExecutionSessionDto) => void;
   onToggleOverview?: () => void;
+  onStartWorkout?: (blockPublicId?: string | null) => Promise<void>;
+  isStartingWorkout?: boolean;
+  startWorkoutError?: string | null;
+  isPreview?: boolean;
 }
 
 // ============================================================================
@@ -106,29 +111,68 @@ export function StudentRuntimeChecklistView({
   workout,
   activeSession,
   consultancySlug,
+  history = [],
   activeSubstitutions = {},
   remainingSwaps = 3,
+  initialSelectedBlockPublicId,
   onSessionUpdated,
-  onToggleOverview,
+  onStartWorkout,
+  isStartingWorkout = false,
+  startWorkoutError = null,
+  isPreview = false,
 }: StudentRuntimeChecklistViewProps) {
-  // 1. Current Active Division Block
+  // 1. Division selection state derived cleanly without cascading effect renders
+  const [userSelectedBlockPublicId, setUserSelectedBlockPublicId] = useState<string | null>(null);
+  const selectedBlockPublicId =
+    userSelectedBlockPublicId ??
+    initialSelectedBlockPublicId ??
+    activeSession?.workoutBlockPublicId ??
+    workout.blocks[0]?.publicId ??
+    null;
+
+  // Current Active Division Block
+  const sessionBlockPublicId = activeSession?.workoutBlockPublicId;
   const activeBlock: WorkoutBlockDto = useMemo(() => {
-    if (activeSession.workoutBlockPublicId) {
-      const match = workout.blocks.find((b) => b.publicId === activeSession.workoutBlockPublicId);
+    if (selectedBlockPublicId) {
+      const match = workout.blocks.find((b) => b.publicId === selectedBlockPublicId);
       if (match) return match;
     }
-    return workout.blocks[0] || {
-      id: 0,
-      publicId: "default",
-      blockType: "STANDARD",
-      title: "Treino Principal",
-      sortOrder: 0,
-      rounds: 1,
-      items: [],
-      subBlocks: [],
-      combinations: [],
-    };
-  }, [workout.blocks, activeSession.workoutBlockPublicId]);
+    if (sessionBlockPublicId) {
+      const match = workout.blocks.find((b) => b.publicId === sessionBlockPublicId);
+      if (match) return match;
+    }
+    return (
+      workout.blocks[0] || {
+        id: 0,
+        publicId: "default",
+        blockType: "STANDARD",
+        title: "Treino Principal",
+        sortOrder: 0,
+        rounds: 1,
+        items: [],
+        subBlocks: [],
+        combinations: [],
+      }
+    );
+  }, [workout.blocks, selectedBlockPublicId, sessionBlockPublicId]);
+
+  // Session state checks
+  const isSessionInProgress = Boolean(activeSession && activeSession.status === "IN_PROGRESS");
+  const isSessionCompleted = Boolean(activeSession && activeSession.status === "COMPLETED");
+
+  // Is session running on this specific division?
+  const isSessionActiveOnThisBlock = Boolean(
+    isSessionInProgress &&
+      activeSession &&
+      (!activeSession.workoutBlockPublicId || activeSession.workoutBlockPublicId === activeBlock.publicId)
+  );
+
+  // Is session active on another division?
+  const isSessionActiveOnDifferentBlock = Boolean(
+    isSessionInProgress &&
+      activeSession?.workoutBlockPublicId &&
+      activeSession.workoutBlockPublicId !== activeBlock.publicId
+  );
 
   // Block Items in this division
   const blockItems: WorkoutBlockItemDto[] = useMemo(() => {
@@ -136,15 +180,17 @@ export function StudentRuntimeChecklistView({
   }, [activeBlock]);
 
   // Sets indexed by block_item_id
+  const sessionSets = activeSession?.sets;
   const sessionSetsByItemPublicId = useMemo(() => {
     const map = new Map<string, WorkoutExecutionSetDto[]>();
-    for (const s of activeSession.sets) {
+    if (!sessionSets) return map;
+    for (const s of sessionSets) {
       const list = map.get(s.blockItemPublicId) || [];
       list.push(s);
       map.set(s.blockItemPublicId, list);
     }
     return map;
-  }, [activeSession.sets]);
+  }, [sessionSets]);
 
   // Local state for set loads/reps being recorded in accordions
   const [localSetValues, setLocalSetValues] = useState<
@@ -177,9 +223,12 @@ export function StudentRuntimeChecklistView({
   const [hasDiscomfort, setHasDiscomfort] = useState(false);
   const [discomfortNotes, setDiscomfortNotes] = useState("");
 
+  // History collapsed state
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+
   // Server-confirmed completion session
   const [confirmedCompletedSession, setConfirmedCompletedSession] = useState<WorkoutExecutionSessionDto | null>(
-    activeSession.status === "COMPLETED" ? activeSession : null
+    isSessionCompleted ? activeSession : null
   );
 
   // --------------------------------------------------------------------------
@@ -261,14 +310,19 @@ export function StudentRuntimeChecklistView({
     return blockItems.findIndex((i) => itemStatuses[i.publicId] === "PENDING");
   }, [blockItems, itemStatuses]);
 
-  const progressPercent = totalExercisesCount > 0
-    ? Math.round((completedExercisesCount / totalExercisesCount) * 100)
-    : 0;
+  const progressPercent =
+    totalExercisesCount > 0 ? Math.round((completedExercisesCount / totalExercisesCount) * 100) : 0;
 
   // --------------------------------------------------------------------------
   // CHECKLIST ACTIONS: CONCLUIR EXERCÍCIO / DESMARCAR / PULAR
   // --------------------------------------------------------------------------
   async function handleToggleExercise(item: WorkoutBlockItemDto, markCompleted: boolean) {
+    if (!activeSession) {
+      // If no active session, start one first
+      await onStartWorkout?.(activeBlock.publicId);
+      return;
+    }
+
     setLoadingItemPublicId(item.publicId);
     try {
       const res = await toggleWorkoutExecutionExerciseAction(
@@ -303,6 +357,7 @@ export function StudentRuntimeChecklistView({
   }
 
   async function handleSkipExercise(item: WorkoutBlockItemDto, reason?: string) {
+    if (!activeSession) return;
     setLoadingItemPublicId(item.publicId);
     try {
       const res = await skipWorkoutExecutionExerciseAction(
@@ -333,6 +388,7 @@ export function StudentRuntimeChecklistView({
   // RECORD OPTIONAL PER-SET REPS / LOAD
   // --------------------------------------------------------------------------
   async function handleSaveSetLoadReps(set: WorkoutExecutionSetDto) {
+    if (!activeSession) return;
     const val = localSetValues[set.publicId];
     if (!val) return;
     const reps = val.reps.trim() !== "" ? Number(val.reps.trim()) : null;
@@ -362,6 +418,7 @@ export function StudentRuntimeChecklistView({
   // FINALIZATION & FEEDBACK
   // --------------------------------------------------------------------------
   async function handleFinalizeWorkoutSubmit() {
+    if (!activeSession) return;
     setIsFinalizing(true);
     setFinalizeError(null);
 
@@ -423,7 +480,8 @@ export function StudentRuntimeChecklistView({
     const diffMins = Math.round(diffMs / (1000 * 60));
     const isDurationReasonable = isSameDay && diffMins > 0 && diffMins < 720;
 
-    const isPureFullCompletion = completedExercisesCount === totalExercisesCount && skippedExercisesCount === 0;
+    const isPureFullCompletion =
+      completedExercisesCount === totalExercisesCount && skippedExercisesCount === 0;
 
     return (
       <div className="w-full max-w-xl mx-auto pt-6 pb-24 px-4 text-center space-y-6 animate-in fade-in duration-300">
@@ -444,7 +502,7 @@ export function StudentRuntimeChecklistView({
         </div>
 
         {/* Real Summary Metrics */}
-        <div className="grid grid-cols-3 gap-2.5 p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface">
+        <div className="grid grid-cols-3 gap-2.5 p-4 rounded-2xl bg-white dark:bg-[#181A1E] border border-zinc-200 dark:border-[#2C2F36] shadow-xs depth-surface">
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block">
               Horário
@@ -504,7 +562,7 @@ export function StudentRuntimeChecklistView({
   }
 
   // --------------------------------------------------------------------------
-  // ACTIVE CHECKLIST SCREEN
+  // ACTIVE CHECKLIST & CONSULTATION SCREEN
   // --------------------------------------------------------------------------
   return (
     <div className="w-full max-w-2xl mx-auto space-y-5 pb-28 pt-2 px-3 sm:px-4">
@@ -513,7 +571,7 @@ export function StudentRuntimeChecklistView({
         <div className="flex items-center justify-between">
           <Link
             href={`/consultoria/${consultancySlug}/treinos`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface)] border border-[var(--border-subtle)] transition-all min-h-[44px]"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-white/80 dark:bg-[#181A1E]/80 hover:bg-white dark:hover:bg-[#181A1E] border border-zinc-200 dark:border-zinc-800 transition-all min-h-[44px]"
           >
             ← Voltar aos meus treinos
           </Link>
@@ -522,43 +580,145 @@ export function StudentRuntimeChecklistView({
           </span>
         </div>
 
+        {/* Division Selector Tabs for Multi-Division Routines */}
+        {workout.blocks.length > 1 && (
+          <div className="space-y-1 pt-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] px-1">
+              Divisões de Treino
+            </span>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {workout.blocks.map((b) => {
+                const isSelected = b.publicId === activeBlock.publicId;
+                const bCount = (b.items || []).length;
+                return (
+                  <button
+                    key={b.publicId}
+                    type="button"
+                    onClick={() => setUserSelectedBlockPublicId(b.publicId)}
+                    className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 border ${
+                      isSelected
+                        ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                        : "bg-white dark:bg-[#181A1E] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    <span>{b.title}</span>
+                    <span className="ml-1.5 opacity-80">({bCount})</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Warning if user is viewing a division while a session is active on another */}
+        {isSessionActiveOnDifferentBlock && activeSession?.workoutBlockTitle && (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <p className="text-xs sm:text-sm font-bold text-amber-800 dark:text-amber-300">
+                Treino em andamento na divisão: {activeSession.workoutBlockTitle}
+              </p>
+              <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
+                Você está visualizando os exercícios de &quot;{activeBlock.title}&quot;.
+              </p>
+            </div>
+            {activeSession.workoutBlockPublicId && (
+              <button
+                type="button"
+                onClick={() => setUserSelectedBlockPublicId(activeSession.workoutBlockPublicId!)}
+                className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer whitespace-nowrap"
+              >
+                Retomar divisão ativa →
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Division Title & Action Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-[var(--text-primary)] tracking-tight font-heading">
               {activeBlock.title}
             </h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium">
-              {completedExercisesCount} de {totalExercisesCount} exercícios concluídos
-              {skippedExercisesCount > 0 ? ` • ${skippedExercisesCount} pulado(s)` : ""}
+              {isSessionActiveOnThisBlock ? (
+                <>
+                  {completedExercisesCount} de {totalExercisesCount} exercícios concluídos
+                  {skippedExercisesCount > 0 ? ` • ${skippedExercisesCount} pulado(s)` : ""}
+                </>
+              ) : (
+                <>
+                  {totalExercisesCount} {totalExercisesCount === 1 ? "exercício prescrito" : "exercícios prescritos"}
+                  {workout.difficultyLevel
+                    ? ` • Nível ${
+                        workout.difficultyLevel === "BEGINNER"
+                          ? "Iniciante"
+                          : workout.difficultyLevel === "ADVANCED"
+                          ? "Avançado"
+                          : "Intermediário"
+                      }`
+                    : ""}
+                </>
+              )}
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsFeedbackModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-sm transition-all min-h-[44px] cursor-pointer shrink-0"
-          >
-            <CheckIcon className="w-4 h-4" />
-            <span>Finalizar treino</span>
-          </button>
+          {/* Action button in header */}
+          {isSessionActiveOnThisBlock ? (
+            <button
+              type="button"
+              onClick={() => setIsFeedbackModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-sm transition-all min-h-[44px] cursor-pointer shrink-0"
+            >
+              <CheckIcon className="w-4 h-4" />
+              <span>Finalizar treino</span>
+            </button>
+          ) : !isPreview && (
+            <button
+              type="button"
+              disabled={isStartingWorkout}
+              onClick={() => onStartWorkout?.(activeBlock.publicId)}
+              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-sm transition-all min-h-[48px] cursor-pointer shrink-0 disabled:opacity-50"
+            >
+              {isStartingWorkout ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Iniciando...</span>
+                </>
+              ) : (
+                <>
+                  <PlayIcon className="w-4 h-4" />
+                  <span>Começar treino</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
 
-        {/* Barra de Progresso Única e Clara */}
-        <div className="w-full h-2 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-subtle)] overflow-hidden">
-          <div
-            className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
+        {/* Start workout error message */}
+        {startWorkoutError && (
+          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/25 text-xs text-red-600 dark:text-red-400 font-semibold">
+            {startWorkoutError}
+          </div>
+        )}
+
+        {/* Progress Bar (Visible when session is in progress) */}
+        {isSessionActiveOnThisBlock && (
+          <div className="w-full h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        )}
       </div>
 
       {/* 2. Lista de Exercícios em Checklist Ordenado */}
       <div className="space-y-4 pt-1">
         {blockItems.map((item, index) => {
           const status = itemStatuses[item.publicId] || "PENDING";
-          const isDone = status === "COMPLETED";
-          const isSkipped = status === "SKIPPED";
-          const isNext = index === nextPendingIndex;
+          const isDone = isSessionActiveOnThisBlock && status === "COMPLETED";
+          const isSkipped = isSessionActiveOnThisBlock && status === "SKIPPED";
+          const isNext = isSessionActiveOnThisBlock && index === nextPendingIndex;
           const isLoading = loadingItemPublicId === item.publicId;
 
           const substituted = activeSubstitutions[item.publicId];
@@ -579,8 +739,7 @@ export function StudentRuntimeChecklistView({
           const hasPersonalNotes = Boolean(item.notes && item.notes.trim().length > 0);
           const hasInstructions = Boolean(item.instructionsSnapshot && item.instructionsSnapshot.trim().length > 0);
           const hasAuthorizedAlternatives = Boolean(
-            (item.alternatives && item.alternatives.length > 0) ||
-            activeSubstitutions[item.publicId]
+            (item.alternatives && item.alternatives.length > 0) || activeSubstitutions[item.publicId]
           );
           const isAccordionOpen = Boolean(expandedAccordions[item.publicId]);
 
@@ -590,9 +749,7 @@ export function StudentRuntimeChecklistView({
             <div
               key={item.publicId}
               className={`p-4 sm:p-5 rounded-2xl border transition-all depth-surface ${
-                item.combinationType
-                  ? "border-l-4 border-l-purple-500 dark:border-l-purple-400 "
-                  : ""
+                item.combinationType ? "border-l-4 border-l-purple-500 dark:border-l-purple-400 " : ""
               }${
                 isDone
                   ? "bg-white dark:bg-[#181A1E] border-emerald-500/40 shadow-xs"
@@ -635,7 +792,7 @@ export function StudentRuntimeChecklistView({
                         ? "bg-zinc-400 text-white"
                         : isNext
                         ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-default)]"
+                        : "bg-zinc-100 dark:bg-zinc-800 text-[var(--text-secondary)] border border-zinc-200 dark:border-zinc-700"
                     }`}
                   >
                     {isDone ? "✓" : index + 1}
@@ -708,19 +865,29 @@ export function StudentRuntimeChecklistView({
                   <button
                     type="button"
                     onClick={() => setVideoModalItem(item)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[var(--text-primary)] border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[40px] cursor-pointer"
                   >
                     <PlayIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span>Ver vídeo</span>
                   </button>
-                ) : (hasInstructions || (media.hasMedia && !media.videoUrl)) ? (
+                ) : hasInstructions || (media.hasMedia && !media.videoUrl) ? (
                   <button
                     type="button"
                     onClick={() => setVideoModalItem(item)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[var(--text-primary)] border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[40px] cursor-pointer"
                   >
-                    <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    <svg
+                      className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                      />
                     </svg>
                     <span>Como fazer</span>
                   </button>
@@ -730,7 +897,7 @@ export function StudentRuntimeChecklistView({
                   <button
                     type="button"
                     onClick={() => startRest(restSeconds)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[var(--text-primary)] border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[40px] cursor-pointer"
                   >
                     <ClockIcon className="w-3.5 h-3.5 text-blue-500" />
                     <span>Iniciar descanso · {restSeconds} s</span>
@@ -738,171 +905,257 @@ export function StudentRuntimeChecklistView({
                 )}
               </div>
 
-              {/* Ação Principal: Concluir Exercício (min-52px, verde Trevo One) */}
+              {/* Ação Principal: Concluir Exercício ou Começar Treino (min-52px, verde Trevo One) */}
               <div className="pt-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                {!isDone ? (
+                {isSessionActiveOnThisBlock ? (
+                  !isDone ? (
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => handleToggleExercise(item, true)}
+                      className="w-full sm:flex-1 min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-sm sm:text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {isLoading ? (
+                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <CheckIcon className="w-5 h-5" />
+                          <span>Concluir exercício</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="w-full sm:flex-1 flex items-center justify-between gap-2 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
+                      <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                        <CheckIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        Exercício concluído
+                      </span>
+                      <button
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() => handleToggleExercise(item, false)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-white dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                      >
+                        Desfazer
+                      </button>
+                    </div>
+                  )
+                ) : (
                   <button
                     type="button"
-                    disabled={isLoading}
-                    onClick={() => handleToggleExercise(item, true)}
+                    disabled={isStartingWorkout || isPreview}
+                    onClick={() => onStartWorkout?.(activeBlock.publicId)}
                     className="w-full sm:flex-1 min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-sm sm:text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
-                    {isLoading ? (
-                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {isStartingWorkout ? (
+                      <>
+                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Iniciando treino...</span>
+                      </>
                     ) : (
                       <>
-                        <CheckIcon className="w-5 h-5" />
-                        <span>Concluir exercício</span>
+                        <PlayIcon className="w-5 h-5" />
+                        <span>Começar treino</span>
                       </>
                     )}
                   </button>
-                ) : (
-                  <div className="w-full sm:flex-1 flex items-center justify-between gap-2 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
-                    <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-emerald-700 dark:text-emerald-300">
-                      <CheckIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      Exercício concluído
-                    </span>
-                    <button
-                      type="button"
-                      disabled={isLoading}
-                      onClick={() => handleToggleExercise(item, false)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-white dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                    >
-                      Desfazer
-                    </button>
-                  </div>
                 )}
 
-                {/* Ações Complementares: Trocar / Pular */}
-                <div className="flex items-center justify-end gap-2 shrink-0">
-                  {hasAuthorizedAlternatives && (
-                    <button
-                      type="button"
-                      onClick={() => setSwapModalItem(item)}
-                      className="px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors min-h-[44px] flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <SwapIcon className="w-3.5 h-3.5" />
-                      <span>Trocar</span>
-                    </button>
-                  )}
+                {/* Ações Complementares quando em andamento: Trocar / Pular */}
+                {isSessionActiveOnThisBlock && (
+                  <div className="flex items-center justify-end gap-2 shrink-0">
+                    {hasAuthorizedAlternatives && (
+                      <button
+                        type="button"
+                        onClick={() => setSwapModalItem(item)}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[44px] flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <SwapIcon className="w-3.5 h-3.5" />
+                        <span>Trocar</span>
+                      </button>
+                    )}
 
-                  {!isDone && !isSkipped && (
-                    <button
-                      type="button"
-                      disabled={isLoading}
-                      onClick={() => handleSkipExercise(item)}
-                      className="px-3 py-2 rounded-xl text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] cursor-pointer"
-                    >
-                      Pular
-                    </button>
-                  )}
-                </div>
+                    {!isDone && !isSkipped && (
+                      <button
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() => handleSkipExercise(item)}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors min-h-[44px] cursor-pointer"
+                      >
+                        Pular
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Accordion Opcional: Registrar Séries e Cargas */}
-              <div className="pt-2 border-t border-[var(--border-subtle)] mt-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setExpandedAccordions((prev) => ({
-                      ...prev,
-                      [item.publicId]: !prev[item.publicId],
-                    }))
-                  }
-                  className="w-full flex items-center justify-between text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] py-1.5 transition-colors cursor-pointer"
-                >
-                  <span>Registrar séries e cargas (opcional)</span>
-                  <ChevronDownIcon
-                    className={`w-4 h-4 transition-transform duration-200 ${
-                      isAccordionOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
+              {isSessionActiveOnThisBlock && itemSets.length > 0 && (
+                <div className="pt-2 border-t border-[var(--border-subtle)] mt-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedAccordions((prev) => ({
+                        ...prev,
+                        [item.publicId]: !prev[item.publicId],
+                      }))
+                    }
+                    className="w-full flex items-center justify-between text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] py-1.5 transition-colors cursor-pointer"
+                  >
+                    <span>Registrar séries e cargas (opcional)</span>
+                    <ChevronDownIcon
+                      className={`w-4 h-4 transition-transform duration-200 ${
+                        isAccordionOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
 
-                {isAccordionOpen && (
-                  <div className="pt-3 pb-1 space-y-2.5 animate-in fade-in duration-200">
-                    <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
-                      Se você desejar, anote as cargas e repetições reais executadas. Campos não preenchidos serão salvos como em branco.
-                    </p>
+                  {isAccordionOpen && (
+                    <div className="pt-3 pb-1 space-y-2.5 animate-in fade-in duration-200">
+                      <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
+                        Se você desejar, anote as cargas e repetições reais executadas. O preenchimento é opcional e não bloqueia a conclusão do exercício.
+                      </p>
 
-                    <div className="space-y-2">
-                      {itemSets.map((s, sIdx) => {
-                        const localVal = localSetValues[s.publicId] || {
-                          reps: s.actualReps != null ? String(s.actualReps) : "",
-                          load: s.actualLoadKg != null ? String(s.actualLoadKg) : "",
-                        };
+                      <div className="space-y-2">
+                        {itemSets.map((s, sIdx) => {
+                          const localVal = localSetValues[s.publicId] || {
+                            reps: s.actualReps != null ? String(s.actualReps) : "",
+                            load: s.actualLoadKg != null ? String(s.actualLoadKg) : "",
+                          };
 
-                        return (
-                          <div
-                            key={s.publicId}
-                            className="flex items-center gap-2 p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]"
-                          >
-                            <span className="w-16 text-xs font-bold text-[var(--text-primary)] shrink-0">
-                              Série {sIdx + 1}
-                            </span>
+                          return (
+                            <div
+                              key={s.publicId}
+                              className="flex items-center gap-2 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800"
+                            >
+                              <span className="w-16 text-xs font-bold text-[var(--text-primary)] shrink-0">
+                                Série {sIdx + 1}
+                              </span>
 
-                            <div className="flex-1 flex items-center gap-2">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                placeholder={s.prescribedLoadKg ? `${s.prescribedLoadKg} kg` : "Carga (kg)"}
-                                value={localVal.load}
-                                onChange={(e) =>
-                                  setLocalSetValues((prev) => ({
-                                    ...prev,
-                                    [s.publicId]: { ...localVal, load: e.target.value },
-                                  }))
-                                }
-                                onBlur={() => handleSaveSetLoadReps(s)}
-                                className="w-1/2 px-2.5 py-1.5 text-xs rounded-lg bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
-                              />
+                              <div className="flex-1 flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder={s.prescribedLoadKg ? `${s.prescribedLoadKg} kg` : "Carga (kg)"}
+                                  value={localVal.load}
+                                  onChange={(e) =>
+                                    setLocalSetValues((prev) => ({
+                                      ...prev,
+                                      [s.publicId]: { ...localVal, load: e.target.value },
+                                    }))
+                                  }
+                                  onBlur={() => handleSaveSetLoadReps(s)}
+                                  className="w-1/2 px-2.5 py-1.5 text-xs rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                                />
 
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                placeholder={s.prescribedReps ? `${s.prescribedReps} reps` : "Reps"}
-                                value={localVal.reps}
-                                onChange={(e) =>
-                                  setLocalSetValues((prev) => ({
-                                    ...prev,
-                                    [s.publicId]: { ...localVal, reps: e.target.value },
-                                  }))
-                                }
-                                onBlur={() => handleSaveSetLoadReps(s)}
-                                className="w-1/2 px-2.5 py-1.5 text-xs rounded-lg bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
-                              />
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  placeholder={s.prescribedReps ? `${s.prescribedReps} reps` : "Reps"}
+                                  value={localVal.reps}
+                                  onChange={(e) =>
+                                    setLocalSetValues((prev) => ({
+                                      ...prev,
+                                      [s.publicId]: { ...localVal, reps: e.target.value },
+                                    }))
+                                  }
+                                  onBlur={() => handleSaveSetLoadReps(s)}
+                                  className="w-1/2 px-2.5 py-1.5 text-xs rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                                />
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* 3. Rodapé com Botão Principal de Finalização */}
+      {/* 3. Rodapé com Botão Principal de Finalização ou Início */}
       <div className="pt-4 pb-8 space-y-3">
-        <button
-          type="button"
-          onClick={() => setIsFeedbackModalOpen(true)}
-          className="w-full min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <CheckIcon className="w-5 h-5" />
-          <span>Finalizar treino</span>
-        </button>
-
-        {onToggleOverview && (
+        {isSessionActiveOnThisBlock ? (
           <button
             type="button"
-            onClick={onToggleOverview}
-            className="w-full min-h-[44px] rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer"
+            onClick={() => setIsFeedbackModalOpen(true)}
+            className="w-full min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            Ver ficha completa de treino
+            <CheckIcon className="w-5 h-5" />
+            <span>Finalizar treino</span>
           </button>
+        ) : !isPreview && (
+          <button
+            type="button"
+            disabled={isStartingWorkout}
+            onClick={() => onStartWorkout?.(activeBlock.publicId)}
+            className="w-full min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {isStartingWorkout ? (
+              <>
+                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Iniciando treino...</span>
+              </>
+            ) : (
+              <>
+                <PlayIcon className="w-5 h-5" />
+                <span>Começar treino</span>
+              </>
+            )}
+          </button>
+        )}
+
+        {/* Histórico Colapsável de Execuções Anteriores */}
+        {history.length > 0 && (
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setIsHistoryExpanded((prev) => !prev)}
+              className="w-full min-h-[44px] rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-white/60 dark:bg-zinc-900/60 hover:bg-white dark:hover:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 transition-colors cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Histórico de treinos anteriores ({history.length})</span>
+              <ChevronDownIcon
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                  isHistoryExpanded ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {isHistoryExpanded && (
+              <div className="mt-3 space-y-3 animate-in fade-in duration-200">
+                {history.map((hSession) => {
+                  const hDate = new Date(hSession.completedAt || hSession.startedAt);
+                  const hDateFormatted = !Number.isNaN(hDate.getTime())
+                    ? hDate.toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "";
+                  const hCompletedSets = hSession.sets.filter((s) => s.completedAt != null && !s.isSkipped).length;
+
+                  return (
+                    <div
+                      key={hSession.publicId}
+                      className="p-3.5 rounded-xl bg-white dark:bg-[#181A1E] border border-zinc-200 dark:border-[#2C2F36] text-xs space-y-1 shadow-xs"
+                    >
+                      <div className="flex items-center justify-between font-bold text-[var(--text-primary)]">
+                        <span>{hDateFormatted}</span>
+                        <span className="text-emerald-600 dark:text-emerald-400">
+                          {hCompletedSets} séries realizadas
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -928,9 +1181,7 @@ export function StudentRuntimeChecklistView({
               {Math.floor(activeRestSeconds / 60)}:
               {String(activeRestSeconds % 60).padStart(2, "0")}
             </span>
-            <span className="text-[10px] text-zinc-400">
-              de {restInitialSeconds}s
-            </span>
+            <span className="text-[10px] text-zinc-400">de {restInitialSeconds}s</span>
           </div>
 
           <div className="flex items-center gap-2 pt-1 border-t border-zinc-800">
@@ -955,7 +1206,7 @@ export function StudentRuntimeChecklistView({
       {/* 5. Modal de Feedback ao Personal */}
       {isFeedbackModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#151619] border border-[var(--border-default)] shadow-2xl p-6 sm:p-7 space-y-5 text-left max-h-[90vh] overflow-y-auto depth-surface">
+          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-zinc-800 shadow-2xl p-6 sm:p-7 space-y-5 text-left max-h-[90vh] overflow-y-auto depth-surface">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg sm:text-xl font-black text-[var(--text-primary)] tracking-tight font-heading">
@@ -968,7 +1219,7 @@ export function StudentRuntimeChecklistView({
               <button
                 type="button"
                 onClick={() => setIsFeedbackModalOpen(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-[var(--surface-subtle)]"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
                 ✕
               </button>
@@ -992,7 +1243,7 @@ export function StudentRuntimeChecklistView({
                     className={`py-3 px-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                       completionState === opt.value
                         ? "bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30"
-                        : "bg-[var(--surface-subtle)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     }`}
                   >
                     {opt.label}
@@ -1023,7 +1274,7 @@ export function StudentRuntimeChecklistView({
                 placeholder="Conte o que foi difícil ou o que você quer perguntar..."
                 value={studentNotes}
                 onChange={(e) => setStudentNotes(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs sm:text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500 resize-none"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500 resize-none"
               />
             </div>
 
@@ -1034,7 +1285,7 @@ export function StudentRuntimeChecklistView({
                   type="checkbox"
                   checked={hasDiscomfort}
                   onChange={(e) => setHasDiscomfort(e.target.checked)}
-                  className="rounded border-[var(--border-default)] text-emerald-600 focus:ring-emerald-500"
+                  className="rounded border-zinc-300 dark:border-zinc-600 text-emerald-600 focus:ring-emerald-500"
                 />
                 <span>Senti algum desconforto ou dor durante o treino</span>
               </label>
@@ -1045,14 +1296,12 @@ export function StudentRuntimeChecklistView({
                   placeholder="Ex: Leve pontada no ombro direito durante o supino..."
                   value={discomfortNotes}
                   onChange={(e) => setDiscomfortNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500"
                 />
               )}
             </div>
 
-            {finalizeError && (
-              <p className="text-xs text-red-500 font-semibold">{finalizeError}</p>
-            )}
+            {finalizeError && <p className="text-xs text-red-500 font-semibold">{finalizeError}</p>}
 
             {/* Actions */}
             <div className="flex items-center gap-3 pt-2">
@@ -1060,7 +1309,7 @@ export function StudentRuntimeChecklistView({
                 type="button"
                 disabled={isFinalizing}
                 onClick={() => setIsFeedbackModalOpen(false)}
-                className="flex-1 min-h-[48px] rounded-xl border border-[var(--border-default)] text-xs sm:text-sm font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+                className="flex-1 min-h-[48px] rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm font-bold text-[var(--text-secondary)] hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
               >
                 Voltar
               </button>
@@ -1095,9 +1344,7 @@ export function StudentRuntimeChecklistView({
                   {videoModalItem.exerciseNameSnapshot || "Execução do Exercício"}
                 </h3>
                 {videoModalItem.muscleGroupSnapshot && (
-                  <span className="text-xs text-zinc-400">
-                    {videoModalItem.muscleGroupSnapshot}
-                  </span>
+                  <span className="text-xs text-zinc-400">{videoModalItem.muscleGroupSnapshot}</span>
                 )}
               </div>
               <button
@@ -1148,7 +1395,7 @@ export function StudentRuntimeChecklistView({
       )}
 
       {/* 7. Modal de Substituição de Exercício */}
-      {swapModalItem && (
+      {swapModalItem && activeSession && (
         <StudentExerciseSwapModal
           isOpen={Boolean(swapModalItem)}
           onClose={() => setSwapModalItem(null)}
@@ -1160,7 +1407,6 @@ export function StudentRuntimeChecklistView({
           remainingSwaps={remainingSwaps}
           onSwapConfirmed={() => {
             setSwapModalItem(null);
-            // Refresh local session
             if (activeSession) {
               onSessionUpdated?.({ ...activeSession });
             }

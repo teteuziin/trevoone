@@ -104,7 +104,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
   const { effectiveMode } = effectiveState;
 
   const roles = Array.isArray(context.roles) ? context.roles : [];
-  const isStudent = roles.includes("STUDENT");
+  const isStudent = roles.includes("STUDENT") || roles.includes("INFLUENCER");
   const isInfluencer = roles.includes("INFLUENCER");
   const isPersonal = roles.includes("PERSONAL");
   const isNutritionist = roles.includes("NUTRITIONIST");

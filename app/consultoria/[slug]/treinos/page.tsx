@@ -9,6 +9,7 @@ import {
 } from "@/lib/training-v2/daily-workout-resolver";
 import {
   listStudentWorkoutCards,
+  getStudentWorkoutViewDetailed,
   type StudentWorkoutCardDto,
 } from "@/lib/training-v2/assignment-repository";
 import { StudentModuleAccessPanel } from "@/components/consultancies/student-module-access-panel";
@@ -84,6 +85,7 @@ export default async function StudentTreinosPage({ params }: PageProps) {
   const ctx = await resolveTrainingAccessContext(slug);
   let v2Assignments: StudentWorkoutCardDto[] = [];
   let dailyWorkout: DailyWorkoutResolution | null = null;
+  let primaryWorkoutDetail = null;
   if (ctx && ctx.isStudent) {
     try {
       [v2Assignments, dailyWorkout] = await Promise.all([
@@ -93,9 +95,21 @@ export default async function StudentTreinosPage({ params }: PageProps) {
           consultancySlug: slug,
         }).catch(() => null),
       ]);
+
+      if (v2Assignments.length > 0) {
+        try {
+          const detailRes = await getStudentWorkoutViewDetailed(ctx, v2Assignments[0].assignmentPublicId);
+          if (detailRes.status === "SUCCESS") {
+            primaryWorkoutDetail = detailRes.workoutView;
+          }
+        } catch {
+          primaryWorkoutDetail = null;
+        }
+      }
     } catch {
       v2Assignments = [];
       dailyWorkout = null;
+      primaryWorkoutDetail = null;
     }
   }
 
@@ -154,6 +168,7 @@ export default async function StudentTreinosPage({ params }: PageProps) {
           consultancyName={access.context.consultancyName}
           dailyWorkout={dailyWorkout}
           assignments={v2Assignments}
+          primaryWorkoutDetail={primaryWorkoutDetail}
         />
       )}
     </ConsultancyAppShell>

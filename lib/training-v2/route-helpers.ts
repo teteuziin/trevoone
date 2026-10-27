@@ -38,3 +38,24 @@ export function parseScheduledWeekdays(
 
   return Array.from(new Set(days)).sort((a, b) => a - b);
 }
+
+const WEEKDAY_NAMES_PT = [
+  "Domingo",
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+];
+
+const WEEKDAY_SHORT_NAMES_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+export function formatScheduledWeekdaysLabel(days: number[]): string | null {
+  if (!days || days.length === 0) return null;
+  if (days.length === 1) {
+    return WEEKDAY_NAMES_PT[days[0]];
+  }
+  return days.map((d) => WEEKDAY_SHORT_NAMES_PT[d]).join(", ");
+}
+

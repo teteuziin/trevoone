@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
-import type { DailyWorkoutResolution } from "@/lib/training-v2/daily-workout-resolver";
+import type { DailyWorkoutResolution, DailyWorkoutDivisionOption } from "@/lib/training-v2/daily-workout-resolver";
 import type { StudentWorkoutCardDto } from "@/lib/training-v2/assignment-repository";
+import type { StudentWorkoutViewContract } from "@/lib/training-v2/types";
+import { parseScheduledWeekdays, formatScheduledWeekdaysLabel } from "@/lib/training-v2/route-helpers";
 import { WorkoutDivisionPickerModal } from "@/components/dashboard/student/sections/workout-division-picker-modal";
 import { buildStudentWorkoutExecutionUrl } from "@/lib/training-v2/route-helpers";
 import { DumbbellIcon as Dumbbell } from "@/components/ui/icons";
@@ -13,6 +15,7 @@ interface StudentTreinosClientViewProps {
   consultancyName: string;
   dailyWorkout: DailyWorkoutResolution | null;
   assignments: StudentWorkoutCardDto[];
+  primaryWorkoutDetail?: StudentWorkoutViewContract | null;
 }
 
 function formatDate(dateStr?: string | null): string {
@@ -33,6 +36,7 @@ export function StudentTreinosClientView({
   consultancyName,
   dailyWorkout,
   assignments,
+  primaryWorkoutDetail = null,
 }: StudentTreinosClientViewProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
@@ -40,6 +44,67 @@ export function StudentTreinosClientView({
   const secondaryAssignments = assignments.slice(1);
 
   const unfinishedSession = dailyWorkout?.unfinishedSession || null;
+
+  // Derivação infalível das divisões da ficha: usa dailyWorkout ou primaryWorkoutDetail
+  const derivedDivisions: DailyWorkoutDivisionOption[] = useMemo(() => {
+    if (dailyWorkout?.availableDivisions && dailyWorkout.availableDivisions.length > 0) {
+      return dailyWorkout.availableDivisions;
+    }
+    if (primaryWorkoutDetail?.blocks && primaryWorkoutDetail.blocks.length > 0) {
+      const todayWeekday = new Date().getDay();
+      return primaryWorkoutDetail.blocks.map((b, idx) => {
+        const weekdays = parseScheduledWeekdays(b.title, b.instructions);
+        const isScheduledToday = weekdays.includes(todayWeekday);
+        return {
+          publicId: b.publicId,
+          blockIndex: idx,
+          title: b.title || `Divisão ${String.fromCharCode(65 + idx)}`,
+          scheduledDaysLabel: formatScheduledWeekdaysLabel(weekdays),
+          scheduledWeekdays: weekdays,
+          exerciseCount: b.items?.length || 0,
+          status: isScheduledToday ? ("SCHEDULED_TODAY" as const) : ("AVAILABLE" as const),
+        };
+      });
+    }
+    return [];
+  }, [dailyWorkout, primaryWorkoutDetail]);
+
+  // Divisão recomendada para hoje infalível
+  const effectiveRecommendedDivision = useMemo(() => {
+    if (dailyWorkout && dailyWorkout.targetBlockPublicId && dailyWorkout.status !== "ERROR") {
+      return {
+        divisionTitle: dailyWorkout.divisionTitle,
+        routineTitle: dailyWorkout.routineTitle,
+        versionNumber: dailyWorkout.versionNumber,
+        assignmentPublicId: dailyWorkout.assignmentPublicId,
+        exerciseCount: dailyWorkout.exerciseCount,
+        actionHref: dailyWorkout.actionHref,
+        actionLabel: dailyWorkout.actionLabel || "Começar treino",
+        contextNote: dailyWorkout.contextNote,
+        todayWeekdayName: dailyWorkout.todayWeekdayName,
+        status: dailyWorkout.status,
+        canChangeDivision: dailyWorkout.canChangeDivision || derivedDivisions.length > 1,
+      };
+    }
+    if (primaryAssignment && derivedDivisions.length > 0) {
+      const todayWeekday = new Date().getDay();
+      const match = derivedDivisions.find((d) => d.scheduledWeekdays.includes(todayWeekday)) || derivedDivisions[0];
+      return {
+        divisionTitle: match.title,
+        routineTitle: primaryAssignment.workoutTitle,
+        versionNumber: primaryAssignment.versionNumber,
+        assignmentPublicId: primaryAssignment.assignmentPublicId,
+        exerciseCount: match.exerciseCount,
+        actionHref: buildStudentWorkoutExecutionUrl(consultancySlug, primaryAssignment.assignmentPublicId, match.publicId),
+        actionLabel: "Começar treino",
+        contextNote: match.scheduledDaysLabel ? `Programado para ${match.scheduledDaysLabel}.` : "Divisão pronta para realização.",
+        todayWeekdayName: "",
+        status: "SCHEDULED_TODAY" as const,
+        canChangeDivision: derivedDivisions.length > 1,
+      };
+    }
+    return null;
+  }, [dailyWorkout, primaryAssignment, derivedDivisions, consultancySlug]);
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 pb-20 overflow-x-hidden">
@@ -114,55 +179,55 @@ export function StudentTreinosClientView({
       )}
 
       {/* 3. Treino Recomendado para Hoje (Destaque Principal) */}
-      {dailyWorkout && dailyWorkout.assignmentPublicId && (
+      {effectiveRecommendedDivision && effectiveRecommendedDivision.assignmentPublicId && (
         <div className="p-6 sm:p-7 rounded-3xl bg-white dark:bg-[#151619] border border-emerald-500/35 dark:border-emerald-500/25 shadow-sm space-y-4 depth-surface">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
               <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                {dailyWorkout.status === "IN_PROGRESS"
+                {effectiveRecommendedDivision.status === "IN_PROGRESS"
                   ? "Em andamento"
-                  : dailyWorkout.status === "SCHEDULED_TODAY"
-                  ? `Treino previsto para hoje (${dailyWorkout.todayWeekdayName})`
-                  : dailyWorkout.status === "REST_DAY"
-                  ? `Descanso (${dailyWorkout.todayWeekdayName})`
-                  : dailyWorkout.headlineTitle}
+                  : effectiveRecommendedDivision.status === "SCHEDULED_TODAY"
+                  ? `Treino previsto para hoje ${effectiveRecommendedDivision.todayWeekdayName ? `(${effectiveRecommendedDivision.todayWeekdayName})` : ""}`
+                  : effectiveRecommendedDivision.status === "REST_DAY"
+                  ? `Descanso ${effectiveRecommendedDivision.todayWeekdayName ? `(${effectiveRecommendedDivision.todayWeekdayName})` : ""}`
+                  : "Treino do dia"}
               </span>
             </div>
-            {dailyWorkout.exerciseCount != null && dailyWorkout.exerciseCount > 0 && (
+            {effectiveRecommendedDivision.exerciseCount != null && effectiveRecommendedDivision.exerciseCount > 0 && (
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                {dailyWorkout.exerciseCount} {dailyWorkout.exerciseCount === 1 ? "exercício" : "exercícios"}
+                {effectiveRecommendedDivision.exerciseCount} {effectiveRecommendedDivision.exerciseCount === 1 ? "exercício" : "exercícios"}
               </span>
             )}
           </div>
 
           <div className="space-y-1">
             <h2 className="text-2xl sm:text-3xl font-black text-[var(--text-primary)] tracking-tight font-heading">
-              {dailyWorkout.divisionTitle}
+              {effectiveRecommendedDivision.divisionTitle}
             </h2>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-              Ficha: <strong className="font-semibold text-[var(--text-primary)]">{dailyWorkout.routineTitle}</strong>
-              {dailyWorkout.versionNumber ? ` • Versão ${dailyWorkout.versionNumber}` : ""}
+              Ficha: <strong className="font-semibold text-[var(--text-primary)]">{effectiveRecommendedDivision.routineTitle}</strong>
+              {effectiveRecommendedDivision.versionNumber ? ` • Versão ${effectiveRecommendedDivision.versionNumber}` : ""}
             </p>
           </div>
 
-          {dailyWorkout.contextNote && (
+          {effectiveRecommendedDivision.contextNote && (
             <p className="text-xs text-[var(--text-secondary)] italic bg-[var(--surface-subtle)] p-3 rounded-xl border border-[var(--border-subtle)]">
-              {dailyWorkout.contextNote}
+              {effectiveRecommendedDivision.contextNote}
             </p>
           )}
 
           {/* Ações: Começar treino (min-52px, verde Trevo One) + Escolher outro treino */}
           <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[var(--border-subtle)]">
             <Link
-              href={dailyWorkout.actionHref}
+              href={effectiveRecommendedDivision.actionHref}
               className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-extrabold text-sm sm:text-base text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 min-h-[52px] shadow-sm transition-all cursor-pointer flex-1 sm:flex-initial"
             >
-              <span>{dailyWorkout.actionLabel || "Começar treino"}</span>
+              <span>{effectiveRecommendedDivision.actionLabel || "Começar treino"}</span>
               <span>→</span>
             </Link>
 
-            {dailyWorkout.canChangeDivision && (
+            {effectiveRecommendedDivision.canChangeDivision && (
               <button
                 type="button"
                 onClick={() => setIsPickerOpen(true)}
@@ -176,7 +241,7 @@ export function StudentTreinosClientView({
       )}
 
       {/* 4. Divisões da Ficha (Acesso Direto à Execução da Divisão Escolhida) */}
-      {dailyWorkout?.availableDivisions && dailyWorkout.availableDivisions.length > 0 && primaryAssignment && (
+      {derivedDivisions.length > 0 && primaryAssignment && (
         <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -186,13 +251,13 @@ export function StudentTreinosClientView({
               </h2>
             </div>
             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              {dailyWorkout.availableDivisions.length} {dailyWorkout.availableDivisions.length === 1 ? "divisão" : "divisões"}
+              {derivedDivisions.length} {derivedDivisions.length === 1 ? "divisão" : "divisões"}
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {dailyWorkout.availableDivisions.map((div, dIdx) => {
-              const isTodayDiv = div.publicId === dailyWorkout.targetBlockPublicId;
+            {derivedDivisions.map((div, dIdx) => {
+              const isTodayDiv = div.publicId === effectiveRecommendedDivision?.assignmentPublicId || div.status === "SCHEDULED_TODAY";
               const isDoneToday = div.status === "COMPLETED_TODAY";
               const href = buildStudentWorkoutExecutionUrl(
                 consultancySlug,
@@ -425,15 +490,15 @@ export function StudentTreinosClientView({
       )}
 
       {/* Modal de Escolha de Divisão ("Escolher outro treino") */}
-      {dailyWorkout && dailyWorkout.availableDivisions && (
+      {derivedDivisions.length > 0 && (
         <WorkoutDivisionPickerModal
           isOpen={isPickerOpen}
           onClose={() => setIsPickerOpen(false)}
           consultancySlug={consultancySlug}
-          assignmentPublicId={dailyWorkout.assignmentPublicId || primaryAssignment?.assignmentPublicId || ""}
-          divisions={dailyWorkout.availableDivisions}
-          currentDivisionPublicId={dailyWorkout.targetBlockPublicId}
-          hasActiveSession={Boolean(unfinishedSession || dailyWorkout.status === "IN_PROGRESS")}
+          assignmentPublicId={primaryAssignment?.assignmentPublicId || dailyWorkout?.assignmentPublicId || ""}
+          divisions={derivedDivisions}
+          currentDivisionPublicId={effectiveRecommendedDivision?.assignmentPublicId ? dailyWorkout?.targetBlockPublicId || null : null}
+          hasActiveSession={Boolean(unfinishedSession || dailyWorkout?.status === "IN_PROGRESS")}
         />
       )}
     </div>

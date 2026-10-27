@@ -31,6 +31,7 @@ import {
 } from "./rest-timer";
 import { resolveExerciseExecutionMedia } from "@/lib/training-v2/execution-media-resolver";
 import { StudentRuntimeChecklistView } from "./student-runtime-checklist-view";
+import { StudentRuntimeFocusedView } from "./student-runtime-focused-view";
 import { formatDurationToMinutes, formatDurationNatural } from "@/lib/training-v2/reps-normalizer";
 import { getCombinationTheme } from "./training-studio-tokens";
 
@@ -633,7 +634,7 @@ export function StudentWorkoutRenderer({
     }).length;
   const totalExercisesCount = (workout.blocks || []).flatMap((b) => b.items || []).length;
 
-  async function handleStartWorkout() {
+  async function handleStartWorkout(targetBlockPublicIdOverride?: string | null) {
     if (isPreview || !consultancySlug || isStarting || activeSession?.status === "IN_PROGRESS") return;
 
     setIsStarting(true);
@@ -698,9 +699,10 @@ export function StudentWorkoutRenderer({
     }
 
     const targetBlockPublicId =
-      selectedBlockIndex !== null && blocks[selectedBlockIndex]
+      targetBlockPublicIdOverride ||
+      (selectedBlockIndex !== null && blocks[selectedBlockIndex]
         ? blocks[selectedBlockIndex].publicId
-        : initialSelectedBlockPublicId || null;
+        : initialSelectedBlockPublicId || null);
 
     try {
       const res = await startOrResumeWorkoutExecutionAction(
@@ -712,6 +714,11 @@ export function StudentWorkoutRenderer({
       if (res.success && res.session) {
         setActiveSession(res.session);
         setManualRest(null);
+      } else if (res.conflict) {
+        setConflictState({
+          activeSession: res.conflict.activeSession,
+          targetBlock: res.conflict.targetBlock,
+        });
       } else {
         setStartError(res.error || "Erro ao iniciar o treino.");
       }
@@ -808,7 +815,11 @@ export function StudentWorkoutRenderer({
     }
   }
 
-  async function handleCompleteWorkout(options?: { allowEarlyCompletion?: boolean }) {
+  async function handleCompleteWorkout(options?: {
+    allowEarlyCompletion?: boolean;
+    studentCompletionState?: "ALL" | "PARTIAL" | "NONE" | null;
+    studentFeedbackNotes?: string | null;
+  }) {
     if (isPreview || !consultancySlug || !activeSession || activeSession.status !== "IN_PROGRESS" || isCompleting) {
       return;
     }
@@ -1066,6 +1077,25 @@ export function StudentWorkoutRenderer({
     }
   }
 
+  async function handleCompleteExercise(blockItemPublicId: string) {
+    if (isPreview || !consultancySlug || !activeSession || activeSession.status !== "IN_PROGRESS") return;
+    try {
+      const res = await toggleWorkoutExecutionExerciseAction(
+        consultancySlug,
+        activeSession.publicId,
+        blockItemPublicId,
+        true
+      );
+      if (res.success && res.data) {
+        const completedMap = new Map(res.data.completedSets.map((s) => [s.publicId, s]));
+        const updatedSets = activeSession.sets.map((s) => completedMap.get(s.publicId) || s);
+        setActiveSession({ ...activeSession, sets: updatedSets });
+      }
+    } catch (err) {
+      console.error("Error completing exercise directly:", err);
+    }
+  }
+
   const activeBlock =
     selectedBlockIndex !== null && blocks[selectedBlockIndex]
       ? blocks[selectedBlockIndex]
@@ -1076,17 +1106,44 @@ export function StudentWorkoutRenderer({
   return (
     <>
       {/* GUIDED WORKOUT EXECUTION RUNTIME (DESKTOP & MOBILE) */}
-      {activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED") && mobileViewMode === "FOCUSED" ? (
-        <StudentRuntimeChecklistView
-          workout={workout}
-          activeSession={activeSession}
-          consultancySlug={consultancySlug || ""}
-          history={history}
-          activeSubstitutions={swapStatus.activeSubstitutions}
-          remainingSwaps={swapStatus.remainingSwaps}
-          onSessionUpdated={(updated) => setActiveSession(updated)}
-          onToggleOverview={() => setMobileViewMode("OVERVIEW")}
-        />
+      {mobileViewMode === "FOCUSED" ? (
+        activeSession && activeSession.status === "IN_PROGRESS" ? (
+          <StudentRuntimeFocusedView
+            workout={workout}
+            activeSession={activeSession}
+            onCompleteSet={handleCompleteSet}
+            loadingSetPublicId={loadingSetPublicId}
+            activeRest={activeRest}
+            onSkipRest={handleSkipRest}
+            onCompleteWorkout={handleCompleteWorkout}
+            isCompleting={isCompleting}
+            completeError={completeError}
+            history={history}
+            consultancySlug={consultancySlug}
+            onToggleOverview={() => setMobileViewMode("OVERVIEW")}
+            isOffline={isOffline}
+            activeSubstitutions={swapStatus.activeSubstitutions}
+            remainingSwaps={swapStatus.remainingSwaps}
+            onOpenSwapModal={(item) => setSwapModalItem(item)}
+            onCompleteExercise={handleCompleteExercise}
+          />
+        ) : (
+          <StudentRuntimeChecklistView
+            workout={workout}
+            activeSession={activeSession}
+            consultancySlug={consultancySlug || ""}
+            history={history}
+            activeSubstitutions={swapStatus.activeSubstitutions}
+            remainingSwaps={swapStatus.remainingSwaps}
+            initialSelectedBlockPublicId={initialSelectedBlockPublicId}
+            onSessionUpdated={(updated) => setActiveSession(updated)}
+            onToggleOverview={() => setMobileViewMode("OVERVIEW")}
+            onStartWorkout={(blockPublicId) => handleStartWorkout(blockPublicId)}
+            isStartingWorkout={isStarting}
+            startWorkoutError={startError}
+            isPreview={isPreview}
+          />
+        )
       ) : (
         <div className="space-y-6 w-full max-w-5xl mx-auto pb-16">
           {/* Voltar aos meus treinos */}
@@ -1137,6 +1194,18 @@ export function StudentWorkoutRenderer({
                 Escolher Divisão para Treinar
               </span>
               <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setSelectedBlockIndex(null)}
+                  className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 border ${
+                    selectedBlockIndex === null
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                      : "bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border-[var(--border-default)] hover:bg-[var(--surface-subtle)]"
+                  }`}
+                >
+                  <span>Todas as categorias</span>
+                  <span className="ml-1.5 opacity-80">({blocks.length})</span>
+                </button>
                 {blocks.map((b, idx) => {
                   const isSelected = selectedBlockIndex === idx;
                   const bTitle = b.title || `Divisão ${idx + 1}`;

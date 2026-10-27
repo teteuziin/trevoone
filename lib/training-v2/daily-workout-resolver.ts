@@ -89,27 +89,8 @@ export interface DailyWorkoutResolution {
 import { buildStudentWorkoutExecutionUrl } from "./route-helpers";
 export { buildStudentWorkoutExecutionUrl };
 
-const WEEKDAY_NAMES_PT = [
-  "Domingo",
-  "Segunda-feira",
-  "Terça-feira",
-  "Quarta-feira",
-  "Quinta-feira",
-  "Sexta-feira",
-  "Sábado",
-];
+export { parseScheduledWeekdays, formatScheduledWeekdaysLabel } from "./route-helpers";
 
-const WEEKDAY_SHORT_NAMES_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-
-export { parseScheduledWeekdays } from "./route-helpers";
-
-export function formatScheduledWeekdaysLabel(days: number[]): string | null {
-  if (!days || days.length === 0) return null;
-  if (days.length === 1) {
-    return WEEKDAY_NAMES_PT[days[0]];
-  }
-  return days.map((d) => WEEKDAY_SHORT_NAMES_PT[d]).join(", ");
-}
 
 /**
  * Calcula o próximo bloco na sequência considerando os treinos já concluídos no ciclo atual.
@@ -966,8 +947,17 @@ export async function resolveStudentDailyWorkout(
 
     // Mapeia histórico com data civil no fuso da consultoria
     const recentCompletedSessions = (historyRows || []).map((r) => {
-      const completedDateUtc = r.completed_at ? new Date(r.completed_at) : null;
-      const localDate = completedDateUtc ? getConsultancyLocalDate(timeZone, completedDateUtc) : "";
+      let localDate = "";
+      if (r.completed_at) {
+        const completedDateUtc = new Date(r.completed_at);
+        if (!Number.isNaN(completedDateUtc.getTime())) {
+          try {
+            localDate = getConsultancyLocalDate(timeZone, completedDateUtc);
+          } catch {
+            localDate = "";
+          }
+        }
+      }
       return {
         sessionId: Number(r.session_id),
         sessionPublicId: String(r.session_public_id),
@@ -1065,7 +1055,7 @@ export async function resolveStudentDailyWorkout(
             String(currentAssign.assignment_public_id),
             scheduledBlockToday.publicId
           ),
-          actionLabel: "Iniciar treino",
+          actionLabel: "Começar treino",
           canChangeDivision: availableDivisions.length > 1,
           contextNote: `Programado para ${todayWeekdayName}.`,
           exerciseCount: scheduledBlockToday.exerciseCount,
@@ -1157,7 +1147,7 @@ export async function resolveStudentDailyWorkout(
         String(currentAssign.assignment_public_id),
         targetBlock.publicId
       ),
-      actionLabel: isCompletedToday ? "Treinar novamente" : "Iniciar treino",
+      actionLabel: isCompletedToday ? "Treinar novamente" : "Começar treino",
       canChangeDivision: availableDivisions.length > 1,
       contextNote: isCompletedToday
         ? `Você já completou um treino hoje. O próximo na sua sequência é a divisão ${nextIndex + 1} de ${blocksWithSchedule.length}.`
@@ -1172,6 +1162,85 @@ export async function resolveStudentDailyWorkout(
     };
   } catch (error) {
     console.error("[DailyWorkoutResolver] Error resolving daily workout:", error);
+
+    // Fallback gracioso com recuperação autoritativa se houver prescrição ativa
+    try {
+      const fallbackConnection = connection || (await getDbConnection());
+      const tz = options?.consultancyTimezone || "America/Sao_Paulo";
+      const todayDateStr = getConsultancyLocalDate(tz);
+      const [tY, tM, tD] = todayDateStr.split("-").map(Number);
+      const localRefDate = new Date(Date.UTC(tY, tM - 1, tD, 12, 0, 0));
+      const todayWeekday = localRefDate.getUTCDay();
+      const todayWeekdayName = WEEKDAY_NAMES_PT[todayWeekday];
+      const cSlug = options?.consultancySlug || "";
+
+      let fallbackAssignRows: RowDataPacket[] = [];
+      try {
+        const [rows] = await fallbackConnection.execute<RowDataPacket[]>(
+          `SELECT
+             wa.public_id AS assignment_public_id,
+             wv.title AS routine_title,
+             wv.version_number,
+             wv.estimated_duration_minutes
+           FROM workout_assignments wa
+           INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+           WHERE wa.consultancy_id = ?
+             AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
+             AND wa.status = 'ACTIVE'
+             AND wa.deleted_at IS NULL
+           ORDER BY wa.starts_on DESC, wa.created_at DESC
+           LIMIT 1;`,
+          [ctx.consultancyId!, ctx.membershipId!, ctx.userId, ctx.consultancyId!]
+        );
+        fallbackAssignRows = rows;
+      } catch {
+        const [rows] = await fallbackConnection.execute<RowDataPacket[]>(
+          `SELECT
+             wa.public_id AS assignment_public_id,
+             wv.title AS routine_title,
+             wv.version_number,
+             wv.estimated_duration_minutes
+           FROM workout_assignments wa
+           INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+           WHERE wa.consultancy_id = ?
+             AND wa.student_membership_id = ?
+             AND wa.status = 'ACTIVE'
+             AND wa.deleted_at IS NULL
+           ORDER BY wa.starts_on DESC, wa.created_at DESC
+           LIMIT 1;`,
+          [ctx.consultancyId!, ctx.membershipId!]
+        );
+        fallbackAssignRows = rows;
+      }
+
+      if (fallbackAssignRows && fallbackAssignRows.length > 0) {
+        const fAssign = fallbackAssignRows[0];
+        return {
+          status: "AVAILABLE",
+          headlineTitle: "Treino de hoje",
+          divisionTitle: String(fAssign.routine_title || "Ficha de treino"),
+          routineTitle: String(fAssign.routine_title || "Ficha de treino"),
+          versionNumber: Number(fAssign.version_number || 1),
+          assignmentPublicId: String(fAssign.assignment_public_id),
+          targetBlockPublicId: null,
+          targetBlockIndex: 0,
+          actionHref: `/consultoria/${cSlug}/treinos/${fAssign.assignment_public_id}`,
+          actionLabel: "Começar treino",
+          canChangeDivision: true,
+          contextNote: "Ficha ativa disponível para realização.",
+          exerciseCount: undefined,
+          estimatedDurationMinutes: fAssign.estimated_duration_minutes != null ? Number(fAssign.estimated_duration_minutes) : null,
+          availableDivisions: [],
+          todayWeekday,
+          todayWeekdayName,
+          todayDateStr,
+          consultancyTimezone: tz,
+        };
+      }
+    } catch (fallbackErr) {
+      console.warn("[DailyWorkoutResolver] Fallback recovery also failed:", fallbackErr);
+    }
+
     return {
       status: "ERROR",
       headlineTitle: "Falha ao consultar treino",

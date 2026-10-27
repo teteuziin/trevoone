@@ -81,8 +81,8 @@ export function StudentFocusSection({
 
   // Título e divisão sem repetição de "Em andamento"
   const headlineTitle = isError
-    ? "Meu Treino"
-    : (dailyWorkoutResolution?.headlineTitle || "Meu Treino");
+    ? "Treino de hoje"
+    : (dailyWorkoutResolution?.headlineTitle || "Treino de hoje");
   const divisionTitle = dailyWorkoutResolution?.divisionTitle || activeTraining?.title || "Ficha de treino";
   const routineTitle = dailyWorkoutResolution?.routineTitle || activeTraining?.title || "";
   const exerciseCount = isError
@@ -97,12 +97,18 @@ export function StudentFocusSection({
         : null);
 
   let trainingActionHref = dailyWorkoutResolution?.actionHref || `/consultoria/${consultancySlug}/treinos`;
-  let trainingActionLabel = dailyWorkoutResolution?.actionLabel || (isSessionInProgress ? "Retomar treino" : "Iniciar treino");
+  let trainingActionLabel = isSessionInProgress
+    ? "Continuar treino"
+    : isCompletedToday
+    ? "Ver resumo do treino"
+    : isRestDay
+    ? "Escolher um treino"
+    : (dailyWorkoutResolution?.actionLabel === "Iniciar treino" ? "Começar treino" : dailyWorkoutResolution?.actionLabel || "Começar treino");
 
   if (!dailyWorkoutResolution && hasTraining) {
     if (isSessionInProgress && activeSessionAssignmentPublicId) {
       trainingActionHref = `/consultoria/${consultancySlug}/treinos/${activeSessionAssignmentPublicId}`;
-      trainingActionLabel = "Retomar treino";
+      trainingActionLabel = "Continuar treino";
     }
   }
 
@@ -200,24 +206,49 @@ export function StudentFocusSection({
               </div>
             ) : hasTraining ? (
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-3">
-                <div>
-                  {dailyWorkoutResolution?.unfinishedSession && (
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 dark:text-emerald-400 block mb-1">
-                      Treino previsto para hoje
-                    </span>
-                  )}
-                  {/* Nome da Divisão em Destaque Forte */}
-                  <h3 className="text-base sm:text-lg font-black text-zinc-900 dark:text-white tracking-tight">
-                    {divisionTitle}
-                  </h3>
-                  {/* Nome da Ficha como Informação Secundária */}
-                  {routineTitle && (
-                    <p className="text-xs text-zinc-500 dark:text-[#8E95A2] mt-0.5">
-                      Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
-                      {dailyWorkoutResolution?.versionNumber ? ` • Versão ${dailyWorkoutResolution.versionNumber}` : ""}
+                {isRestDay ? (
+                  <div className="p-3.5 rounded-xl bg-blue-500/10 dark:bg-blue-500/5 border border-blue-500/25 space-y-1.5">
+                    <div className="flex items-center gap-2 text-blue-800 dark:text-blue-300 font-bold text-sm">
+                      <span>Hoje não há treino programado.</span>
+                    </div>
+                    <p className="text-xs text-blue-900/80 dark:text-blue-200/80 leading-relaxed">
+                      Hoje é dia de descanso. Você pode escolher e realizar outro treino da sua ficha sem alterar a programação semanal.
                     </p>
-                  )}
-                </div>
+                  </div>
+                ) : isCompletedToday ? (
+                  <div className="p-3.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/25 space-y-1.5">
+                    <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-sm">
+                      <span>✓ Treino de hoje concluído!</span>
+                    </div>
+                    <p className="text-xs text-emerald-900/80 dark:text-emerald-200/80 leading-relaxed">
+                      Você já realizou o treino previsto para hoje ({divisionTitle}).
+                    </p>
+                    {routineTitle && (
+                      <p className="text-xs text-zinc-500 dark:text-[#8E95A2] mt-0.5">
+                        Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    {dailyWorkoutResolution?.unfinishedSession && (
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 dark:text-emerald-400 block mb-1">
+                        Treino previsto para hoje
+                      </span>
+                    )}
+                    {/* Nome da Divisão em Destaque Forte */}
+                    <h3 className="text-base sm:text-lg font-black text-zinc-900 dark:text-white tracking-tight">
+                      {divisionTitle}
+                    </h3>
+                    {/* Nome da Ficha como Informação Secundária */}
+                    {routineTitle && (
+                      <p className="text-xs text-zinc-500 dark:text-[#8E95A2] mt-0.5">
+                        Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
+                        {dailyWorkoutResolution?.versionNumber ? ` • Versão ${dailyWorkoutResolution.versionNumber}` : ""}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Progresso Real da Sessão em Andamento */}
                 {isSessionInProgress && (
@@ -349,26 +380,45 @@ export function StudentFocusSection({
             ) : hasTraining ? (
               <div className="flex flex-wrap items-center gap-2.5 w-full justify-between">
                 <div className="flex items-center gap-2 flex-wrap flex-1">
-                  {/* Ação Principal: Iniciar / Retomar / Continuar */}
-                  <Link
-                    href={trainingActionHref}
-                    className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
-                  >
-                    {isSessionInProgress && (
-                      <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
-                    )}
-                    <span>{trainingActionLabel}</span>
-                    <span>→</span>
-                  </Link>
+                  {/* Ação Principal: Começar treino / Continuar treino / Ver resumo / Escolher treino */}
+                  {isRestDay ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsPickerOpen(true)}
+                      className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                    >
+                      <span>Escolher um treino</span>
+                      <span>→</span>
+                    </button>
+                  ) : isCompletedToday ? (
+                    <Link
+                      href={trainingActionHref}
+                      className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                    >
+                      <span>Ver resumo do treino</span>
+                      <span>→</span>
+                    </Link>
+                  ) : (
+                    <Link
+                      href={trainingActionHref}
+                      className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                    >
+                      {isSessionInProgress && (
+                        <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
+                      )}
+                      <span>{trainingActionLabel}</span>
+                      <span>→</span>
+                    </Link>
+                  )}
 
-                  {/* Ação Secundária: Escolher Outro Treino (Abre Modal de Divisões) */}
-                  {dailyWorkoutResolution?.canChangeDivision && (
+                  {/* Ação Secundária: Escolher Outro Dia (Abre Modal de Divisões) */}
+                  {dailyWorkoutResolution?.canChangeDivision && !isRestDay && (
                     <button
                       type="button"
                       onClick={() => setIsPickerOpen(true)}
                       className="px-3.5 min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-[#303238] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
-                      <span>Escolher outro treino</span>
+                      <span>Escolher outro dia</span>
                     </button>
                   )}
                 </div>

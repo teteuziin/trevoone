@@ -76,7 +76,7 @@ export async function startOrResumeWorkoutExecutionAction(
     return { success: false, error: "Acesso não autorizado à consultoria." };
   }
 
-  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT") && !ctx.hasRole("INFLUENCER")) {
     return { success: false, error: "Apenas alunos podem iniciar execução de treinos." };
   }
 
@@ -134,7 +134,7 @@ export async function completeWorkoutExecutionSetAction(
     return { success: false, error: "Acesso não autorizado à consultoria." };
   }
 
-  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT") && !ctx.hasRole("INFLUENCER")) {
     return { success: false, error: "Apenas alunos podem concluir séries de treino." };
   }
 
@@ -218,7 +218,7 @@ export async function completeWorkoutExecutionAction(
     return { success: false, error: "Acesso não autorizado à consultoria." };
   }
 
-  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT") && !ctx.hasRole("INFLUENCER")) {
     return { success: false, error: "Apenas alunos podem finalizar treinos." };
   }
 
@@ -261,7 +261,7 @@ export async function toggleWorkoutExecutionExerciseAction(
     return { success: false, error: "Acesso não autorizado à consultoria." };
   }
 
-  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT") && !ctx.hasRole("INFLUENCER")) {
     return { success: false, error: "Apenas alunos podem marcar exercícios de treino." };
   }
 
@@ -304,7 +304,7 @@ export async function skipWorkoutExecutionExerciseAction(
     return { success: false, error: "Acesso não autorizado à consultoria." };
   }
 
-  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT") && !ctx.hasRole("INFLUENCER")) {
     return { success: false, error: "Apenas alunos podem pular exercícios de treino." };
   }
 
@@ -345,7 +345,7 @@ export async function syncOfflineWorkoutExecutionAction(
     return { success: false, error: "Acesso não autorizado à consultoria." };
   }
 
-  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT") && !ctx.hasRole("INFLUENCER")) {
     return { success: false, error: "Apenas alunos podem sincronizar treinos." };
   }
 
@@ -386,7 +386,7 @@ export async function getWorkoutExecutionSwapStatusAction(
     return { success: false as const, error: "Acesso não autorizado à consultoria." };
   }
 
-  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT") && !ctx.hasRole("INFLUENCER")) {
     return { success: false as const, error: "Apenas alunos podem consultar substituições." };
   }
 
@@ -427,7 +427,7 @@ export async function requestExerciseAlternativesAction(
     return { success: false as const, error: "Acesso não autorizado à consultoria." };
   }
 
-  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT") && !ctx.hasRole("INFLUENCER")) {
     return { success: false as const, error: "Apenas alunos podem solicitar substituições." };
   }
 
@@ -475,7 +475,7 @@ export async function confirmExerciseSubstitutionAction(
     return { success: false as const, error: "Acesso não autorizado à consultoria." };
   }
 
-  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT") && !ctx.hasRole("INFLUENCER")) {
     return { success: false as const, error: "Apenas alunos podem confirmar substituições." };
   }
 

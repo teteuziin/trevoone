@@ -46,15 +46,6 @@ function Check({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function Clock({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function VideoIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -144,7 +135,11 @@ type StudentRuntimeFocusedViewProps = {
   loadingSetPublicId: string | null;
   activeRest: ActiveRestState | null | undefined;
   onSkipRest: () => void;
-  onCompleteWorkout: (options?: { allowEarlyCompletion?: boolean }) => Promise<void>;
+  onCompleteWorkout: (options?: {
+    allowEarlyCompletion?: boolean;
+    studentCompletionState?: "ALL" | "PARTIAL" | "NONE" | null;
+    studentFeedbackNotes?: string | null;
+  }) => Promise<void>;
   isCompleting: boolean;
   completeError: string | null;
   history: WorkoutExecutionHistorySessionDto[];
@@ -154,6 +149,7 @@ type StudentRuntimeFocusedViewProps = {
   activeSubstitutions?: Record<string, { performedExerciseName: string }>;
   remainingSwaps?: number;
   onOpenSwapModal?: (item: WorkoutBlockItemDto) => void;
+  onCompleteExercise?: (blockItemPublicId: string) => Promise<void>;
 };
 
 export function StudentRuntimeFocusedView({
@@ -173,6 +169,7 @@ export function StudentRuntimeFocusedView({
   activeSubstitutions = {},
   remainingSwaps = 0,
   onOpenSwapModal,
+  onCompleteExercise,
 }: StudentRuntimeFocusedViewProps) {
   // 1. Resolve active division/block
   const currentBlock: WorkoutBlockDto | null = (() => {
@@ -344,7 +341,11 @@ export function StudentRuntimeFocusedView({
   >({});
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showEarlyCompleteModal, setShowEarlyCompleteModal] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const setShowEarlyCompleteModal = setIsFeedbackModalOpen;
+  const [studentCompletionState, setStudentCompletionState] = useState<"ALL" | "PARTIAL" | "NONE">("ALL");
+  const [effortLevel, setEffortLevel] = useState<"LEVE" | "MODERADO" | "INTENSO" | null>(null);
+  const [feedbackNotes, setFeedbackNotes] = useState<string>("");
   const [isIndexDrawerOpen, setIsIndexDrawerOpen] = useState(false);
   const [isExecutionSheetOpen, setIsExecutionSheetOpen] = useState(false);
   const [isSequenceModalOpen, setIsSequenceModalOpen] = useState(false);
@@ -376,6 +377,63 @@ export function StudentRuntimeFocusedView({
         hasEditedReps: true,
       },
     }));
+  };
+
+  const handleStepLoad = (delta: number) => {
+    if (!currentSet) return;
+    const currentBase = displayedLoad ? parseFloat(displayedLoad.replace(",", ".")) : (currentSet.prescribedLoadKg ?? 0);
+    const nextVal = Math.max(0, (isNaN(currentBase) ? 0 : currentBase) + delta);
+    setDraftInputs((prev) => ({
+      ...prev,
+      [currentSet.publicId]: {
+        ...prev[currentSet.publicId],
+        loadKg: nextVal > 0 ? String(nextVal) : "",
+        hasEditedLoad: true,
+      },
+    }));
+  };
+
+  const handleCompleteExerciseDirectly = async () => {
+    if (!currentItemContext || loadingSetPublicId || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (onCompleteExercise) {
+        await onCompleteExercise(currentItemContext.item.publicId);
+      } else {
+        const itemPendingSets = sets.filter(
+          (s) => s.blockItemPublicId === currentItemContext.item.publicId && s.completedAt == null
+        );
+        for (const s of itemPendingSets) {
+          await onCompleteSet(s.publicId, {
+            actualReps: null,
+            actualLoadKg: null,
+            isSkipped: false,
+          });
+        }
+      }
+      setSelectedBlockItemId(null);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleFinalizeFeedbackSubmit = async () => {
+    if (isCompleting) return;
+    const parts: string[] = [];
+    if (effortLevel) {
+      parts.push(`Esforço: ${effortLevel === "LEVE" ? "Leve" : effortLevel === "MODERADO" ? "Moderado" : "Intenso"}`);
+    }
+    if (feedbackNotes.trim()) {
+      parts.push(`Observações: ${feedbackNotes.trim()}`);
+    }
+    const finalNotes = parts.length > 0 ? parts.join("\n\n") : null;
+
+    await onCompleteWorkout({
+      allowEarlyCompletion: true,
+      studentCompletionState,
+      studentFeedbackNotes: finalNotes,
+    });
+    setIsFeedbackModalOpen(false);
   };
 
   const handleRepsInputChange = (val: string) => {
@@ -745,88 +803,120 @@ export function StudentRuntimeFocusedView({
   }
 
   // --------------------------------------------------------------------------
-  // WORKOUT COMPLETED CELEBRATION VIEW
+  // WORKOUT FINALIZATION FEEDBACK VIEW (Requirement 10)
+  // When all sets are completed, ask how the workout was and submit to the server.
+  // Never show "Treino 100% concluído" BEFORE server confirmation!
   // --------------------------------------------------------------------------
   if (allCompleted) {
     return (
-      <div className="space-y-6 pt-4 pb-20 max-w-lg mx-auto text-center px-4 animate-in fade-in duration-300">
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-sm">
-          <TrophyIcon className="w-8 h-8" />
-        </div>
-
-        <div className="space-y-1.5">
-          <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-            Treino 100% Concluído
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] font-heading">
-            Sensacional!
+      <div className="space-y-6 pt-4 pb-20 max-w-lg mx-auto px-4 animate-in fade-in duration-300">
+        <div className="text-center space-y-2">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-sm">
+            <Check className="w-7 h-7 stroke-[2.5]" />
+          </div>
+          <h2 className="text-2xl font-black text-[var(--text-primary)] font-heading">
+            Como foi o treino?
           </h2>
-          <p className="text-xs sm:text-sm text-[var(--text-secondary)] max-w-xs mx-auto leading-relaxed">
-            Você completou todas as séries prescritas para esta rotina. Finalize para salvar seu progresso.
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+            Conte como foi sua sessão para que seu personal acompanhe sua evolução.
           </p>
         </div>
 
-        {/* Summary Metric Chips */}
-        <div className="grid grid-cols-3 gap-2.5 p-4 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-xs">
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block">
-              Duração
-            </span>
-            <span className="text-sm sm:text-base font-extrabold text-[var(--text-primary)] tabular-nums truncate block">
-              {elapsedMinutes > 0 && elapsedMinutes < 720 ? `${elapsedMinutes}m` : "< 1m"}
-            </span>
+        <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-xs space-y-4 depth-surface">
+          {/* Pergunta 1: Conseguiu fazer o treino? */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-[var(--text-primary)] block">
+              Conseguiu fazer o treino?
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: "ALL", label: "Fiz tudo" },
+                { value: "PARTIAL", label: "Fiz parte" },
+                { value: "NONE", label: "Não consegui" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setStudentCompletionState(opt.value as "ALL" | "PARTIAL" | "NONE")}
+                  className={`py-3 px-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                    studentCompletionState === opt.value
+                      ? "bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30"
+                      : "bg-[var(--surface-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="space-y-0.5 border-x border-[var(--border-subtle)]">
-            <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block">
-              Séries Feitas
-            </span>
-            <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
-              {completedCount}
-            </span>
+
+          {/* Pergunta 2: Como foi o esforço? (opcional) */}
+          <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
+            <label className="text-xs font-bold text-[var(--text-primary)] block">
+              Como foi o esforço? <span className="font-normal text-[var(--text-tertiary)]">(opcional)</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: "LEVE", label: "Leve" },
+                { value: "MODERADO", label: "Moderado" },
+                { value: "INTENSO", label: "Intenso" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() =>
+                    setEffortLevel(effortLevel === opt.value ? null : (opt.value as "LEVE" | "MODERADO" | "INTENSO"))
+                  }
+                  className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                    effortLevel === opt.value
+                      ? "bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30"
+                      : "bg-[var(--surface-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block">
-              Exercícios
-            </span>
-            <span className="text-lg font-extrabold text-[var(--text-primary)] tabular-nums">
-              {blockItems.length}
-            </span>
+
+          {/* Pergunta 3: Sentiu algum desconforto ou ficou com alguma dúvida? */}
+          <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
+            <label className="text-xs font-bold text-[var(--text-primary)] block">
+              Sentiu algum desconforto ou ficou com alguma dúvida? <span className="font-normal text-[var(--text-tertiary)]">(opcional)</span>
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Conte se sentiu alguma dor, desconforto ou se ficou com alguma dúvida..."
+              value={feedbackNotes}
+              onChange={(e) => setFeedbackNotes(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs sm:text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500 resize-none"
+            />
           </div>
-        </div>
 
-        {completeError && (
-          <p className="text-xs text-red-500 font-semibold">{completeError}</p>
-        )}
+          {completeError && (
+            <p className="text-xs text-red-500 font-semibold">{completeError}</p>
+          )}
 
-        <div className="pt-4 space-y-3">
-          <button
-            type="button"
-            onClick={() => onCompleteWorkout()}
-            disabled={isCompleting}
-            className="w-full min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            {isCompleting ? (
-              <>
-                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Finalizando treino...</span>
-              </>
-            ) : (
-              <>
-                <Check className="w-5 h-5" />
-                <span>Finalizar treino</span>
-              </>
-            )}
-          </button>
-
-          {onToggleOverview && (
+          <div className="pt-2">
             <button
               type="button"
-              onClick={onToggleOverview}
-              className="w-full min-h-[44px] rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer"
+              onClick={handleFinalizeFeedbackSubmit}
+              disabled={isCompleting}
+              className="w-full min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              Revisar treino completo
+              {isCompleting ? (
+                <>
+                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Finalizando treino...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-5 h-5" />
+                  <span>Finalizar e enviar</span>
+                </>
+              )}
             </button>
-          )}
+          </div>
         </div>
       </div>
     );
@@ -842,12 +932,20 @@ export function StudentRuntimeFocusedView({
     item,
     combination,
     combLetter,
+    nextCombItem,
     totalItemSets,
+    itemSets,
+    currentRoundOrSet,
   } = currentItemContext;
+
+  const totalExercisesCount = blockItems.length;
+  const currentItemIndex = blockItems.findIndex((it) => it.publicId === item.publicId);
+  const exerciseNumber = currentItemIndex >= 0 ? currentItemIndex + 1 : 1;
+  const currentSetNumberInItem = currentRoundOrSet;
+  const hasMethodNote = Boolean(item.methodConfig?.name || item.notes);
 
   const isSequence = Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence);
   const resolvedMedia = resolveExerciseExecutionMedia({ item });
-  const hasVideo = resolvedMedia.hasMedia;
   const isVideoFailed = Boolean(resolvedMedia.url && failedVideoUrl === resolvedMedia.url);
   const isImgFailed = Boolean(resolvedMedia.url && failedImgUrl === resolvedMedia.url);
 
@@ -1018,11 +1116,9 @@ export function StudentRuntimeFocusedView({
           {/* ACTIVE REST TIMER CARD (NON-BLOCKING) */}
           {activeRest && (
             <div className="rounded-2xl overflow-hidden shadow-xs animate-in slide-in-from-top-3 duration-200 space-y-2">
-              {activeRestInfo && (
-                <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-xs font-bold inline-flex items-center gap-1.5 border border-emerald-500/25">
-                  <span>⚡ Descanso ativo prescrito: {activeRestInfo}</span>
-                </div>
-              )}
+              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-xs font-bold inline-flex items-center gap-1.5 border border-emerald-500/25">
+                <span>⚡ Descanso Ativo prescrito{activeRestInfo ? `: ${activeRestInfo}` : ""}</span>
+              </div>
               <RestTimer activeRest={activeRest} onSkip={onSkipRest} />
             </div>
           )}
@@ -1043,16 +1139,60 @@ export function StudentRuntimeFocusedView({
               )}
             </div>
 
+            {/* Topo do exercício: Vídeo/imagem grande mantendo proporção (object-contain), carregamento leve */}
+            {resolvedMedia.hasMedia && resolvedMedia.url && !isVideoFailed && !isImgFailed ? (
+              <div className="w-full max-h-[380px] sm:max-h-[440px] bg-black rounded-2xl overflow-hidden flex items-center justify-center relative shadow-inner">
+                {resolvedMedia.isGif || !resolvedMedia.isVideo ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={resolvedMedia.url}
+                    alt={item.exerciseNameSnapshot}
+                    onError={() => setFailedImgUrl(resolvedMedia.url)}
+                    className="w-full h-full max-h-[380px] sm:max-h-[440px] object-contain"
+                  />
+                ) : (
+                  <video
+                    key={resolvedMedia.url}
+                    src={resolvedMedia.url}
+                    poster={resolvedMedia.thumbnailUrl || undefined}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    onError={() => setFailedVideoUrl(resolvedMedia.url)}
+                    className="w-full h-full max-h-[380px] sm:max-h-[440px] object-contain"
+                  />
+                )}
+              </div>
+            ) : null}
+
             {/* Nome completo do exercício */}
             <div className="space-y-1">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-[var(--text-primary)] tracking-tight font-heading leading-tight">
-                {substitutedInfo ? substitutedInfo.performedExerciseName : item.exerciseNameSnapshot}
-              </h1>
+              <div className="flex items-center justify-between gap-2">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-[var(--text-primary)] tracking-tight font-heading leading-tight">
+                  {substitutedInfo ? substitutedInfo.performedExerciseName : item.exerciseNameSnapshot}
+                </h1>
+                {resolvedMedia.hasMedia && (
+                  <button
+                    type="button"
+                    onClick={() => setIsExecutionSheetOpen(true)}
+                    className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline shrink-0 min-h-[44px] flex items-center gap-1 cursor-pointer"
+                  >
+                    <VideoIcon className="w-3.5 h-3.5" />
+                    <span>Ver execução</span>
+                  </button>
+                )}
+              </div>
 
               {item.muscleGroupSnapshot && (
                 <p className="text-xs text-[var(--text-tertiary)]">
                   {item.muscleGroupSnapshot}{item.equipmentSnapshot ? ` · ${item.equipmentSnapshot}` : ""}
                 </p>
+              )}
+
+              {hasMethodNote && (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                  <span>Método: {item.methodConfig?.name || "Especial"}</span>
+                </div>
               )}
 
               {substitutedInfo && (
@@ -1062,8 +1202,31 @@ export function StudentRuntimeFocusedView({
               )}
             </div>
 
-            {/* "Ver demonstração", quando houver mídia */}
-            {sequenceExperience?.hasPlayableMedia ? (
+            {/* Combination (Bi-set, Tri-set, Circuito) Interleaving Guide */}
+            {combination && (
+              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                    {combination.combinationType.replace("_", "-")} • Rodada {currentRoundOrSet} de {totalItemSets}
+                  </span>
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                    Exercício {combLetter}
+                  </span>
+                </div>
+                {nextCombItem ? (
+                  <p className="text-emerald-900/80 dark:text-emerald-200/80">
+                    Próximo na combinação: <strong>{nextCombItem.exerciseNameSnapshot}</strong> (vá direto, sem descanso).
+                  </p>
+                ) : (
+                  <p className="text-emerald-900/80 dark:text-emerald-200/80">
+                    Último exercício da rodada! Ao concluir, inicie o descanso antes da próxima volta.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* "Ver sequência em vídeo", quando aplicável */}
+            {sequenceExperience?.hasPlayableMedia && (
               <div>
                 <button
                   type="button"
@@ -1074,18 +1237,7 @@ export function StudentRuntimeFocusedView({
                   <span>Ver sequência em vídeo</span>
                 </button>
               </div>
-            ) : hasVideo ? (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setIsExecutionSheetOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-colors cursor-pointer min-h-[44px]"
-                >
-                  <VideoIcon className="w-4 h-4" />
-                  <span>Ver demonstração</span>
-                </button>
-              </div>
-            ) : null}
+            )}
 
             {/* Observações do personal, quando existentes */}
             {item.notes && item.notes.trim().length > 0 && (
@@ -1153,7 +1305,8 @@ export function StudentRuntimeFocusedView({
                 type="button"
                 onClick={handleConfirmCurrentSet}
                 disabled={Boolean(loadingSetPublicId) || isSubmitting}
-                className="w-full min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                aria-label="CONCLUIR SÉRIE"
+                className="w-full min-h-[54px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
               >
                 {loadingSetPublicId === currentSet.publicId || isSubmitting ? (
                   <>
@@ -1166,6 +1319,17 @@ export function StudentRuntimeFocusedView({
                     <span>Concluir série {currentSetNumberInItem}</span>
                   </>
                 )}
+              </button>
+
+              {/* Ação secundária: Marcar exercício como feito */}
+              <button
+                type="button"
+                onClick={handleCompleteExerciseDirectly}
+                disabled={Boolean(loadingSetPublicId) || isSubmitting}
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Marcar exercício como feito</span>
               </button>
 
               {/* Área recolhível "Registrar carga e repetições — opcional" */}
@@ -1241,19 +1405,37 @@ export function StudentRuntimeFocusedView({
                         <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] block">
                           Carga Utilizada (kg)
                         </span>
-                        <div className="flex items-center justify-center gap-1.5 max-w-[180px] mx-auto">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={displayedLoad}
-                            onChange={(e) => handleLoadChange(e.target.value)}
-                            placeholder={currentSet.prescribedLoadKg != null && currentSet.prescribedLoadKg > 0 ? String(currentSet.prescribedLoadKg) : "—"}
-                            className="w-20 h-10 rounded-lg text-center text-base font-extrabold text-[var(--text-primary)] bg-[var(--surface-subtle)] border border-[var(--border-default)] focus:border-emerald-500 focus:outline-hidden transition-all tabular-nums"
-                          />
-                          <span className="text-xs font-bold text-[var(--text-tertiary)]">kg</span>
+                        <div className="flex items-center justify-between gap-2 max-w-[180px] mx-auto">
+                          <button
+                            type="button"
+                            onClick={() => handleStepLoad(-1)}
+                            className="w-9 h-9 min-h-[44px] min-w-[44px] rounded-lg bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] font-extrabold text-base flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                            aria-label="Diminuir carga"
+                          >
+                            -
+                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={displayedLoad}
+                              onChange={(e) => handleLoadChange(e.target.value)}
+                              placeholder={currentSet.prescribedLoadKg != null && currentSet.prescribedLoadKg > 0 ? String(currentSet.prescribedLoadKg) : "—"}
+                              className="w-16 h-10 rounded-lg text-center text-base font-extrabold text-[var(--text-primary)] bg-[var(--surface-subtle)] border border-[var(--border-default)] focus:border-emerald-500 focus:outline-hidden transition-all tabular-nums"
+                            />
+                            <span className="text-xs font-bold text-[var(--text-tertiary)]">kg</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleStepLoad(1)}
+                            className="w-9 h-9 min-h-[44px] min-w-[44px] rounded-lg bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] font-extrabold text-base flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                            aria-label="Aumentar carga"
+                          >
+                            +
+                          </button>
                         </div>
                         <span className="text-[10px] text-[var(--text-tertiary)] block">
-                          {currentDraft?.hasEditedLoad ? "Modificado para esta série" : currentSet.prescribedLoadKg ? `Prescrito: ${currentSet.prescribedLoadKg} kg` : "Sem carga"}
+                          {currentDraft?.hasEditedLoad ? "Modificado para esta série" : currentSet.prescribedLoadKg ? `Prescrito: ${currentSet.prescribedLoadKg} kg` : "Livre"}
                         </span>
                       </div>
                     </div>
@@ -1265,7 +1447,7 @@ export function StudentRuntimeFocusedView({
             {/* AÇÕES COMPLEMENTARES */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-[var(--border-subtle)]">
               <div className="flex items-center gap-2">
-                {onOpenSwapModal && remainingSwaps > 0 && (
+                {onOpenSwapModal && remainingSwaps > 0 && item.alternatives && item.alternatives.length > 0 && (
                   <button
                     type="button"
                     onClick={() => onOpenSwapModal(item)}
@@ -1332,7 +1514,7 @@ export function StudentRuntimeFocusedView({
                           type="button"
                           onClick={() => {
                             setIsMoreOptionsOpen(false);
-                            setShowEarlyCompleteModal(true);
+                            setIsFeedbackModalOpen(true);
                           }}
                           disabled={isCompleting}
                           className="w-full min-h-[44px] px-3 py-2 rounded-xl text-left text-xs font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
@@ -1377,47 +1559,117 @@ export function StudentRuntimeFocusedView({
       </div>
 
       {/* ==================================================================== */}
-      {/* EARLY COMPLETION MODAL */}
+      {/* FINALIZATION FEEDBACK MODAL (Early or Manual Finalization) */}
       {/* ==================================================================== */}
-      {showEarlyCompleteModal && (
+      {isFeedbackModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--surface-elevated)] border border-[var(--border-default)] p-6 sm:p-7 space-y-4 shadow-xl">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
-              <Clock className="w-6 h-6" />
+          <div className="w-full max-w-md rounded-3xl bg-[var(--surface-elevated)] border border-[var(--border-default)] p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[var(--text-primary)] font-heading">
+                Como foi o treino?
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsFeedbackModalOpen(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              >
+                ✕
+              </button>
             </div>
 
-            <div className="text-center space-y-1.5">
-              <h3 className="text-lg font-bold text-[var(--text-primary)] font-heading">
-                Finalizar treino agora?
-              </h3>
+            {pendingSets.length > 0 && (
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Você ainda tem <strong>{pendingSets.length}</strong> {pendingSets.length === 1 ? "série para fazer" : "séries para fazer"}. Deseja finalizar agora?
+                Você ainda tem <strong>{pendingSets.length}</strong> {pendingSets.length === 1 ? "série para fazer" : "séries para fazer"}. Ao finalizar agora, seu progresso será salvo e enviado ao seu personal.
               </p>
-              <p className="text-[11px] text-[var(--text-tertiary)] pt-1">
-                Ao finalizar, as séries não realizadas serão registradas como encerradas antecipadamente e seu progresso será salvo.
-              </p>
+            )}
+
+            {/* Pergunta 1: Conseguiu fazer o treino? */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[var(--text-primary)] block">
+                Conseguiu fazer o treino?
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "ALL", label: "Fiz tudo" },
+                  { value: "PARTIAL", label: "Fiz parte" },
+                  { value: "NONE", label: "Não consegui" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setStudentCompletionState(opt.value as "ALL" | "PARTIAL" | "NONE")}
+                    className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                      studentCompletionState === opt.value
+                        ? "bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30"
+                        : "bg-[var(--surface-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Pergunta 2: Como foi o esforço? (opcional) */}
+            <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
+              <label className="text-xs font-bold text-[var(--text-primary)] block">
+                Como foi o esforço? <span className="font-normal text-[var(--text-tertiary)]">(opcional)</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "LEVE", label: "Leve" },
+                  { value: "MODERADO", label: "Moderado" },
+                  { value: "INTENSO", label: "Intenso" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      setEffortLevel(effortLevel === opt.value ? null : (opt.value as "LEVE" | "MODERADO" | "INTENSO"))
+                    }
+                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                      effortLevel === opt.value
+                        ? "bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30"
+                        : "bg-[var(--surface-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Pergunta 3: Sentiu algum desconforto ou ficou com alguma dúvida? */}
+            <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
+              <label className="text-xs font-bold text-[var(--text-primary)] block">
+                Sentiu algum desconforto ou ficou com alguma dúvida? <span className="font-normal text-[var(--text-tertiary)]">(opcional)</span>
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Conte se sentiu alguma dor, desconforto ou se ficou com alguma dúvida..."
+                value={feedbackNotes}
+                onChange={(e) => setFeedbackNotes(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500 resize-none"
+              />
             </div>
 
             {completeError && (
-              <p className="text-xs text-red-500 font-semibold text-center">{completeError}</p>
+              <p className="text-xs text-red-500 font-semibold">{completeError}</p>
             )}
 
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setShowEarlyCompleteModal(false)}
+                onClick={() => setIsFeedbackModalOpen(false)}
                 className="min-h-[48px] px-4 py-2.5 rounded-xl border border-[var(--border-default)] text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer"
               >
-                Continuar treinando
+                Voltar
               </button>
               <button
                 type="button"
-                onClick={async () => {
-                  setShowEarlyCompleteModal(false);
-                  await onCompleteWorkout({ allowEarlyCompletion: true });
-                }}
+                onClick={handleFinalizeFeedbackSubmit}
                 disabled={isCompleting}
-                className="min-h-[48px] px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                className="min-h-[48px] px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isCompleting ? (
                   <>
@@ -1425,7 +1677,7 @@ export function StudentRuntimeFocusedView({
                     <span>Finalizando...</span>
                   </>
                 ) : (
-                  <span>Finalizar treino</span>
+                  <span>Finalizar e enviar</span>
                 )}
               </button>
             </div>
@@ -1448,7 +1700,7 @@ export function StudentRuntimeFocusedView({
               type="button"
               onClick={() => {
                 setIsIndexDrawerOpen(false);
-                setShowEarlyCompleteModal(true);
+                setIsFeedbackModalOpen(true);
               }}
               className="w-full min-h-[48px] rounded-xl border border-amber-500/30 text-amber-700 dark:text-amber-400 font-bold text-xs flex items-center justify-center cursor-pointer"
             >

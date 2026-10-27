@@ -2,12 +2,33 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   DuotoneTrainingIcon,
   DuotoneNutritionIcon,
 } from "@/components/ui/icons/duotone-icons";
 import type { DailyWorkoutResolution } from "@/lib/training-v2/daily-workout-resolver";
+import { buildStudentWorkoutExecutionUrl } from "@/lib/training-v2/route-helpers";
 import { WorkoutDivisionPickerModal } from "./workout-division-picker-modal";
+import { StudentWorkoutCompletionModal } from "./student-workout-completion-modal";
+import { StudentWorkoutRestartModal } from "./student-workout-restart-modal";
+
+interface SessionToComplete {
+  sessionPublicId: string;
+  divisionTitle: string;
+  startedFormatted?: string;
+  totalExercisesCount: number;
+  completedExercisesCount: number;
+  totalSetsCount?: number;
+  completedSetsCount?: number;
+}
+
+interface SessionToRestart {
+  assignmentPublicId: string;
+  blockPublicId?: string | null;
+  divisionTitle: string;
+  startedFormatted?: string;
+}
 
 export interface StudentRoutineItem {
   publicId?: string;
@@ -66,7 +87,10 @@ export function StudentFocusSection({
   dailyWorkoutResolution,
   displayMode = "all",
 }: StudentFocusSectionProps) {
+  const router = useRouter();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [sessionToComplete, setSessionToComplete] = useState<SessionToComplete | null>(null);
+  const [sessionToRestart, setSessionToRestart] = useState<SessionToRestart | null>(null);
 
   const status = dailyWorkoutResolution?.status;
   const isError = status === "ERROR";
@@ -114,6 +138,85 @@ export function StudentFocusSection({
       trainingActionLabel = "Começar treino";
     }
   }
+
+  const unfinished = dailyWorkoutResolution?.unfinishedSession;
+  const isUnfinishedAllDone = Boolean(
+    unfinished &&
+      ((unfinished.totalSetsCount > 0 &&
+        unfinished.completedSetsCount >= unfinished.totalSetsCount) ||
+        (unfinished.totalExercisesCount > 0 &&
+          unfinished.completedExercisesCount >= unfinished.totalExercisesCount))
+  );
+
+  const isActiveSessionAllDone = Boolean(
+    isSessionInProgress &&
+      ((dailyWorkoutResolution?.totalSetsCount &&
+        (dailyWorkoutResolution?.completedSetsCount ?? 0) >=
+          dailyWorkoutResolution.totalSetsCount) ||
+        (exerciseCount > 0 &&
+          (dailyWorkoutResolution?.completedExercisesCount ?? 0) >= exerciseCount))
+  );
+
+  const handleOpenCompletionForUnfinished = () => {
+    if (!unfinished) return;
+    setSessionToComplete({
+      sessionPublicId: unfinished.sessionPublicId,
+      divisionTitle: unfinished.divisionTitle,
+      startedFormatted: unfinished.startedFormatted,
+      totalExercisesCount: unfinished.totalExercisesCount,
+      completedExercisesCount: unfinished.completedExercisesCount,
+      totalSetsCount: unfinished.totalSetsCount,
+      completedSetsCount: unfinished.completedSetsCount,
+    });
+  };
+
+  const handleOpenRestartForUnfinished = () => {
+    if (!unfinished) return;
+    setSessionToRestart({
+      assignmentPublicId: unfinished.assignmentPublicId,
+      blockPublicId: unfinished.blockPublicId,
+      divisionTitle: unfinished.divisionTitle,
+      startedFormatted: unfinished.startedFormatted,
+    });
+  };
+
+  const handleOpenCompletionForActive = () => {
+    if (!dailyWorkoutResolution?.activeSessionPublicId) return;
+    setSessionToComplete({
+      sessionPublicId: dailyWorkoutResolution.activeSessionPublicId,
+      divisionTitle: divisionTitle,
+      startedFormatted: dailyWorkoutResolution.activeSessionStartedFormatted || "Hoje",
+      totalExercisesCount: exerciseCount,
+      completedExercisesCount: dailyWorkoutResolution.completedExercisesCount ?? 0,
+      totalSetsCount: dailyWorkoutResolution.totalSetsCount,
+      completedSetsCount: dailyWorkoutResolution.completedSetsCount,
+    });
+  };
+
+  const handleOpenRestartForActive = () => {
+    if (!dailyWorkoutResolution?.assignmentPublicId) return;
+    setSessionToRestart({
+      assignmentPublicId: dailyWorkoutResolution.assignmentPublicId,
+      blockPublicId: dailyWorkoutResolution.targetBlockPublicId,
+      divisionTitle: divisionTitle,
+      startedFormatted: dailyWorkoutResolution.activeSessionStartedFormatted || "Hoje",
+    });
+  };
+
+  const handleCompletionSuccess = () => {
+    router.refresh();
+  };
+
+  const handleRestartSuccess = (targetBlockPublicId: string | null) => {
+    const assignmentId =
+      sessionToRestart?.assignmentPublicId || dailyWorkoutResolution?.assignmentPublicId;
+    if (assignmentId) {
+      router.push(
+        buildStudentWorkoutExecutionUrl(consultancySlug, assignmentId, targetBlockPublicId)
+      );
+    }
+    router.refresh();
+  };
 
   const hasNutrition = Boolean(activeNutrition);
   const meals = activeNutrition?.meals || [];
@@ -274,7 +377,7 @@ export function StudentFocusSection({
                 )}
 
                 {/* Se houver sessão aberta anterior: mostrar separadamente com divisão e data real de início */}
-                {dailyWorkoutResolution?.unfinishedSession && (
+                {unfinished && (
                   <div className="p-3.5 sm:p-4 rounded-xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/30 text-xs space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
@@ -282,36 +385,93 @@ export function StudentFocusSection({
                         <span>Treino não finalizado</span>
                       </span>
                       <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
-                        Iniciado em {dailyWorkoutResolution.unfinishedSession.startedFormatted}
+                        Iniciado em {unfinished.startedFormatted}
                       </span>
                     </div>
                     <div>
                       <h4 className="text-sm font-extrabold text-amber-950 dark:text-amber-100">
-                        {dailyWorkoutResolution.unfinishedSession.divisionTitle}
+                        {unfinished.divisionTitle}
                       </h4>
                       <p className="text-[11px] text-amber-900/80 dark:text-amber-200/80 mt-0.5">
-                        Progresso: <strong>{dailyWorkoutResolution.unfinishedSession.completedSetsCount} de {dailyWorkoutResolution.unfinishedSession.totalSetsCount} séries concluídas</strong>
-                        {dailyWorkoutResolution.unfinishedSession.totalExercisesCount > 0 && (
-                          <span> ({dailyWorkoutResolution.unfinishedSession.completedExercisesCount} de {dailyWorkoutResolution.unfinishedSession.totalExercisesCount} exercícios)</span>
+                        Progresso:{" "}
+                        <strong>
+                          {unfinished.completedSetsCount} de {unfinished.totalSetsCount} séries concluídas
+                        </strong>
+                        {unfinished.totalExercisesCount > 0 && (
+                          <span>
+                            {" "}
+                            ({unfinished.completedExercisesCount} de {unfinished.totalExercisesCount} exercícios)
+                          </span>
                         )}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <Link
-                        href={dailyWorkoutResolution.unfinishedSession.actionHref}
-                        className="px-3.5 py-2 min-h-[44px] rounded-xl font-bold text-xs bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        <span>Continuar treino anterior</span>
-                        <span>→</span>
-                      </Link>
-                      {dailyWorkoutResolution.canChangeDivision && (
-                        <button
-                          type="button"
-                          onClick={() => setIsPickerOpen(true)}
-                          className="px-3.5 py-2 min-h-[44px] rounded-xl font-semibold text-xs bg-white dark:bg-[#1B1D21] hover:bg-zinc-100 dark:hover:bg-[#252830] text-amber-900 dark:text-amber-200 border border-amber-500/30 transition-colors cursor-pointer"
-                        >
-                          Escolher outro
-                        </button>
+                      {isUnfinishedAllDone ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleOpenCompletionForUnfinished}
+                            className="px-4 py-2 min-h-[44px] rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs select-none"
+                          >
+                            <span>✓ Finalizar treino</span>
+                          </button>
+                          <Link
+                            href={unfinished.actionHref}
+                            className="px-3.5 py-2 min-h-[44px] rounded-xl font-semibold text-xs bg-white dark:bg-[#1B1D21] hover:bg-zinc-100 dark:hover:bg-[#252830] text-amber-900 dark:text-amber-200 border border-amber-500/30 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <span>Continuar</span>
+                            <span>→</span>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={handleOpenRestartForUnfinished}
+                            className="px-3.5 py-2 min-h-[44px] rounded-xl font-semibold text-xs bg-white dark:bg-[#1B1D21] hover:bg-zinc-100 dark:hover:bg-[#252830] text-amber-900 dark:text-amber-200 border border-amber-500/30 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <span>Começar do início</span>
+                          </button>
+                          {dailyWorkoutResolution?.canChangeDivision && (
+                            <button
+                              type="button"
+                              onClick={() => setIsPickerOpen(true)}
+                              className="px-3.5 py-2 min-h-[44px] rounded-xl font-semibold text-xs bg-white dark:bg-[#1B1D21] hover:bg-zinc-100 dark:hover:bg-[#252830] text-amber-900 dark:text-amber-200 border border-amber-500/30 transition-colors cursor-pointer"
+                            >
+                              Escolher outro
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            href={unfinished.actionHref}
+                            className="px-4 py-2 min-h-[44px] rounded-xl font-bold text-xs bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs select-none"
+                          >
+                            <span>Continuar treino anterior</span>
+                            <span>→</span>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={handleOpenCompletionForUnfinished}
+                            className="px-3.5 py-2 min-h-[44px] rounded-xl font-semibold text-xs bg-white dark:bg-[#1B1D21] hover:bg-zinc-100 dark:hover:bg-[#252830] text-amber-900 dark:text-amber-200 border border-amber-500/30 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <span>Finalizar treino</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleOpenRestartForUnfinished}
+                            className="px-3.5 py-2 min-h-[44px] rounded-xl font-semibold text-xs bg-white dark:bg-[#1B1D21] hover:bg-zinc-100 dark:hover:bg-[#252830] text-amber-900 dark:text-amber-200 border border-amber-500/30 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <span>Começar do início</span>
+                          </button>
+                          {dailyWorkoutResolution?.canChangeDivision && (
+                            <button
+                              type="button"
+                              onClick={() => setIsPickerOpen(true)}
+                              className="px-3.5 py-2 min-h-[44px] rounded-xl font-semibold text-xs bg-white dark:bg-[#1B1D21] hover:bg-zinc-100 dark:hover:bg-[#252830] text-amber-900 dark:text-amber-200 border border-amber-500/30 transition-colors cursor-pointer"
+                            >
+                              Escolher outro
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -383,7 +543,7 @@ export function StudentFocusSection({
             ) : hasTraining ? (
               <div className="flex flex-wrap items-center gap-2.5 w-full justify-between">
                 <div className="flex items-center gap-2 flex-wrap flex-1">
-                  {/* Ação Principal: Começar treino / Continuar treino / Ver resumo / Escolher treino */}
+                  {/* Ação Principal e Secundárias de Execução */}
                   {isRestDay ? (
                     <button
                       type="button"
@@ -401,14 +561,57 @@ export function StudentFocusSection({
                       <span>Ver resumo do treino</span>
                       <span>→</span>
                     </Link>
+                  ) : isSessionInProgress ? (
+                    <>
+                      {isActiveSessionAllDone ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleOpenCompletionForActive}
+                            className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                          >
+                            <span>✓ Finalizar treino</span>
+                          </button>
+                          <Link
+                            href={trainingActionHref}
+                            className="px-4 min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-[#303238] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <span>Continuar treino</span>
+                            <span>→</span>
+                          </Link>
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            href={trainingActionHref}
+                            className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
+                            <span>Continuar treino</span>
+                            <span>→</span>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={handleOpenCompletionForActive}
+                            className="px-3.5 min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-[#303238] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <span>Finalizar treino</span>
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleOpenRestartForActive}
+                        className="px-3.5 min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-[#303238] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <span>Começar do início</span>
+                      </button>
+                    </>
                   ) : (
                     <Link
                       href={trainingActionHref}
                       className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
                     >
-                      {isSessionInProgress && (
-                        <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
-                      )}
                       <span>{trainingActionLabel}</span>
                       <span>→</span>
                     </Link>
@@ -582,6 +785,39 @@ export function StudentFocusSection({
           divisions={dailyWorkoutResolution.availableDivisions}
           currentDivisionPublicId={dailyWorkoutResolution.targetBlockPublicId}
           hasActiveSession={isSessionInProgress}
+        />
+      )}
+
+      {/* Modal para Finalizar Treino Diretamente com Relato Fiel */}
+      {sessionToComplete && (
+        <StudentWorkoutCompletionModal
+          key={sessionToComplete.sessionPublicId}
+          isOpen={Boolean(sessionToComplete)}
+          onClose={() => setSessionToComplete(null)}
+          consultancySlug={consultancySlug}
+          sessionPublicId={sessionToComplete.sessionPublicId}
+          divisionTitle={sessionToComplete.divisionTitle}
+          startedFormatted={sessionToComplete.startedFormatted}
+          totalExercisesCount={sessionToComplete.totalExercisesCount}
+          completedExercisesCount={sessionToComplete.completedExercisesCount}
+          totalSetsCount={sessionToComplete.totalSetsCount}
+          completedSetsCount={sessionToComplete.completedSetsCount}
+          onSuccess={handleCompletionSuccess}
+        />
+      )}
+
+      {/* Modal para Reiniciar Execução com Confirmação e Preservação de Histórico */}
+      {sessionToRestart && (
+        <StudentWorkoutRestartModal
+          key={`${sessionToRestart.assignmentPublicId}-${sessionToRestart.blockPublicId || "default"}`}
+          isOpen={Boolean(sessionToRestart)}
+          onClose={() => setSessionToRestart(null)}
+          consultancySlug={consultancySlug}
+          assignmentPublicId={sessionToRestart.assignmentPublicId}
+          blockPublicId={sessionToRestart.blockPublicId}
+          divisionTitle={sessionToRestart.divisionTitle}
+          startedFormatted={sessionToRestart.startedFormatted}
+          onSuccess={handleRestartSuccess}
         />
       )}
     </div>

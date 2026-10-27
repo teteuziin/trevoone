@@ -115,7 +115,7 @@ async function verifyUserMembershipOwnership(
 async function queryExecutionSessionWithBlock(
   connection: PoolConnection,
   whereClause: string,
-  params: (string | number | boolean | null | Date | undefined)[],
+  params: (string | number | boolean | null | Date)[],
   forUpdate = false,
   orderByClause?: string
 ): Promise<RowDataPacket[]> {

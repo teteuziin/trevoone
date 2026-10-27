@@ -66,6 +66,7 @@ export interface DailyWorkoutResolution {
   isSessionStartedToday?: boolean;
   completedExercisesCount?: number;
   completedSetsCount?: number;
+  totalSetsCount?: number;
   todayRecommendedWorkout?: {
     divisionTitle: string;
     blockPublicId?: string;
@@ -565,6 +566,7 @@ export async function resolveStudentDailyWorkout(
           isSessionStartedToday: true,
           completedExercisesCount,
           completedSetsCount,
+          totalSetsCount,
           unfinishedSession: null,
         };
       }

@@ -105,10 +105,13 @@ export function StudentFocusSection({
     ? "Escolher um treino"
     : (dailyWorkoutResolution?.actionLabel === "Iniciar treino" ? "Começar treino" : dailyWorkoutResolution?.actionLabel || "Começar treino");
 
-  if (!dailyWorkoutResolution && hasTraining) {
+  if ((!dailyWorkoutResolution || status === "ERROR") && hasTraining) {
     if (isSessionInProgress && activeSessionAssignmentPublicId) {
       trainingActionHref = `/consultoria/${consultancySlug}/treinos/${activeSessionAssignmentPublicId}`;
       trainingActionLabel = "Continuar treino";
+    } else if (activeTraining?.workouts && activeTraining.workouts.length > 0) {
+      trainingActionHref = `/consultoria/${consultancySlug}/treinos/${activeTraining.workouts[0].publicId}`;
+      trainingActionLabel = "Começar treino";
     }
   }
 

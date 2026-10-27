@@ -230,7 +230,7 @@ export function StudentRuntimeFocusedView({
   const sets = useMemo(() => {
     const allSessionSets = activeSession.sets || [];
     if (currentBlockItemIds.size === 0) return allSessionSets;
-    const filtered = allSessionSets.filter((s) => currentBlockItemIds.has(s.blockItemPublicId));
+    const filtered = allSessionSets.filter((s) => Boolean(s.blockItemPublicId && currentBlockItemIds.has(s.blockItemPublicId)));
     return filtered.length > 0 ? filtered : allSessionSets;
   }, [activeSession.sets, currentBlockItemIds]);
 
@@ -342,7 +342,6 @@ export function StudentRuntimeFocusedView({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
-  const setShowEarlyCompleteModal = setIsFeedbackModalOpen;
   const [studentCompletionState, setStudentCompletionState] = useState<"ALL" | "PARTIAL" | "NONE">("ALL");
   const [effortLevel, setEffortLevel] = useState<"LEVE" | "MODERADO" | "INTENSO" | null>(null);
   const [feedbackNotes, setFeedbackNotes] = useState<string>("");
@@ -942,7 +941,7 @@ export function StudentRuntimeFocusedView({
   const currentItemIndex = blockItems.findIndex((it) => it.publicId === item.publicId);
   const exerciseNumber = currentItemIndex >= 0 ? currentItemIndex + 1 : 1;
   const currentSetNumberInItem = currentRoundOrSet;
-  const hasMethodNote = Boolean(item.methodConfig?.name || item.notes);
+  const hasMethodNote = Boolean((item.methodConfig as Record<string, unknown> | null)?.name || item.notes);
 
   const isSequence = Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence);
   const resolvedMedia = resolveExerciseExecutionMedia({ item });
@@ -1191,7 +1190,7 @@ export function StudentRuntimeFocusedView({
 
               {hasMethodNote && (
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                  <span>Método: {item.methodConfig?.name || "Especial"}</span>
+                  <span>Método: {String((item.methodConfig as Record<string, unknown> | null)?.name || "Especial")}</span>
                 </div>
               )}
 

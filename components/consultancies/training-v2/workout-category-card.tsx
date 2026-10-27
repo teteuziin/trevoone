@@ -2472,6 +2472,7 @@ export type LegacyCombinationCardProps = {
     item: WorkoutBlockItemDto,
     movements: DetectedMovement[]
   ) => void;
+  onOpenAlternatives?: (item: WorkoutBlockItemDto) => void;
 };
 
 export function LegacyCombinationCard({
@@ -2503,6 +2504,7 @@ export function LegacyCombinationCard({
   onMoveItemInCombination,
   onRemoveItemFromCombination,
   onOpenConfigureSequence,
+  onOpenAlternatives,
 }: LegacyCombinationCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(combination.title || "");
@@ -2811,7 +2813,7 @@ export function LegacyCombinationCard({
                 onRemoveFromCombination={() =>
                   onRemoveItemFromCombination?.(combination.publicId, item.publicId) || Promise.resolve()
                 }
-                onOpenAlternatives={() => setManagingAlternativesItem(item)}
+                onOpenAlternatives={() => onOpenAlternatives?.(item)}
               />
 
               {/* Direct Transition Connector between Items */}

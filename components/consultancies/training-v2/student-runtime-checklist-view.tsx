@@ -9,6 +9,7 @@ import type {
   WorkoutExecutionHistorySessionDto,
   WorkoutBlockDto,
   WorkoutBlockItemDto,
+  BlockItemMediaDto,
 } from "@/lib/training-v2/types";
 import {
   toggleWorkoutExecutionExerciseAction,
@@ -18,7 +19,7 @@ import {
 } from "@/app/consultoria/[slug]/treinos/actions";
 import { StudentExerciseSwapModal } from "./student-exercise-swap-modal";
 import { resolveExerciseExecutionMedia } from "@/lib/training-v2/execution-media-resolver";
-import type { ActiveSubstitutedItem } from "@/lib/training-v2/exercise-substitution-types";
+import type { ExerciseSwapReason } from "@/lib/training-v2/exercise-substitution-types";
 
 // ============================================================================
 // ICONS
@@ -92,7 +93,17 @@ export interface StudentRuntimeChecklistViewProps {
   activeSession?: WorkoutExecutionSessionDto | null;
   consultancySlug: string;
   history?: WorkoutExecutionHistorySessionDto[];
-  activeSubstitutions?: Record<string, ActiveSubstitutedItem>;
+  activeSubstitutions?: Record<
+    string,
+    {
+      performedExercisePublicId?: string;
+      performedExerciseName: string;
+      performedMuscleGroup?: string;
+      reason?: ExerciseSwapReason;
+      reasonLabel?: string;
+      pinnedMedia?: BlockItemMediaDto[];
+    }
+  >;
   remainingSwaps?: number;
   initialSelectedBlockPublicId?: string | null;
   onSessionUpdated?: (session: WorkoutExecutionSessionDto) => void;
@@ -185,6 +196,7 @@ export function StudentRuntimeChecklistView({
     const map = new Map<string, WorkoutExecutionSetDto[]>();
     if (!sessionSets) return map;
     for (const s of sessionSets) {
+      if (!s.blockItemPublicId) continue;
       const list = map.get(s.blockItemPublicId) || [];
       list.push(s);
       map.set(s.blockItemPublicId, list);
@@ -228,7 +240,7 @@ export function StudentRuntimeChecklistView({
 
   // Server-confirmed completion session
   const [confirmedCompletedSession, setConfirmedCompletedSession] = useState<WorkoutExecutionSessionDto | null>(
-    isSessionCompleted ? activeSession : null
+    isSessionCompleted ? activeSession ?? null : null
   );
 
   // --------------------------------------------------------------------------
@@ -861,7 +873,7 @@ export function StudentRuntimeChecklistView({
 
               {/* Botões de Apoio: Ver vídeo / Como fazer + Iniciar descanso */}
               <div className="flex flex-wrap items-center gap-2 mb-3">
-                {media.hasMedia && media.videoUrl ? (
+                {media.hasMedia && media.isVideo ? (
                   <button
                     type="button"
                     onClick={() => setVideoModalItem(item)}
@@ -870,7 +882,7 @@ export function StudentRuntimeChecklistView({
                     <PlayIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span>Ver vídeo</span>
                   </button>
-                ) : hasInstructions || (media.hasMedia && !media.videoUrl) ? (
+                ) : hasInstructions || (media.hasMedia && !media.isVideo) ? (
                   <button
                     type="button"
                     onClick={() => setVideoModalItem(item)}
@@ -1401,9 +1413,8 @@ export function StudentRuntimeChecklistView({
           onClose={() => setSwapModalItem(null)}
           consultancySlug={consultancySlug}
           sessionPublicId={activeSession.publicId}
-          originalBlockItemPublicId={swapModalItem.publicId}
-          originalExerciseName={swapModalItem.exerciseNameSnapshot || "Exercício"}
-          muscleGroup={swapModalItem.muscleGroupSnapshot}
+          item={swapModalItem}
+          currentExerciseName={swapModalItem.exerciseNameSnapshot || "Exercício"}
           remainingSwaps={remainingSwaps}
           onSwapConfirmed={() => {
             setSwapModalItem(null);

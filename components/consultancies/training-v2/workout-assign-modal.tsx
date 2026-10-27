@@ -90,7 +90,7 @@ export function WorkoutAssignModal({
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  const handleSelectStudent = (selectedStudent: ActiveStudentDto | null) => {
+  const handleSelectStudent = (selectedStudent: StudentSearchResult | null) => {
     setSelectedStudent(selectedStudent);
     if (selectedStudent) {
       setCustomTitle((prev) => {

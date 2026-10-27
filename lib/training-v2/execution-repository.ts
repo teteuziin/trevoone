@@ -115,7 +115,7 @@ async function verifyUserMembershipOwnership(
 async function queryExecutionSessionWithBlock(
   connection: PoolConnection,
   whereClause: string,
-  params: unknown[],
+  params: (string | number | boolean | null | Date | undefined)[],
   forUpdate = false,
   orderByClause?: string
 ): Promise<RowDataPacket[]> {
@@ -1866,6 +1866,8 @@ export async function completeWorkoutExecution(
     if (notifIdToDeliver) {
       await deliverNotificationAfterCommit(notifIdToDeliver);
     }
+
+    const now = new Date();
 
     return {
       publicId: String(s.public_id),

@@ -13,6 +13,7 @@ export type DailyWorkoutDecisionStatus =
   | "SEQUENCE_COMPLETED"  // Prioridade C: Treino sequencial concluído hoje
   | "CHOOSE_WORKOUT"      // Prioridade D: Prescrição sem programação clara ou ambígua
   | "NO_ASSIGNMENT"       // Sem ficha/rotina atribuída
+  | "AVAILABLE"           // Ficha ativa disponível para realização
   | "ERROR";              // Falha ao carregar
 
 export interface DailyWorkoutDivisionOption {
@@ -86,10 +87,13 @@ export interface DailyWorkoutResolution {
   } | null;
 }
 
-import { buildStudentWorkoutExecutionUrl } from "./route-helpers";
-export { buildStudentWorkoutExecutionUrl };
-
-export { parseScheduledWeekdays, formatScheduledWeekdaysLabel } from "./route-helpers";
+import {
+  buildStudentWorkoutExecutionUrl,
+  parseScheduledWeekdays,
+  formatScheduledWeekdaysLabel,
+  WEEKDAY_NAMES_PT,
+} from "./route-helpers";
+export { buildStudentWorkoutExecutionUrl, parseScheduledWeekdays, formatScheduledWeekdaysLabel, WEEKDAY_NAMES_PT };
 
 
 /**
@@ -1164,8 +1168,9 @@ export async function resolveStudentDailyWorkout(
     console.error("[DailyWorkoutResolver] Error resolving daily workout:", error);
 
     // Fallback gracioso com recuperação autoritativa se houver prescrição ativa
+    let fallbackConnection = null;
     try {
-      const fallbackConnection = connection || (await getDbConnection());
+      fallbackConnection = await getDbConnection();
       const tz = options?.consultancyTimezone || "America/Sao_Paulo";
       const todayDateStr = getConsultancyLocalDate(tz);
       const [tY, tM, tD] = todayDateStr.split("-").map(Number);
@@ -1239,6 +1244,14 @@ export async function resolveStudentDailyWorkout(
       }
     } catch (fallbackErr) {
       console.warn("[DailyWorkoutResolver] Fallback recovery also failed:", fallbackErr);
+    } finally {
+      if (fallbackConnection) {
+        try {
+          fallbackConnection.release();
+        } catch {
+          // ignore release error
+        }
+      }
     }
 
     return {

@@ -58,8 +58,12 @@ export type UserConsultanciesResult = {
   configuring: ConfiguringConsultancy[];
 };
 
-function isValidRole(role: unknown): role is ConsultancyRole {
-  return typeof role === "string" && VALID_ROLES.includes(role as ConsultancyRole);
+function normalizeRole(role: unknown): ConsultancyRole | null {
+  if (typeof role !== "string") return null;
+  const clean = role.trim().toUpperCase();
+  if (clean === "VIP" || clean === "INFLUENCER") return "INFLUENCER";
+  if (VALID_ROLES.includes(clean as ConsultancyRole)) return clean as ConsultancyRole;
+  return null;
 }
 
 function sortRoles(roles: ConsultancyRole[]): ConsultancyRole[] {
@@ -135,8 +139,9 @@ export async function listUserConsultancies(
         });
       }
 
-      if (isValidRole(row.role)) {
-        map.get(membershipId)?.rolesSet.add(row.role);
+      const normalized = normalizeRole(row.role);
+      if (normalized) {
+        map.get(membershipId)?.rolesSet.add(normalized);
       }
     }
 
@@ -232,8 +237,9 @@ async function resolveConsultancyContextInternal(
     const rolesSet = new Set<ConsultancyRole>();
 
     for (const row of rows) {
-      if (isValidRole(row.role)) {
-        rolesSet.add(row.role);
+      const normalized = normalizeRole(row.role);
+      if (normalized) {
+        rolesSet.add(normalized);
       }
     }
 

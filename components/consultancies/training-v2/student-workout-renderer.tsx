@@ -20,6 +20,7 @@ import {
   completeWorkoutExecutionSetAction,
   completeWorkoutExecutionAction,
   getWorkoutExecutionSwapStatusAction,
+  toggleWorkoutExecutionExerciseAction,
 } from "@/app/consultoria/[slug]/treinos/actions";
 import { StudentExerciseSwapModal } from "./student-exercise-swap-modal";
 import type { ExerciseSwapReason } from "@/lib/training-v2/exercise-substitution-types";
@@ -1087,7 +1088,7 @@ export function StudentWorkoutRenderer({
         true
       );
       if (res.success && res.data) {
-        const completedMap = new Map(res.data.completedSets.map((s) => [s.publicId, s]));
+        const completedMap = new Map((res.data.sets || []).map((s: WorkoutExecutionSetDto) => [s.publicId, s]));
         const updatedSets = activeSession.sets.map((s) => completedMap.get(s.publicId) || s);
         setActiveSession({ ...activeSession, sets: updatedSets });
       }
@@ -1376,7 +1377,7 @@ export function StudentWorkoutRenderer({
                   <div className="w-full sm:w-auto space-y-1.5">
                     <button
                       type="button"
-                      onClick={handleStartWorkout}
+                      onClick={() => void handleStartWorkout()}
                       disabled={isStarting}
                       className="w-full sm:w-auto min-h-[52px] px-8 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-sm sm:text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
@@ -1546,7 +1547,7 @@ export function StudentWorkoutRenderer({
             <div className="pt-1 flex flex-col items-center justify-center gap-1.5">
               <button
                 type="button"
-                onClick={handleStartWorkout}
+                onClick={() => void handleStartWorkout()}
                 disabled={isStarting}
                 className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >

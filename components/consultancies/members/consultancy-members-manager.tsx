@@ -35,6 +35,7 @@ import { UserAvatar } from "@/components/account/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AdminExecutiveHeader } from "@/components/admin/admin-executive-header";
 
 export interface ConsultancyMembersManagerProps {
   slug: string;
@@ -396,91 +397,75 @@ export function ConsultancyMembersManager({
         </div>
       )}
 
-      {/* 1. OPERATIONAL HEADER COMPACTO COM CONTADORES REAIS */}
-      <div className="bg-[#10271F] text-white p-5 sm:p-6 rounded-2xl border border-[#1e4738] shadow-xs space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <Link
-              href={`/consultoria/${slug}`}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#CBDDD3] hover:text-white transition-colors mb-1 min-h-[36px]"
+      {/* 1. OPERATIONAL HEADER EXECUTIVO COM CONTADORES REAIS */}
+      <AdminExecutiveHeader
+        eyebrow="Administração · Painel Executivo"
+        title="Membros e Convites"
+        description="Gerencie os participantes, convites ativos e permissões de acesso da consultoria."
+        backHref={`/consultoria/${slug}`}
+        backLabel="Voltar à visão geral"
+        primaryAction={{
+          label: "Convidar membro",
+          onClick: () => setIsInviteDialogOpen(true),
+          icon: (
+            <svg
+              className="w-4 h-4 shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+              aria-hidden="true"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15 19l-7-7 7-7" />
-              </svg>
-              <span>Voltar à visão geral</span>
-            </Link>
-            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-              Membros e Convites
-            </h1>
-            <p className="text-xs sm:text-sm text-[#CBDDD3]">
-              Gerencie os participantes, convites ativos e permissões de acesso da consultoria.
-            </p>
-          </div>
-
-          {/* Primary Action Button -> Opens Drawer / Dialog */}
-          <div className="shrink-0">
-            <Button
-              type="button"
-              variant="primary"
-              icon={
-                <svg
-                  className="w-4 h-4 shrink-0"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-              }
-              onClick={() => setIsInviteDialogOpen(true)}
-              className="w-full sm:w-auto h-11 px-5 font-bold text-sm rounded-xl shadow-xs inline-flex flex-row items-center justify-center gap-2 whitespace-nowrap min-h-[44px] cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-zinc-950"
-            >
-              <span className="whitespace-nowrap">Convidar membro</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Linha Operacional: Contadores Reais */}
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-4 pt-4 border-t border-[#1e4738]">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          ),
+        }}
+      >
+        {/* Linha Operacional: Contadores Reais Integrados */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           {/* Membros Ativos */}
-          <div className="bg-[#18352C] p-3 sm:p-3.5 rounded-xl border border-[#234e3e] space-y-0.5">
-            <p className="text-[11px] sm:text-xs font-medium text-[#CBDDD3] uppercase tracking-wider">
-              Membros Ativos
-            </p>
-            <p className="text-lg sm:text-2xl font-extrabold text-[#80E8B3] tracking-tight">
-              {counters.isError ? "—" : counters.activeMembers}
-            </p>
+          <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#1B1D21] transition-colors">
+            <div className="min-w-0">
+              <span className="text-[11px] sm:text-xs text-[#8E95A2] font-medium block uppercase tracking-wider">
+                Membros Ativos
+              </span>
+              <span className="text-xl sm:text-2xl font-black text-white font-mono tabular-nums">
+                {counters.isError ? "—" : counters.activeMembers}
+              </span>
+            </div>
           </div>
 
           {/* Convites Pendentes */}
-          <div className="bg-[#18352C] p-3 sm:p-3.5 rounded-xl border border-[#234e3e] space-y-0.5">
-            <p className="text-[11px] sm:text-xs font-medium text-[#CBDDD3] uppercase tracking-wider">
-              Convites Pendentes
-            </p>
-            <p className="text-lg sm:text-2xl font-extrabold text-amber-300 tracking-tight">
-              {counters.isError ? "—" : counters.pendingInvitations}
-            </p>
+          <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#1B1D21] transition-colors sm:border-l sm:border-[#303238]/60 sm:pl-4">
+            <div className="min-w-0">
+              <span className="text-[11px] sm:text-xs text-[#8E95A2] font-medium block uppercase tracking-wider">
+                Convites Pendentes
+              </span>
+              <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono tabular-nums">
+                {counters.isError ? "—" : counters.pendingInvitations}
+              </span>
+            </div>
           </div>
 
           {/* Suspensos */}
-          <div className="bg-[#18352C] p-3 sm:p-3.5 rounded-xl border border-[#234e3e] space-y-0.5">
-            <p className="text-[11px] sm:text-xs font-medium text-[#CBDDD3] uppercase tracking-wider">
-              Suspensos
-            </p>
-            <p className="text-lg sm:text-2xl font-extrabold text-[#CBDDD3]/80 tracking-tight">
-              {counters.isError ? "—" : counters.suspendedMembers}
-            </p>
+          <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#1B1D21] transition-colors sm:border-l sm:border-[#303238]/60 sm:pl-4">
+            <div className="min-w-0">
+              <span className="text-[11px] sm:text-xs text-[#8E95A2] font-medium block uppercase tracking-wider">
+                Suspensos
+              </span>
+              <span className="text-xl sm:text-2xl font-black text-rose-400 font-mono tabular-nums">
+                {counters.isError ? "—" : counters.suspendedMembers}
+              </span>
+            </div>
           </div>
         </div>
 
         {counters.isError && (
-          <p className="text-xs text-rose-300 font-medium pt-1">
+          <p className="text-xs text-rose-400 font-medium pt-2">
             Contadores operacionais indisponíveis no momento.
           </p>
         )}
-      </div>
+      </AdminExecutiveHeader>
 
       {/* 2. ORGANIZAÇÃO EM ABAS ("Membros" e "Convites") */}
       <div className="space-y-4">
@@ -851,7 +836,7 @@ export function ConsultancyMembersManager({
                     return (
                       <div
                         key={member.membershipPublicId}
-                        className="bg-[#10271F] text-white p-4 rounded-2xl border border-[#1e4738] shadow-xs space-y-3 relative"
+                        className="bg-white dark:bg-[#151619] text-zinc-900 dark:text-white p-4 rounded-2xl border border-zinc-200 dark:border-[#303238] shadow-xs space-y-3 relative"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-start justify-between gap-3">
@@ -859,16 +844,16 @@ export function ConsultancyMembersManager({
                             <UserAvatar fullName={member.fullName} userPublicId={member.userPublicId} size="sm" />
                             <div className="min-w-0 space-y-0.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <p className="text-sm font-semibold text-white truncate">
+                                <p className="text-sm font-semibold text-zinc-900 dark:text-white truncate">
                                   {member.fullName}
                                 </p>
                                 {isSelf && (
-                                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-[#18352C] text-[#80E8B3] border border-[#234e3e]">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
                                     Você
                                   </span>
                                 )}
                               </div>
-                              <p className="text-xs text-[#CBDDD3] truncate">
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
                                 {member.email}
                               </p>
                             </div>
@@ -880,7 +865,7 @@ export function ConsultancyMembersManager({
                               type="button"
                               onClick={() => setOpenMemberMenuId(isMenuOpen ? null : member.membershipPublicId)}
                               aria-label="Abrir menu de ações do membro"
-                              className="w-10 h-10 rounded-xl flex items-center justify-center text-[#CBDDD3] hover:text-white hover:bg-[#18352C] border border-[#234e3e] transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
+                              className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
                             >
                               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                 <circle cx="12" cy="12" r="2" />
@@ -1299,15 +1284,15 @@ export function ConsultancyMembersManager({
                     return (
                       <div
                         key={inv.publicId}
-                        className="bg-[#10271F] text-white p-4 rounded-2xl border border-[#1e4738] shadow-xs space-y-3 relative"
+                        className="bg-white dark:bg-[#151619] text-zinc-900 dark:text-white p-4 rounded-2xl border border-zinc-200 dark:border-[#303238] shadow-xs space-y-3 relative"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 space-y-0.5">
-                            <p className="text-sm font-semibold text-white truncate">
+                            <p className="text-sm font-semibold text-zinc-900 dark:text-white truncate">
                               {inv.email}
                             </p>
-                            <p className="text-[11px] text-[#CBDDD3]">
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                               Criado em {formatDateTime(inv.createdAt)}
                             </p>
                           </div>
@@ -1330,7 +1315,7 @@ export function ConsultancyMembersManager({
                               type="button"
                               onClick={() => setOpenInviteMenuId(isMenuOpen ? null : inv.publicId)}
                               aria-label="Abrir menu de ações do convite"
-                              className="w-10 h-10 rounded-xl flex items-center justify-center text-[#CBDDD3] hover:text-white hover:bg-[#18352C] border border-[#234e3e] transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
+                              className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
                             >
                               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                 <circle cx="12" cy="12" r="2" />

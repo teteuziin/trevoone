@@ -9,6 +9,7 @@ import { getProfessionalRadarData } from "@/lib/monitoring/professional-radar";
 import { getAdminReferralsData } from "@/lib/referrals/service";
 import { getProfessionalActionsHistory } from "@/lib/monitoring/admin-actions";
 import { OperationsCenterView } from "@/components/operations/operations-center-view";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 
 export const dynamic = "force-dynamic";
 
@@ -67,20 +68,9 @@ export default async function OperacoesPage({ params }: PageProps) {
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context.consultancyPublicId}
       viewModeState={viewModeState}
+      showDashboardWallpaper={true}
     >
-      <div className="space-y-6">
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)] block">
-            Centro de Operações &amp; Inteligência
-          </span>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-            Operações da Consultoria
-          </h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">
-            Supervisão ativa de adesão de alunos, acompanhamento da equipe técnica e gestão centralizada.
-          </p>
-        </div>
-
+      <AdminPageContainer>
         <OperationsCenterView
           consultancySlug={slug}
           supervisorSummary={supervisorSummary}
@@ -94,7 +84,7 @@ export default async function OperacoesPage({ params }: PageProps) {
           }}
           escalationsHistory={escalationsHistory}
         />
-      </div>
+      </AdminPageContainer>
     </ConsultancyAppShell>
   );
 }

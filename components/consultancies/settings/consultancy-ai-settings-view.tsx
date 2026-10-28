@@ -6,6 +6,7 @@ import {
   updateConsultancyMemberAiOverrideAction,
   removeConsultancyMemberAiOverrideAction,
 } from "@/app/consultoria/[slug]/configuracoes/ia/actions";
+import { AdminExecutiveHeader } from "@/components/admin/admin-executive-header";
 import type { ConsultancyAiQuotaInfo } from "@/lib/ai/quotas";
 
 interface MemberOption {
@@ -135,76 +136,76 @@ export function ConsultancyAiSettingsView({
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto px-4 py-6">
-      {/* Header */}
-      <div className="border-b border-border/40 pb-5">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Cotas de Importação & Automação
-            </h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Gerencie os limites diários de importação de arquivos para profissionais da consultoria.
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-6">
+      {/* Executive Header */}
+      <AdminExecutiveHeader
+        eyebrow="● ADMINISTRAÇÃO · IA & AUTOMAÇÃO"
+        title="IA e cotas"
+        subtitle="Gerencie os limites diários de importação de arquivos e recursos inteligentes da consultoria."
+        backHref={`/consultoria/${consultancySlug}`}
+        backLabel="Voltar ao Painel"
+        badge={consultancyQuota.isEnabled ? "Cota Ativa" : "Pausada"}
+        badgeVariant={consultancyQuota.isEnabled ? "success" : "neutral"}
+      />
 
       {/* Consultancy Quota Card */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 space-y-3 shadow-xs">
+      <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
             Teto Diário da Consultoria
           </span>
           <span
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
               consultancyQuota.isEnabled
-                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                : "bg-rose-500/10 text-rose-500 dark:text-rose-400 border-rose-500/20"
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                : "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
             }`}
           >
-            {consultancyQuota.isEnabled ? "Ativo" : "Desativado pela Plataforma"}
+            {consultancyQuota.isEnabled ? "Cota Ativa" : "Desativado pela Plataforma"}
           </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-          <div>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">Limite Plataforma:</span>
-            <div className="text-xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-0.5">
-              {consultancyQuota.dailyLimit} <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">/ dia</span>
+          <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-[#8E95A2] block">
+              Limite Plataforma
+            </span>
+            <div className="text-2xl font-bold font-mono text-zinc-900 dark:text-white">
+              {consultancyQuota.dailyLimit} <span className="text-xs font-normal text-zinc-500 dark:text-[#8E95A2]">/ dia</span>
             </div>
           </div>
-          <div>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">Utilizado Hoje:</span>
-            <div className="text-xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-0.5">
+
+          <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-[#8E95A2] block">
+              Utilizado Hoje
+            </span>
+            <div className="text-2xl font-bold font-mono text-zinc-900 dark:text-white">
               {consultancyQuota.usedToday}
             </div>
           </div>
-          <div>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">Restante Hoje:</span>
-            <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+
+          <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-[#8E95A2] block">
+              Restante Hoje
+            </span>
+            <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
               {consultancyQuota.remainingToday}
             </div>
           </div>
         </div>
 
-        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 border-t border-zinc-100 dark:border-zinc-800 pt-3">
+        <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2] border-t border-zinc-100 dark:border-[#303238] pt-3">
           O teto diário da consultoria é o limite máximo compartilhado por todos os profissionais. Para aumentá-lo, fale com a equipe da plataforma TREVO ONE.
         </p>
       </div>
 
       {/* Role Defaults Card */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xs">
+      <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm">
         <div>
-          <h2 className="text-base font-bold text-foreground">
+          <h2 className="text-base font-bold text-zinc-900 dark:text-white">
             Limites Padrão por Função & Recursos de IA
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-zinc-500 dark:text-[#8E95A2] mt-0.5">
             Define as cotas diárias de importação com IA por perfil profissional e regras de inteligência de treino.
           </p>
         </div>
@@ -213,8 +214,8 @@ export function ConsultancyAiSettingsView({
           <div
             className={`p-3 rounded-xl text-xs border ${
               roleMessage.type === "success"
-                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400"
+                : "bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-400"
             }`}
           >
             {roleMessage.text}
@@ -223,14 +224,14 @@ export function ConsultancyAiSettingsView({
 
         <form onSubmit={handleSaveRoleLimits} className="space-y-4 text-xs">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-3.5 rounded-xl border border-border/40 bg-background/50 space-y-2">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <label className="block font-semibold text-foreground">
+            <div className="p-4 rounded-xl border border-zinc-200 dark:border-[#303238] bg-zinc-50 dark:bg-[#1B1D21] space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <label className="block font-bold text-zinc-900 dark:text-white text-xs">
                   Importação IA — Personal
                 </label>
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2]">
                 Importação automatizada de fichas e rotinas de treino via PDF, DOCX ou texto.
               </p>
               <div className="flex items-center gap-2 pt-1">
@@ -240,20 +241,20 @@ export function ConsultancyAiSettingsView({
                   max="100"
                   value={personalLimit}
                   onChange={(e) => setPersonalLimit(Number(e.target.value))}
-                  className="w-24 bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                  className="w-24 bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-xl px-3 py-2 text-sm font-mono text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[40px]"
                 />
-                <span className="text-muted-foreground text-xs">importações / dia</span>
+                <span className="text-zinc-500 dark:text-[#8E95A2] text-xs">importações / dia</span>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-border/40 bg-background/50 space-y-2">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-teal-500" />
-                <label className="block font-semibold text-foreground">
+            <div className="p-4 rounded-xl border border-zinc-200 dark:border-[#303238] bg-zinc-50 dark:bg-[#1B1D21] space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-teal-500" />
+                <label className="block font-bold text-zinc-900 dark:text-white text-xs">
                   Importação IA — Nutricionista
                 </label>
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2]">
                 Importação de planos alimentares e cardápios com pareamento automático de alimentos.
               </p>
               <div className="flex items-center gap-2 pt-1">
@@ -263,26 +264,26 @@ export function ConsultancyAiSettingsView({
                   max="100"
                   value={nutritionistLimit}
                   onChange={(e) => setNutritionistLimit(Number(e.target.value))}
-                  className="w-24 bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                  className="w-24 bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-xl px-3 py-2 text-sm font-mono text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[40px]"
                 />
-                <span className="text-muted-foreground text-xs">importações / dia</span>
+                <span className="text-zinc-500 dark:text-[#8E95A2] text-xs">importações / dia</span>
               </div>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl border border-border/40 bg-background/50 space-y-2">
+          <div className="p-4 rounded-xl border border-zinc-200 dark:border-[#303238] bg-zinc-50 dark:bg-[#1B1D21] space-y-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-blue-500" />
-                <span className="font-semibold text-foreground">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                <span className="font-bold text-zinc-900 dark:text-white text-xs">
                   Substituição inteligente — Alunos
                 </span>
               </div>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
                 Ativo no Runtime
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
+            <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2] leading-relaxed">
               Permite que alunos em treino substituam até <strong>3 exercícios por treino</strong> por motivos operacionais (máquina ocupada ou equipamento indisponível).
               As sugestões de IA consom o teto global da consultoria. Se a cota de IA se esgotar, o aluno utiliza o motor determinístico inteligente sem interrupções.
             </p>
@@ -291,7 +292,7 @@ export function ConsultancyAiSettingsView({
           <button
             type="submit"
             disabled={isPending}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition shadow-xs"
+            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-sm min-h-[44px] cursor-pointer"
           >
             {isPending ? "Salvando..." : "Salvar Limites Padrão"}
           </button>
@@ -299,12 +300,12 @@ export function ConsultancyAiSettingsView({
       </div>
 
       {/* Member Overrides Card */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xs">
+      <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm">
         <div>
-          <h2 className="text-base font-bold text-foreground">
+          <h2 className="text-base font-bold text-zinc-900 dark:text-white">
             Exceções Individuais por Profissional
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-zinc-500 dark:text-[#8E95A2] mt-0.5">
             Dê cotas personalizadas a membros específicos da sua equipe que demandem maior volume.
           </p>
         </div>
@@ -313,8 +314,8 @@ export function ConsultancyAiSettingsView({
           <div
             className={`p-3 rounded-xl text-xs border ${
               overrideMessage.type === "success"
-                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400"
+                : "bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-400"
             }`}
           >
             {overrideMessage.text}
@@ -322,16 +323,16 @@ export function ConsultancyAiSettingsView({
         )}
 
         {/* Add Override Form */}
-        <form onSubmit={handleAddMemberOverride} className="bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 p-4 rounded-xl space-y-3">
+        <form onSubmit={handleAddMemberOverride} className="bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200 dark:border-[#303238] p-4 rounded-xl space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            <div className="sm:col-span-2">
-              <label className="block font-medium text-foreground mb-1">
+            <div className="sm:col-span-2 space-y-1">
+              <label className="block font-semibold text-zinc-700 dark:text-zinc-300">
                 Profissional da Equipe
               </label>
               <select
                 value={selectedMemberId}
                 onChange={(e) => setSelectedMemberId(e.target.value)}
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                className="w-full bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-xl px-3 py-2.5 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
               >
                 <option value="">Selecione um profissional...</option>
                 {availableMembers.map((m) => (
@@ -342,8 +343,8 @@ export function ConsultancyAiSettingsView({
               </select>
             </div>
 
-            <div>
-              <label className="block font-medium text-foreground mb-1">
+            <div className="space-y-1">
+              <label className="block font-semibold text-zinc-700 dark:text-zinc-300">
                 Limite Diário Individual
               </label>
               <div className="flex items-center gap-2">
@@ -353,9 +354,9 @@ export function ConsultancyAiSettingsView({
                   max="100"
                   value={memberOverrideLimit}
                   onChange={(e) => setMemberOverrideLimit(Number(e.target.value))}
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                  className="w-full bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-xl px-3 py-2 text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
                 />
-                <span className="text-muted-foreground shrink-0">/ dia</span>
+                <span className="text-zinc-500 dark:text-[#8E95A2] shrink-0 text-xs">/ dia</span>
               </div>
             </div>
           </div>
@@ -363,50 +364,50 @@ export function ConsultancyAiSettingsView({
           <button
             type="submit"
             disabled={isPending || !selectedMemberId}
-            className="px-4 py-2 bg-muted hover:bg-muted/80 disabled:opacity-40 text-foreground rounded-lg text-xs font-medium transition"
+            className="px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 disabled:opacity-40 text-white dark:text-zinc-900 rounded-xl text-xs font-bold transition min-h-[44px] cursor-pointer"
           >
             Adicionar ou Atualizar Exceção
           </button>
         </form>
 
         {/* Overrides Table */}
-        <div className="overflow-x-auto border border-border/30 rounded-xl">
+        <div className="overflow-x-auto border border-zinc-200 dark:border-[#303238] rounded-xl">
           <table className="w-full text-left text-xs">
-            <thead className="bg-muted/40 border-b border-border/40 text-muted-foreground uppercase font-semibold text-[10px] tracking-wider">
+            <thead className="bg-zinc-50 dark:bg-[#1B1D21] border-b border-zinc-200 dark:border-[#303238] text-zinc-500 dark:text-[#8E95A2] uppercase font-semibold text-[10px] tracking-wider">
               <tr>
-                <th className="py-2.5 px-3">Profissional</th>
-                <th className="py-2.5 px-3">Função</th>
-                <th className="py-2.5 px-3">Limite Configurado</th>
-                <th className="py-2.5 px-3 text-right">Ação</th>
+                <th className="py-3 px-4">Profissional</th>
+                <th className="py-3 px-4">Função</th>
+                <th className="py-3 px-4">Limite Configurado</th>
+                <th className="py-3 px-4 text-right">Ação</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/20">
+            <tbody className="divide-y divide-zinc-100 dark:divide-[#303238]">
               {memberOverrides.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-center text-muted-foreground">
+                  <td colSpan={4} className="py-6 text-center text-zinc-500 dark:text-[#8E95A2]">
                     Nenhuma exceção individual configurada. Todos utilizam o limite padrão da função.
                   </td>
                 </tr>
               ) : (
                 memberOverrides.map((o) => (
-                  <tr key={o.membershipId} className="hover:bg-muted/20 transition-colors">
-                    <td className="py-2.5 px-3 font-medium text-foreground">
+                  <tr key={o.membershipId} className="hover:bg-zinc-50/50 dark:hover:bg-[#1B1D21]/50 transition-colors">
+                    <td className="py-3 px-4 font-medium text-zinc-900 dark:text-white">
                       <div>{o.userFullName}</div>
-                      <div className="text-[10px] text-muted-foreground">{o.userEmail}</div>
+                      <div className="text-[10px] text-zinc-500 dark:text-[#8E95A2]">{o.userEmail}</div>
                     </td>
-                    <td className="py-2.5 px-3">
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-muted/60 text-muted-foreground border border-border/40">
+                    <td className="py-3 px-4">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-100 dark:bg-[#1B1D21] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-[#303238]">
                         {o.role === "NUTRITIONIST" ? "Nutricionista" : "Personal"}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 font-mono font-bold text-foreground">
+                    <td className="py-3 px-4 font-mono font-bold text-zinc-900 dark:text-white">
                       {o.dailyLimit} / dia
                     </td>
-                    <td className="py-2.5 px-3 text-right">
+                    <td className="py-3 px-4 text-right">
                       <button
                         type="button"
                         onClick={() => handleRemoveOverride(o.membershipId, o.userFullName)}
-                        className="text-rose-400 hover:text-rose-300 font-medium text-[11px] transition"
+                        className="text-rose-600 dark:text-rose-400 hover:underline font-semibold text-xs transition cursor-pointer"
                       >
                         Remover
                       </button>

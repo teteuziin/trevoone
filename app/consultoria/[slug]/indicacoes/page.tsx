@@ -6,6 +6,8 @@ import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-
 import { getReferrerDashboardData, getAdminReferralsData } from "@/lib/referrals/service";
 import { ReferrerStudentView } from "@/components/referrals/referrer-student-view";
 import { AdminReferralsView } from "@/components/referrals/admin-referrals-view";
+import { AdminExecutiveHeader } from "@/components/admin/admin-executive-header";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 
 export const dynamic = "force-dynamic";
 
@@ -56,21 +58,30 @@ export default async function IndicacoesPage({ params }: PageProps) {
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context.consultancyPublicId}
       viewModeState={viewModeState}
+      showDashboardWallpaper={true}
     >
-      <div className="space-y-6">
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)] block">
-            {isAdmin ? "Gestão & Crescimento" : "Parceria & Recompensas"}
-          </span>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-            {isAdmin ? "Gestão de Indicações & Comissões" : "Minhas Indicações"}
-          </h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">
-            {isAdmin
-              ? "Acompanhe indicadores, conversões, aprove comissões e liquide pagamentos PIX com segurança."
-              : "Compartilhe seu link exclusivo, veja amigos convertidos e gerencie seu recebimento PIX."}
-          </p>
-        </div>
+      <AdminPageContainer>
+        {isAdmin ? (
+          <AdminExecutiveHeader
+            eyebrow="● ADMINISTRAÇÃO · CRESCIMENTO"
+            title="Indicações e comissões"
+            subtitle="Acompanhe indicadores, conversões, aprove comissões e liquide pagamentos PIX com segurança."
+            backHref={`/consultoria/${slug}`}
+            backLabel="Voltar ao Painel"
+          />
+        ) : (
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
+              Parceria & Recompensas
+            </span>
+            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
+              Minhas Indicações
+            </h1>
+            <p className="text-xs text-zinc-500 dark:text-[#8E95A2] mt-1">
+              Compartilhe seu link exclusivo, veja amigos convertidos e gerencie seu recebimento PIX.
+            </p>
+          </div>
+        )}
 
         {isAdmin && adminData ? (
           <AdminReferralsView
@@ -94,11 +105,11 @@ export default async function IndicacoesPage({ params }: PageProps) {
             commissions={referrerData.commissions}
           />
         ) : (
-          <div className="p-8 text-center text-xs text-[var(--text-tertiary)] bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl">
+          <div className="p-8 text-center text-xs text-zinc-500 dark:text-[#8E95A2] bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl shadow-sm">
             Você não possui perfil elegível para o programa de indicações nesta consultoria.
           </div>
         )}
-      </div>
+      </AdminPageContainer>
     </ConsultancyAppShell>
   );
 }

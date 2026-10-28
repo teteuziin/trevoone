@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { UserAvatar } from "@/components/account/user-avatar";
+import { AdminExecutiveHeader } from "@/components/admin/admin-executive-header";
 import {
   createAdminActionAction,
   resolveAdminActionAction,
@@ -149,74 +150,83 @@ export function OperationsCenterView({
 
   return (
     <div className="space-y-6">
-      {/* Top Operations KPIs — Solid Dark Green Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
-          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
+      {/* 1. Header Executivo Preto/Grafite */}
+      <AdminExecutiveHeader
+        eyebrow="Administração · Painel Executivo"
+        title="Operações da Consultoria"
+        description="Supervisão ativa de adesão de alunos, acompanhamento da equipe técnica e gestão centralizada da operação."
+        backHref={`/consultoria/${consultancySlug}`}
+        backLabel="Voltar à visão geral"
+      />
+
+      {/* 2. Top Operations KPIs — Cards Claros / Grafite */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-xs space-y-1">
+          <span className="text-[11px] font-bold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block truncate">
             Alunos Atenção
           </span>
-          <span className="text-xl font-black text-amber-300 mt-1 block">
+          <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 block font-mono tabular-nums">
             {studentsResult.studentsAttention}
           </span>
         </div>
 
-        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
-          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-xs space-y-1">
+          <span className="text-[11px] font-bold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block truncate">
             Alertas Críticos
           </span>
-          <span className="text-xl font-black text-rose-400 mt-1 block">
+          <span className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400 mt-1 block font-mono tabular-nums">
             {studentsResult.criticalAlertsCount}
           </span>
         </div>
 
-        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
-          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-xs space-y-1">
+          <span className="text-[11px] font-bold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block truncate">
             Equipe Pendente
           </span>
-          <span className="text-xl font-black text-white mt-1 block">
+          <span className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white mt-1 block font-mono tabular-nums">
             {teamResult.kpis.needingAttentionCount + teamResult.kpis.criticalCount}
           </span>
         </div>
 
-        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
-          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-xs space-y-1">
+          <span className="text-[11px] font-bold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block truncate">
             Relatos de Dor
           </span>
-          <span className="text-xl font-black text-rose-400 mt-1 block">
+          <span className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400 mt-1 block font-mono tabular-nums">
             {supervisorSummary.facts.painReportsCount}
           </span>
         </div>
 
-        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
-          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-xs space-y-1">
+          <span className="text-[11px] font-bold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block truncate">
             Inativos &gt; 7d
           </span>
-          <span className="text-xl font-black text-[#CBDDD3] mt-1 block">
+          <span className="text-xl sm:text-2xl font-black text-zinc-600 dark:text-zinc-300 mt-1 block font-mono tabular-nums">
             {supervisorSummary.facts.prolongedInactiveCount}
           </span>
         </div>
 
-        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
-          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-xs space-y-1">
+          <span className="text-[11px] font-bold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block truncate">
             Comissões Pend.
           </span>
-          <span className="text-xl font-black text-amber-300 mt-1 block">
+          <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 block font-mono tabular-nums">
             {referralsSummary.pendingCommissionsCount}
           </span>
         </div>
 
-        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
-          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-xs space-y-1">
+          <span className="text-[11px] font-bold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block truncate">
             Aguardando PIX
           </span>
-          <span className="text-xl font-black text-[#80E8B3] mt-1 block">
+          <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-[#10B981] mt-1 block font-mono tabular-nums">
             {referralsSummary.pendingPayoutsCount}
           </span>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-[var(--border-default)] pb-2 overflow-x-auto">
+      <div className="flex items-center gap-1.5 border-b border-zinc-200 dark:border-[#303238] pb-2 overflow-x-auto scrollbar-none">
         <button
           type="button"
           onClick={() => setActiveTab("today")}
@@ -266,34 +276,34 @@ export function OperationsCenterView({
       {/* TAB 1: HOJE */}
       {activeTab === "today" && (
         <div className="space-y-6">
-          {/* Supervisor Trevo Summary Card — Solid Dark Green */}
-          <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-6 shadow-xs space-y-3 text-white">
+          {/* Supervisor Trevo Summary Card */}
+          <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 shadow-xs space-y-3">
             <div className="flex items-center gap-2.5">
-              <span className="w-8 h-8 rounded-xl bg-[#18352C] border border-[#234e3e] text-[#80E8B3] flex items-center justify-center font-bold text-sm">
+              <span className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold text-sm shrink-0">
                 ✦
               </span>
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#80E8B3]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
                   Resumo do Supervisor
                 </span>
-                <h2 className="text-base font-bold text-white">
+                <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white">
                   {supervisorSummary.headline}
                 </h2>
               </div>
             </div>
 
-            <p className="text-xs sm:text-sm text-[#CBDDD3] leading-relaxed font-medium bg-[#18352C] p-4 rounded-2xl border border-[#234e3e]">
+            <p className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed font-normal bg-zinc-50 dark:bg-[#1B1D21] p-4 rounded-xl border border-zinc-200/80 dark:border-[#303238]">
               {supervisorSummary.narrative}
             </p>
 
-            <div className="flex items-center justify-between text-[11px] text-[#CBDDD3]/80 pt-1">
+            <div className="flex items-center justify-between text-[11px] text-zinc-400 dark:text-zinc-500 pt-1">
               <span>Evidências objetivas baseadas em dados registrados no TREVO ONE</span>
               <span>Atualizado hoje</span>
             </div>
           </div>
 
           {/* Actionable Student Alerts */}
-          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 shadow-xs depth-base space-y-4">
+          <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-[var(--text-primary)]">
@@ -400,7 +410,7 @@ export function OperationsCenterView({
 
           {/* Quick Team and Referrals Pending Strip */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 shadow-xs depth-base space-y-3">
+            <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-[var(--text-primary)]">
                   Equipe: Pendências de Acompanhamento
@@ -443,7 +453,7 @@ export function OperationsCenterView({
               )}
             </div>
 
-            <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 shadow-xs depth-base space-y-3">
+            <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-[var(--text-primary)]">
                   Indicações: Comissões Pendentes

@@ -58,6 +58,7 @@ export default async function InfluencerMissionsPage({
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      showDashboardWallpaper={true}
     >
       <div className="space-y-6 max-w-4xl mx-auto pb-10">
         <PageHeader

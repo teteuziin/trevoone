@@ -5,6 +5,7 @@ import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-
 import { getConsultancyAiSettings } from "@/lib/ai/quotas";
 import { getDbConnection } from "@/lib/db/mysql";
 import { ConsultancyAiSettingsView } from "@/components/consultancies/settings/consultancy-ai-settings-view";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 import type { RowDataPacket } from "mysql2/promise";
 
 export const dynamic = "force-dynamic";
@@ -81,14 +82,17 @@ export default async function ConsultancyAiSettingsPage({ params }: PageProps) {
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      showDashboardWallpaper={true}
     >
-      <ConsultancyAiSettingsView
-        consultancySlug={slug}
-        consultancyQuota={settings.consultancyQuota}
-        initialRoleLimits={settings.roleLimits}
-        initialMemberOverrides={settings.memberOverrides}
-        availableMembers={availableMembers}
-      />
+      <AdminPageContainer>
+        <ConsultancyAiSettingsView
+          consultancySlug={slug}
+          consultancyQuota={settings.consultancyQuota}
+          initialRoleLimits={settings.roleLimits}
+          initialMemberOverrides={settings.memberOverrides}
+          availableMembers={availableMembers}
+        />
+      </AdminPageContainer>
     </ConsultancyAppShell>
   );
 }

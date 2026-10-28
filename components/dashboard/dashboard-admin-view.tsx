@@ -2,10 +2,10 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConsultancyPhotoEditor } from "@/components/consultancies/consultancy-photo-editor";
+import { ConsultancyLogo } from "@/components/brand/consultancy-logo";
 import type { ConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import type { PlatformEffectiveAccessState } from "@/lib/platform-admin/billing";
 import {
@@ -115,21 +115,13 @@ export function DashboardAdminView({
           {/* Identidade da Consultoria */}
           <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
             {/* Avatar / Logo da Consultoria */}
-            <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden bg-[#1B1D21] border border-[#303238] shrink-0 shadow-xs flex items-center justify-center">
-              {consultancyLogoUrl ? (
-                <Image
-                  src={consultancyLogoUrl}
-                  alt={consultancyName || "Consultoria"}
-                  fill
-                  sizes="56px"
-                  className="object-cover"
-                />
-              ) : (
-                <span className="font-heading font-black text-xl sm:text-2xl text-[#10B981]">
-                  {((consultancyName || "C").trim().charAt(0) || "C").toUpperCase()}
-                </span>
-              )}
-            </div>
+            <ConsultancyLogo
+              logoUrl={consultancyLogoUrl}
+              name={consultancyName || "Consultoria"}
+              size={56}
+              clean
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#1B1D21] border border-[#303238] shrink-0 shadow-xs text-[#10B981] font-heading font-black text-xl sm:text-2xl"
+            />
 
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2">

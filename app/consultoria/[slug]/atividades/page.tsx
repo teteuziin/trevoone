@@ -7,6 +7,7 @@ import {
   type ActivityFilterOptions,
 } from "@/lib/consultancies/activity-log";
 import { ConsultancyActivityCenterView } from "@/components/consultancies/activity/consultancy-activity-center-view";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 
 type PageProps = {
   params: Promise<{
@@ -21,6 +22,8 @@ type PageProps = {
     page?: string;
   }>;
 };
+
+export const dynamic = "force-dynamic";
 
 export default async function ConsultancyActivityPage({
   params,
@@ -108,18 +111,22 @@ export default async function ConsultancyActivityPage({
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      showDashboardWallpaper={true}
     >
-      <ConsultancyActivityCenterView
-        initialEvents={events}
-        totalEvents={total}
-        initialFilters={{
-          period,
-          role,
-          module: mod,
-          action,
-          search,
-        }}
-      />
+      <AdminPageContainer>
+        <ConsultancyActivityCenterView
+          consultancySlug={slug}
+          initialEvents={events}
+          totalEvents={total}
+          initialFilters={{
+            period,
+            role,
+            module: mod,
+            action,
+            search,
+          }}
+        />
+      </AdminPageContainer>
     </ConsultancyAppShell>
   );
 }

@@ -14,6 +14,7 @@ import {
 } from "@/lib/consultancies/invitations";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { ConsultancyMembersManager } from "@/components/consultancies/members/consultancy-members-manager";
+import { AdminPageContainer } from "@/components/admin/admin-page-container";
 
 type PageProps = {
   params: Promise<{
@@ -111,8 +112,9 @@ export default async function ConsultancyMembersPage({
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context.consultancyPublicId}
+      showDashboardWallpaper={true}
     >
-      <div className="w-full max-w-5xl mx-auto">
+      <AdminPageContainer>
         <ConsultancyMembersManager
           slug={slug}
           consultancyName={context.consultancyName}
@@ -123,7 +125,7 @@ export default async function ConsultancyMembersPage({
           counters={counters}
           initialQuery={query}
         />
-      </div>
+      </AdminPageContainer>
     </ConsultancyAppShell>
   );
 }

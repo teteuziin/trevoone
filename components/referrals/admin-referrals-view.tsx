@@ -16,6 +16,11 @@ import type {
   PixKeyType,
 } from "@/lib/referrals/service";
 
+function formatBrl(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(val)) return "R$ 0,00";
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
+}
+
 interface AdminReferralsViewProps {
   consultancySlug: string;
   settings: ConsultancyReferralSettings;
@@ -191,80 +196,80 @@ export function AdminReferralsView({
   });
 
   const statusBadges: Record<CommissionStatus, { label: string; className: string }> = {
-    PENDING: { label: "Pendente", className: "bg-[var(--warning-soft)] text-[var(--warning-foreground)] border-[var(--warning-border)]" },
-    APPROVED: { label: "Aprovada", className: "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-border)]" },
-    PAID: { label: "Paga", className: "bg-[var(--success-soft)] text-[var(--success-foreground)] border-[var(--success-border)]" },
-    CANCELLED: { label: "Cancelada", className: "bg-[var(--danger-soft)] text-[var(--danger-foreground)] border-[var(--danger-border)]" },
+    PENDING: { label: "Pendente", className: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20" },
+    APPROVED: { label: "Aprovada", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" },
+    PAID: { label: "Paga", className: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30" },
+    CANCELLED: { label: "Cancelada", className: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20" },
   };
 
   return (
     <div className="space-y-6">
-      {/* Top KPIs */}
+      {/* Top KPIs — Standardized Executive 6-Card Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
-            Indicadores
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-sm transition-all">
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block">
+            Membros Indicadores
           </span>
-          <span className="text-xl font-bold text-[var(--text-primary)] mt-1 block">
+          <span className="text-2xl font-bold text-zinc-900 dark:text-white mt-1 block">
             {kpis.totalReferrers}
           </span>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
-            Cadastros
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-sm transition-all">
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block">
+            Cadastros Realizados
           </span>
-          <span className="text-xl font-bold text-[var(--text-primary)] mt-1 block">
+          <span className="text-2xl font-bold text-zinc-900 dark:text-white mt-1 block">
             {kpis.totalRegistrations}
           </span>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
-            Conversões
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-sm transition-all">
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block">
+            Conversões Confirmadas
           </span>
-          <span className="text-xl font-bold text-[var(--brand)] mt-1 block">
+          <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 block">
             {kpis.totalConversions}
           </span>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-sm transition-all">
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block">
             Aguardando Aprovação
           </span>
-          <span className="text-xl font-bold text-[var(--warning-foreground)] mt-1 block">
-            R$ {kpis.pendingAmount.toFixed(2)}
+          <span className="text-xl font-bold text-amber-600 dark:text-amber-400 mt-1 block truncate">
+            {formatBrl(kpis.pendingAmount)}
           </span>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-sm transition-all">
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block">
             Aprovadas (A Pagar)
           </span>
-          <span className="text-xl font-bold text-[var(--brand)] mt-1 block">
-            R$ {kpis.approvedAmount.toFixed(2)}
+          <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 block truncate">
+            {formatBrl(kpis.approvedAmount)}
           </span>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 shadow-sm transition-all">
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block">
             Total Liquidado
           </span>
-          <span className="text-xl font-bold text-[var(--success-foreground)] mt-1 block">
-            R$ {kpis.paidAmount.toFixed(2)}
+          <span className="text-xl font-bold text-zinc-900 dark:text-white mt-1 block truncate">
+            {formatBrl(kpis.paidAmount)}
           </span>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-[var(--border-default)] pb-2">
+      <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-[#303238] pb-3">
         <button
           type="button"
           onClick={() => setActiveTab("commissions")}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+          className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer min-h-[44px] ${
             activeTab === "commissions"
-              ? "bg-[var(--brand)] text-white shadow-xs"
-              : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              ? "bg-emerald-600 text-white shadow-sm"
+              : "bg-zinc-100 dark:bg-[#1B1D21] text-zinc-600 dark:text-[#8E95A2] hover:text-zinc-900 dark:hover:text-white border border-zinc-200/60 dark:border-[#303238]"
           }`}
         >
           Comissões &amp; Liquidações ({commissions.length})
@@ -272,10 +277,10 @@ export function AdminReferralsView({
         <button
           type="button"
           onClick={() => setActiveTab("referrers")}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+          className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer min-h-[44px] ${
             activeTab === "referrers"
-              ? "bg-[var(--brand)] text-white shadow-xs"
-              : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              ? "bg-emerald-600 text-white shadow-sm"
+              : "bg-zinc-100 dark:bg-[#1B1D21] text-zinc-600 dark:text-[#8E95A2] hover:text-zinc-900 dark:hover:text-white border border-zinc-200/60 dark:border-[#303238]"
           }`}
         >
           Indicadores Ativos ({referrers.length})
@@ -283,10 +288,10 @@ export function AdminReferralsView({
         <button
           type="button"
           onClick={() => setActiveTab("settings")}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+          className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer min-h-[44px] ${
             activeTab === "settings"
-              ? "bg-[var(--brand)] text-white shadow-xs"
-              : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              ? "bg-emerald-600 text-white shadow-sm"
+              : "bg-zinc-100 dark:bg-[#1B1D21] text-zinc-600 dark:text-[#8E95A2] hover:text-zinc-900 dark:hover:text-white border border-zinc-200/60 dark:border-[#303238]"
           }`}
         >
           Regras &amp; Configurações
@@ -295,19 +300,19 @@ export function AdminReferralsView({
 
       {/* TAB 1: COMMISSIONS */}
       {activeTab === "commissions" && (
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 shadow-xs depth-base space-y-4">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
           {/* Filters */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {["ALL", "PENDING", "APPROVED", "PAID", "CANCELLED"].map((st) => (
                 <button
                   key={st}
                   type="button"
                   onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1.5 text-xs rounded-xl border transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 text-xs rounded-xl border transition-all cursor-pointer min-h-[36px] ${
                     statusFilter === st
-                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] font-bold shadow-2xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-default)] hover:bg-[var(--surface-hover)] font-medium"
+                      ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border-transparent font-bold shadow-xs"
+                      : "bg-zinc-100 dark:bg-[#1B1D21] text-zinc-600 dark:text-[#8E95A2] border-zinc-200/80 dark:border-[#303238] hover:bg-zinc-200/60 dark:hover:bg-[#252830] font-medium"
                   }`}
                 >
                   {st === "ALL" ? "Todos" : statusBadges[st as CommissionStatus].label}
@@ -320,20 +325,20 @@ export function AdminReferralsView({
               placeholder="Buscar por indicador ou aluno..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              className="text-xs p-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-2 focus:outline-[var(--brand)] w-full sm:w-64"
+              className="text-xs p-2.5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-zinc-50 dark:bg-[#1B1D21] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-[#8E95A2] focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full sm:w-64 min-h-[40px]"
             />
           </div>
 
           {/* Table */}
           {filteredCommissions.length === 0 ? (
-            <div className="p-8 text-center text-xs text-[var(--text-tertiary)] border border-dashed border-[var(--border-default)] rounded-2xl">
+            <div className="p-8 text-center text-xs text-zinc-500 dark:text-[#8E95A2] border border-dashed border-zinc-200 dark:border-[#303238] rounded-xl">
               Nenhuma comissão encontrada para os filtros selecionados.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead>
-                  <tr className="border-b border-[var(--border-subtle)] text-[var(--text-tertiary)]">
+                  <tr className="border-b border-zinc-200 dark:border-[#303238] text-zinc-500 dark:text-[#8E95A2]">
                     <th className="pb-3 font-semibold">Indicador</th>
                     <th className="pb-3 font-semibold">Novo Aluno</th>
                     <th className="pb-3 font-semibold">Valor</th>
@@ -342,35 +347,35 @@ export function AdminReferralsView({
                     <th className="pb-3 font-semibold text-right">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--border-subtle)]">
+                <tbody className="divide-y divide-zinc-100 dark:divide-[#303238]">
                   {filteredCommissions.map((c) => (
                     <tr key={c.id}>
-                      <td className="py-3 font-medium text-[var(--text-primary)]">
+                      <td className="py-3 font-medium text-zinc-900 dark:text-white">
                         <div>
                           <span>{c.referrerName}</span>
-                          <span className="text-[10px] text-[var(--text-tertiary)] block">
+                          <span className="text-[10px] text-zinc-500 dark:text-[#8E95A2] block">
                             {c.referrerRole === "INFLUENCER" ? "Influenciador / VIP" : "Aluno"}
                           </span>
                         </div>
                       </td>
-                      <td className="py-3 text-[var(--text-secondary)]">
+                      <td className="py-3 text-zinc-600 dark:text-zinc-300">
                         {c.studentName}
                       </td>
-                      <td className="py-3 font-bold text-[var(--text-primary)]">
+                      <td className="py-3 font-bold text-zinc-900 dark:text-white">
                         {c.amount !== null ? (
-                          <span>R$ {c.amount.toFixed(2)}</span>
+                          <span>{formatBrl(c.amount)}</span>
                         ) : (
-                          <span className="text-[var(--warning-foreground)]">
+                          <span className="text-amber-600 dark:text-amber-400">
                             {c.rateBasisPoints ? (c.rateBasisPoints / 100).toFixed(2) : 10}% (Base pendente)
                           </span>
                         )}
                         {c.baseAmount !== null && (
-                          <span className="text-[10px] text-[var(--text-tertiary)] block font-normal">
-                            Base: R$ {c.baseAmount.toFixed(2)}
+                          <span className="text-[10px] text-zinc-500 dark:text-[#8E95A2] block font-normal">
+                            Base: {formatBrl(c.baseAmount)}
                           </span>
                         )}
                       </td>
-                      <td className="py-3 font-mono text-[11px] text-[var(--text-secondary)]">
+                      <td className="py-3 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
                         {c.pixMasked}
                       </td>
                       <td className="py-3">
@@ -388,7 +393,7 @@ export function AdminReferralsView({
                                   setSelectedCommission(c);
                                   setActionType("approve");
                                 }}
-                                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[var(--brand)] text-white hover:brightness-110 cursor-pointer depth-interactive"
+                                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer transition-colors min-h-[36px]"
                               >
                                 Aprovar
                               </button>
@@ -398,7 +403,7 @@ export function AdminReferralsView({
                                   setSelectedCommission(c);
                                   setActionType("cancel");
                                 }}
-                                className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-[var(--border-default)] text-[var(--danger-foreground)] hover:bg-[var(--danger-soft)] cursor-pointer"
+                                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-rose-300 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer transition-colors min-h-[36px]"
                               >
                                 Cancelar
                               </button>
@@ -414,7 +419,7 @@ export function AdminReferralsView({
                                   setActionType("reveal_pix");
                                   handleRevealPix(c.referrerMemberId);
                                 }}
-                                className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] cursor-pointer"
+                                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-[#303238] bg-zinc-50 dark:bg-[#1B1D21] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-[#E5E7EB] cursor-pointer transition-colors min-h-[36px]"
                               >
                                 Ver PIX
                               </button>
@@ -424,7 +429,7 @@ export function AdminReferralsView({
                                   setSelectedCommission(c);
                                   setActionType("pay");
                                 }}
-                                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[var(--success-foreground)] text-white hover:brightness-110 cursor-pointer depth-interactive"
+                                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer transition-colors min-h-[36px]"
                               >
                                 Marcar Pago
                               </button>
@@ -432,7 +437,7 @@ export function AdminReferralsView({
                           )}
 
                           {c.status === "PAID" && (
-                            <span className="text-[10px] text-[var(--success-foreground)] font-semibold">
+                            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
                               ✓ Liquidado
                             </span>
                           )}
@@ -449,11 +454,11 @@ export function AdminReferralsView({
 
       {/* TAB 2: REFERRERS */}
       {activeTab === "referrers" && (
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 shadow-xs depth-base space-y-4">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead>
-                <tr className="border-b border-[var(--border-subtle)] text-[var(--text-tertiary)]">
+                <tr className="border-b border-zinc-200 dark:border-[#303238] text-zinc-500 dark:text-[#8E95A2]">
                   <th className="pb-3 font-semibold">Participante</th>
                   <th className="pb-3 font-semibold">Papel</th>
                   <th className="pb-3 font-semibold">Código</th>
@@ -464,32 +469,32 @@ export function AdminReferralsView({
                   <th className="pb-3 font-semibold">PIX</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border-subtle)]">
+              <tbody className="divide-y divide-zinc-100 dark:divide-[#303238]">
                 {referrers.map((r) => (
                   <tr key={r.memberId}>
                     <td className="py-3">
                       <div className="flex items-center gap-2.5">
                         <UserAvatar fullName={r.name} userPublicId={r.userPublicId} size="xs" />
-                        <span className="font-semibold text-[var(--text-primary)]">{r.name}</span>
+                        <span className="font-semibold text-zinc-900 dark:text-white">{r.name}</span>
                       </div>
                     </td>
-                    <td className="py-3 text-[var(--text-secondary)]">
+                    <td className="py-3 text-zinc-600 dark:text-zinc-300">
                       {r.role === "INFLUENCER" ? "Influenciador / VIP" : "Aluno"}
                     </td>
-                    <td className="py-3 font-mono font-bold text-[var(--text-primary)]">
+                    <td className="py-3 font-mono font-bold text-zinc-900 dark:text-white">
                       {r.code}
                     </td>
-                    <td className="py-3 text-[var(--text-primary)]">{r.registrations}</td>
-                    <td className="py-3 font-bold text-[var(--brand)]">{r.conversions}</td>
-                    <td className="py-3 text-[var(--warning-foreground)]">R$ {r.pendingAmount.toFixed(2)}</td>
-                    <td className="py-3 text-[var(--success-foreground)] font-bold">R$ {r.paidAmount.toFixed(2)}</td>
+                    <td className="py-3 text-zinc-900 dark:text-white font-medium">{r.registrations}</td>
+                    <td className="py-3 font-bold text-emerald-600 dark:text-emerald-400">{r.conversions}</td>
+                    <td className="py-3 text-amber-600 dark:text-amber-400 font-medium">{formatBrl(r.pendingAmount)}</td>
+                    <td className="py-3 text-emerald-600 dark:text-emerald-400 font-bold">{formatBrl(r.paidAmount)}</td>
                     <td className="py-3">
                       {r.hasPix ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[var(--success-soft)] text-[var(--success-foreground)] border border-[var(--success-border)]">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                           Cadastrado
                         </span>
                       ) : (
-                        <span className="text-[10px] text-[var(--text-tertiary)]">Pendente</span>
+                        <span className="text-[10px] text-zinc-400 dark:text-[#8E95A2]">Pendente</span>
                       )}
                     </td>
                   </tr>
@@ -502,33 +507,33 @@ export function AdminReferralsView({
 
       {/* TAB 3: SETTINGS */}
       {activeTab === "settings" && (
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 shadow-xs depth-base max-w-2xl space-y-4">
+        <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 shadow-sm max-w-2xl space-y-4">
           <div>
-            <h3 className="text-base font-bold text-[var(--text-primary)]">
+            <h3 className="text-base font-bold text-zinc-900 dark:text-white">
               Configurações do Programa de Indicações
             </h3>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+            <p className="text-xs text-zinc-500 dark:text-[#8E95A2] mt-0.5">
               Defina se o programa está ativo e qual regra de comissionamento será aplicada para futuras conversões.
             </p>
           </div>
 
           <form onSubmit={handleSaveSettings} className="space-y-4 pt-2">
-            <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-between">
+            <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200 dark:border-[#303238] flex items-center justify-between">
               <div>
-                <span className="text-xs font-bold text-[var(--text-primary)] block">
+                <span className="text-xs font-bold text-zinc-900 dark:text-white block">
                   Status do Programa
                 </span>
-                <span className="text-[11px] text-[var(--text-secondary)]">
+                <span className="text-[11px] text-zinc-500 dark:text-[#8E95A2]">
                   {isEnabled ? "Ativo — novos cadastros geram comissões normalmente" : "Pausado — novos links não gerarão comissões"}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsEnabled(!isEnabled)}
-                className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer min-h-[44px] ${
                   isEnabled
-                    ? "bg-[var(--success-soft)] text-[var(--success-foreground)] border-[var(--success-border)]"
-                    : "bg-[var(--danger-soft)] text-[var(--danger-foreground)] border-[var(--danger-border)]"
+                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                    : "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30"
                 }`}
               >
                 {isEnabled ? "Ativo" : "Pausado"}
@@ -537,13 +542,13 @@ export function AdminReferralsView({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-[var(--text-secondary)] block">
+                <label className="text-xs font-semibold text-zinc-600 dark:text-[#8E95A2] block">
                   Tipo de Comissão
                 </label>
                 <select
                   value={commissionType}
                   onChange={(e) => setCommissionType(e.target.value as CommissionType)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-2 focus:outline-[var(--brand)]"
+                  className="w-full text-xs p-2.5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-zinc-50 dark:bg-[#1B1D21] text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
                 >
                   <option value="FIXED_AMOUNT">Valor Fixo (R$ BRL)</option>
                   <option value="PERCENTAGE">Percentual (%)</option>
@@ -551,7 +556,7 @@ export function AdminReferralsView({
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-[var(--text-secondary)] block">
+                <label className="text-xs font-semibold text-zinc-600 dark:text-[#8E95A2] block">
                   {commissionType === "FIXED_AMOUNT" ? "Valor por conversão (R$)" : "Percentual (%)"}
                 </label>
                 <input
@@ -561,18 +566,18 @@ export function AdminReferralsView({
                   max={commissionType === "PERCENTAGE" ? "100" : "10000"}
                   value={commissionValue}
                   onChange={(e) => setCommissionValue(parseFloat(e.target.value) || 0)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-2 focus:outline-[var(--brand)]"
+                  className="w-full text-xs p-2.5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-zinc-50 dark:bg-[#1B1D21] text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
                 />
               </div>
             </div>
 
             {settingsError && (
-              <div className="p-3 text-xs rounded-xl bg-[var(--danger-soft)] text-[var(--danger-foreground)] border border-[var(--danger-border)]">
+              <div className="p-3 text-xs rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
                 {settingsError}
               </div>
             )}
             {settingsSuccess && (
-              <div className="p-3 text-xs rounded-xl bg-[var(--success-soft)] text-[var(--success-foreground)] border border-[var(--success-border)]">
+              <div className="p-3 text-xs rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                 {settingsSuccess}
               </div>
             )}
@@ -580,7 +585,7 @@ export function AdminReferralsView({
             <button
               type="submit"
               disabled={isSavingSettings}
-              className="px-6 py-2.5 rounded-xl bg-[var(--brand)] text-white text-xs font-bold hover:brightness-110 active:scale-98 transition-all disabled:opacity-50 cursor-pointer shadow-xs depth-interactive"
+              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shadow-sm min-h-[44px]"
             >
               {isSavingSettings ? "Salvando..." : "Salvar Configurações"}
             </button>
@@ -590,28 +595,28 @@ export function AdminReferralsView({
 
       {/* ACTION MODAL: APPROVE / CANCEL / PAY / REVEAL PIX */}
       {actionType && selectedCommission && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 shadow-2xl max-w-md w-full space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-6 shadow-2xl max-w-md w-full space-y-4 text-zinc-900 dark:text-white">
             {actionType === "approve" && (
               <>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white">
                   Aprovar Comissão
                 </h3>
-                <p className="text-xs text-[var(--text-secondary)]">
+                <p className="text-xs text-zinc-600 dark:text-[#8E95A2]">
                   {selectedCommission.commissionType === "PERCENTAGE" ? (
                     <>
                       Comissão percentual de <strong>{selectedCommission.rateBasisPoints ? (selectedCommission.rateBasisPoints / 100).toFixed(2) : 10}%</strong> para <strong>{selectedCommission.referrerName}</strong> referente à adesão de {selectedCommission.studentName}.
                     </>
                   ) : (
                     <>
-                      Confirmar a aprovação da comissão de <strong className="text-[var(--text-primary)]">R$ {selectedCommission.amount !== null ? selectedCommission.amount.toFixed(2) : "0.00"}</strong> para <strong className="text-[var(--text-primary)]">{selectedCommission.referrerName}</strong> referente à adesão de {selectedCommission.studentName}?
+                      Confirmar a aprovação da comissão de <strong className="text-zinc-900 dark:text-white">{formatBrl(selectedCommission.amount)}</strong> para <strong className="text-zinc-900 dark:text-white">{selectedCommission.referrerName}</strong> referente à adesão de {selectedCommission.studentName}?
                     </>
                   )}
                 </p>
 
                 {selectedCommission.commissionType === "PERCENTAGE" && (
                   <div className="space-y-2 pt-1">
-                    <label className="text-xs font-semibold text-[var(--text-primary)] block">
+                    <label className="text-xs font-semibold text-zinc-900 dark:text-white block">
                       Valor base da comissão (R$)
                     </label>
                     <input
@@ -619,21 +624,21 @@ export function AdminReferralsView({
                       placeholder="Ex: 250,00"
                       value={baseAmountInput}
                       onChange={(e) => setBaseAmountInput(e.target.value)}
-                      className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-2 focus:outline-[var(--brand)]"
+                      className="w-full text-xs p-2.5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-zinc-50 dark:bg-[#1B1D21] text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
                     />
                     {baseAmountInput && !isNaN(parseFloat(baseAmountInput.replace(',', '.'))) && (
-                      <p className="text-[11px] text-[var(--brand)] font-medium">
-                        Comissão projetada: R$ {(
+                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                        Comissão projetada: {formatBrl(
                           (parseFloat(baseAmountInput.replace(',', '.')) *
                             (selectedCommission.rateBasisPoints ? selectedCommission.rateBasisPoints / 10000 : 0.1))
-                        ).toFixed(2)}
+                        )}
                       </p>
                     )}
                   </div>
                 )}
 
                 {actionError && (
-                  <div className="p-3 text-xs rounded-xl bg-[var(--danger-soft)] text-[var(--danger-foreground)] border border-[var(--danger-border)]">
+                  <div className="p-3 text-xs rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
                     {actionError}
                   </div>
                 )}
@@ -644,7 +649,7 @@ export function AdminReferralsView({
                       setActionType(null);
                       setBaseAmountInput("");
                     }}
-                    className="px-4 py-2 text-xs rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] cursor-pointer"
+                    className="px-4 py-2 text-xs rounded-xl border border-zinc-200 dark:border-[#303238] text-zinc-600 dark:text-[#8E95A2] hover:bg-zinc-100 dark:hover:bg-[#1B1D21] cursor-pointer min-h-[44px]"
                   >
                     Voltar
                   </button>
@@ -664,7 +669,7 @@ export function AdminReferralsView({
                         handleApprove(selectedCommission.id);
                       }
                     }}
-                    className="px-5 py-2 text-xs font-bold rounded-xl bg-[var(--brand)] text-white hover:brightness-110 cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer disabled:opacity-50 min-h-[44px]"
                   >
                     {isProcessingAction ? "Aprovando..." : "Confirmar Aprovação"}
                   </button>
@@ -674,21 +679,21 @@ export function AdminReferralsView({
 
             {actionType === "cancel" && (
               <>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white">
                   Cancelar Comissão
                 </h3>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Informe o motivo do cancelamento da comissão de R$ {selectedCommission.amount !== null ? selectedCommission.amount.toFixed(2) : "0.00"}:
+                <p className="text-xs text-zinc-600 dark:text-[#8E95A2]">
+                  Informe o motivo do cancelamento da comissão de {formatBrl(selectedCommission.amount)}:
                 </p>
                 <textarea
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                   rows={3}
                   placeholder="Ex: Cancelamento de matrícula pelo aluno, auto-indicação indevida..."
-                  className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-2 focus:outline-[var(--brand)]"
+                  className="w-full text-xs p-2.5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-zinc-50 dark:bg-[#1B1D21] text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
                 {actionError && (
-                  <div className="p-3 text-xs rounded-xl bg-[var(--danger-soft)] text-[var(--danger-foreground)] border border-[var(--danger-border)]">
+                  <div className="p-3 text-xs rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
                     {actionError}
                   </div>
                 )}
@@ -696,7 +701,7 @@ export function AdminReferralsView({
                   <button
                     type="button"
                     onClick={() => setActionType(null)}
-                    className="px-4 py-2 text-xs rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] cursor-pointer"
+                    className="px-4 py-2 text-xs rounded-xl border border-zinc-200 dark:border-[#303238] text-zinc-600 dark:text-[#8E95A2] hover:bg-zinc-100 dark:hover:bg-[#1B1D21] cursor-pointer min-h-[44px]"
                   >
                     Voltar
                   </button>
@@ -704,7 +709,7 @@ export function AdminReferralsView({
                     type="button"
                     disabled={isProcessingAction}
                     onClick={() => handleCancel(selectedCommission.id)}
-                    className="px-5 py-2 text-xs font-bold rounded-xl bg-[var(--danger-soft)] text-[var(--danger-foreground)] border border-[var(--danger-border)] hover:bg-[var(--danger-soft)] cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-500 text-white cursor-pointer disabled:opacity-50 min-h-[44px]"
                   >
                     {isProcessingAction ? "Cancelando..." : "Confirmar Cancelamento"}
                   </button>
@@ -714,21 +719,21 @@ export function AdminReferralsView({
 
             {actionType === "pay" && (
               <>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white">
                   Liquidar Comissão (Marcar como Paga)
                 </h3>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Confirma que a transferência externa no valor de <strong className="text-[var(--text-primary)]">R$ {selectedCommission.amount !== null ? selectedCommission.amount.toFixed(2) : "0.00"}</strong> foi realizada via PIX para {selectedCommission.referrerName}?
+                <p className="text-xs text-zinc-600 dark:text-[#8E95A2]">
+                  Confirma que a transferência externa no valor de <strong className="text-zinc-900 dark:text-white">{formatBrl(selectedCommission.amount)}</strong> foi realizada via PIX para {selectedCommission.referrerName}?
                 </p>
                 <input
                   type="text"
                   placeholder="Nota/comprovante opcional (ex: TXID 982341)..."
                   value={paymentNote}
                   onChange={(e) => setPaymentNote(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-2 focus:outline-[var(--brand)]"
+                  className="w-full text-xs p-2.5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-zinc-50 dark:bg-[#1B1D21] text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
                 />
                 {actionError && (
-                  <div className="p-3 text-xs rounded-xl bg-[var(--danger-soft)] text-[var(--danger-foreground)] border border-[var(--danger-border)]">
+                  <div className="p-3 text-xs rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
                     {actionError}
                   </div>
                 )}
@@ -736,7 +741,7 @@ export function AdminReferralsView({
                   <button
                     type="button"
                     onClick={() => setActionType(null)}
-                    className="px-4 py-2 text-xs rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] cursor-pointer"
+                    className="px-4 py-2 text-xs rounded-xl border border-zinc-200 dark:border-[#303238] text-zinc-600 dark:text-[#8E95A2] hover:bg-zinc-100 dark:hover:bg-[#1B1D21] cursor-pointer min-h-[44px]"
                   >
                     Voltar
                   </button>
@@ -744,7 +749,7 @@ export function AdminReferralsView({
                     type="button"
                     disabled={isProcessingAction}
                     onClick={() => handleMarkPaid(selectedCommission.id)}
-                    className="px-5 py-2 text-xs font-bold rounded-xl bg-[var(--success-foreground)] text-white hover:brightness-110 cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer disabled:opacity-50 min-h-[44px]"
                   >
                     {isProcessingAction ? "Salvando..." : "Confirmar Pagamento"}
                   </button>
@@ -754,19 +759,19 @@ export function AdminReferralsView({
 
             {actionType === "reveal_pix" && (
               <>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white">
                   Dados PIX para Pagamento
                 </h3>
                 {isProcessingAction ? (
-                  <p className="text-xs text-[var(--text-secondary)]">Consultando chave PIX segura...</p>
+                  <p className="text-xs text-zinc-500 dark:text-[#8E95A2]">Consultando chave PIX segura...</p>
                 ) : revealedPix ? (
                   <div className="space-y-3">
-                    <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] space-y-1">
-                      <span className="text-[10px] font-bold uppercase text-[var(--text-tertiary)] block">
+                    <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200 dark:border-[#303238] space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-zinc-400 dark:text-[#8E95A2] block">
                         {revealedPix.pixKeyType}
                       </span>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-sm font-bold text-[var(--text-primary)] select-all break-all">
+                        <span className="font-mono text-sm font-bold text-zinc-900 dark:text-white select-all break-all">
                           {revealedPix.pixKey}
                         </span>
                         <button
@@ -776,24 +781,24 @@ export function AdminReferralsView({
                             setCopiedPix(true);
                             setTimeout(() => setCopiedPix(false), 2000);
                           }}
-                          className="px-3 py-1 text-xs rounded-lg bg-[var(--brand)] text-white font-bold shrink-0 cursor-pointer"
+                          className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold shrink-0 cursor-pointer min-h-[36px]"
                         >
                           {copiedPix ? "Copiado!" : "Copiar"}
                         </button>
                       </div>
                       {revealedPix.receiverName && (
-                        <p className="text-xs text-[var(--text-secondary)] pt-1">
+                        <p className="text-xs text-zinc-500 dark:text-[#8E95A2] pt-1">
                           Titular: {revealedPix.receiverName}
                         </p>
                       )}
                     </div>
-                    <p className="text-[10px] text-[var(--text-tertiary)]">
+                    <p className="text-[10px] text-zinc-400 dark:text-[#8E95A2]">
                       🔒 O acesso a esta chave foi registrado no histórico de auditoria da consultoria.
                     </p>
                   </div>
                 ) : (
                   actionError && (
-                    <div className="p-3 text-xs rounded-xl bg-[var(--danger-soft)] text-[var(--danger-foreground)] border border-[var(--danger-border)]">
+                    <div className="p-3 text-xs rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
                       {actionError}
                     </div>
                   )
@@ -805,7 +810,7 @@ export function AdminReferralsView({
                       setActionType(null);
                       setRevealedPix(null);
                     }}
-                    className="px-5 py-2 text-xs font-bold rounded-xl bg-[var(--brand)] text-white hover:brightness-110 cursor-pointer"
+                    className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer min-h-[44px]"
                   >
                     Fechar
                   </button>

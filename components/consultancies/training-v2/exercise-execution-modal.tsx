@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import type { BlockItemMediaDto, ExerciseMediaDto } from "@/lib/training-v2/types";
 
 import { resolveExerciseExecutionMedia } from "@/lib/training-v2/execution-media-resolver";
+
+const emptySubscribe = () => () => {};
 
 interface Props {
   isOpen: boolean;
@@ -24,6 +27,7 @@ export function ExerciseExecutionModal({
   customVideoUrl,
   instructions,
 }: Props) {
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const pinnedDerived = useMemo(() => {
     const resolved = resolveExerciseExecutionMedia({
       item: { pinnedMedia, customVideoUrl },
@@ -107,11 +111,11 @@ export function ExerciseExecutionModal({
   const isVideoFailed = Boolean(activeMedia?.url && failedVideoUrl === activeMedia.url);
   const isImgFailed = Boolean(activeMedia?.url && failedImgUrl === activeMedia.url);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
@@ -226,6 +230,7 @@ export function ExerciseExecutionModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

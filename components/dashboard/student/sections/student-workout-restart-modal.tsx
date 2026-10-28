@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { startOrResumeWorkoutExecutionAction } from "@/app/consultoria/[slug]/treinos/actions";
+
+const emptySubscribe = () => () => {};
 
 export interface StudentWorkoutRestartModalProps {
   isOpen: boolean;
@@ -24,28 +27,44 @@ export function StudentWorkoutRestartModal({
   startedFormatted,
   onSuccess,
 }: StudentWorkoutRestartModalProps) {
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const handleClose = useCallback(() => {
     if (isSubmitting) return; // Previne fechar durante a requisição
     onClose();
   }, [isSubmitting, onClose]);
 
-  // Escape fecha se não estiver enviando
+  // Lock body scroll and handle Escape key
   useEffect(() => {
     if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // Focus confirm button when opened
+    const timer = setTimeout(() => {
+      confirmButtonRef.current?.focus();
+    }, 50);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !isSubmitting) {
         e.preventDefault();
         handleClose();
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      clearTimeout(timer);
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [isOpen, isSubmitting, handleClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   async function handleConfirmRestart() {
     if (isSubmitting) return;
@@ -76,20 +95,25 @@ export function StudentWorkoutRestartModal({
     }
   }
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="restart-modal-title"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs select-none"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs select-none animate-in fade-in duration-200"
       onClick={handleClose}
     >
       <div
-        className="w-full sm:max-w-md bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4 max-h-[90vh] flex flex-col transition-all text-left"
+        className="w-full sm:max-w-md bg-white dark:bg-[#151619] border-t sm:border border-zinc-200 dark:border-[#303238] rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[min(90dvh,580px)] flex flex-col transition-all text-left overflow-hidden animate-in slide-in-from-bottom-6 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Cabeçalho */}
-        <div className="flex items-start justify-between gap-3 border-b border-zinc-100 dark:border-[#303238] pb-3 shrink-0">
+        {/* Mobile handle indicator */}
+        <div className="pt-3 pb-1 flex justify-center sm:hidden shrink-0">
+          <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+        </div>
+
+        {/* Cabeçalho Fixo */}
+        <div className="flex items-start justify-between gap-3 px-5 sm:px-6 pt-3 sm:pt-5 pb-3 border-b border-zinc-100 dark:border-[#303238] shrink-0">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 block mb-0.5">
               Reiniciar Execução
@@ -105,15 +129,15 @@ export function StudentWorkoutRestartModal({
             type="button"
             onClick={handleClose}
             disabled={isSubmitting}
-            aria-label="Fechar"
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+            aria-label="Fechar janela"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50 min-h-[36px] min-w-[36px] flex items-center justify-center"
           >
             ✕
           </button>
         </div>
 
-        {/* Mensagem e Confirmação */}
-        <div className="space-y-3 text-xs sm:text-sm text-zinc-700 dark:text-zinc-300">
+        {/* Corpo com Rolagem Interna Segura */}
+        <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 space-y-3.5 text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 min-h-0">
           <p className="leading-relaxed">
             Deseja começar a divisão{" "}
             <strong className="text-zinc-900 dark:text-white font-bold">
@@ -122,7 +146,7 @@ export function StudentWorkoutRestartModal({
             do início?
           </p>
 
-          <div className="p-3 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/25 text-xs text-emerald-900 dark:text-emerald-300 space-y-1">
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/25 text-xs text-emerald-900 dark:text-emerald-300 space-y-1">
             <span className="font-bold flex items-center gap-1.5">
               <span>✓</span>
               <span>Histórico preservado com segurança</span>
@@ -145,34 +169,38 @@ export function StudentWorkoutRestartModal({
           )}
         </div>
 
-        {/* Ações com min-h de 44px */}
-        <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-zinc-100 dark:border-[#303238]">
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={handleClose}
-            className="flex-1 min-h-[44px] px-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50 select-none"
-          >
-            Cancelar
-          </button>
+        {/* Rodapé Fixo Sempre Visível com Safe Area e Botões >= 48px */}
+        <div className="shrink-0 p-4 sm:p-5 border-t border-zinc-100 dark:border-[#303238] bg-white dark:bg-[#151619] pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:pb-5">
+          <div className="flex flex-col-reverse sm:flex-row items-center gap-2.5">
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleClose}
+              className="w-full sm:flex-1 min-h-[48px] px-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50 select-none flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            >
+              Cancelar
+            </button>
 
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={handleConfirmRestart}
-            className="flex-1 min-h-[44px] px-4 rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-bold text-xs sm:text-sm shadow-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50 select-none"
-          >
-            {isSubmitting ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Reiniciando...</span>
-              </>
-            ) : (
-              <span>Começar do início</span>
-            )}
-          </button>
+            <button
+              ref={confirmButtonRef}
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleConfirmRestart}
+              className="w-full sm:flex-1 min-h-[48px] px-4 rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-bold text-xs sm:text-sm shadow-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50 select-none focus:outline-none focus:ring-2 focus:ring-amber-400"
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Reiniciando...</span>
+                </>
+              ) : (
+                <span>Começar do início</span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

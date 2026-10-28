@@ -69,14 +69,13 @@ async function handleMediaRequest(request: Request, paramsPromise: Promise<{ pub
         if (rows[0].consultancy_public_id) {
           consultancyIdentifier = String(rows[0].consultancy_public_id);
         } else if (rows[0].scope === "GLOBAL") {
-          // Asset is GLOBAL: resolve user's primary professional consultancy if available
+          // Asset is GLOBAL: resolve user's primary consultancy membership if available (coaches, admins or students)
           const [userConsultancies] = await connection.execute<RowDataPacket[]>(
             `SELECT c.public_id
              FROM consultancy_members cm
              INNER JOIN consultancies c ON c.id = cm.consultancy_id
-             INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
              WHERE cm.user_id = ? AND cm.status = 'ACTIVE' AND c.status = 'ACTIVE' AND c.deleted_at IS NULL
-               AND cmr.role IN ('PERSONAL', 'CONSULTANCY_ADMIN')
+             ORDER BY cm.created_at DESC
              LIMIT 1;`,
             [session.userId]
           );

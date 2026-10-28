@@ -18,6 +18,7 @@ import {
   completeWorkoutExecutionAction,
 } from "@/app/consultoria/[slug]/treinos/actions";
 import { StudentExerciseSwapModal } from "./student-exercise-swap-modal";
+import { ExerciseExecutionModal } from "./exercise-execution-modal";
 import { resolveExerciseExecutionMedia } from "@/lib/training-v2/execution-media-resolver";
 import type { ExerciseSwapReason } from "@/lib/training-v2/exercise-substitution-types";
 
@@ -1400,62 +1401,15 @@ export function StudentRuntimeChecklistView({
 
       {/* 6. Modal de Vídeo / Mídia da Execução */}
       {videoModalItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-xl rounded-3xl bg-zinc-950 border border-zinc-800 p-5 space-y-4 text-white shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white">
-                  {videoModalItem.exerciseNameSnapshot || "Execução do Exercício"}
-                </h3>
-                {videoModalItem.muscleGroupSnapshot && (
-                  <span className="text-xs text-zinc-400">{videoModalItem.muscleGroupSnapshot}</span>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setVideoModalItem(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800"
-              >
-                ✕
-              </button>
-            </div>
-
-            {(() => {
-              const m = resolveExerciseExecutionMedia({ item: videoModalItem });
-              if (!m.hasMedia || !m.url) {
-                return (
-                  <p className="text-xs text-zinc-400 p-6 text-center">
-                    Demonstração em vídeo não cadastrada para este exercício.
-                  </p>
-                );
-              }
-              if (m.isVideo) {
-                return (
-                  <video
-                    src={m.url}
-                    controls
-                    playsInline
-                    className="w-full rounded-2xl max-h-[60vh] object-contain bg-black"
-                  />
-                );
-              }
-              return (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={m.url}
-                  alt={videoModalItem.exerciseNameSnapshot || "Exercício"}
-                  className="w-full rounded-2xl max-h-[60vh] object-contain bg-black"
-                />
-              );
-            })()}
-
-            {videoModalItem.instructionsSnapshot && (
-              <p className="text-xs text-zinc-300 leading-relaxed bg-zinc-900 p-3 rounded-xl border border-zinc-800">
-                {videoModalItem.instructionsSnapshot}
-              </p>
-            )}
-          </div>
-        </div>
+        <ExerciseExecutionModal
+          isOpen={Boolean(videoModalItem)}
+          onClose={() => setVideoModalItem(null)}
+          exerciseName={videoModalItem.exerciseNameSnapshot || "Execução do Exercício"}
+          exercisePublicId={videoModalItem.exercisePublicId || videoModalItem.customExercisePublicId || null}
+          pinnedMedia={videoModalItem.pinnedMedia || []}
+          customVideoUrl={videoModalItem.customVideoUrl || null}
+          instructions={videoModalItem.instructionsSnapshot || null}
+        />
       )}
 
       {/* 7. Modal de Substituição de Exercício */}

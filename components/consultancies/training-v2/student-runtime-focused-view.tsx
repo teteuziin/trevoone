@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import type {
   StudentWorkoutViewContract,
@@ -352,6 +352,23 @@ export function StudentRuntimeFocusedView({
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
   const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
   const [failedImgUrl, setFailedImgUrl] = useState<string | null>(null);
+  const [exerciseMediaCache, setExerciseMediaCache] = useState<
+    Record<string, { url: string; isVideo: boolean; isGif: boolean; thumbnailUrl?: string | null } | null>
+  >({});
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  function getEmbedVideoInfo(url: string) {
+    if (!url) return null;
+    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/i);
+    if (ytMatch && ytMatch[1]) {
+      return { type: "youtube" as const, embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=0&mute=1` };
+    }
+    const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?([0-9]+)/i);
+    if (vimeoMatch && vimeoMatch[1]) {
+      return { type: "vimeo" as const, embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}?muted=1` };
+    }
+    return null;
+  }
 
   const currentDraft = currentSet ? draftInputs[currentSet.publicId] : undefined;
 
@@ -669,6 +686,86 @@ export function StudentRuntimeFocusedView({
     return () => clearInterval(interval);
   }, [activeSession.startedAt]);
 
+  // Media resolution and on-demand catalog fetch for the current active exercise
+  const activeExerciseItem = currentItemContext?.item;
+  const targetExPublicId = activeExerciseItem?.exercisePublicId || activeExerciseItem?.customExercisePublicId || null;
+  const directResolvedMedia = resolveExerciseExecutionMedia({ item: activeExerciseItem });
+
+  useEffect(() => {
+    if (!targetExPublicId) return;
+    if (directResolvedMedia.hasMedia && directResolvedMedia.url) return;
+    if (exerciseMediaCache[targetExPublicId] !== undefined) return;
+
+    let isMounted = true;
+
+    fetch(`/api/training-v2/exercises/${targetExPublicId}`)
+      .then((res) => res.json())
+      .then((data: {
+        ok?: boolean;
+        exercise?: {
+          media?: Array<{
+            role?: string;
+            mediaAsset?: {
+              publicId?: string;
+              mediaType?: string;
+              mimeType?: string;
+            };
+          }>;
+        };
+      }) => {
+        if (!isMounted) return;
+        if (data.ok && Array.isArray(data.exercise?.media) && data.exercise.media.length > 0) {
+          const videoMatch = data.exercise.media.find(
+            (m) => m.role === "EXECUTION_VIDEO" || m.role === "ALTERNATE_VIDEO" || m.mediaAsset?.mediaType === "VIDEO"
+          );
+          const thumbMatch = data.exercise.media.find(
+            (m) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER"
+          );
+          const fallback = data.exercise.media[0];
+          const chosen = videoMatch || fallback;
+
+          if (chosen?.mediaAsset?.publicId) {
+            const isVid = chosen.mediaAsset.mediaType === "VIDEO" || chosen.mediaAsset.mimeType === "video/mp4";
+            const isGif = chosen.mediaAsset.mimeType === "image/gif";
+            const thumbUrl = thumbMatch?.mediaAsset?.publicId
+              ? `/api/training-v2/media/${thumbMatch.mediaAsset.publicId}`
+              : null;
+
+            setExerciseMediaCache((prev) => ({
+              ...prev,
+              [targetExPublicId]: {
+                url: `/api/training-v2/media/${chosen.mediaAsset!.publicId}`,
+                isVideo: isVid,
+                isGif,
+                thumbnailUrl: thumbUrl,
+              },
+            }));
+            return;
+          }
+        }
+        setExerciseMediaCache((prev) => ({ ...prev, [targetExPublicId]: null }));
+      })
+      .catch(() => {
+        if (isMounted) {
+          setExerciseMediaCache((prev) => ({ ...prev, [targetExPublicId]: null }));
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [targetExPublicId, directResolvedMedia.hasMedia, directResolvedMedia.url, exerciseMediaCache]);
+
+  // Pause previous video when changing exercise item
+  useEffect(() => {
+    const currentVideo = videoRef.current;
+    return () => {
+      if (currentVideo) {
+        currentVideo.pause();
+      }
+    };
+  }, [activeExerciseItem?.publicId]);
+
   // --------------------------------------------------------------------------
   // WORKOUT COMPLETED SUMMARY SCREEN (Requirement 5)
   // --------------------------------------------------------------------------
@@ -945,8 +1042,26 @@ export function StudentRuntimeFocusedView({
 
   const isSequence = Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence);
   const resolvedMedia = resolveExerciseExecutionMedia({ item });
-  const isVideoFailed = Boolean(resolvedMedia.url && failedVideoUrl === resolvedMedia.url);
-  const isImgFailed = Boolean(resolvedMedia.url && failedImgUrl === resolvedMedia.url);
+
+  const itemExPublicId = item?.exercisePublicId || item?.customExercisePublicId || null;
+  const lazyMedia = itemExPublicId ? exerciseMediaCache[itemExPublicId] || null : null;
+
+  const effectiveMedia = (resolvedMedia.hasMedia && resolvedMedia.url)
+    ? {
+        url: resolvedMedia.url,
+        isVideo: resolvedMedia.isVideo,
+        isGif: resolvedMedia.isGif,
+        thumbnailUrl: resolvedMedia.thumbnailUrl,
+      }
+    : lazyMedia;
+
+  const isVideoFailed = Boolean(effectiveMedia?.url && failedVideoUrl === effectiveMedia.url);
+  const isImgFailed = Boolean(effectiveMedia?.url && failedImgUrl === effectiveMedia.url);
+  const isLoadingMedia = Boolean(
+    itemExPublicId &&
+    !(resolvedMedia.hasMedia && resolvedMedia.url) &&
+    exerciseMediaCache[itemExPublicId] === undefined
+  );
 
   const sequenceExperience = isSequence
     ? buildSequenceMediaFromCustomItem(item)
@@ -1138,29 +1253,75 @@ export function StudentRuntimeFocusedView({
               )}
             </div>
 
-            {/* Topo do exercício: Vídeo/imagem grande mantendo proporção (object-contain), carregamento leve */}
-            {resolvedMedia.hasMedia && resolvedMedia.url && !isVideoFailed && !isImgFailed ? (
-              <div className="w-full max-h-[380px] sm:max-h-[440px] bg-black rounded-2xl overflow-hidden flex items-center justify-center relative shadow-inner">
-                {resolvedMedia.isGif || !resolvedMedia.isVideo ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={resolvedMedia.url}
-                    alt={item.exerciseNameSnapshot}
-                    onError={() => setFailedImgUrl(resolvedMedia.url)}
-                    className="w-full h-full max-h-[380px] sm:max-h-[440px] object-contain"
-                  />
-                ) : (
-                  <video
-                    key={resolvedMedia.url}
-                    src={resolvedMedia.url}
-                    poster={resolvedMedia.thumbnailUrl || undefined}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    onError={() => setFailedVideoUrl(resolvedMedia.url)}
-                    className="w-full h-full max-h-[380px] sm:max-h-[440px] object-contain"
-                  />
-                )}
+            {/* Topo do exercício: Área quadrada de demonstração mantendo proporção (object-contain), sem áudio automático */}
+            {effectiveMedia && effectiveMedia.url && !isVideoFailed && !isImgFailed ? (
+              <div className="w-full max-w-full sm:max-w-sm lg:max-w-md mx-auto aspect-square rounded-2xl bg-black dark:bg-[#101114] border border-zinc-900 dark:border-zinc-800 overflow-hidden flex items-center justify-center relative shadow-inner">
+                {(() => {
+                  const embed = getEmbedVideoInfo(effectiveMedia.url);
+                  if (embed) {
+                    return (
+                      <iframe
+                        src={embed.embedUrl}
+                        title={`Demonstração de ${item.exerciseNameSnapshot}`}
+                        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="w-full h-full border-0 aspect-square"
+                      />
+                    );
+                  }
+
+                  if (effectiveMedia.isGif || !effectiveMedia.isVideo) {
+                    return (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={effectiveMedia.url}
+                        alt={item.exerciseNameSnapshot}
+                        onError={() => setFailedImgUrl(effectiveMedia.url)}
+                        className="w-full h-full object-contain"
+                      />
+                    );
+                  }
+
+                  return (
+                    <video
+                      ref={videoRef}
+                      key={effectiveMedia.url}
+                      src={effectiveMedia.url}
+                      poster={effectiveMedia.thumbnailUrl || undefined}
+                      controls
+                      playsInline
+                      muted
+                      preload="metadata"
+                      onError={() => setFailedVideoUrl(effectiveMedia.url)}
+                      className="w-full h-full object-contain"
+                    />
+                  );
+                })()}
+              </div>
+            ) : (isVideoFailed || isImgFailed) ? (
+              <div className="w-full max-w-full sm:max-w-sm lg:max-w-md mx-auto aspect-square rounded-2xl bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 p-5 flex flex-col items-center justify-center text-center space-y-3">
+                <div className="w-10 h-10 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-[var(--text-primary)]">Não foi possível carregar a demonstração</p>
+                  <p className="text-[11px] text-[var(--text-tertiary)]">Você pode continuar seu treino normalmente ou tentar carregar novamente.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFailedVideoUrl(null);
+                    setFailedImgUrl(null);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-zinc-200 dark:bg-zinc-800 text-[var(--text-primary)] hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors cursor-pointer min-h-[40px] flex items-center justify-center"
+                >
+                  Tentar carregar novamente
+                </button>
+              </div>
+            ) : isLoadingMedia ? (
+              <div className="w-full max-w-full sm:max-w-sm lg:max-w-md mx-auto aspect-square rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center text-center space-y-2 animate-pulse">
+                <span className="w-6 h-6 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+                <span className="text-[11px] font-medium text-[var(--text-tertiary)]">Carregando demonstração...</span>
               </div>
             ) : null}
 
@@ -1170,7 +1331,7 @@ export function StudentRuntimeFocusedView({
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-[var(--text-primary)] tracking-tight font-heading leading-tight">
                   {substitutedInfo ? substitutedInfo.performedExerciseName : item.exerciseNameSnapshot}
                 </h1>
-                {resolvedMedia.hasMedia && (
+                {effectiveMedia?.url && (
                   <button
                     type="button"
                     onClick={() => setIsExecutionSheetOpen(true)}
@@ -1717,13 +1878,26 @@ export function StudentRuntimeFocusedView({
         subtitle="Orientações e execução técnica"
       >
         <div className="space-y-4 py-1">
-          {resolvedMedia.hasMedia && resolvedMedia.url && (
+          {effectiveMedia && effectiveMedia.url && (
             <div className="rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center">
               {(() => {
+                const embed = getEmbedVideoInfo(effectiveMedia.url);
+                if (embed) {
+                  return (
+                    <iframe
+                      src={embed.embedUrl}
+                      title={`Demonstração de ${item.exerciseNameSnapshot}`}
+                      allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="w-full h-full border-0 aspect-video"
+                    />
+                  );
+                }
+
                 const isExplicitGif =
-                  resolvedMedia.isGif ||
-                  resolvedMedia.url.toLowerCase().endsWith(".gif") ||
-                  resolvedMedia.url.toLowerCase().includes(".gif");
+                  effectiveMedia.isGif ||
+                  effectiveMedia.url.toLowerCase().endsWith(".gif") ||
+                  effectiveMedia.url.toLowerCase().includes(".gif");
                 const hasFailedBoth = (isExplicitGif && isImgFailed) || (isVideoFailed && isImgFailed);
 
                 if (hasFailedBoth) {
@@ -1745,13 +1919,13 @@ export function StudentRuntimeFocusedView({
                   );
                 }
 
-                if (isExplicitGif || isVideoFailed || !resolvedMedia.isVideo) {
+                if (isExplicitGif || isVideoFailed || !effectiveMedia.isVideo) {
                   return (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={resolvedMedia.url}
+                      src={effectiveMedia.url}
                       alt={item.exerciseNameSnapshot}
-                      onError={() => setFailedImgUrl(resolvedMedia.url)}
+                      onError={() => setFailedImgUrl(effectiveMedia.url)}
                       className="w-full h-full object-contain"
                     />
                   );
@@ -1759,12 +1933,12 @@ export function StudentRuntimeFocusedView({
 
                 return (
                   <video
-                    src={resolvedMedia.url}
-                    poster={resolvedMedia.thumbnailUrl || undefined}
+                    src={effectiveMedia.url}
+                    poster={effectiveMedia.thumbnailUrl || undefined}
                     controls
                     playsInline
                     preload="metadata"
-                    onError={() => setFailedVideoUrl(resolvedMedia.url)}
+                    onError={() => setFailedVideoUrl(effectiveMedia.url)}
                     className="w-full h-full object-contain"
                   />
                 );

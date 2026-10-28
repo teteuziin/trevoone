@@ -334,43 +334,47 @@ export async function authorizeMediaAssetAccess(
         const isConsultancyCoach = ctx.consultancyId && Number(a.consultancy_id) === ctx.consultancyId && ctx.canAuthorTraining;
 
         if (isStudentOwner || isConsultancyCoach) {
-          // Check if this exact media_asset_id is pinned or referenced via custom_video_url in this assigned workout version
+          // Check if this exact media_asset_id is pinned, linked via exercise catalog or referenced via custom_video_url in this assigned workout version
           const [pinnedRows] = await connection.execute<RowDataPacket[]>(
             `SELECT wbi.id
              FROM workout_block_items wbi
              INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
              LEFT JOIN workout_block_item_media wbim ON wbim.block_item_id = wbi.id AND wbim.media_asset_id = ?
+             LEFT JOIN exercise_media em ON em.media_asset_id = ? AND (em.exercise_id = wbi.exercise_id OR em.exercise_id = wbi.custom_exercise_id)
              WHERE wb.workout_version_id = ?
                AND (
                  wbim.id IS NOT NULL
+                 OR em.id IS NOT NULL
                  OR wbi.custom_video_url LIKE CONCAT('%', ?, '%')
                )
              LIMIT 1;`,
-            [r.id, a.workout_version_id, r.public_id]
+            [r.id, r.id, a.workout_version_id, r.public_id]
           );
 
           if (Array.isArray(pinnedRows) && pinnedRows.length > 0) {
-            // Access granted through immutable assignment pin or item video override!
+            // Access granted through immutable assignment pin, exercise catalog or item video override!
             return { authorized: true, mediaAsset, storageKey };
           }
         }
       }
-    } else if (ctx.isStudent && ctx.membershipId) {
-      // Automatic student grant: check if asset is pinned or referenced via custom_video_url in ANY active/assigned workout version for this student
+    } else if (ctx.isStudent && (ctx.membershipId || ctx.userId)) {
+      // Automatic student grant: check if asset is pinned, linked via exercise catalog or referenced via custom_video_url in ANY active/assigned workout version for this student
       const [anyPinnedRows] = await connection.execute<RowDataPacket[]>(
         `SELECT wbi.id
          FROM workout_block_items wbi
          INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
          INNER JOIN workout_assignments wa ON wa.workout_version_id = wb.workout_version_id
          LEFT JOIN workout_block_item_media wbim ON wbim.block_item_id = wbi.id AND wbim.media_asset_id = ?
-         WHERE wa.student_membership_id = ?
+         LEFT JOIN exercise_media em ON em.media_asset_id = ? AND (em.exercise_id = wbi.exercise_id OR em.exercise_id = wbi.custom_exercise_id)
+         WHERE (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ?))
            AND wa.deleted_at IS NULL
            AND (
              wbim.id IS NOT NULL
+             OR em.id IS NOT NULL
              OR wbi.custom_video_url LIKE CONCAT('%', ?, '%')
            )
          LIMIT 1;`,
-        [r.id, ctx.membershipId, r.public_id]
+        [r.id, r.id, ctx.membershipId || 0, ctx.userId, r.public_id]
       );
 
       if (Array.isArray(anyPinnedRows) && anyPinnedRows.length > 0) {
@@ -378,12 +382,13 @@ export async function authorizeMediaAssetAccess(
       }
     }
 
-    // 3. Fallback: ordinary library visibility for professionals/admins
+    // 3. Fallback: ordinary library visibility for platform admin, coaches, or global demonstration catalog
     if (r.scope === "GLOBAL") {
-      if (ctx.isPlatformAdmin || ctx.canAuthorTraining) {
+      // Global exercise library demonstrations are accessible to all authenticated users
+      if (ctx.userId) {
         return { authorized: true, mediaAsset, storageKey };
       }
-      return { authorized: false, reason: "Acesso a mídias globais é restrito a profissionais autorizados ou prescrições ativas." };
+      return { authorized: false, reason: "Acesso a mídias globais requer usuário autenticado." };
     }
 
     if (r.scope === "CONSULTANCY") {

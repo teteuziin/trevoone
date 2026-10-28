@@ -21,6 +21,7 @@ import { runPwaOfflineSuite } from "./qa-suite-pwa-offline.mjs";
 import { runStudentDashboardFixesSuite } from "./test-student-dashboard-fixes.mjs";
 import { runStudentFinanceSuite } from "./test-student-finance-flows.mjs";
 import { runWorkoutExecutionLifecycleSuite } from "./test-workout-execution-lifecycle.mjs";
+import { runRestartModalAndVideoExecutionSuite } from "./test-restart-modal-and-video-execution.mjs";
 
 console.log("\n==================================================");
 console.log("TREVO ONE — AUTOMATED FULL APP QA (TERMINAL / NO BROWSER)");
@@ -71,6 +72,7 @@ await executeSuite("10. PWA Update Lifecycle & Offline Engine", runPwaOfflineSui
 await executeSuite("11. Student Dashboard & Focus Section Fixes", runStudentDashboardFixesSuite);
 await executeSuite("12. Student Finance & Pix Payment Flows", runStudentFinanceSuite);
 await executeSuite("13. Workout Execution Lifecycle & Summary Fixes", runWorkoutExecutionLifecycleSuite);
+await executeSuite("14. Restart Modal Mobile & Runtime Video Demonstration", runRestartModalAndVideoExecutionSuite);
 
 // External live networks explicitly NOT RUN in terminal QA
 grandNotRun += 3; // Web Push delivery external, WebRTC live TURN media, Browser Visual QA

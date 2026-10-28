@@ -44,7 +44,7 @@ export function StudentOverviewHeader({
 
             {/* Título forte e identificação única */}
             <div className="flex items-baseline gap-3 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              <h1 className="text-2xl sm:text-[28px] font-black text-white tracking-tight">
                 Meu acompanhamento
               </h1>
               <p className="text-xs sm:text-sm text-[#A1A7B4]">

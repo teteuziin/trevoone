@@ -67,9 +67,9 @@ export function SessionMoreOptionsMenu({
               setIsOpen(false);
               onRestart();
             }}
-            className="w-full px-3.5 py-2.5 rounded-lg text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-[#252830] hover:text-zinc-900 dark:hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer text-left select-none"
+            className="w-full px-3.5 py-2.5 rounded-lg text-sm font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 flex items-center gap-2.5 transition-colors cursor-pointer text-left select-none"
           >
-            <span className="text-amber-600 dark:text-amber-400 font-bold">↻</span>
+            <span className="text-amber-600 dark:text-amber-400 font-bold text-base">↻</span>
             <span>Começar do início</span>
           </button>
         </div>

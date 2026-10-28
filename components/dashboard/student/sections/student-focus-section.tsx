@@ -273,7 +273,7 @@ export function StudentFocusSection({
                   <DuotoneTrainingIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                  <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
                     {cardHeaderTitle}
                   </h2>
                   <p className="text-sm text-zinc-500 dark:text-[#8E95A2] mt-0.5">
@@ -307,7 +307,7 @@ export function StudentFocusSection({
 
             {/* Conteúdo Central */}
             {isError ? (
-              <div className="p-4 rounded-xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/25 space-y-2">
+              <div className="p-4 sm:p-5 rounded-xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/25 space-y-3">
                 <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 font-bold text-sm">
                   <svg className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -317,15 +317,29 @@ export function StudentFocusSection({
                 <p className="text-xs text-amber-900/80 dark:text-amber-300/80 leading-relaxed">
                   {dailyWorkoutResolution?.contextNote || "Não foi possível carregar a programação do treino neste momento. Suas prescrições e histórico permanecem preservados."}
                 </p>
+                <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-amber-500/20">
+                  <Link
+                    href={`/consultoria/${consultancySlug}/treinos`}
+                    className="px-5 min-h-[48px] rounded-xl font-bold text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 flex items-center justify-center gap-2 transition-opacity cursor-pointer select-none"
+                  >
+                    Ver meus treinos
+                  </Link>
+                  <Link
+                    href={`/consultoria/${consultancySlug}`}
+                    className="px-4 min-h-[48px] rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 select-none"
+                  >
+                    Tentar novamente
+                  </Link>
+                </div>
               </div>
             ) : hasTraining ? (
-              <div className="space-y-4">
-                {/* 1. Bloco do treino selecionado de hoje */}
+              <div className="space-y-4 sm:space-y-5">
+                {/* 1. Bloco Principal — Treino de Hoje (com ações próprias integradas) */}
                 {selectedDivision ? (
-                  <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-2 text-left">
+                  <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-3 text-left">
                     <div className="flex items-center justify-between gap-2 pb-0.5">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                        <span>Divisão escolhida</span>
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                        Divisão escolhida
                       </span>
                       <button
                         type="button"
@@ -335,332 +349,182 @@ export function StudentFocusSection({
                         Voltar ao treino programado
                       </button>
                     </div>
-                    <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
-                      {effectiveDivisionTitle}
-                    </h3>
-                    {routineTitle && (
-                      <p className="text-sm text-zinc-500 dark:text-[#8E95A2] mt-0.5">
-                        Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
-                      </p>
-                    )}
-                    {effectiveExerciseCount > 0 && (
-                      <div className="flex flex-wrap items-center gap-2 pt-1 text-xs sm:text-sm text-zinc-500 dark:text-[#8E95A2]">
-                        <span>
-                          {effectiveExerciseCount} {effectiveExerciseCount === 1 ? "exercício" : "exercícios"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ) : isRestDay ? (
-                  <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-1.5 text-left">
-                    <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
-                      Hoje é dia de descanso
-                    </h3>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                      Você pode escolher outro treino sem mudar sua programação.
-                    </p>
-                  </div>
-                ) : isCompletedToday ? (
-                  <div className="p-4 sm:p-5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/25 space-y-1.5 text-left">
-                    <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-sm sm:text-base">
-                      <span>✓ Treino de hoje concluído!</span>
-                    </div>
-                    <p className="text-sm text-emerald-900/80 dark:text-emerald-200/80 leading-relaxed">
-                      Você já realizou o treino previsto para hoje ({divisionTitle}).
-                    </p>
-                    {routineTitle && (
-                      <p className="text-xs text-zinc-500 dark:text-[#8E95A2] mt-0.5">
-                        Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
-                      </p>
-                    )}
-                  </div>
-                ) : isSessionInProgress ? (
-                  /* Sessão iniciada HOJE em andamento */
-                  <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-2 text-left">
-                    <div>
-                      <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
-                        {divisionTitle}
+
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
+                        {effectiveDivisionTitle}
                       </h3>
                       {routineTitle && (
-                        <p className="text-sm text-zinc-500 dark:text-[#8E95A2] mt-0.5">
+                        <p className="text-sm text-zinc-500 dark:text-[#8E95A2]">
                           Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
                         </p>
                       )}
-                      {dailyWorkoutResolution?.activeSessionStartedFormatted && (
-                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mt-1">
-                          Iniciado em {dailyWorkoutResolution.activeSessionStartedFormatted}
+                      {effectiveExerciseCount > 0 && (
+                        <div className="text-sm text-zinc-500 dark:text-[#8E95A2] pt-0.5">
+                          {effectiveExerciseCount} {effectiveExerciseCount === 1 ? "exercício" : "exercícios"}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Ações DENTRO do bloco da divisão escolhida */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-3 border-t border-zinc-200/60 dark:border-[#303238]/80">
+                      {isSelectedDivisionActive ? (
+                        isActiveSessionAllDone ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleOpenCompletionForActive}
+                              className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                            >
+                              <span>✓ Finalizar treino</span>
+                            </button>
+                            <Link
+                              href={trainingActionHref}
+                              className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                            >
+                              <span>Ver treino</span>
+                              <span>→</span>
+                            </Link>
+                            <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)} />
+                            {dailyWorkoutResolution?.canChangeDivision && (
+                              <button
+                                type="button"
+                                onClick={() => setIsPickerOpen(true)}
+                                className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                              >
+                                <span>Escolher outro treino</span>
+                                <span>→</span>
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <Link
+                              href={trainingActionHref}
+                              className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-semibold text-sm sm:text-base bg-blue-600/10 hover:bg-blue-600/20 active:bg-blue-600/30 text-blue-700 dark:text-blue-300 border border-blue-500/30 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
+                            >
+                              <span>Continuar treino</span>
+                              <span>→</span>
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={handleOpenCompletionForActive}
+                              className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-purple-600/10 hover:bg-purple-600/20 active:bg-purple-600/30 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                            >
+                              <span>Finalizar treino</span>
+                            </button>
+                            <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)} />
+                            {dailyWorkoutResolution?.canChangeDivision && (
+                              <button
+                                type="button"
+                                onClick={() => setIsPickerOpen(true)}
+                                className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                              >
+                                <span>Escolher outro treino</span>
+                                <span>→</span>
+                              </button>
+                            )}
+                          </>
+                        )
+                      ) : isSelectedDivisionDone ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)}
+                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                          >
+                            <span>Treinar novamente</span>
+                            <span>→</span>
+                          </button>
+                          <Link
+                            href={trainingActionHref}
+                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                          >
+                            <span>Ver resumo do treino</span>
+                          </Link>
+                          <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)} />
+                          {dailyWorkoutResolution?.canChangeDivision && (
+                            <button
+                              type="button"
+                              onClick={() => setIsPickerOpen(true)}
+                              className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                            >
+                              <span>Escolher outro treino</span>
+                              <span>→</span>
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            href={trainingActionHref}
+                            className="w-full sm:w-auto px-6 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                          >
+                            <span>Começar treino</span>
+                            <span>→</span>
+                          </Link>
+                          {dailyWorkoutResolution?.canChangeDivision && (
+                            <button
+                              type="button"
+                              onClick={() => setIsPickerOpen(true)}
+                              className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                            >
+                              <span>Escolher outro treino</span>
+                              <span>→</span>
+                            </button>
+                          )}
+                          <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)} />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ) : isRestDay ? (
+                  <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-3 text-left">
+                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block">
+                      Hoje
+                    </span>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
+                        Hoje é dia de descanso
+                      </h3>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                        Você pode escolher outro treino sem mudar sua programação.
+                      </p>
+                    </div>
+
+                    {dailyWorkoutResolution?.canChangeDivision && (
+                      <div className="pt-3 border-t border-zinc-200/60 dark:border-[#303238]/80">
+                        <button
+                          type="button"
+                          onClick={() => setIsPickerOpen(true)}
+                          className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
+                        >
+                          <span>Escolher outro treino</span>
+                          <span>→</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : isCompletedToday ? (
+                  <div className="p-4 sm:p-5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/25 space-y-3 text-left">
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
+                      Hoje
+                    </span>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-emerald-800 dark:text-emerald-300 tracking-tight">
+                        ✓ Treino de hoje concluído!
+                      </h3>
+                      <p className="text-sm text-emerald-900/80 dark:text-emerald-200/80 leading-relaxed">
+                        Você já realizou o treino previsto para hoje ({divisionTitle}).
+                      </p>
+                      {routineTitle && (
+                        <p className="text-sm text-zinc-500 dark:text-[#8E95A2] pt-0.5">
+                          Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
                         </p>
                       )}
                     </div>
 
-                    {isActiveSessionAllDone ? (
-                      <div className="pt-1.5 inline-flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400 font-semibold">
-                        <span>✓</span>
-                        <span>Todas as séries concluídas. Falta finalizar o treino.</span>
-                      </div>
-                    ) : (
-                      <div className="pt-1.5 flex flex-wrap items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 font-medium">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                        <span>
-                          Progresso da sessão:{" "}
-                          <strong>
-                            {dailyWorkoutResolution?.completedExercisesCount ?? 0} de {exerciseCount}{" "}
-                            {exerciseCount === 1 ? "exercício concluído" : "exercícios concluídos"}
-                          </strong>
-                          {(dailyWorkoutResolution?.completedSetsCount ?? 0) > 0 && (
-                            <span className="text-zinc-500 dark:text-zinc-400 ml-1">
-                              ({dailyWorkoutResolution?.completedSetsCount}{" "}
-                              {dailyWorkoutResolution?.completedSetsCount === 1 ? "série gravada" : "séries gravadas"})
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* Treino previsto para hoje (antes de iniciar - Ingrid) */
-                  <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-1.5 text-left">
-                    {unfinished && (
-                      <span className="text-xs uppercase font-bold tracking-wider text-emerald-600 dark:text-emerald-400 block mb-0.5">
-                        Treino previsto para hoje
-                      </span>
-                    )}
-                    <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
-                      {divisionTitle}
-                    </h3>
-                    {routineTitle && (
-                      <p className="text-sm text-zinc-500 dark:text-[#8E95A2] mt-0.5">
-                        Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
-                      </p>
-                    )}
-                    {exerciseCount > 0 && (
-                      <div className="flex flex-wrap items-center gap-2 pt-1 text-xs sm:text-sm text-zinc-500 dark:text-[#8E95A2]">
-                        <span>
-                          {exerciseCount} {exerciseCount === 1 ? "exercício" : "exercícios"}
-                        </span>
-                        {durationEstimate !== null && durationEstimate > 0 && (
-                          <>
-                            <span>•</span>
-                            <span>
-                              ~{durationEstimate} min{" "}
-                              <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                                (estimativa)
-                              </span>
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 2. Sessão anterior em bloco separado, quando existir */}
-                {unfinished && (
-                  <div className="p-4 sm:p-5 rounded-xl bg-amber-500/8 dark:bg-amber-500/5 border border-amber-500/25 space-y-3.5 text-left">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300">
-                          Treino não finalizado
-                        </span>
-                      </div>
-                      <h4 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight leading-snug">
-                        {unfinished.divisionTitle}
-                      </h4>
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        Iniciado em {unfinished.startedFormatted}
-                      </p>
-                    </div>
-
-                    {/* Progresso sem repetição de números */}
-                    <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                      {isUnfinishedAllDone ? (
-                        <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold">
-                          <span>✓</span>
-                          <span>Todas as séries concluídas. Falta finalizar o treino.</span>
-                        </span>
-                      ) : (
-                        <span>
-                          Progresso:{" "}
-                          <strong>
-                            {unfinished.completedSetsCount} de {unfinished.totalSetsCount} séries concluídas
-                          </strong>
-                          {unfinished.totalExercisesCount > 0 && (
-                            <span className="text-zinc-600 dark:text-zinc-400 ml-1">
-                              ({unfinished.completedExercisesCount} de {unfinished.totalExercisesCount} exercícios)
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Ações da Sessão Anterior */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
-                      {isUnfinishedAllDone ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={handleOpenCompletionForUnfinished}
-                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
-                          >
-                            <span>✓ Finalizar treino</span>
-                          </button>
-                          <Link
-                            href={unfinished.actionHref}
-                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center select-none"
-                          >
-                            <span>Ver treino</span>
-                            <span>→</span>
-                          </Link>
-                        </>
-                      ) : (
-                        <>
-                          <Link
-                            href={unfinished.actionHref}
-                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
-                          >
-                            <span>Continuar treino</span>
-                            <span>→</span>
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={handleOpenCompletionForUnfinished}
-                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
-                          >
-                            <span>Finalizar treino</span>
-                          </button>
-                        </>
-                      )}
-
-                      <SessionMoreOptionsMenu onRestart={handleOpenRestartForUnfinished} />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] text-center space-y-2">
-                <p className="text-sm text-zinc-600 dark:text-[#8E95A2]">
-                  {trainingServiceEnabled
-                    ? "Seu treino ainda não foi disponibilizado. Sua equipe técnica está preparando sua prescrição personalizada."
-                    : "O serviço de treinamento não está habilitado para o seu perfil nesta consultoria."}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Ações do Card de Treino */}
-          <div className="pt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-zinc-100 dark:border-[#303238]/80">
-            {isError ? (
-              <div className="flex flex-wrap items-center gap-2.5 w-full justify-between">
-                <Link
-                  href={`/consultoria/${consultancySlug}/treinos`}
-                  className="px-5 min-h-[48px] rounded-xl font-bold text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 flex items-center justify-center gap-2 transition-opacity cursor-pointer select-none"
-                >
-                  Ver meus treinos
-                </Link>
-                <Link
-                  href={`/consultoria/${consultancySlug}`}
-                  className="px-4 min-h-[48px] rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 select-none"
-                >
-                  Tentar novamente
-                </Link>
-              </div>
-            ) : hasTraining ? (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
-                  {selectedDivision ? (
-                    isSelectedDivisionActive ? (
-                      <>
-                        <Link
-                          href={trainingActionHref}
-                          className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
-                        >
-                          <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
-                          <span>Continuar treino</span>
-                          <span>→</span>
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={handleOpenCompletionForActive}
-                          className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
-                        >
-                          <span>Finalizar treino</span>
-                        </button>
-                        <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)} />
-                        {dailyWorkoutResolution?.canChangeDivision && (
-                          <button
-                            type="button"
-                            onClick={() => setIsPickerOpen(true)}
-                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
-                          >
-                            <span>Escolher outro treino</span>
-                            <span>→</span>
-                          </button>
-                        )}
-                      </>
-                    ) : isSelectedDivisionDone ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)}
-                          className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
-                        >
-                          <span>Treinar novamente</span>
-                          <span>→</span>
-                        </button>
-                        <Link
-                          href={trainingActionHref}
-                          className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
-                        >
-                          <span>Ver resumo do treino</span>
-                        </Link>
-                        <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)} />
-                        {dailyWorkoutResolution?.canChangeDivision && (
-                          <button
-                            type="button"
-                            onClick={() => setIsPickerOpen(true)}
-                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
-                          >
-                            <span>Escolher outro treino</span>
-                            <span>→</span>
-                          </button>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <Link
-                          href={trainingActionHref}
-                          className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
-                        >
-                          <span>Começar treino</span>
-                          <span>→</span>
-                        </Link>
-                        <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)} />
-                        {dailyWorkoutResolution?.canChangeDivision && (
-                          <button
-                            type="button"
-                            onClick={() => setIsPickerOpen(true)}
-                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-semibold text-sm sm:text-base bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
-                          >
-                            <span>Escolher outro treino</span>
-                            <span>→</span>
-                          </button>
-                        )}
-                      </>
-                    )
-                  ) : isRestDay ? (
-                    dailyWorkoutResolution?.canChangeDivision ? (
-                      <button
-                        type="button"
-                        onClick={() => setIsPickerOpen(true)}
-                        className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-semibold text-sm sm:text-base bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
-                      >
-                        <span>Escolher outro treino</span>
-                        <span>→</span>
-                      </button>
-                    ) : null
-                  ) : isCompletedToday ? (
-                    <>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-3 border-t border-emerald-500/20">
                       <button
                         type="button"
                         onClick={() => handleOpenRestartForCurrent()}
@@ -686,15 +550,56 @@ export function StudentFocusSection({
                           <span>→</span>
                         </button>
                       )}
-                    </>
-                  ) : isSessionInProgress ? (
-                    <>
+                    </div>
+                  </div>
+                ) : isSessionInProgress ? (
+                  /* Sessão iniciada HOJE em andamento */
+                  <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-3 text-left">
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
+                      Hoje · Em andamento
+                    </span>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
+                        {divisionTitle}
+                      </h3>
+                      {routineTitle && (
+                        <p className="text-sm text-zinc-500 dark:text-[#8E95A2]">
+                          Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
+                        </p>
+                      )}
+                      {dailyWorkoutResolution?.activeSessionStartedFormatted && (
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          Iniciado em {dailyWorkoutResolution.activeSessionStartedFormatted}
+                        </p>
+                      )}
+                    </div>
+
+                    {isActiveSessionAllDone ? (
+                      <div className="inline-flex items-center gap-1.5 text-base font-medium text-purple-700 dark:text-purple-300">
+                        <span>✓</span>
+                        <span>Todas as séries concluídas. Falta finalizar o treino.</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span className="text-base font-medium text-zinc-900 dark:text-zinc-100">
+                          Progresso da sessão: {dailyWorkoutResolution?.completedExercisesCount ?? 0} de {exerciseCount}{" "}
+                          {exerciseCount === 1 ? "exercício concluído" : "exercícios concluídos"}
+                        </span>
+                        {(dailyWorkoutResolution?.completedSetsCount ?? 0) > 0 && (
+                          <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                            (Séries: {dailyWorkoutResolution?.completedSetsCount} de {dailyWorkoutResolution?.totalSetsCount || "?"})
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-3 border-t border-zinc-200/60 dark:border-[#303238]/80">
                       {isActiveSessionAllDone ? (
                         <>
                           <button
                             type="button"
                             onClick={handleOpenCompletionForActive}
-                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
                           >
                             <span>✓ Finalizar treino</span>
                           </button>
@@ -710,16 +615,15 @@ export function StudentFocusSection({
                         <>
                           <Link
                             href={trainingActionHref}
-                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-semibold text-sm sm:text-base bg-blue-600/10 hover:bg-blue-600/20 active:bg-blue-600/30 text-blue-700 dark:text-blue-300 border border-blue-500/30 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
                           >
-                            <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
                             <span>Continuar treino</span>
                             <span>→</span>
                           </Link>
                           <button
                             type="button"
                             onClick={handleOpenCompletionForActive}
-                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-purple-600/10 hover:bg-purple-600/20 active:bg-purple-600/30 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                           >
                             <span>Finalizar treino</span>
                           </button>
@@ -736,56 +640,163 @@ export function StudentFocusSection({
                           <span>→</span>
                         </button>
                       )}
-                    </>
-                  ) : (
-                    /* Antes de iniciar o treino previsto de hoje (Ingrid) */
-                    <>
+                    </div>
+                  </div>
+                ) : (
+                  /* Treino previsto para hoje (antes de iniciar - Ingrid) */
+                  <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-3 text-left">
+                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block">
+                      Hoje
+                    </span>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
+                        {divisionTitle}
+                      </h3>
+                      {routineTitle && (
+                        <p className="text-sm text-zinc-500 dark:text-[#8E95A2]">
+                          Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
+                        </p>
+                      )}
+                      {exerciseCount > 0 && (
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-500 dark:text-[#8E95A2] pt-0.5">
+                          <span>
+                            {exerciseCount} {exerciseCount === 1 ? "exercício" : "exercícios"}
+                          </span>
+                          {durationEstimate !== null && durationEstimate > 0 && (
+                            <>
+                              <span>•</span>
+                              <span>
+                                ~{durationEstimate} min (estimativa)
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Botão Começar treino DENTRO desse bloco */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-3 border-t border-zinc-200/60 dark:border-[#303238]/80">
                       <Link
                         href={trainingActionHref}
-                        className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                        className="w-full sm:w-auto px-6 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
                       >
                         <span>Começar treino</span>
                         <span>→</span>
                       </Link>
-                      <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent()} />
                       {dailyWorkoutResolution?.canChangeDivision && (
                         <button
                           type="button"
                           onClick={() => setIsPickerOpen(true)}
-                          className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-semibold text-sm sm:text-base bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                          className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                         >
                           <span>Escolher outro treino</span>
                           <span>→</span>
                         </button>
                       )}
-                    </>
-                  )}
-                </div>
+                      <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent()} />
+                    </div>
+                  </div>
+                )}
 
-                {/* Link Secundário Identificado para a Lista Completa de Treinos */}
-                <Link
-                  href={`/consultoria/${consultancySlug}/treinos`}
-                  className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:underline min-h-[44px] flex items-center justify-center sm:justify-start cursor-pointer whitespace-nowrap self-center sm:self-auto select-none"
-                >
-                  Ver meus treinos →
-                </Link>
+                {/* 2. Bloco Secundário — Sessão Anterior em bloco separado, quando existir */}
+                {unfinished && (
+                  <div className="p-4 sm:p-5 rounded-xl bg-amber-500/8 dark:bg-amber-500/5 border border-amber-500/25 space-y-3.5 text-left">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                          Treino não finalizado
+                        </span>
+                      </div>
+                      <h4 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
+                        {unfinished.divisionTitle}
+                      </h4>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        Iniciado em {unfinished.startedFormatted}
+                      </p>
+                    </div>
+
+                    {/* Progresso simplificado */}
+                    <div className="text-base font-medium text-zinc-800 dark:text-zinc-200">
+                      {isUnfinishedAllDone ? (
+                        <span className="inline-flex items-center gap-1.5 text-purple-700 dark:text-purple-300 font-semibold">
+                          <span>✓</span>
+                          <span>Todas as séries concluídas. Falta finalizar o treino.</span>
+                        </span>
+                      ) : (
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                          <span className="text-base font-medium text-zinc-900 dark:text-zinc-100">
+                            {unfinished.completedExercisesCount} de {unfinished.totalExercisesCount}{" "}
+                            {unfinished.totalExercisesCount === 1 ? "exercício concluído" : "exercícios concluídos"}
+                          </span>
+                          {unfinished.totalSetsCount > 0 && (
+                            <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                              (Séries: {unfinished.completedSetsCount} de {unfinished.totalSetsCount})
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Ações da Sessão Anterior DENTRO do próprio bloco */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-3 border-t border-amber-500/20">
+                      {isUnfinishedAllDone ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleOpenCompletionForUnfinished}
+                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                          >
+                            <span>✓ Finalizar treino</span>
+                          </button>
+                          <Link
+                            href={unfinished.actionHref}
+                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center select-none"
+                          >
+                            <span>Ver treino</span>
+                            <span>→</span>
+                          </Link>
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            href={unfinished.actionHref}
+                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-semibold text-sm sm:text-base bg-blue-600/10 hover:bg-blue-600/20 active:bg-blue-600/30 text-blue-700 dark:text-blue-300 border border-blue-500/30 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
+                          >
+                            <span>Continuar treino</span>
+                            <span>→</span>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={handleOpenCompletionForUnfinished}
+                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-purple-600/10 hover:bg-purple-600/20 active:bg-purple-600/30 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                          >
+                            <span>Finalizar treino</span>
+                          </button>
+                        </>
+                      )}
+
+                      <SessionMoreOptionsMenu onRestart={handleOpenRestartForUnfinished} />
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
-                <Link
-                  href={`/consultoria/${consultancySlug}/consultas`}
-                  className="w-full sm:w-auto px-5 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <span>Falar com treinador</span>
-                  <span>→</span>
-                </Link>
-
-                <Link
-                  href={`/consultoria/${consultancySlug}/treinos`}
-                  className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:underline min-h-[44px] flex items-center justify-center sm:justify-start cursor-pointer whitespace-nowrap self-center sm:self-auto select-none"
-                >
-                  Ver meus treinos →
-                </Link>
+              <div className="p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] text-center space-y-3">
+                <p className="text-sm text-zinc-600 dark:text-[#8E95A2]">
+                  {trainingServiceEnabled
+                    ? "Seu treino ainda não foi disponibilizado. Sua equipe técnica está preparando sua prescrição personalizada."
+                    : "O serviço de treinamento não está habilitado para o seu perfil nesta consultoria."}
+                </p>
+                <div className="flex items-center justify-center">
+                  <Link
+                    href={`/consultoria/${consultancySlug}/consultas`}
+                    className="px-5 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <span>Falar com treinador</span>
+                    <span>→</span>
+                  </Link>
+                </div>
               </div>
             )}
           </div>

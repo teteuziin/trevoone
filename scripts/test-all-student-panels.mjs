@@ -87,9 +87,15 @@ assert.ok(
   focusCode.includes("Escolher outro treino"),
   "Deve oferecer 'Escolher outro treino' como ação secundária clara"
 );
+const headerPath = path.resolve("components/dashboard/student/sections/student-overview-header.tsx");
+const headerCode = fs.readFileSync(headerPath, "utf-8");
 assert.ok(
-  focusCode.includes("Ver meus treinos →"),
-  "Deve manter 'Ver meus treinos →' como link discreto"
+  headerCode.includes("Ver treinos"),
+  "Deve manter 'Ver treinos' como entrada unificada clara no cabeçalho do painel"
+);
+assert.ok(
+  !focusCode.includes("Ver meus treinos →"),
+  "Não deve duplicar 'Ver meus treinos →' no rodapé do card de treino"
 );
 assert.ok(
   !focusCode.includes("Versão ${dailyWorkoutResolution.versionNumber}"),

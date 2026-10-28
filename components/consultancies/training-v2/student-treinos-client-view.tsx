@@ -234,7 +234,7 @@ export function StudentTreinosClientView({
                 Treino não finalizado
               </span>
             </div>
-            <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight leading-snug">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
               {unfinishedSession.divisionTitle}
             </h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -242,25 +242,25 @@ export function StudentTreinosClientView({
             </p>
           </div>
 
-          {/* Progresso sem repetição de números */}
-          <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+          {/* Progresso simplificado */}
+          <div className="text-base font-medium text-zinc-800 dark:text-zinc-200">
             {isUnfinishedAllDone ? (
-              <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold">
+              <span className="inline-flex items-center gap-1.5 text-purple-700 dark:text-purple-300 font-semibold">
                 <span>✓</span>
                 <span>Todas as séries concluídas. Falta finalizar o treino.</span>
               </span>
             ) : (
-              <span>
-                Progresso:{" "}
-                <strong>
-                  {unfinishedSession.completedSetsCount} de {unfinishedSession.totalSetsCount} séries concluídas
-                </strong>
-                {unfinishedSession.totalExercisesCount > 0 && (
-                  <span className="text-zinc-600 dark:text-zinc-400 ml-1">
-                    ({unfinishedSession.completedExercisesCount} de {unfinishedSession.totalExercisesCount} exercícios)
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="text-base font-medium text-zinc-900 dark:text-zinc-100">
+                  {unfinishedSession.completedExercisesCount} de {unfinishedSession.totalExercisesCount}{" "}
+                  {unfinishedSession.totalExercisesCount === 1 ? "exercício concluído" : "exercícios concluídos"}
+                </span>
+                {unfinishedSession.totalSetsCount > 0 && (
+                  <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                    (Séries: {unfinishedSession.completedSetsCount} de {unfinishedSession.totalSetsCount})
                   </span>
                 )}
-              </span>
+              </div>
             )}
           </div>
 
@@ -271,7 +271,7 @@ export function StudentTreinosClientView({
                 <button
                   type="button"
                   onClick={handleOpenCompletionForUnfinished}
-                  className="w-full sm:w-auto px-5 py-3 min-h-[48px] sm:min-h-[50px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                  className="w-full sm:w-auto px-5 py-3 min-h-[48px] sm:min-h-[50px] rounded-xl font-bold text-sm sm:text-base bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
                 >
                   <span>✓ Finalizar treino</span>
                 </button>
@@ -287,7 +287,7 @@ export function StudentTreinosClientView({
               <>
                 <Link
                   href={unfinishedSession.actionHref}
-                  className="w-full sm:w-auto px-5 py-3 min-h-[48px] sm:min-h-[50px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                  className="w-full sm:w-auto px-5 py-3 min-h-[48px] sm:min-h-[50px] rounded-xl font-semibold text-sm sm:text-base bg-blue-600/10 hover:bg-blue-600/20 active:bg-blue-600/30 text-blue-700 dark:text-blue-300 border border-blue-500/30 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
                 >
                   <span>Continuar treino</span>
                   <span>→</span>
@@ -295,7 +295,7 @@ export function StudentTreinosClientView({
                 <button
                   type="button"
                   onClick={handleOpenCompletionForUnfinished}
-                  className="w-full sm:w-auto px-4 py-2.5 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                  className="w-full sm:w-auto px-4 py-2.5 min-h-[48px] rounded-xl font-semibold text-sm bg-purple-600/10 hover:bg-purple-600/20 active:bg-purple-600/30 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                 >
                   <span>Finalizar treino</span>
                 </button>
@@ -353,7 +353,7 @@ export function StudentTreinosClientView({
                   <button
                     type="button"
                     onClick={handleOpenCompletionForActive}
-                    className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-extrabold text-sm sm:text-base text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 min-h-[52px] shadow-sm transition-all cursor-pointer flex-1 sm:flex-initial select-none"
+                    className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-extrabold text-sm sm:text-base text-white bg-purple-600 hover:bg-purple-500 active:bg-purple-700 min-h-[52px] shadow-sm transition-all cursor-pointer flex-1 sm:flex-initial select-none"
                   >
                     <span>✓ Finalizar treino</span>
                   </button>
@@ -370,16 +370,15 @@ export function StudentTreinosClientView({
                 <>
                   <Link
                     href={effectiveRecommendedDivision.actionHref}
-                    className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-extrabold text-sm sm:text-base text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 min-h-[52px] shadow-sm transition-all cursor-pointer flex-1 sm:flex-initial select-none"
+                    className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-semibold text-sm sm:text-base bg-blue-600/10 hover:bg-blue-600/20 active:bg-blue-600/30 text-blue-700 dark:text-blue-300 border border-blue-500/30 min-h-[52px] shadow-sm transition-all cursor-pointer flex-1 sm:flex-initial select-none"
                   >
-                    <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
                     <span>Continuar treino</span>
                     <span>→</span>
                   </Link>
                   <button
                     type="button"
                     onClick={handleOpenCompletionForActive}
-                    className="inline-flex items-center justify-center px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)] min-h-[48px] transition-colors cursor-pointer select-none"
+                    className="inline-flex items-center justify-center px-5 py-3 rounded-2xl font-semibold text-xs sm:text-sm bg-purple-600/10 hover:bg-purple-600/20 active:bg-purple-600/30 text-purple-700 dark:text-purple-300 border border-purple-500/30 min-h-[48px] transition-colors cursor-pointer select-none"
                   >
                     <span>Finalizar treino</span>
                   </button>

@@ -10,6 +10,7 @@ import type {
   NutritionV2FoodScope,
   NutritionV2FoodStatus,
 } from "./types";
+import { resolveCanonicalPortionsForFood } from "./canonical-food-portions";
 
 export interface FoodListItemDto extends Omit<NutritionV2FoodDto, "id"> {
   portionsCount: number;
@@ -1534,14 +1535,26 @@ export function mapFoodRow(r: Record<string, unknown>, userQuery?: string): Food
   const createdAt = safeIsoString(r.created_at, new Date(0).toISOString())!;
   const updatedAt = safeIsoString(r.updated_at, new Date(0).toISOString())!;
   const deletedAt = safeIsoString(r.deleted_at, null);
-  const portionsCount = Math.max(0, safeNumber(r.portions_count, 0));
-
   const rawDisplayName = safeNullableString(r.display_name_pt_br);
   const cleanedDisplay = cleanFoodDisplayName(rawDisplayName || name, sourceKey);
   const effectiveDisplayName = cleanedDisplay || name;
 
   const { preparationState, brandName } = detectFoodPreparationAndBrand(effectiveDisplayName, name, sourceKey, rawSourceType);
   const matchedAlias = detectMatchedAlias(userQuery, effectiveDisplayName, name);
+
+  let portionsCount = Math.max(0, safeNumber(r.portions_count, 0));
+  if (portionsCount === 0 && (!scope || scope === "GLOBAL")) {
+    const canonicals = resolveCanonicalPortionsForFood({
+      name,
+      displayName: effectiveDisplayName,
+      category,
+      preparationState,
+      referenceUnitCode: refUnit,
+    });
+    if (canonicals.length > 0) {
+      portionsCount = canonicals.length;
+    }
+  }
 
   return {
     publicId,

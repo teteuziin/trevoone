@@ -4,6 +4,9 @@
  * dynamic conversions, personal/consultancy scoping, and snapshot preservation.
  */
 
+import { register } from "node:module";
+register("./ts-loader.mjs", import.meta.url);
+
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

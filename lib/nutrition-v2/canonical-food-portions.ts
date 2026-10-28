@@ -36,8 +36,9 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "arroz-cru",
     matcher: (norm, cat, prep) => {
-      if (!norm.includes("arroz") || norm.includes("macarrao") || norm.includes("farinha") || norm.includes("leite de arroz")) return false;
-      return prep === "Cru" || /\b(cru|crua)\b/.test(norm);
+      const isRice = norm.includes("arroz") || /\brice\b/.test(norm);
+      if (!isRice || norm.includes("macarrao") || norm.includes("farinha") || norm.includes("leite de arroz") || norm.includes("rice milk") || norm.includes("noodle")) return false;
+      return prep === "Cru" || /\b(cru|crua|raw|uncooked)\b/.test(norm);
     },
     portions: [
       { label: "Xícara de chá", amount: 200, notes: "Equivalência IBGE/Pinheiro para arroz cru" },
@@ -53,8 +54,9 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "arroz-cozido",
     matcher: (norm, cat, prep) => {
-      if (!norm.includes("arroz") || norm.includes("macarrao") || norm.includes("farinha") || norm.includes("leite de arroz")) return false;
-      if (prep === "Cru" || /\b(cru|crua)\b/.test(norm)) return false;
+      const isRice = norm.includes("arroz") || /\brice\b/.test(norm);
+      if (!isRice || norm.includes("macarrao") || norm.includes("farinha") || norm.includes("leite de arroz") || norm.includes("rice milk") || norm.includes("noodle")) return false;
+      if (prep === "Cru" || /\b(cru|crua|raw|uncooked)\b/.test(norm)) return false;
       return true; // default preparation for rice in meals is cooked
     },
     portions: [
@@ -73,8 +75,9 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "feijao-cozido",
     matcher: (norm, cat, prep) => {
-      if (!norm.includes("feijao")) return false;
-      return prep !== "Cru" && !/\b(cru|crua)\b/.test(norm);
+      const isBean = norm.includes("feijao") || (/\b(bean|beans)\b/.test(norm) && !norm.includes("coffee") && !norm.includes("cocoa"));
+      if (!isBean) return false;
+      return prep !== "Cru" && !/\b(cru|crua|raw|uncooked)\b/.test(norm);
     },
     portions: [
       { label: "Concha média", amount: 130, notes: "Equivalência IBGE/Pinheiro (grãos + caldo)" },
@@ -90,8 +93,9 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "feijao-cru",
     matcher: (norm, cat, prep) => {
-      if (!norm.includes("feijao")) return false;
-      return prep === "Cru" || /\b(cru|crua)\b/.test(norm);
+      const isBean = norm.includes("feijao") || (/\b(bean|beans)\b/.test(norm) && !norm.includes("coffee") && !norm.includes("cocoa"));
+      if (!isBean) return false;
+      return prep === "Cru" || /\b(cru|crua|raw|uncooked)\b/.test(norm);
     },
     portions: [
       { label: "Xícara de chá", amount: 180, notes: "Equivalência Pinheiro" },
@@ -104,7 +108,7 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   // -------------------------------------------------------------------------
   {
     id: "aveia",
-    matcher: (norm) => norm.includes("aveia"),
+    matcher: (norm) => norm.includes("aveia") || /\b(oat|oats|oatmeal)\b/.test(norm),
     portions: [
       { label: "Colher de sopa cheia", amount: 15, notes: "Equivalência Pinheiro" },
       { label: "Colher de sobremesa", amount: 8, notes: "Equivalência Pinheiro" },
@@ -120,8 +124,9 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
     id: "oleos-azeites",
     matcher: (norm) =>
       norm.includes("azeite") ||
-      (norm.includes("oleo") &&
-        (norm.includes("soja") || norm.includes("girassol") || norm.includes("milho") || norm.includes("canola") || norm.includes("oliva"))),
+      norm.includes("olive oil") ||
+      ((norm.includes("oleo") || /\boil\b/.test(norm)) &&
+        (norm.includes("soja") || norm.includes("girassol") || norm.includes("milho") || norm.includes("canola") || norm.includes("oliva") || norm.includes("soybean") || norm.includes("vegetable") || norm.includes("corn"))),
     portions: [
       { label: "Colher de sopa", amount: 13, notes: "Equivalência Pinheiro (13 ml / ~12 g)" },
       { label: "Colher de sobremesa", amount: 8, notes: "Equivalência Pinheiro (8 ml / ~7 g)" },
@@ -136,9 +141,10 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "ovos-galinha",
     matcher: (norm) =>
-      norm.includes("ovo") &&
-      (norm.includes("galinha") || norm.includes("cozido") || norm.includes("frito") || norm.includes("mexido") || norm.includes("poche") || norm.includes("cru")) &&
-      !norm.includes("codorna") && !norm.includes("avestruz"),
+      ((norm.includes("ovo") &&
+        (norm.includes("galinha") || norm.includes("cozido") || norm.includes("frito") || norm.includes("mexido") || norm.includes("poche") || norm.includes("cru")) &&
+        !norm.includes("codorna") && !norm.includes("avestruz")) ||
+      (/\b(egg|eggs)\b/.test(norm) && !norm.includes("quail") && !norm.includes("eggplant") && !norm.includes("easter"))),
     portions: [
       { label: "Unidade média", amount: 50, notes: "Equivalência padrão TACO/IBGE" },
       { label: "Unidade grande", amount: 60, notes: "Equivalência padrão IBGE" },
@@ -155,7 +161,7 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "pao-frances",
     matcher: (norm) =>
-      norm.includes("pao frances") || norm.includes("pao de sal") || norm.includes("cacetinho") || norm === "pao, frances",
+      norm.includes("pao frances") || norm.includes("pao de sal") || norm.includes("cacetinho") || norm === "pao, frances" || norm.includes("french bread") || norm.includes("baguette") || norm.includes("dinner roll"),
     portions: [
       { label: "Unidade", amount: 50, notes: "Equivalência oficial IBGE/ABIP" },
       { label: "Metade (1/2 unidade)", amount: 25, notes: "Equivalência oficial" },
@@ -168,7 +174,8 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   // -------------------------------------------------------------------------
   {
     id: "pao-de-forma",
-    matcher: (norm) => norm.includes("pao de forma") || norm.includes("pao fatiado"),
+    matcher: (norm) =>
+      norm.includes("pao de forma") || norm.includes("pao fatiado") || norm.includes("sliced bread") || norm.includes("toast bread") || (/\bbread\b/.test(norm) && (norm.includes("white") || norm.includes("wheat") || norm.includes("whole") || norm.includes("multigrain") || norm.includes("sliced")) && !norm.includes("french")),
     portions: [
       { label: "Fatia", amount: 25, notes: "Equivalência oficial IBGE/POF" },
       { label: "2 Fatias (sanduíche)", amount: 50, notes: "Equivalência sanduíche" },
@@ -183,7 +190,7 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
     id: "banana",
     matcher: (norm) =>
       norm.includes("banana") &&
-      !norm.includes("frita") && !norm.includes("doce") && !norm.includes("farofa") && !norm.includes("farinha"),
+      !norm.includes("frita") && !norm.includes("doce") && !norm.includes("farofa") && !norm.includes("farinha") && !norm.includes("bread") && !norm.includes("cake"),
     portions: [
       { label: "Unidade média", amount: 70, notes: "Equivalência Pinheiro (sem casca)" },
       { label: "Unidade grande", amount: 90, notes: "Equivalência Pinheiro (sem casca)" },
@@ -197,7 +204,9 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   // -------------------------------------------------------------------------
   {
     id: "maca",
-    matcher: (norm) => norm.includes("maca") && !norm.includes("torta") && !norm.includes("doce") && !norm.includes("vinagre"),
+    matcher: (norm) =>
+      (norm.includes("maca") || /\b(apple|apples)\b/.test(norm)) &&
+      !norm.includes("torta") && !norm.includes("doce") && !norm.includes("vinagre") && !norm.includes("pie") && !norm.includes("cider") && !norm.includes("sauce"),
     portions: [
       { label: "Unidade média", amount: 130, notes: "Equivalência Pinheiro/IBGE" },
       { label: "Unidade pequena", amount: 90, notes: "Equivalência Pinheiro" },
@@ -210,7 +219,9 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   // -------------------------------------------------------------------------
   {
     id: "laranja",
-    matcher: (norm) => norm.includes("laranja") && !norm.includes("suco") && !norm.includes("doce") && !norm.includes("geleia"),
+    matcher: (norm) =>
+      (norm.includes("laranja") || /\b(orange|oranges)\b/.test(norm)) &&
+      !norm.includes("suco") && !norm.includes("juice") && !norm.includes("doce") && !norm.includes("geleia") && !norm.includes("jam"),
     portions: [
       { label: "Unidade média", amount: 130, notes: "Equivalência Pinheiro (sem casca)" },
       { label: "Unidade pequena", amount: 90, notes: "Equivalência Pinheiro (sem casca)" },
@@ -225,8 +236,11 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "frango-cozido",
     matcher: (norm, cat, prep) => {
-      if (!norm.includes("frango") || !norm.includes("peito")) return false;
-      return prep !== "Cru" && !/\b(cru|crua)\b/.test(norm);
+      const isChicken = norm.includes("frango") || norm.includes("chicken");
+      if (!isChicken) return false;
+      const isBreastOrGeneral = norm.includes("peito") || norm.includes("breast") || (!norm.includes("coxa") && !norm.includes("asa") && !norm.includes("wing") && !norm.includes("thigh"));
+      if (!isBreastOrGeneral) return false;
+      return prep !== "Cru" && !/\b(cru|crua|raw)\b/.test(norm);
     },
     portions: [
       { label: "Filé médio", amount: 100, notes: "Equivalência Pinheiro" },
@@ -243,8 +257,11 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "frango-cru",
     matcher: (norm, cat, prep) => {
-      if (!norm.includes("frango") || !norm.includes("peito")) return false;
-      return prep === "Cru" || /\b(cru|crua)\b/.test(norm);
+      const isChicken = norm.includes("frango") || norm.includes("chicken");
+      if (!isChicken) return false;
+      const isBreastOrGeneral = norm.includes("peito") || norm.includes("breast") || (!norm.includes("coxa") && !norm.includes("asa") && !norm.includes("wing") && !norm.includes("thigh"));
+      if (!isBreastOrGeneral) return false;
+      return prep === "Cru" || /\b(cru|crua|raw)\b/.test(norm);
     },
     portions: [
       { label: "Filé médio cru", amount: 130, notes: "Rendimento pré-preparo (~100g após cocção)" },
@@ -262,9 +279,9 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
       const isBeef =
         norm.includes("carne bovina") || norm.includes("alcatra") || norm.includes("patinho") ||
         norm.includes("contrafile") || norm.includes("mignon") || norm.includes("coxao mole") ||
-        norm.includes("bife bovino");
-      if (!isBeef || norm.includes("moida")) return false;
-      return prep !== "Cru" && !/\b(cru|crua)\b/.test(norm);
+        norm.includes("bife bovino") || norm.includes("beef") || norm.includes("steak");
+      if (!isBeef || norm.includes("moida") || norm.includes("ground")) return false;
+      return prep !== "Cru" && !/\b(cru|crua|raw)\b/.test(norm);
     },
     portions: [
       { label: "Bife médio", amount: 100, notes: "Equivalência Pinheiro" },
@@ -280,8 +297,9 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "carne-moida",
     matcher: (norm, cat, prep) => {
-      if (!norm.includes("carne") || !norm.includes("moida")) return false;
-      return prep !== "Cru" && !/\b(cru|crua)\b/.test(norm);
+      const isGroundMeat = (norm.includes("carne") && norm.includes("moida")) || norm.includes("ground beef") || norm.includes("ground meat");
+      if (!isGroundMeat) return false;
+      return prep !== "Cru" && !/\b(cru|crua|raw)\b/.test(norm);
     },
     portions: [
       { label: "Colher de servir cheia", amount: 50, notes: "Equivalência Pinheiro" },
@@ -296,9 +314,9 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "leite-fluido",
     matcher: (norm) =>
-      norm.startsWith("leite") &&
-      (norm.includes("vaca") || norm.includes("integral") || norm.includes("desnatado") || norm.includes("semidesnatado")) &&
-      !norm.includes("po") && !norm.includes("condensado"),
+      (norm.startsWith("leite") || /\bmilk\b/.test(norm)) &&
+      (norm.includes("vaca") || norm.includes("integral") || norm.includes("desnatado") || norm.includes("semidesnatado") || norm.includes("whole") || norm.includes("skim") || norm.includes("low fat") || norm.includes("fat free") || norm.includes("fluid")) &&
+      !norm.includes("po") && !norm.includes("powder") && !norm.includes("condensado") && !norm.includes("condensed"),
     portions: [
       { label: "Copo americano", amount: 200, notes: "Equivalência Pinheiro (200 ml)" },
       { label: "Xícara de chá", amount: 160, notes: "Equivalência Pinheiro (160 ml)" },
@@ -311,7 +329,7 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   // -------------------------------------------------------------------------
   {
     id: "iogurte",
-    matcher: (norm) => norm.includes("iogurte") && !norm.includes("po"),
+    matcher: (norm) => (norm.includes("iogurte") || norm.includes("yogurt")) && !norm.includes("po") && !norm.includes("powder"),
     portions: [
       { label: "Pote / Unidade", amount: 170, notes: "Equivalência padrão de pote comercial" },
       { label: "Pote pequeno", amount: 100, notes: "Equivalência padrão iogurte grego" },
@@ -325,8 +343,8 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "queijo-fatiado",
     matcher: (norm) =>
-      norm.includes("queijo") &&
-      (norm.includes("mussarela") || norm.includes("mucarela") || norm.includes("prato") || norm.includes("minas")),
+      (norm.includes("queijo") || norm.includes("cheese")) &&
+      (norm.includes("mussarela") || norm.includes("mucarela") || norm.includes("mozzarella") || norm.includes("prato") || norm.includes("minas") || norm.includes("cheddar") || norm.includes("gouda") || norm.includes("swiss")),
     portions: [
       { label: "Fatia média", amount: 30, notes: "Equivalência Pinheiro" },
       { label: "Fatia fina", amount: 15, notes: "Equivalência Pinheiro" },
@@ -339,7 +357,8 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   // -------------------------------------------------------------------------
   {
     id: "batata-doce",
-    matcher: (norm, cat, prep) => norm.includes("batata doce") && prep !== "Cru" && !/\b(cru|crua)\b/.test(norm),
+    matcher: (norm, cat, prep) =>
+      (norm.includes("batata doce") || norm.includes("sweet potato")) && prep !== "Cru" && !/\b(cru|crua|raw)\b/.test(norm),
     portions: [
       { label: "Unidade média", amount: 150, notes: "Equivalência Pinheiro" },
       { label: "Pedaço médio", amount: 75, notes: "Equivalência Pinheiro" },
@@ -353,7 +372,9 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "batata-inglesa",
     matcher: (norm, cat, prep) =>
-      norm.includes("batata") && (norm.includes("inglesa") || norm.includes("cozida")) && !norm.includes("doce") && prep !== "Cru" && !/\b(cru|crua)\b/.test(norm),
+      (norm.includes("batata") || norm.includes("potato")) &&
+      (norm.includes("inglesa") || norm.includes("cozida") || norm.includes("baked") || norm.includes("boiled") || norm.includes("mashed") || norm.includes("russet") || norm.includes("white")) &&
+      !norm.includes("doce") && !norm.includes("sweet") && prep !== "Cru" && !/\b(cru|crua|raw)\b/.test(norm),
     portions: [
       { label: "Unidade média", amount: 140, notes: "Equivalência Pinheiro" },
       { label: "Colher de servir cheia", amount: 60, notes: "Equivalência Pinheiro" },
@@ -367,9 +388,9 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "cafe-bebida",
     matcher: (norm) =>
-      norm.includes("cafe") &&
-      (norm.includes("infusao") || norm.includes("bebida") || norm.includes("coado")) &&
-      !norm.includes("po") && !norm.includes("grao"),
+      (norm.includes("cafe") || norm.includes("coffee")) &&
+      (norm.includes("infusao") || norm.includes("bebida") || norm.includes("coado") || norm.includes("brewed") || norm.includes("espresso")) &&
+      !norm.includes("po") && !norm.includes("powder") && !norm.includes("grao") && !norm.includes("bean"),
     portions: [
       { label: "Xícara de café", amount: 50, notes: "Equivalência Pinheiro (50 ml)" },
       { label: "Xícara de chá", amount: 150, notes: "Equivalência Pinheiro (150 ml)" },
@@ -382,7 +403,7 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   // -------------------------------------------------------------------------
   {
     id: "acucar",
-    matcher: (norm) => norm.includes("acucar"),
+    matcher: (norm) => norm.includes("acucar") || norm.includes("sugar"),
     portions: [
       { label: "Colher de sopa cheia", amount: 15, notes: "Equivalência Pinheiro" },
       { label: "Colher de sobremesa", amount: 10, notes: "Equivalência Pinheiro" },
@@ -395,11 +416,172 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   // -------------------------------------------------------------------------
   {
     id: "manteiga-margarina",
-    matcher: (norm) => norm.includes("manteiga") || norm.includes("margarina"),
+    matcher: (norm) => norm.includes("manteiga") || norm.includes("margarina") || norm.includes("butter") || norm.includes("margarine"),
     portions: [
       { label: "Colher de sopa rasa", amount: 10, notes: "Equivalência Pinheiro" },
       { label: "Colher de chá", amount: 5, notes: "Equivalência Pinheiro" },
       { label: "Ponta de faca", amount: 5, notes: "Equivalência Pinheiro" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 25. WHEY PROTEIN & PROTEÍNA EM PÓ
+  // -------------------------------------------------------------------------
+  {
+    id: "whey-protein",
+    matcher: (norm) => norm.includes("whey") || norm.includes("proteina em po") || norm.includes("protein powder") || norm.includes("albumina"),
+    portions: [
+      { label: "Scoop dosador", amount: 30, notes: "Equivalência padrão de dosador comercial (30g)" },
+      { label: "Colher de sopa cheia", amount: 15, notes: "Equivalência Pinheiro" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 26. MACARRÃO / PASTA COZIDA
+  // -------------------------------------------------------------------------
+  {
+    id: "macarrao-cozido",
+    matcher: (norm, cat, prep) =>
+      (norm.includes("macarrao") || norm.includes("pasta") || norm.includes("spaghetti") || norm.includes("penne") || norm.includes("noodle")) &&
+      !norm.includes("cru") && !norm.includes("raw") && !norm.includes("dry") && prep !== "Cru",
+    portions: [
+      { label: "Prato raso", amount: 160, notes: "Equivalência Pinheiro" },
+      { label: "Pegador", amount: 80, notes: "Equivalência Pinheiro" },
+      { label: "Xícara de chá", amount: 140, notes: "Equivalência Pinheiro" },
+      { label: "Colher de servir cheia", amount: 45, notes: "Equivalência Pinheiro" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 27. PEIXES (Atum, Salmão, Tilápia, Pescada - Grelhado/Cozido)
+  // -------------------------------------------------------------------------
+  {
+    id: "peixe-cozido",
+    matcher: (norm, cat, prep) =>
+      (norm.includes("peixe") || norm.includes("atum") || norm.includes("salmao") || norm.includes("tilapia") || norm.includes("fish") || norm.includes("tuna") || norm.includes("salmon")) &&
+      !norm.includes("cru") && !norm.includes("raw") && prep !== "Cru",
+    portions: [
+      { label: "Filé médio", amount: 120, notes: "Equivalência Pinheiro" },
+      { label: "Filé pequeno", amount: 80, notes: "Equivalência Pinheiro" },
+      { label: "Filé grande", amount: 160, notes: "Equivalência Pinheiro" },
+      { label: "Pedaço médio", amount: 100, notes: "Equivalência Pinheiro" },
+      { label: "Lata drenada", amount: 120, notes: "Equivalência padrão lata comercial" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 28. PASTA DE AMENDOIM
+  // -------------------------------------------------------------------------
+  {
+    id: "pasta-amendoim",
+    matcher: (norm) => (norm.includes("amendoim") && (norm.includes("pasta") || norm.includes("manteiga"))) || norm.includes("peanut butter"),
+    portions: [
+      { label: "Colher de sopa cheia", amount: 20, notes: "Equivalência Pinheiro" },
+      { label: "Colher de sopa rasa", amount: 15, notes: "Equivalência Pinheiro" },
+      { label: "Colher de sobremesa", amount: 10, notes: "Equivalência Pinheiro" },
+      { label: "Colher de chá", amount: 5, notes: "Equivalência Pinheiro" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 29. CASTANHAS, NOZES E AMÊNDOAS
+  // -------------------------------------------------------------------------
+  {
+    id: "castanhas-nozes",
+    matcher: (norm) => norm.includes("castanha") || norm.includes("amendoa") || norm.includes("almond") || norm.includes("noz") || norm.includes("walnut") || norm.includes("cashew"),
+    portions: [
+      { label: "Punhado / Porção", amount: 30, notes: "Equivalência porção prática" },
+      { label: "Colher de sopa", amount: 15, notes: "Equivalência Pinheiro" },
+      { label: "Unidade", amount: 5, notes: "Equivalência média individual" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 30. REQUEIJÃO E CREAM CHEESE
+  // -------------------------------------------------------------------------
+  {
+    id: "requeijao",
+    matcher: (norm) => norm.includes("requeijao") || norm.includes("cream cheese") || norm.includes("cottage"),
+    portions: [
+      { label: "Colher de sopa cheia", amount: 30, notes: "Equivalência Pinheiro" },
+      { label: "Colher de sopa rasa", amount: 20, notes: "Equivalência Pinheiro" },
+      { label: "Colher de sobremesa", amount: 15, notes: "Equivalência Pinheiro" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 31. MEL
+  // -------------------------------------------------------------------------
+  {
+    id: "mel",
+    matcher: (norm) => norm.includes("mel") || norm.includes("honey"),
+    portions: [
+      { label: "Colher de sopa", amount: 15, notes: "Equivalência Pinheiro" },
+      { label: "Colher de sobremesa", amount: 10, notes: "Equivalência Pinheiro" },
+      { label: "Colher de chá", amount: 5, notes: "Equivalência Pinheiro" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 32. TAPIOCA (Goma hidratada)
+  // -------------------------------------------------------------------------
+  {
+    id: "tapioca",
+    matcher: (norm) => norm.includes("tapioca"),
+    portions: [
+      { label: "Disco / Porção média", amount: 50, notes: "Equivalência disco médio pronto" },
+      { label: "Colher de sopa cheia", amount: 20, notes: "Equivalência Pinheiro (goma)" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 33. ABACATE / AVOCADO
+  // -------------------------------------------------------------------------
+  {
+    id: "abacate",
+    matcher: (norm) => norm.includes("abacate") || norm.includes("avocado"),
+    portions: [
+      { label: "Colher de sopa cheia", amount: 30, notes: "Equivalência Pinheiro" },
+      { label: "Metade média", amount: 100, notes: "Equivalência Pinheiro (sem caroço/casca)" },
+      { label: "Unidade média", amount: 200, notes: "Equivalência Pinheiro (sem caroço/casca)" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 34. TOMATE
+  // -------------------------------------------------------------------------
+  {
+    id: "tomate",
+    matcher: (norm) => (norm.includes("tomate") || norm.includes("tomato")) && !norm.includes("molho") && !norm.includes("sauce") && !norm.includes("extrato") && !norm.includes("paste"),
+    portions: [
+      { label: "Unidade média", amount: 100, notes: "Equivalência Pinheiro" },
+      { label: "Unidade pequena", amount: 70, notes: "Equivalência Pinheiro" },
+      { label: "Fatia / Rodela média", amount: 15, notes: "Equivalência Pinheiro" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 35. CENOURA
+  // -------------------------------------------------------------------------
+  {
+    id: "cenoura",
+    matcher: (norm) => (norm.includes("cenoura") || norm.includes("carrot")) && !norm.includes("bolo") && !norm.includes("cake"),
+    portions: [
+      { label: "Unidade média", amount: 120, notes: "Equivalência Pinheiro" },
+      { label: "Colher de sopa ralada", amount: 15, notes: "Equivalência Pinheiro" },
+      { label: "Pedaço médio", amount: 30, notes: "Equivalência Pinheiro" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 36. BRÓCOLIS COZIDO
+  // -------------------------------------------------------------------------
+  {
+    id: "brocolis",
+    matcher: (norm) => norm.includes("brocolis") || norm.includes("broccoli"),
+    portions: [
+      { label: "Ramo / Pedaço médio", amount: 40, notes: "Equivalência Pinheiro" },
+      { label: "Xícara de chá", amount: 100, notes: "Equivalência Pinheiro" },
     ],
   },
 ];

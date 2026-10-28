@@ -26,7 +26,11 @@ import {
   type FoodPortionOption,
 } from "./nutrition-custom-measure-modal";
 import type { FoodListItemDto } from "@/lib/nutrition-v2/food-repository";
-import { calculateMealMicronutrientTotals } from "@/lib/nutrition-v2/nutrient-calculator";
+import {
+  calculateMealMicronutrientTotals,
+  parseQuantityInput,
+  formatQuantityForDisplay,
+} from "@/lib/nutrition-v2/nutrient-calculator";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { getFoodPortionsForPickerAction } from "@/app/consultoria/[slug]/planos-v2/actions";
 
@@ -214,7 +218,7 @@ export function NutritionItemEditor({
   const standardUnitShort = isVolumeFood ? "ml" : "g";
 
   // Dynamic preview calculation when typing quantity
-  const parsedLocalQty = localQuantity ? parseFloat(localQuantity.replace(",", ".")) : null;
+  const parsedLocalQty = parseQuantityInput(localQuantity);
   const isCustomQtyValid = parsedLocalQty != null && Number.isFinite(parsedLocalQty) && parsedLocalQty > 0;
   const scale = isCustomQtyValid && item.prescribedQuantity && item.prescribedQuantity > 0
     ? parsedLocalQty / item.prescribedQuantity
@@ -254,8 +258,7 @@ export function NutritionItemEditor({
   const handleQuantityChange = (newVal: string) => {
     setLocalQuantity(newVal);
     setPracticalRoundingSuggestion(null);
-    const parsed = newVal ? parseFloat(newVal.replace(",", ".")) : null;
-    const validQty = parsed != null && Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    const validQty = parseQuantityInput(newVal);
 
     // Immediately propagate to parent builder for instant meal and day totals
     onLiveQuantityChange?.(item.publicId, validQty);
@@ -294,7 +297,7 @@ export function NutritionItemEditor({
       return;
     }
 
-    const currentQtyNum = localQuantity ? parseFloat(localQuantity.replace(",", ".")) : (item.prescribedQuantity || 0);
+    const currentQtyNum = parseQuantityInput(localQuantity) ?? (item.prescribedQuantity || 0);
 
     // Determine previous physical amount
     let prevEq = 1;
@@ -376,8 +379,7 @@ export function NutritionItemEditor({
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
-      const parsed = localQuantity ? parseFloat(localQuantity.replace(",", ".")) : null;
-      const validQty = parsed != null && Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      const validQty = parseQuantityInput(localQuantity);
       if (validQty != null && validQty !== item.prescribedQuantity) {
         await onUpdateItem({ prescribedQuantity: validQty });
       }
@@ -502,7 +504,7 @@ export function NutritionItemEditor({
               ) : (
                 <optgroup label="Medidas do Alimento">
                   <option value="" disabled>
-                    Sem medidas caseiras cadastradas
+                    Equivalência não cadastrada
                   </option>
                 </optgroup>
               )}
@@ -926,7 +928,7 @@ export function NutritionItemEditor({
               ) : (
                 <optgroup label="Medidas do Alimento">
                   <option value="" disabled>
-                    Sem medidas caseiras cadastradas
+                    Equivalência não cadastrada
                   </option>
                 </optgroup>
               )}
@@ -1208,11 +1210,7 @@ export function NutritionItemEditor({
 }
 
 function formatNumberForDisplay(num: number): string {
-  if (!Number.isFinite(num)) return "";
-  if (Number.isInteger(num)) return String(num);
-  // Round to at most 2 decimal places cleanly
-  const rounded = Math.round(num * 100) / 100;
-  return String(rounded).replace(".", ",");
+  return formatQuantityForDisplay(num);
 }
 
 function extractCleanFoodQuery(raw: string): string {

@@ -65,6 +65,67 @@ export interface NutrientCalculationResult {
 const MASS_UNITS = new Set(["G", "KG"]);
 const VOLUME_UNITS = new Set(["ML", "L"]);
 
+/**
+ * Safely parses human-entered quantities, supporting:
+ * - integers: "100" -> 100
+ * - decimal dots: "1.5" -> 1.5
+ * - decimal commas: "1,5" -> 1.5
+ * - simple fractions: "1/2" -> 0.5, "1/4" -> 0.25, "3/4" -> 0.75, "1/3" -> 0.3333333333333333
+ * - mixed numbers: "1 1/2" -> 1.5, "2 1/4" -> 2.25
+ * Returns null if input is empty, non-positive, or unparseable.
+ */
+export function parseQuantityInput(val: string | number | null | undefined): number | null {
+  if (val == null) return null;
+  if (typeof val === "number") {
+    return Number.isFinite(val) && val > 0 ? val : null;
+  }
+  const str = String(val).trim();
+  if (!str) return null;
+
+  // Replace comma with dot
+  const sanitized = str.replace(",", ".");
+
+  // Mixed number with space: "1 1/2" or "2 1/4"
+  const mixedMatch = sanitized.match(/^(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/);
+  if (mixedMatch) {
+    const whole = parseFloat(mixedMatch[1]);
+    const num = parseFloat(mixedMatch[2]);
+    const den = parseFloat(mixedMatch[3]);
+    if (den > 0) {
+      const result = whole + num / den;
+      return Number.isFinite(result) && result > 0 ? result : null;
+    }
+  }
+
+  // Simple fraction: "1/2", "3/4"
+  const fracMatch = sanitized.match(/^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/);
+  if (fracMatch) {
+    const num = parseFloat(fracMatch[1]);
+    const den = parseFloat(fracMatch[2]);
+    if (den > 0) {
+      const result = num / den;
+      return Number.isFinite(result) && result > 0 ? result : null;
+    }
+  }
+
+  // Standard float
+  const parsed = parseFloat(sanitized);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return null;
+}
+
+/**
+ * Cleanly formats a quantity number for display in Brazilian Portuguese (comma decimal, max 2 decimals).
+ */
+export function formatQuantityForDisplay(num: number | null | undefined): string {
+  if (num == null || !Number.isFinite(num) || num <= 0) return "";
+  if (Number.isInteger(num)) return String(num);
+  const rounded = Math.round(num * 100) / 100;
+  return String(rounded).replace(".", ",");
+}
+
 export function roundMacro(val: number | null | undefined): number | null {
   if (val == null || !Number.isFinite(Number(val))) return null;
   return Math.round(Number(val) * 100) / 100;

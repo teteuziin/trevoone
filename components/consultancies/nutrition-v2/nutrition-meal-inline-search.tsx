@@ -7,13 +7,16 @@ import {
 } from "@/app/consultoria/[slug]/planos-v2/actions";
 import type { FoodListItemDto } from "@/lib/nutrition-v2/food-repository";
 import { getDataQualityBadgeInfo } from "@/lib/nutrition-v2/food-search";
+import {
+  calculateItemNutrients,
+  parseQuantityInput,
+  formatQuantityForDisplay,
+} from "@/lib/nutrition-v2/nutrient-calculator";
 import type { FoodSelectionResult } from "./nutrition-food-picker";
-
-interface FoodPortionOption {
-  publicId: string;
-  label: string;
-  equivalentReferenceAmount: number;
-}
+import {
+  NutritionCustomMeasureModal,
+  type FoodPortionOption,
+} from "./nutrition-custom-measure-modal";
 
 interface NutritionMealInlineSearchProps {
   slug: string;
@@ -55,17 +58,17 @@ export function NutritionMealInlineSearch({
   const [foodPortionsMap, setFoodPortionsMap] = useState<Record<string, FoodPortionOption[]>>({});
   const loadedPortionsRef = useRef<Set<string>>(new Set());
 
-  // Selected portion per food: portionPublicId or "G"
+  // Selected portion per food: portionPublicId, "ML", or "G"
   const [selectedPortions, setSelectedPortions] = useState<Record<string, string>>({});
-  // Selected quantity per food, kept as RAW TEXT (default "1") so the user can
-  // erase the field while typing; parsing/fallback to 1 happens on blur and
-  // when adding. Storing a number here made the input snap back to "1" on
-  // every keystroke that produced an empty/invalid value ("o 1 não apaga").
+  // Selected quantity per food, kept as RAW TEXT so user can type fractions/decimals
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, string>>({});
 
   // Adding feedback
   const [addingFoodId, setAddingFoodId] = useState<string | null>(null);
   const [recentlyAddedId, setRecentlyAddedId] = useState<string | null>(null);
+
+  // Custom measure modal trigger
+  const [customMeasureFood, setCustomMeasureFood] = useState<FoodListItemDto | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
@@ -123,18 +126,23 @@ export function NutritionMealInlineSearch({
     };
   }, [query, sourceFilter, fetchFoods]);
 
-  // Load portions for visible foods
+  // Load portions for all visible foods (without blocking on food.portionsCount > 0)
   useEffect(() => {
     for (const food of foods) {
-      if (food.portionsCount > 0 && !loadedPortionsRef.current.has(food.publicId)) {
+      if (!loadedPortionsRef.current.has(food.publicId)) {
         loadedPortionsRef.current.add(food.publicId);
         getFoodPortionsForPickerAction(slug, food.publicId).then((res) => {
           if (res.success && res.data) {
+            const isVol = food.referenceUnitCode === "ML" || food.referenceUnitCode === "L";
+            const standardCode = isVol ? "ML" : "G";
+
             const rawPortions = (res.data.portions || []) as Array<{
               publicId: string;
               label: string;
               equivalentReferenceAmount: number;
               status?: string;
+              scope?: "GLOBAL" | "CONSULTANCY" | "PERSONAL";
+              notes?: string | null;
             }>;
             const activePortions = rawPortions
               .filter((p) => (p.status || "ACTIVE") === "ACTIVE")
@@ -142,6 +150,8 @@ export function NutritionMealInlineSearch({
                 publicId: p.publicId,
                 label: p.label,
                 equivalentReferenceAmount: Number(p.equivalentReferenceAmount),
+                scope: p.scope,
+                notes: p.notes,
               }));
 
             setFoodPortionsMap((prev) => ({
@@ -149,13 +159,25 @@ export function NutritionMealInlineSearch({
               [food.publicId]: activePortions,
             }));
 
-            // Default to first registered portion if available
-            if (activePortions.length > 0) {
-              setSelectedPortions((prev) => ({
+            // Default to first registered portion if available, else standard unit G or ML
+            setSelectedPortions((prev) => {
+              if (prev[food.publicId]) return prev;
+              const defaultKey = activePortions.length > 0 ? activePortions[0].publicId : standardCode;
+              return {
                 ...prev,
-                [food.publicId]: activePortions[0].publicId,
-              }));
-            }
+                [food.publicId]: defaultKey,
+              };
+            });
+
+            // If defaulting to standard G or ML and quantity wasn't set, default quantity to 100 (or 1 for portion)
+            setSelectedQuantities((prev) => {
+              if (prev[food.publicId] != null) return prev;
+              const defaultQty = activePortions.length > 0 ? "1" : "100";
+              return {
+                ...prev,
+                [food.publicId]: defaultQty,
+              };
+            });
           }
         }).catch(() => {});
       }
@@ -163,7 +185,7 @@ export function NutritionMealInlineSearch({
   }, [foods, slug]);
 
   const handleQuantityChange = (foodPublicId: string, val: string) => {
-    // Keep exactly what the user typed (including "") — never coerce here.
+    // Keep exactly what the user typed (including fractions "1/2" or comma "1,5")
     setSelectedQuantities((prev) => ({
       ...prev,
       [foodPublicId]: val,
@@ -171,48 +193,113 @@ export function NutritionMealInlineSearch({
   };
 
   const handleQuantityBlur = (foodPublicId: string) => {
-    // On blur, an empty/invalid field falls back to "1".
     setSelectedQuantities((prev) => {
       const raw = prev[foodPublicId];
       if (raw == null) return prev;
-      const num = parseFloat(raw.replace(",", "."));
-      if (!Number.isFinite(num) || num <= 0) {
+      const num = parseQuantityInput(raw);
+      if (num == null || num <= 0) {
         return { ...prev, [foodPublicId]: "1" };
       }
       return prev;
     });
   };
 
-  // Effective numeric quantity for previews and for adding (fallback 1).
-  const getQuantityNumber = (foodPublicId: string): number => {
+  // Effective numeric quantity for previews and for adding
+  const getQuantityNumber = (foodPublicId: string, fallbackDefault = 1): number => {
     const raw = selectedQuantities[foodPublicId];
-    if (raw == null) return 1;
-    const num = parseFloat(raw.replace(",", "."));
-    return Number.isFinite(num) && num > 0 ? num : 1;
+    if (raw == null) return fallbackDefault;
+    const num = parseQuantityInput(raw);
+    return num != null && num > 0 ? num : fallbackDefault;
   };
 
-  const handlePortionChange = (foodPublicId: string, val: string) => {
+  // Smart switching of measure while preserving physical quantity (Section 3)
+  const handlePortionChange = (
+    food: FoodListItemDto,
+    newPortionId: string,
+    newlyCreatedPortion?: FoodPortionOption
+  ) => {
+    if (newPortionId === "__CREATE_CUSTOM__") {
+      setCustomMeasureFood(food);
+      return;
+    }
+
+    const isVolumeFood = food.referenceUnitCode === "ML" || food.referenceUnitCode === "L";
+    const standardCode = isVolumeFood ? "ML" : "G";
+    const oldChoice = selectedPortions[food.publicId] ?? (foodPortionsMap[food.publicId]?.[0]?.publicId || standardCode);
+    const portions = [...(foodPortionsMap[food.publicId] || [])];
+    if (newlyCreatedPortion && !portions.some((p) => p.publicId === newlyCreatedPortion.publicId)) {
+      portions.push(newlyCreatedPortion);
+    }
+
+    // Determine previous physical equivalence
+    let prevEq = 1;
+    if (oldChoice !== "G" && oldChoice !== "ML") {
+      const prevPortion = portions.find((p) => p.publicId === oldChoice);
+      if (prevPortion && prevPortion.equivalentReferenceAmount > 0) {
+        prevEq = prevPortion.equivalentReferenceAmount;
+      }
+    }
+
+    // Determine new physical equivalence
+    let newEq = 1;
+    if (newPortionId !== "G" && newPortionId !== "ML") {
+      const targetPortion = portions.find((p) => p.publicId === newPortionId);
+      if (targetPortion && targetPortion.equivalentReferenceAmount > 0) {
+        newEq = targetPortion.equivalentReferenceAmount;
+      }
+    }
+
+    // Current quantity
+    const currentQtyNum = getQuantityNumber(food.publicId, oldChoice === "G" || oldChoice === "ML" ? 100 : 1);
+    let convertedQty = currentQtyNum;
+    if (Number.isFinite(currentQtyNum) && currentQtyNum > 0 && prevEq > 0 && newEq > 0) {
+      const physicalAmount = currentQtyNum * prevEq;
+      convertedQty = physicalAmount / newEq;
+    }
+
     setSelectedPortions((prev) => ({
       ...prev,
-      [foodPublicId]: val,
+      [food.publicId]: newPortionId,
+    }));
+
+    setSelectedQuantities((prev) => ({
+      ...prev,
+      [food.publicId]: formatQuantityForDisplay(convertedQty),
     }));
   };
 
+  const handleCustomMeasureCreated = (food: FoodListItemDto, newPortion: FoodPortionOption) => {
+    setFoodPortionsMap((prev) => ({
+      ...prev,
+      [food.publicId]: [...(prev[food.publicId] || []).filter((p) => p.publicId !== newPortion.publicId), newPortion],
+    }));
+    handlePortionChange(food, newPortion.publicId, newPortion);
+    setCustomMeasureFood(null);
+  };
+
   const handleAddFood = async (food: FoodListItemDto) => {
-    const qty = getQuantityNumber(food.publicId);
-    const portionChoice = selectedPortions[food.publicId] ?? (foodPortionsMap[food.publicId]?.[0]?.publicId || "G");
+    const isVolumeFood = food.referenceUnitCode === "ML" || food.referenceUnitCode === "L";
+    const standardUnitCode = isVolumeFood ? "ML" : "G";
+    const standardUnitLabel = isVolumeFood ? "Mililitros (ml)" : "Gramas (g)";
+
+    const portions = foodPortionsMap[food.publicId] || [];
+    const portionChoice = selectedPortions[food.publicId] ?? (portions[0]?.publicId || standardUnitCode);
+    const qty = getQuantityNumber(food.publicId, portionChoice === "G" || portionChoice === "ML" ? 100 : 1);
 
     let portionPublicId: string | null = null;
-    let unitCode = "G";
-    let unitLabel = "Gramas (g)";
+    let unitCode = standardUnitCode;
+    let unitLabel = standardUnitLabel;
 
-    if (portionChoice !== "G") {
-      const activePortion = (foodPortionsMap[food.publicId] || []).find((p) => p.publicId === portionChoice);
+    if (portionChoice !== "G" && portionChoice !== "ML") {
+      const activePortion = portions.find((p) => p.publicId === portionChoice);
       if (activePortion) {
         portionPublicId = activePortion.publicId;
         unitCode = "PORCAO";
         unitLabel = activePortion.label;
       }
+    } else if (portionChoice === "ML") {
+      unitCode = "ML";
+      unitLabel = "Mililitros (ml)";
     }
 
     setAddingFoodId(food.publicId);
@@ -298,114 +385,176 @@ export function NutritionMealInlineSearch({
           onClick={onClose}
           className="px-2.5 py-1 text-xs font-bold rounded-lg border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
         >
-          <span>Concluir</span>
-          <span className="text-[10px] text-[var(--text-muted)]">Esc</span>
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          <span>Fechar</span>
         </button>
       </div>
 
-      {/* Search Input & Source Filters */}
+      {/* Search Input & Source Tabs */}
       <div className="space-y-2">
         <div className="relative">
-          <svg
-            className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--text-muted)]">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
           <input
             ref={searchInputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Buscar alimento (ex: arroz, peito de frango, banana, aveia)..."
-            className="w-full pl-9 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+            placeholder="Digite para buscar qualquer alimento (ex: arroz, frango, aveia, ovo)..."
+            className="w-full pl-9 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-all shadow-inner"
           />
-          {(isLoading || isSearching) && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <svg className="w-4 h-4 animate-spin text-[var(--brand)]" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          {query && (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery("");
+                searchInputRef.current?.focus();
+              }}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </div>
+            </button>
           )}
         </div>
 
-        {/* Quick Suggestion Chips when query is short */}
-        {!query.trim() && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
-            <span className="text-[10px] font-semibold text-[var(--text-muted)] shrink-0">Sugestões:</span>
-            {QUICK_SUGGESTIONS.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setQuery(item)}
-                className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--brand)] whitespace-nowrap cursor-pointer transition-colors"
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Source Filter Pills */}
+        {/* Source Filter Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs scrollbar-none">
-          {[
-            { id: "ALL", label: "Todos os bancos" },
-            { id: "TACO", label: "TACO Brasil" },
-            { id: "CONSULTANCY", label: "Minha consultoria" },
-            { id: "USDA", label: "USDA Internacional" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setSourceFilter(tab.id as typeof sourceFilter)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                sourceFilter === tab.id
-                  ? "bg-[var(--brand)] text-white shadow-2xs"
-                  : "bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          <button
+            type="button"
+            onClick={() => setSourceFilter("ALL")}
+            className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 transition-colors cursor-pointer ${
+              sourceFilter === "ALL"
+                ? "bg-[var(--brand)] text-white shadow-2xs"
+                : "bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+            }`}
+          >
+            Todos os catálogos
+          </button>
+          <button
+            type="button"
+            onClick={() => setSourceFilter("TACO")}
+            className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 transition-colors cursor-pointer ${
+              sourceFilter === "TACO"
+                ? "bg-[var(--brand)] text-white shadow-2xs"
+                : "bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+            }`}
+          >
+            TACO Brasil
+          </button>
+          <button
+            type="button"
+            onClick={() => setSourceFilter("USDA")}
+            className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 transition-colors cursor-pointer ${
+              sourceFilter === "USDA"
+                ? "bg-[var(--brand)] text-white shadow-2xs"
+                : "bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+            }`}
+          >
+            USDA Internacional
+          </button>
+          <button
+            type="button"
+            onClick={() => setSourceFilter("CONSULTANCY")}
+            className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 transition-colors cursor-pointer ${
+              sourceFilter === "CONSULTANCY"
+                ? "bg-[var(--brand)] text-white shadow-2xs"
+                : "bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+            }`}
+          >
+            Consultoria
+          </button>
         </div>
       </div>
 
-      {/* Results List */}
+      {/* Quick Suggestions Chips when query is empty */}
+      {!query && (
+        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+          <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">Sugestões:</span>
+          {QUICK_SUGGESTIONS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => {
+                setQuery(item);
+                searchInputRef.current?.focus();
+              }}
+              className="px-2 py-0.5 text-[11px] rounded-md bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer shadow-2xs"
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Results Container */}
       <div
         ref={resultsContainerRef}
-        className="max-h-[340px] overflow-y-auto space-y-1.5 pr-1 divide-y divide-[var(--border-subtle)]"
+        className="max-h-[380px] overflow-y-auto space-y-1.5 pr-1 divide-y divide-[var(--border-subtle)]"
       >
-        {foods.length === 0 && !isLoading && !isSearching && (
-          <div className="py-6 text-center text-xs text-[var(--text-tertiary)]">
-            Nenhum alimento encontrado para o termo pesquisado.
+        {(isLoading || isSearching) && foods.length === 0 && (
+          <div className="py-8 text-center text-xs text-[var(--text-secondary)] flex items-center justify-center gap-2">
+            <svg className="w-4 h-4 animate-spin text-[var(--brand)]" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+            <span>Buscando alimentos no catálogo...</span>
+          </div>
+        )}
+
+        {!isLoading && !isSearching && foods.length === 0 && (
+          <div className="py-8 text-center text-xs text-[var(--text-secondary)] space-y-1">
+            <p className="font-semibold text-[var(--text-primary)]">Nenhum alimento encontrado para &ldquo;{query}&rdquo;</p>
+            <p className="text-[11px] text-[var(--text-tertiary)]">Tente outro termo ou limpe os filtros de catálogo.</p>
           </div>
         )}
 
         {foods.map((food, idx) => {
-          const qtyText = selectedQuantities[food.publicId] ?? "1";
-          const qty = getQuantityNumber(food.publicId);
+          const isVolumeFood = food.referenceUnitCode === "ML" || food.referenceUnitCode === "L";
+          const standardUnitCode = isVolumeFood ? "ML" : "G";
+          const standardUnitLabel = isVolumeFood ? "Mililitros (ml)" : "Gramas (g)";
+          const unitShort = isVolumeFood ? "ml" : "g";
+
           const portions = foodPortionsMap[food.publicId] || [];
-          const chosenPortionId = selectedPortions[food.publicId] || (portions[0]?.publicId ?? "G");
+          const chosenPortionId = selectedPortions[food.publicId] ?? (portions[0]?.publicId || standardUnitCode);
+          const activePortion = portions.find((p) => p.publicId === chosenPortionId) || null;
 
-          // Calculate preview macros
-          let scaleFactor = (qty * (food.referenceAmount || 100)) / (food.referenceAmount || 100);
-          if (chosenPortionId !== "G") {
-            const foundPortion = portions.find((p) => p.publicId === chosenPortionId);
-            if (foundPortion && food.referenceAmount) {
-              scaleFactor = (qty * foundPortion.equivalentReferenceAmount) / food.referenceAmount;
-            }
-          } else {
-            scaleFactor = qty / (food.referenceAmount || 100);
-          }
+          const defaultFallbackQty = chosenPortionId === "G" || chosenPortionId === "ML" ? 100 : 1;
+          const qtyText = selectedQuantities[food.publicId] ?? (portions.length > 0 ? "1" : "100");
+          const qtyNum = parseQuantityInput(qtyText) ?? defaultFallbackQty;
 
-          const previewKcal = food.caloriesKcal != null ? Math.round(food.caloriesKcal * scaleFactor) : null;
-          const previewP = food.proteinG != null ? Math.round(food.proteinG * scaleFactor * 10) / 10 : null;
-          const previewC = food.carbohydrateG != null ? Math.round(food.carbohydrateG * scaleFactor * 10) / 10 : null;
-          const previewG = food.fatG != null ? Math.round(food.fatG * scaleFactor * 10) / 10 : null;
+          // Physical reference amount
+          const equivalentRefAmount = activePortion ? activePortion.equivalentReferenceAmount : 1;
+          const physicalAmount = Math.round(qtyNum * equivalentRefAmount * 10) / 10;
+
+          // Authoritative live calculated nutrients for this exact quantity and measure
+          const liveNutrients = calculateItemNutrients({
+            food: {
+              referenceAmount: food.referenceAmount || 100,
+              referenceUnitCode: food.referenceUnitCode || "G",
+              caloriesKcal: food.caloriesKcal,
+              proteinG: food.proteinG,
+              carbohydrateG: food.carbohydrateG,
+              fatG: food.fatG,
+              fiberG: food.fiberG,
+            },
+            prescribedQuantity: qtyNum,
+            prescribedUnitCode: activePortion ? "PORCAO" : standardUnitCode,
+            portion: activePortion
+              ? {
+                  publicId: activePortion.publicId,
+                  label: activePortion.label,
+                  equivalentReferenceAmount: activePortion.equivalentReferenceAmount,
+                }
+              : null,
+          });
 
           const qualityBadge = getDataQualityBadgeInfo(food.dataQuality);
           const isAdding = addingFoodId === food.publicId;
@@ -455,29 +604,51 @@ export function NutritionMealInlineSearch({
                         {qualityBadge.label}
                       </span>
                     )}
+
+                    {portions.length === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomMeasureFood(food)}
+                        className="px-1.5 py-0.2 rounded text-[9px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-colors cursor-pointer"
+                        title="Cadastrar medida personalizada para este alimento"
+                      >
+                        + Cadastrar medida
+                      </button>
+                    )}
                   </div>
 
-                  {/* Reference Nutrition Badges */}
+                  {/* Live Recalculated Badges & Physical Equivalence */}
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--text-secondary)]">
-                    <span className="text-[var(--text-tertiary)]">
-                      Ref {food.referenceAmount}{food.referenceUnitCode?.toLowerCase() || "g"}:
-                    </span>
+                    {activePortion && (
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                        = {formatQuantityForDisplay(physicalAmount)} {unitShort}
+                      </span>
+                    )}
                     <span className="font-bold text-[var(--brand)]">
-                      {food.caloriesKcal != null ? `${food.caloriesKcal} kcal` : "—"}
+                      {liveNutrients.caloriesKcal != null ? `${liveNutrients.caloriesKcal} kcal` : "—"}
                     </span>
                     <span>•</span>
-                    <span>{food.proteinG != null ? `${food.proteinG}g P` : "— P"}</span>
+                    <span>{liveNutrients.proteinG != null ? `${liveNutrients.proteinG}g P` : "— P"}</span>
                     <span>•</span>
-                    <span>{food.carbohydrateG != null ? `${food.carbohydrateG}g C` : "— C"}</span>
+                    <span>{liveNutrients.carbohydrateG != null ? `${liveNutrients.carbohydrateG}g C` : "— C"}</span>
                     <span>•</span>
-                    <span>{food.fatG != null ? `${food.fatG}g G` : "— G"}</span>
+                    <span>{liveNutrients.fatG != null ? `${liveNutrients.fatG}g G` : "— G"}</span>
+                    {liveNutrients.fiberG != null && (
+                      <>
+                        <span>•</span>
+                        <span>{liveNutrients.fiberG}g Fibra</span>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {/* Interactive Quantity, Portion & Add Button */}
-                <div className="flex items-center gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
+                {/* Interactive Quantity, Measure Selector & Add Button */}
+                <div className="flex items-end gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
                   {/* Quantity input */}
                   <div className="w-14">
+                    <label className="block text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-0.5 text-center">
+                      Qtd
+                    </label>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -489,19 +660,39 @@ export function NutritionMealInlineSearch({
                     />
                   </div>
 
-                  {/* Portion dropdown */}
-                  <div className="min-w-[110px] max-w-[160px]">
+                  {/* Measure dropdown */}
+                  <div className="min-w-[130px] max-w-[190px]">
+                    <label className="block text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-0.5">
+                      Medida
+                    </label>
                     <select
                       value={chosenPortionId}
-                      onChange={(e) => handlePortionChange(food.publicId, e.target.value)}
-                      className="w-full px-2 py-1 text-xs rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] truncate cursor-pointer"
+                      onChange={(e) => handlePortionChange(food, e.target.value)}
+                      className="w-full px-2 py-1 text-xs rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] truncate cursor-pointer font-medium"
+                      title="Selecione a medida deste alimento"
                     >
-                      {portions.map((p) => (
-                        <option key={p.publicId} value={p.publicId}>
-                          {p.label} ({p.equivalentReferenceAmount}g)
-                        </option>
-                      ))}
-                      <option value="G">Gramas (g)</option>
+                      <optgroup label="Unidade Padrão">
+                        <option value={standardUnitCode}>{standardUnitLabel}</option>
+                      </optgroup>
+
+                      {portions.length > 0 ? (
+                        <optgroup label="Medidas do Alimento">
+                          {portions.map((p) => (
+                            <option key={p.publicId} value={p.publicId}>
+                              {p.label} ({p.equivalentReferenceAmount}{unitShort})
+                              {p.scope === "PERSONAL" ? " (Pessoal)" : p.scope === "CONSULTANCY" ? " (Consultoria)" : ""}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : (
+                        <optgroup label="Medidas do Alimento">
+                          <option value="" disabled>Equivalência não cadastrada</option>
+                        </optgroup>
+                      )}
+
+                      <optgroup label="Personalização">
+                        <option value="__CREATE_CUSTOM__">+ Cadastrar medida...</option>
+                      </optgroup>
                     </select>
                   </div>
 
@@ -539,22 +730,26 @@ export function NutritionMealInlineSearch({
                   </button>
                 </div>
               </div>
-
-              {/* Subtotal preview for selected quantity & portion */}
-              {previewKcal != null && (
-                <div className="mt-1 pt-1 border-t border-[var(--border-subtle)] flex items-center justify-between text-[10px] text-[var(--text-tertiary)]">
-                  <span>
-                    Subtotal ({qty} {chosenPortionId === "G" ? "g" : portions.find((p) => p.publicId === chosenPortionId)?.label || "porção"}):
-                  </span>
-                  <span className="font-semibold text-[var(--text-secondary)]">
-                    <strong className="text-[var(--brand)]">{previewKcal} kcal</strong> • {previewP}g P • {previewC}g C • {previewG}g G
-                  </span>
-                </div>
-              )}
             </div>
           );
         })}
       </div>
+
+      {/* Custom Measure Modal */}
+      {customMeasureFood && (
+        <NutritionCustomMeasureModal
+          isOpen={Boolean(customMeasureFood)}
+          onClose={() => setCustomMeasureFood(null)}
+          slug={slug}
+          foodPublicId={customMeasureFood.publicId}
+          foodName={customMeasureFood.displayNamePtBr || customMeasureFood.name}
+          foodReferenceUnit={customMeasureFood.referenceUnitCode}
+          existingPortions={foodPortionsMap[customMeasureFood.publicId] || []}
+          onMeasureCreated={(newPortion) => {
+            handleCustomMeasureCreated(customMeasureFood, newPortion);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import type { ItemSubstitutionDto, UpdateSubstitutionInput } from "@/lib/nutriti
 import {
   calculateMealMicronutrientTotals,
   derivePortionUnitCode,
+  parseQuantityInput,
 } from "@/lib/nutrition-v2/nutrient-calculator";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { NutritionFoodPicker } from "./nutrition-food-picker";
@@ -136,8 +137,8 @@ export function NutritionSubstitutionEditor({
   // Authoritative Autosave execution with concurrency protection
   const performSave = useCallback(
     async (qtyStr: string, unitVal: string, currentNotes: string) => {
-      const numQty = parseFloat(qtyStr.replace(",", "."));
-      if (!Number.isFinite(numQty) || numQty <= 0) {
+      const numQty = parseQuantityInput(qtyStr);
+      if (numQty == null || numQty <= 0) {
         return;
       }
 
@@ -429,18 +430,17 @@ export function NutritionSubstitutionEditor({
                 Quantidade:
               </label>
               <input
-                type="number"
-                step="any"
-                min="0.1"
+                type="text"
+                inputMode="decimal"
                 value={quantity}
                 onChange={(e) => handleQuantityChange(e.target.value)}
-                placeholder="Ex: 50"
+                placeholder="Ex: 50 ou 1/2"
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
               />
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-[var(--text-secondary)] mb-0.5">
-                Unidade:
+                Medida:
               </label>
               <select
                 value={selectedUnitValue}
@@ -453,7 +453,7 @@ export function NutritionSubstitutionEditor({
                   <option value="" disabled>Carregando porções...</option>
                 )}
                 {!isLoadingPortions && availablePortions.length === 0 && substitution.foodPublicId && (
-                  <option value="" disabled>Sem medidas caseiras cadastradas</option>
+                  <option value="" disabled>Equivalência não cadastrada</option>
                 )}
                 {availablePortions.map((p) => (
                   <option key={p.publicId} value={p.publicId}>
@@ -475,7 +475,7 @@ export function NutritionSubstitutionEditor({
           {/* Empty state message when food has no portions */}
           {!isLoadingPortions && availablePortions.length === 0 && substitution.foodPublicId && !readOnly && (
             <div className="flex items-center justify-between gap-1 text-[11px] text-[var(--text-tertiary)] bg-[var(--surface-subtle)] px-2 py-1.5 rounded-lg border border-[var(--border-subtle)] mt-1">
-              <span className="truncate">Este alimento ainda não tem medidas caseiras cadastradas.</span>
+              <span className="truncate">Equivalência não cadastrada para este alimento.</span>
               <button
                 type="button"
                 onClick={() => setIsCustomMeasureModalOpen(true)}

@@ -10,12 +10,17 @@ import { getDataQualityBadgeInfo } from "@/lib/nutrition-v2/food-search";
 import {
   calculateItemNutrients,
   getSafeStandardUnitsForFood,
+  parseQuantityInput,
 } from "@/lib/nutrition-v2/nutrient-calculator";
 import type { FoodListItemDto, FoodWithPortionsDto } from "@/lib/nutrition-v2/food-repository";
 import { Button } from "@/components/ui/button";
 import { NutritionManualFoodModal } from "./nutrition-manual-food-modal";
 import { NutritionLabelReaderModal } from "./nutrition-label-reader-modal";
 import { NutritionRecipeBuilderModal } from "./nutrition-recipe-builder-modal";
+import {
+  NutritionCustomMeasureModal,
+  type FoodPortionOption,
+} from "./nutrition-custom-measure-modal";
 
 export interface FoodSelectionResult {
   foodPublicId?: string | null;
@@ -86,6 +91,7 @@ export function NutritionFoodPicker({
   const [quantity, setQuantity] = useState<string>("100");
   const [unitCode, setUnitCode] = useState<string>("G");
   const [notes, setNotes] = useState<string>("");
+  const [isCustomMeasureOpen, setIsCustomMeasureOpen] = useState(false);
 
   // Custom inline state
   const [customName, setCustomName] = useState<string>("");
@@ -131,11 +137,38 @@ export function NutritionFoodPicker({
     }
   };
 
+  const handleCustomMeasureCreated = (newPortion: FoodPortionOption) => {
+    if (!selectedFood) return;
+    const nowIso = new Date().toISOString();
+    const updatedPortions = [
+      ...selectedFood.portions,
+      {
+        publicId: newPortion.publicId,
+        label: newPortion.label,
+        equivalentReferenceAmount: newPortion.equivalentReferenceAmount,
+        status: "ACTIVE" as const,
+        sortOrder: selectedFood.portions.length,
+        scope: newPortion.scope,
+        notes: newPortion.notes ?? null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        deletedAt: null,
+      },
+    ];
+    setSelectedFood({
+      ...selectedFood,
+      portions: updatedPortions,
+    });
+    setSelectedPortionId(newPortion.publicId);
+    setQuantity("1");
+    setIsCustomMeasureOpen(false);
+  };
+
   const handleConfirmLibraryFood = () => {
     if (!selectedFood) return;
 
-    const numQty = parseFloat(quantity.replace(",", "."));
-    if (isNaN(numQty) || numQty <= 0) {
+    const numQty = parseQuantityInput(quantity);
+    if (numQty == null || numQty <= 0) {
       alert("Informe uma quantidade válida e positiva.");
       return;
     }
@@ -168,7 +201,7 @@ export function NutritionFoodPicker({
       return;
     }
 
-    const numQty = customQuantity ? parseFloat(customQuantity.replace(",", ".")) : null;
+    const numQty = parseQuantityInput(customQuantity);
     const u = CANONICAL_UNITS.find((un) => un.code === customUnitCode);
     const unitLabel = u ? u.label : customUnitCode;
 
@@ -644,53 +677,72 @@ export function NutritionFoodPicker({
                   </button>
                 </div>
 
-                {/* Household portions (if available) */}
-                {activePortions.length > 0 && (
-                  <div className="space-y-1.5">
+                {/* Household portions (if available or empty) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-[var(--text-primary)]">
                       Medida Caseira ou Padrão:
                     </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomMeasureOpen(true)}
+                      className="text-[11px] font-bold text-[var(--brand)] hover:underline cursor-pointer"
+                    >
+                      + Cadastrar medida
+                    </button>
+                  </div>
+                  {activePortions.length === 0 && (
+                    <div className="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] text-xs text-[var(--text-tertiary)] flex items-center justify-between">
+                      <span>Equivalência não cadastrada para este alimento.</span>
                       <button
                         type="button"
+                        onClick={() => setIsCustomMeasureOpen(true)}
+                        className="font-bold text-[var(--brand)] hover:underline cursor-pointer"
+                      >
+                        Cadastrar agora
+                      </button>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPortionId("");
+                        setUnitCode(safeStandardUnits[0]?.code || selectedFood.referenceUnitCode || "G");
+                      }}
+                      className={`p-3 rounded-xl border text-left text-xs transition-colors depth-interactive ${
+                        !selectedPortionId
+                          ? "border-[var(--brand)] bg-[var(--brand)]/10 font-bold text-[var(--brand)]"
+                          : "border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                      }`}
+                    >
+                      <div className="font-bold">Medida Padrão</div>
+                      <div className="text-[11px] opacity-80">
+                        {selectedFood.referenceAmount} {selectedFood.referenceUnitCode}
+                      </div>
+                    </button>
+                    {activePortions.map((p) => (
+                      <button
+                        key={p.publicId}
+                        type="button"
                         onClick={() => {
-                          setSelectedPortionId("");
-                          setUnitCode(safeStandardUnits[0]?.code || selectedFood.referenceUnitCode || "G");
+                          setSelectedPortionId(p.publicId);
+                          setQuantity("1");
                         }}
                         className={`p-3 rounded-xl border text-left text-xs transition-colors depth-interactive ${
-                          !selectedPortionId
+                          selectedPortionId === p.publicId
                             ? "border-[var(--brand)] bg-[var(--brand)]/10 font-bold text-[var(--brand)]"
                             : "border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                         }`}
                       >
-                        <div className="font-bold">Medida Padrão</div>
+                        <div className="font-bold">{p.label}</div>
                         <div className="text-[11px] opacity-80">
-                          {selectedFood.referenceAmount} {selectedFood.referenceUnitCode}
+                          Equiv. {p.equivalentReferenceAmount} {selectedFood.referenceUnitCode}
                         </div>
                       </button>
-                      {activePortions.map((p) => (
-                        <button
-                          key={p.publicId}
-                          type="button"
-                          onClick={() => {
-                            setSelectedPortionId(p.publicId);
-                            setQuantity("1");
-                          }}
-                          className={`p-3 rounded-xl border text-left text-xs transition-colors depth-interactive ${
-                            selectedPortionId === p.publicId
-                              ? "border-[var(--brand)] bg-[var(--brand)]/10 font-bold text-[var(--brand)]"
-                              : "border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-                          }`}
-                        >
-                          <div className="font-bold">{p.label}</div>
-                          <div className="text-[11px] opacity-80">
-                            Equiv. {p.equivalentReferenceAmount} {selectedFood.referenceUnitCode}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                    ))}
                   </div>
-                )}
+                </div>
 
                 {/* Quantity & Safe Unit Inputs */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -957,6 +1009,25 @@ export function NutritionFoodPicker({
             handleClose();
           }}
         />
+
+        {selectedFood && (
+          <NutritionCustomMeasureModal
+            isOpen={isCustomMeasureOpen}
+            onClose={() => setIsCustomMeasureOpen(false)}
+            slug={slug}
+            foodPublicId={selectedFood.publicId}
+            foodName={selectedFood.displayNamePtBr || selectedFood.name}
+            foodReferenceUnit={selectedFood.referenceUnitCode}
+            existingPortions={selectedFood.portions.map((p) => ({
+              publicId: p.publicId,
+              label: p.label,
+              equivalentReferenceAmount: p.equivalentReferenceAmount,
+              scope: p.scope,
+              notes: p.notes,
+            }))}
+            onMeasureCreated={handleCustomMeasureCreated}
+          />
+        )}
       </div>
     </div>
   );

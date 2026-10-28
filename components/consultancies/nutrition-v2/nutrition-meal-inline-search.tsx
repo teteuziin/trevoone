@@ -70,6 +70,9 @@ export function NutritionMealInlineSearch({
   // Custom measure modal trigger
   const [customMeasureFood, setCustomMeasureFood] = useState<FoodListItemDto | null>(null);
 
+  // Optional discrete details view
+  const [expandedDetailsId, setExpandedDetailsId] = useState<string | null>(null);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -605,6 +608,15 @@ export function NutritionMealInlineSearch({
                       </span>
                     )}
 
+                    <button
+                      type="button"
+                      onClick={() => setExpandedDetailsId(expandedDetailsId === food.publicId ? null : food.publicId)}
+                      className="px-1.5 py-0.2 rounded text-[9px] font-medium text-[var(--text-tertiary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
+                      title="Ver detalhes complementares deste alimento"
+                    >
+                      {expandedDetailsId === food.publicId ? "Ocultar detalhes" : "Detalhes"}
+                    </button>
+
                     {portions.length === 0 && (
                       <button
                         type="button"
@@ -642,8 +654,8 @@ export function NutritionMealInlineSearch({
                   </div>
                 </div>
 
-                {/* Interactive Quantity, Measure Selector & Add Button */}
-                <div className="flex items-end gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
+                {/* Desktop Inline Controls */}
+                <div className="hidden sm:flex sm:items-end gap-1.5 shrink-0">
                   {/* Quantity input */}
                   <div className="w-14">
                     <label className="block text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-0.5 text-center">
@@ -699,11 +711,11 @@ export function NutritionMealInlineSearch({
                   {/* Add button */}
                   <button
                     type="button"
-                    disabled={isAdding}
+                    disabled={isAdding || isRecentlyAdded}
                     onClick={() => handleAddFood(food)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer min-h-[32px] ${
                       isRecentlyAdded
-                        ? "bg-emerald-600 text-white"
+                        ? "bg-emerald-600 text-white cursor-default"
                         : "bg-[var(--brand)] hover:opacity-90 text-white shadow-2xs"
                     }`}
                   >
@@ -729,7 +741,89 @@ export function NutritionMealInlineSearch({
                     )}
                   </button>
                 </div>
+
+                {/* Mobile Controls (Full width row, no cramped fields) */}
+                <div className="flex sm:hidden items-center gap-1.5 w-full pt-1">
+                  <div className="w-16 shrink-0">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={qtyText}
+                      onChange={(e) => handleQuantityChange(food.publicId, e.target.value)}
+                      onBlur={() => handleQuantityBlur(food.publicId)}
+                      className="w-full px-1.5 py-1 text-xs font-bold text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] min-h-[38px]"
+                      placeholder="Qtd"
+                      title="Quantidade"
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <select
+                      value={chosenPortionId}
+                      onChange={(e) => handlePortionChange(food, e.target.value)}
+                      className="w-full px-2 py-1 text-xs rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] truncate cursor-pointer font-medium min-h-[38px]"
+                      title="Medida"
+                    >
+                      <option value={standardUnitCode}>{standardUnitLabel}</option>
+                      {portions.map((p) => (
+                        <option key={p.publicId} value={p.publicId}>
+                          {p.label} ({p.equivalentReferenceAmount}{unitShort})
+                        </option>
+                      ))}
+                      <option value="__CREATE_CUSTOM__">+ Cadastrar...</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={isAdding || isRecentlyAdded}
+                    onClick={() => handleAddFood(food)}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 shrink-0 cursor-pointer min-h-[38px] ${
+                      isRecentlyAdded
+                        ? "bg-emerald-600 text-white cursor-default"
+                        : "bg-[var(--brand)] text-white shadow-2xs"
+                    }`}
+                  >
+                    {isRecentlyAdded ? "Adicionado!" : "+ Adicionar"}
+                  </button>
+                </div>
               </div>
+
+              {/* Optional Discrete Details Drawer */}
+              {expandedDetailsId === food.publicId && (
+                <div className="mt-2 p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs space-y-1.5 animate-in fade-in duration-100">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-[var(--text-secondary)]">
+                    <span>Informações Adicionais do Catálogo</span>
+                    <span className="text-[var(--text-tertiary)]">{food.category || "Geral"}</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
+                    <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
+                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Porção Referência</div>
+                      <div className="font-semibold text-[var(--text-primary)]">
+                        {food.referenceAmount || 100} {food.referenceUnitCode || "g"}
+                      </div>
+                    </div>
+                    <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
+                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Densidade / Estado</div>
+                      <div className="font-semibold text-[var(--text-primary)]">
+                        {isVolumeFood ? "Líquido (ml)" : "Sólido (g)"}
+                      </div>
+                    </div>
+                    <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
+                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Origem</div>
+                      <div className="font-semibold text-[var(--text-primary)]">
+                        {food.scope === "GLOBAL" ? (food.sourceKey === "TACO" ? "Tabela TACO" : "USDA FoodData") : "Consultoria"}
+                      </div>
+                    </div>
+                    <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
+                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Medidas Cadastradas</div>
+                      <div className="font-semibold text-[var(--text-primary)]">
+                        {portions.length} opção(ões)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

@@ -12,6 +12,7 @@ import type {
 import dynamic from "next/dynamic";
 import { NutritionSubstitutionEditor } from "./nutrition-substitution-editor";
 import { NutritionFoodPicker } from "./nutrition-food-picker";
+import { NutritionSubstitutionInlineSearch } from "./nutrition-substitution-inline-search";
 
 const NutritionSubstitutionCompareModal = dynamic(
   () => import("./nutrition-substitution-compare-modal").then((m) => m.NutritionSubstitutionCompareModal),
@@ -122,6 +123,8 @@ export function NutritionItemEditor({
   // Modals & Panels
   const [isResolvePickerOpen, setIsResolvePickerOpen] = useState(false);
   const [isEquivalentsOpen, setIsEquivalentsOpen] = useState(false);
+  const [isInlineSubSearchOpen, setIsInlineSubSearchOpen] = useState(false);
+  const [subSearchMode, setSubSearchMode] = useState<"SUBSTITUTION" | "REPLACE">("SUBSTITUTION");
   const [substitutionToReview, setSubstitutionToReview] = useState<ItemSubstitutionDto | null>(null);
   const [substitutionToCompare, setSubstitutionToCompare] = useState<ItemSubstitutionDto | null>(null);
   const [showMicro, setShowMicro] = useState(false);
@@ -385,7 +388,36 @@ export function NutritionItemEditor({
       }
     }
     setSubstitutionToReview(null);
-    setIsEquivalentsOpen(true);
+    setSubSearchMode("SUBSTITUTION");
+    setIsInlineSubSearchOpen((prev) => !prev);
+  };
+
+  const handleOpenAddSubstitution = async () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+      const validQty = parseQuantityInput(localQuantity);
+      if (validQty != null && validQty !== item.prescribedQuantity) {
+        await onUpdateItem({ prescribedQuantity: validQty });
+      }
+    }
+    setSubstitutionToReview(null);
+    setSubSearchMode("SUBSTITUTION");
+    setIsInlineSubSearchOpen(true);
+  };
+
+  const handleOpenReplaceFood = async () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+      const validQty = parseQuantityInput(localQuantity);
+      if (validQty != null && validQty !== item.prescribedQuantity) {
+        await onUpdateItem({ prescribedQuantity: validQty });
+      }
+    }
+    setSubstitutionToReview(null);
+    setSubSearchMode("REPLACE");
+    setIsInlineSubSearchOpen(true);
   };
 
   // Callback when a new custom measure is created in modal
@@ -652,12 +684,34 @@ export function NutritionItemEditor({
                     type="button"
                     onClick={() => {
                       setIsMenuOpen(false);
+                      handleOpenAddSubstitution();
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-semibold"
+                  >
+                    <span>+ Adicionar substituição</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      handleOpenReplaceFood();
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer text-amber-700 dark:text-amber-400"
+                  >
+                    <span>Substituir este alimento</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
                       setSubstitutionToReview(null);
                       setIsEquivalentsOpen(true);
                     }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
+                    className="w-full text-left px-3 py-2 text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
                   >
-                    <span>+ Adicionar substituição</span>
+                    <span>Comparação avançada (Modal)</span>
                   </button>
 
                   <button
@@ -850,12 +904,34 @@ export function NutritionItemEditor({
                     type="button"
                     onClick={() => {
                       setIsMenuOpen(false);
+                      handleOpenAddSubstitution();
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 font-semibold"
+                  >
+                    <span>+ Adicionar substituição</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      handleOpenReplaceFood();
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 text-amber-700 dark:text-amber-400"
+                  >
+                    <span>Substituir este alimento</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
                       setSubstitutionToReview(null);
                       setIsEquivalentsOpen(true);
                     }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2"
+                    className="w-full text-left px-3 py-2 text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2"
                   >
-                    <span>+ Adicionar substituição</span>
+                    <span>Comparação avançada (Modal)</span>
                   </button>
 
                   <button
@@ -1061,6 +1137,31 @@ export function NutritionItemEditor({
       )}
 
       {/* ========================================================================= */}
+      {/* COMPACT INLINE SUBSTITUTION / REPLACEMENT SEARCH PANEL                    */}
+      {/* ========================================================================= */}
+      {isInlineSubSearchOpen && !readOnly && (
+        <NutritionSubstitutionInlineSearch
+          slug={slug}
+          prescribedItem={item}
+          mode={subSearchMode}
+          onAddSubstitution={async (payload) => {
+            await onAddSubstitution(payload);
+            setAreSubsExpanded(true);
+          }}
+          onReplaceItem={async (payload) => {
+            await onUpdateItem(payload);
+            setIsInlineSubSearchOpen(false);
+          }}
+          onClose={() => setIsInlineSubSearchOpen(false)}
+          onOpenAdvancedModal={() => {
+            setIsInlineSubSearchOpen(false);
+            setSubstitutionToReview(null);
+            setIsEquivalentsOpen(true);
+          }}
+        />
+      )}
+
+      {/* ========================================================================= */}
       {/* SUBSTITUTIONS SUB-TREE (Collapsed by default)                             */}
       {/* ========================================================================= */}
       {areSubsExpanded && item.substitutions.length > 0 && (
@@ -1104,10 +1205,7 @@ export function NutritionItemEditor({
             <div className="pt-1.5 flex items-center gap-2 flex-wrap text-xs">
               <button
                 type="button"
-                onClick={() => {
-                  setSubstitutionToReview(null);
-                  setIsEquivalentsOpen(true);
-                }}
+                onClick={handleOpenAddSubstitution}
                 className="text-xs text-[var(--brand)] hover:underline font-semibold inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-[var(--brand)]/5 cursor-pointer"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

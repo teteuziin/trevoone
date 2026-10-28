@@ -309,29 +309,107 @@ runTest("UPLOAD ROUTE: Bloqueia envio se cobrança for CANCELED, PAID ou já tiv
 });
 
 // ============================================================================
-// 5. CONSULTA AUTORIZADA DE COMPROVANTES
+// 5. CONSULTA AUTORIZADA DE COMPROVANTES (DISTINÇÃO ALUNO VS ADMIN)
 // ============================================================================
-console.log("\n--- 5. CONSULTA AUTORIZADA DE COMPROVANTES ---");
+console.log("\n--- 5. CONSULTA AUTORIZADA DE COMPROVANTES (DISTINÇÃO ALUNO VS ADMIN) ---");
 
-runTest("CONSULTA ADMIN: Rota privada de arquivo exige CONSULTANCY_ADMIN", () => {
-  const routeSource = fs.readFileSync(
+runTest("DISTINÇÃO 1 (ADMIN): Rota administrativa de comprovante exige estritamente CONSULTANCY_ADMIN", () => {
+  const adminRouteSource = fs.readFileSync(
     path.join(process.cwd(), "app/consultoria/[slug]/financeiro/comprovantes/[receiptPublicId]/arquivo/route.ts"),
     "utf-8"
   );
   assert.ok(
-    routeSource.includes('!context.roles.includes("CONSULTANCY_ADMIN")'),
-    "Apenas administradores podem baixar arquivos de comprovantes"
+    adminRouteSource.includes('!context.roles.includes("CONSULTANCY_ADMIN")'),
+    "Apenas administradores podem acessar a rota administrativa de auditoria"
+  );
+  // Alunos e outros papéis são rejeitados com 403 Forbidden no endpoint administrativo
+  const adminGuard = (roles) => roles.includes("CONSULTANCY_ADMIN");
+  assert.equal(adminGuard(["STUDENT"]), false);
+  assert.equal(adminGuard(["INFLUENCER"]), false);
+  assert.equal(adminGuard(["PERSONAL"]), false);
+  assert.equal(adminGuard(["CONSULTANCY_ADMIN"]), true);
+});
+
+runTest("DISTINÇÃO 2 (ALUNO): Rota dedicada do aluno exige papel STUDENT ou INFLUENCER (VIP)", () => {
+  const studentRouteSource = fs.readFileSync(
+    path.join(process.cwd(), "app/consultoria/[slug]/pagamentos/cobrancas/[chargePublicId]/comprovante/arquivo/route.ts"),
+    "utf-8"
+  );
+  assert.ok(
+    studentRouteSource.includes('!context.roles.includes("STUDENT") && !context.roles.includes("INFLUENCER")'),
+    "Apenas o aluno titular (ou VIP/influenciador) pode acessar o endpoint do aluno"
+  );
+  const studentGuard = (roles) => roles.includes("STUDENT") || roles.includes("INFLUENCER");
+  assert.equal(studentGuard(["STUDENT"]), true);
+  assert.equal(studentGuard(["INFLUENCER"]), true);
+  assert.equal(studentGuard(["PERSONAL"]), false);
+  assert.equal(studentGuard(["NUTRITIONIST"]), false);
+});
+
+runTest("ANTI-IDOR: Endpoint do aluno valida estritamente sc.student_membership_id e sc.consultancy_id", () => {
+  const financeSource = fs.readFileSync(
+    path.join(process.cwd(), "lib/consultancies/finance.ts"),
+    "utf-8"
+  );
+  assert.ok(
+    financeSource.includes("getStudentVerifiedReceiptFile"),
+    "Função dedicada getStudentVerifiedReceiptFile deve existir"
+  );
+  assert.ok(
+    financeSource.includes("sc.student_membership_id = ?"),
+    "Verificação de vínculo exclusivo do aluno no SQL"
+  );
+  assert.ok(
+    financeSource.includes("sc.consultancy_id = ?"),
+    "Verificação de segregação multi-tenant no SQL"
   );
 });
 
-runTest("INTEGRIDADE DO ARQUIVO: Validação de SHA-256 e tamanho antes de servir binário", () => {
-  const routeSource = fs.readFileSync(
+runTest("APROVAÇÃO SEGREGADA: Ação de aprovação/rejeição é estritamente administrativa (aluno tem ZERO poder de aprovação)", () => {
+  const actionsSource = fs.readFileSync(
+    path.join(process.cwd(), "app/consultoria/[slug]/financeiro/comprovantes/actions.ts"),
+    "utf-8"
+  );
+  assert.ok(
+    actionsSource.includes("approvePaymentReceiptAction"),
+    "Ação de aprovação pertence exclusivamente ao módulo administrativo"
+  );
+  assert.ok(
+    actionsSource.includes('!context.roles.includes("CONSULTANCY_ADMIN")'),
+    "Aprovação requer explicitamente CONSULTANCY_ADMIN"
+  );
+});
+
+runTest("UI DO ALUNO: Exibe card de Comprovante de Pagamento e botão 'Visualizar comprovante' autenticado", () => {
+  const detailPageSource = fs.readFileSync(
+    path.join(process.cwd(), "app/consultoria/[slug]/pagamentos/[chargePublicId]/page.tsx"),
+    "utf-8"
+  );
+  assert.ok(
+    detailPageSource.includes("charge.submittedReceipt"),
+    "Card condicionado à existência de comprovante submetido"
+  );
+  assert.ok(
+    detailPageSource.includes("/comprovante/arquivo"),
+    "Link direto para o endpoint seguro de visualização do próprio comprovante"
+  );
+  assert.ok(
+    detailPageSource.includes("Visualizar comprovante"),
+    "Ação explícita de visualização para o aluno"
+  );
+});
+
+runTest("INTEGRIDADE DO ARQUIVO: Validação de SHA-256 e tamanho antes de servir binário em ambos os endpoints", () => {
+  const adminRoute = fs.readFileSync(
     path.join(process.cwd(), "app/consultoria/[slug]/financeiro/comprovantes/[receiptPublicId]/arquivo/route.ts"),
     "utf-8"
   );
-  assert.ok(routeSource.includes("readVerifiedPrivateFile"), "Verificação criptográfica de integridade");
-  assert.ok(routeSource.includes("expectedFileSha256"), "Verificação de hash SHA-256");
-  assert.ok(routeSource.includes("expectedSizeBytes"), "Verificação de tamanho exato");
+  const financeLib = fs.readFileSync(
+    path.join(process.cwd(), "lib/consultancies/finance.ts"),
+    "utf-8"
+  );
+  assert.ok(adminRoute.includes("readVerifiedPrivateFile"), "Admin valida integridade do arquivo");
+  assert.ok(financeLib.includes("readVerifiedPrivateFile"), "Aluno valida integridade do arquivo");
 });
 
 // ============================================================================

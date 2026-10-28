@@ -5,6 +5,7 @@ import {
   createNotificationInTransaction,
   deliverNotificationAfterCommit,
 } from "@/services/notification-service";
+import { readVerifiedPrivateFile } from "../storage/private-files";
 
 export type PixKeyType = "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "RANDOM";
 
@@ -1656,6 +1657,14 @@ export type StudentPaymentChargeDetail = {
   hasSubmittedReceipt: boolean;
   hasPreviousRejection: boolean;
   previousRejectionReason: string | null;
+  submittedReceipt: {
+    publicId: string;
+    originalFileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    status: ReceiptStatus;
+    submittedAt: string;
+  } | null;
   pixSettings: {
     pixKeyType: PixKeyType;
     pixKey: string;
@@ -1763,27 +1772,43 @@ export async function getStudentChargePaymentDetail(params: {
       hasSubmittedReceipt,
     });
 
-    // Check latest receipt for previous rejection notice if not currently submitted/paid
+    // Query latest receipt for student consultation and previous rejection notice
     let hasPreviousRejection = false;
     let previousRejectionReason: string | null = null;
+    let submittedReceipt: StudentPaymentChargeDetail["submittedReceipt"] = null;
 
-    if (!hasPayment && !hasSubmittedReceipt && state === "OPEN") {
-      const [latestReceiptRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT status, rejection_reason
-         FROM student_payment_receipts
-         WHERE charge_id = ?
-         ORDER BY id DESC
-         LIMIT 1;`,
-        [internalChargeId]
-      );
+    const [latestReceiptRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+         public_id,
+         original_file_name,
+         mime_type,
+         size_bytes,
+         status,
+         rejection_reason,
+         DATE_FORMAT(submitted_at, '%Y-%m-%d %H:%i:%s') AS submitted_at
+       FROM student_payment_receipts
+       WHERE charge_id = ?
+       ORDER BY id DESC
+       LIMIT 1;`,
+      [internalChargeId]
+    );
 
-      if (Array.isArray(latestReceiptRows) && latestReceiptRows.length > 0) {
-        if (latestReceiptRows[0].status === "REJECTED") {
-          hasPreviousRejection = true;
-          previousRejectionReason = latestReceiptRows[0].rejection_reason
-            ? String(latestReceiptRows[0].rejection_reason)
-            : null;
-        }
+    if (Array.isArray(latestReceiptRows) && latestReceiptRows.length > 0) {
+      const lr = latestReceiptRows[0];
+      if (lr.status === "REJECTED") {
+        hasPreviousRejection = true;
+        previousRejectionReason = lr.rejection_reason
+          ? String(lr.rejection_reason)
+          : null;
+      } else if (lr.status === "SUBMITTED" || lr.status === "APPROVED") {
+        submittedReceipt = {
+          publicId: String(lr.public_id),
+          originalFileName: String(lr.original_file_name),
+          mimeType: String(lr.mime_type),
+          sizeBytes: Number(lr.size_bytes),
+          status: lr.status as ReceiptStatus,
+          submittedAt: String(lr.submitted_at),
+        };
       }
     }
 
@@ -1819,10 +1844,106 @@ export async function getStudentChargePaymentDetail(params: {
       hasSubmittedReceipt,
       hasPreviousRejection,
       previousRejectionReason,
+      submittedReceipt,
       pixSettings,
     };
   } catch {
     return null;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type StudentReceiptFileResult = {
+  success: boolean;
+  code?: "NOT_FOUND" | "FORBIDDEN" | "INTEGRITY_ERROR";
+  error?: string;
+  buffer?: Buffer;
+  mimeType?: string;
+  originalFileName?: string;
+  receiptPublicId?: string;
+};
+
+/**
+ * Retrieves and cryptographically validates the student's own payment receipt file.
+ * Strictly verifies ownership via studentMembershipId, tenancy via consultancyId, and charge public ID.
+ * Prohibits IDOR and cross-student receipt access.
+ */
+export async function getStudentVerifiedReceiptFile(params: {
+  consultancyId: number;
+  studentMembershipId: number;
+  chargePublicId: string;
+}): Promise<StudentReceiptFileResult> {
+  const { consultancyId, studentMembershipId, chargePublicId } = params;
+
+  if (!consultancyId || !studentMembershipId || !chargePublicId?.trim()) {
+    return { success: false, code: "NOT_FOUND", error: "Parâmetros de consulta inválidos." };
+  }
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+
+    // Query receipt strictly ensuring:
+    // 1. Charge belongs to student's active membership
+    // 2. Charge belongs to the consultancy tenant
+    // 3. Receipt belongs to this charge
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+         spr.public_id AS receipt_public_id,
+         spr.file_storage_key,
+         spr.original_file_name,
+         spr.mime_type,
+         spr.size_bytes,
+         spr.file_sha256,
+         spr.status
+       FROM student_payment_receipts spr
+       INNER JOIN student_charges sc ON sc.id = spr.charge_id
+       WHERE sc.consultancy_id = ?
+         AND sc.student_membership_id = ?
+         AND sc.public_id = ?
+       ORDER BY spr.id DESC
+       LIMIT 1;`,
+      [consultancyId, studentMembershipId, chargePublicId.trim()]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { success: false, code: "NOT_FOUND", error: "Comprovante não encontrado para este aluno." };
+    }
+
+    const r = rows[0];
+
+    // Read and cryptographically verify binary from private storage
+    const readResult = await readVerifiedPrivateFile({
+      fileStorageKey: String(r.file_storage_key),
+      expectedSizeBytes: Number(r.size_bytes),
+      expectedFileSha256: String(r.file_sha256),
+      expectedMimeType: String(r.mime_type),
+    });
+
+    if (!readResult.success || !readResult.buffer) {
+      return {
+        success: false,
+        code: readResult.code === "NOT_FOUND" ? "NOT_FOUND" : "INTEGRITY_ERROR",
+        error:
+          readResult.code === "NOT_FOUND"
+            ? "Arquivo do comprovante não encontrado no armazenamento."
+            : "Falha de integridade criptográfica no arquivo do comprovante.",
+      };
+    }
+
+    return {
+      success: true,
+      buffer: readResult.buffer,
+      mimeType: String(r.mime_type),
+      originalFileName: String(r.original_file_name),
+      receiptPublicId: String(r.receipt_public_id),
+    };
+  } catch (err) {
+    console.error("[getStudentVerifiedReceiptFile] Error:", err);
+    return { success: false, code: "NOT_FOUND", error: "Erro ao consultar arquivo de comprovante." };
   } finally {
     if (connection) {
       connection.release();

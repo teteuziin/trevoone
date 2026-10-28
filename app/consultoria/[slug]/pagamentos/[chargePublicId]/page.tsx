@@ -45,6 +45,12 @@ function formatDateTimeBr(isoDateTimeStr: string): string {
   }
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function getStatusBadgeConfig(status: StudentChargeDerivedStatus): {
   label: string;
   className: string;
@@ -306,7 +312,67 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
         )}
 
         {/* ===================================================================== */}
-        {/* D. DADOS PIX E FORMULÁRIO DE COMPROVANTE (Quando em Aberto)           */}
+        {/* D. CARD DO COMPROVANTE ENVIADO (Consulta do Próprio Aluno)            */}
+        {/* ===================================================================== */}
+        {charge.submittedReceipt && (
+          <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-100 dark:border-[#303238] pb-3">
+              <div>
+                <h2 className="text-base font-bold text-zinc-900 dark:text-white">
+                  Comprovante de Pagamento
+                </h2>
+                <p className="text-xs text-zinc-500 dark:text-[#8E95A2]">
+                  Documento anexado para verificação da administração:
+                </p>
+              </div>
+              <span
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
+                  charge.submittedReceipt.status === "APPROVED"
+                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                    : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
+                }`}
+              >
+                {charge.submittedReceipt.status === "APPROVED" ? "Comprovante Aprovado" : "Em Análise"}
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238]">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">
+                    {charge.submittedReceipt.originalFileName}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-[#8E95A2]">
+                    <span>{formatFileSize(charge.submittedReceipt.sizeBytes)}</span>
+                    <span>·</span>
+                    <span>Enviado em {formatDateTimeBr(charge.submittedReceipt.submittedAt)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <a
+                href={`/consultoria/${slug}/pagamentos/cobrancas/${charge.publicId}/comprovante/arquivo`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] text-[#E5E7EB] hover:text-white min-h-[44px] flex items-center justify-center gap-2 transition-colors cursor-pointer shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>Visualizar comprovante</span>
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* ===================================================================== */}
+        {/* E. DADOS PIX E FORMULÁRIO DE COMPROVANTE (Quando em Aberto)           */}
         {/* ===================================================================== */}
         {canSubmitReceipt && (
           <div className="space-y-6">

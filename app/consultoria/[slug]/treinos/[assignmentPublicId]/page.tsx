@@ -5,6 +5,7 @@ import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import { getStudentWorkoutViewDetailed } from "@/lib/training-v2/assignment-repository";
 import {
+  getActiveStudentWorkoutExecution,
   getActiveOrLatestStudentWorkoutExecution,
   listStudentWorkoutExecutionHistory,
 } from "@/lib/training-v2/execution-repository";
@@ -19,6 +20,8 @@ type PageProps = {
   searchParams?: Promise<{
     bloco?: string;
     block?: string;
+    resumo?: string;
+    sessao?: string;
   }>;
 };
 
@@ -109,16 +112,30 @@ export default async function StudentWorkoutDetailPage({ params, searchParams }:
   const canonicalAssignmentId = result.resolvedAssignmentPublicId;
   const effectiveBlockId = targetBlockPublicId || result.activeBlockPublicId || null;
 
+  // Check if explicit summary consultation was requested
+  const isViewingSummary = search?.resumo === "1" || search?.resumo === "true";
+
   // Load execution state & history for this canonical assignment (defensive fallback on runtime unapplied migrations)
   let initialExecution = null;
+  let initialViewSummarySession = null;
   let executionHistory: Awaited<ReturnType<typeof listStudentWorkoutExecutionHistory>> = [];
   try {
-    const [exec, hist] = await Promise.all([
-      getActiveOrLatestStudentWorkoutExecution(ctx, canonicalAssignmentId),
-      listStudentWorkoutExecutionHistory(ctx, canonicalAssignmentId),
-    ]);
-    initialExecution = exec;
-    executionHistory = hist;
+    if (isViewingSummary) {
+      const [latestSession, hist] = await Promise.all([
+        getActiveOrLatestStudentWorkoutExecution(ctx, canonicalAssignmentId),
+        listStudentWorkoutExecutionHistory(ctx, canonicalAssignmentId),
+      ]);
+      initialViewSummarySession =
+        latestSession && latestSession.status === "COMPLETED" ? latestSession : null;
+      executionHistory = hist;
+    } else {
+      const [exec, hist] = await Promise.all([
+        getActiveStudentWorkoutExecution(ctx, canonicalAssignmentId),
+        listStudentWorkoutExecutionHistory(ctx, canonicalAssignmentId),
+      ]);
+      initialExecution = exec;
+      executionHistory = hist;
+    }
   } catch (err) {
     console.error("[StudentWorkoutDetailPage] Failed to load execution/history state:", err);
   }
@@ -145,6 +162,7 @@ export default async function StudentWorkoutDetailPage({ params, searchParams }:
           workout={result.workoutView}
           initialExecution={initialExecution}
           initialHistory={executionHistory}
+          initialViewSummarySession={initialViewSummarySession}
           consultancySlug={slug}
           userPublicId={session.userPublicId}
           consultancyPublicId={context.consultancyPublicId}

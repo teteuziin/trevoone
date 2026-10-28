@@ -8,7 +8,7 @@ import {
   getStudentWorkoutView,
 } from "@/lib/training-v2/assignment-repository";
 import {
-  getActiveOrLatestStudentWorkoutExecution,
+  getActiveStudentWorkoutExecution,
   listStudentWorkoutExecutionHistory,
 } from "@/lib/training-v2/execution-repository";
 import { getStudentAuthoritativeNutrition } from "@/lib/nutrition-v2/assignment-repository";
@@ -118,7 +118,7 @@ export async function getStudentOfflinePrimeDataAction(
     const primaryCard = cards[0];
     const [workoutView, initialExecution, executionHistory] = await Promise.all([
       getStudentWorkoutView(tCtx, primaryCard.assignmentPublicId),
-      getActiveOrLatestStudentWorkoutExecution(tCtx, primaryCard.assignmentPublicId),
+      getActiveStudentWorkoutExecution(tCtx, primaryCard.assignmentPublicId),
       listStudentWorkoutExecutionHistory(tCtx, primaryCard.assignmentPublicId),
     ]);
 

@@ -86,6 +86,21 @@ function mapExecutionSetRow(r: RowDataPacket): WorkoutExecutionSetDto {
   };
 }
 
+/**
+ * Sanitizes execution timestamps so started_at <= completed_at across all timezones and clocks.
+ */
+function parseSanitizedExecutionDates(startedAtRaw: unknown, completedAtRaw: unknown): {
+  startedAt: Date;
+  completedAt: Date | null;
+} {
+  const startedAt = new Date(startedAtRaw as string | number | Date);
+  const rawCompleted = completedAtRaw ? new Date(completedAtRaw as string | number | Date) : null;
+  const completedAt = rawCompleted
+    ? new Date(Math.max(rawCompleted.getTime(), startedAt.getTime()))
+    : null;
+  return { startedAt, completedAt };
+}
+
 type ResolvedAssignmentRow = {
   id: number;
   public_id: string;
@@ -750,7 +765,7 @@ export async function startOrResumeWorkoutExecution(
 
         await connection.execute<ResultSetHeader>(
           `UPDATE workout_execution_sessions
-           SET status = 'COMPLETED', completed_at = NOW(3), updated_at = NOW(3)
+           SET status = 'COMPLETED', completed_at = GREATEST(NOW(3), started_at), updated_at = NOW(3)
            WHERE id = ?;`,
           [activeSession.id]
         );
@@ -790,8 +805,7 @@ export async function startOrResumeWorkoutExecution(
             workoutBlockPublicId: activeBlockPublicId,
             workoutBlockTitle: activeBlockTitle,
             status: activeSession.status as WorkoutExecutionSessionStatus,
-            startedAt: new Date(activeSession.started_at),
-            completedAt: activeSession.completed_at ? new Date(activeSession.completed_at) : null,
+            ...parseSanitizedExecutionDates(activeSession.started_at, activeSession.completed_at),
             createdAt: new Date(activeSession.created_at),
             updatedAt: new Date(activeSession.updated_at),
             sets: setRows.map(mapExecutionSetRow),
@@ -838,8 +852,7 @@ export async function startOrResumeWorkoutExecution(
           workoutBlockPublicId: activeBlockPublicId,
           workoutBlockTitle: activeBlockTitle,
           status: activeSession.status as WorkoutExecutionSessionStatus,
-          startedAt: new Date(activeSession.started_at),
-          completedAt: activeSession.completed_at ? new Date(activeSession.completed_at) : null,
+          ...parseSanitizedExecutionDates(activeSession.started_at, activeSession.completed_at),
           createdAt: new Date(activeSession.created_at),
           updatedAt: new Date(activeSession.updated_at),
           sets: setRows.map(mapExecutionSetRow),
@@ -1243,8 +1256,7 @@ export async function getActiveStudentWorkoutExecution(
       status: s.status as WorkoutExecutionSessionStatus,
       studentCompletionState: (s.student_completion_state as "ALL" | "PARTIAL" | "NONE") || null,
       studentFeedbackNotes: s.student_feedback_notes ? String(s.student_feedback_notes) : null,
-      startedAt: new Date(s.started_at),
-      completedAt: s.completed_at ? new Date(s.completed_at) : null,
+      ...parseSanitizedExecutionDates(s.started_at, s.completed_at),
       createdAt: new Date(s.created_at),
       updatedAt: new Date(s.updated_at),
       sets: setRows.map(mapExecutionSetRow),
@@ -1329,8 +1341,7 @@ export async function getActiveOrLatestStudentWorkoutExecution(
       workoutBlockPublicId: activeBlockPublicId,
       workoutBlockTitle: activeBlockTitle,
       status: s.status as WorkoutExecutionSessionStatus,
-      startedAt: new Date(s.started_at),
-      completedAt: s.completed_at ? new Date(s.completed_at) : null,
+      ...parseSanitizedExecutionDates(s.started_at, s.completed_at),
       createdAt: new Date(s.created_at),
       updatedAt: new Date(s.updated_at),
       sets: setRows.map(mapExecutionSetRow),
@@ -1402,8 +1413,7 @@ export async function getStudentWorkoutExecution(
       workoutBlockPublicId: activeBlockPublicId,
       workoutBlockTitle: activeBlockTitle,
       status: s.status as WorkoutExecutionSessionStatus,
-      startedAt: new Date(s.started_at),
-      completedAt: s.completed_at ? new Date(s.completed_at) : null,
+      ...parseSanitizedExecutionDates(s.started_at, s.completed_at),
       createdAt: new Date(s.created_at),
       updatedAt: new Date(s.updated_at),
       sets: setRows.map(mapExecutionSetRow),
@@ -1725,6 +1735,9 @@ export async function completeWorkoutExecution(
     if (s.status === "COMPLETED") {
       const setRows = await queryExecutionSetsBySessionId(connection, Number(s.id));
       await connection.commit();
+      const sDate = new Date(s.started_at);
+      const rawCDate = s.completed_at ? new Date(s.completed_at) : new Date();
+      const cDate = new Date(Math.max(rawCDate.getTime(), sDate.getTime()));
       return {
         publicId: String(s.public_id),
         consultancyId: Number(s.consultancy_id),
@@ -1735,8 +1748,8 @@ export async function completeWorkoutExecution(
         workoutBlockPublicId: activeBlockPublicId,
         workoutBlockTitle: activeBlockTitle,
         status: "COMPLETED",
-        startedAt: new Date(s.started_at),
-        completedAt: s.completed_at ? new Date(s.completed_at) : new Date(),
+        startedAt: sDate,
+        completedAt: cDate,
         createdAt: new Date(s.created_at),
         updatedAt: new Date(s.updated_at),
         sets: setRows.map(mapExecutionSetRow),
@@ -1826,7 +1839,7 @@ export async function completeWorkoutExecution(
       await connection.execute<ResultSetHeader>(
         `UPDATE workout_execution_sessions
          SET status = 'COMPLETED',
-             completed_at = NOW(3),
+             completed_at = GREATEST(NOW(3), started_at),
              student_completion_state = ?,
              student_feedback_notes = ?,
              student_feedback_at = CASE WHEN ? IS NOT NULL OR ? IS NOT NULL THEN NOW(3) ELSE NULL END,
@@ -1845,7 +1858,7 @@ export async function completeWorkoutExecution(
         }
         await connection.execute<ResultSetHeader>(
           `UPDATE workout_execution_sessions
-           SET status = 'COMPLETED', completed_at = NOW(3), updated_at = NOW(3)
+           SET status = 'COMPLETED', completed_at = GREATEST(NOW(3), started_at), updated_at = NOW(3)
            WHERE id = ?;`,
           [s.id]
         );
@@ -1904,6 +1917,8 @@ export async function completeWorkoutExecution(
     }
 
     const now = new Date();
+    const sessionStartedAt = new Date(s.started_at);
+    const sessionCompletedAt = new Date(Math.max(now.getTime(), sessionStartedAt.getTime()));
 
     return {
       publicId: String(s.public_id),
@@ -1917,10 +1932,10 @@ export async function completeWorkoutExecution(
       status: "COMPLETED",
       studentCompletionState: (studentCompletionState as "ALL" | "PARTIAL" | "NONE") || null,
       studentFeedbackNotes: studentFeedbackNotes,
-      startedAt: new Date(s.started_at),
-      completedAt: now,
+      startedAt: sessionStartedAt,
+      completedAt: sessionCompletedAt,
       createdAt: new Date(s.created_at),
-      updatedAt: now,
+      updatedAt: sessionCompletedAt,
       sets: setRows.map(mapExecutionSetRow),
     };
   } catch (err) {
@@ -2131,8 +2146,7 @@ export async function listStudentWorkoutExecutionHistory(
 
       return {
         publicId: String(s.public_id),
-        startedAt: new Date(s.started_at),
-        completedAt: s.completed_at ? new Date(s.completed_at) : null,
+        ...parseSanitizedExecutionDates(s.started_at, s.completed_at),
         studentCompletionState: (s.student_completion_state as "ALL" | "PARTIAL" | "NONE") || null,
         studentFeedbackNotes: s.student_feedback_notes ? String(s.student_feedback_notes) : null,
         sets: setsBySessionId.get(sId) || [],
@@ -2214,11 +2228,14 @@ export async function syncOfflineWorkoutExecution(
       }
 
       // Update in-progress session to completed
+      const syncStartedAt = new Date(existing.started_at);
+      const rawSyncCompletedAt = new Date(input.completedAt);
+      const syncCompletedAt = new Date(Math.max(rawSyncCompletedAt.getTime(), syncStartedAt.getTime()));
       await connection.execute<ResultSetHeader>(
         `UPDATE workout_execution_sessions
          SET status = 'COMPLETED', completed_at = ?, updated_at = NOW(3)
          WHERE id = ?;`,
-        [new Date(input.completedAt), existing.id]
+        [syncCompletedAt, existing.id]
       );
 
       // Update sets
@@ -2289,6 +2306,10 @@ export async function syncOfflineWorkoutExecution(
       return { success: true, sessionPublicId: input.clientExecutionId, alreadySynced: false };
     }
 
+    const offlineStartedAt = new Date(input.startedAt);
+    const rawOfflineCompletedAt = new Date(input.completedAt);
+    const offlineCompletedAt = new Date(Math.max(rawOfflineCompletedAt.getTime(), offlineStartedAt.getTime()));
+
     // 3. Insert new completed session with clientExecutionId
     const [insertSessionRes] = await connection.execute<ResultSetHeader>(
       `INSERT INTO workout_execution_sessions (
@@ -2307,8 +2328,8 @@ export async function syncOfflineWorkoutExecution(
         ctx.membershipId!,
         a.id,
         a.workout_version_id,
-        new Date(input.startedAt),
-        new Date(input.completedAt),
+        offlineStartedAt,
+        offlineCompletedAt,
       ]
     );
 

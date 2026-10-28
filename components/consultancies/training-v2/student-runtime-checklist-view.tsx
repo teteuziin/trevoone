@@ -91,6 +91,8 @@ function AlertCircleIcon({ className = "w-4 h-4" }: { className?: string }) {
 export interface StudentRuntimeChecklistViewProps {
   workout: StudentWorkoutViewContract;
   activeSession?: WorkoutExecutionSessionDto | null;
+  initialViewSummarySession?: WorkoutExecutionSessionDto | null;
+  onCloseSummary?: () => void;
   consultancySlug: string;
   history?: WorkoutExecutionHistorySessionDto[];
   activeSubstitutions?: Record<
@@ -121,6 +123,8 @@ export interface StudentRuntimeChecklistViewProps {
 export function StudentRuntimeChecklistView({
   workout,
   activeSession,
+  initialViewSummarySession = null,
+  onCloseSummary,
   consultancySlug,
   history = [],
   activeSubstitutions = {},
@@ -169,7 +173,6 @@ export function StudentRuntimeChecklistView({
 
   // Session state checks
   const isSessionInProgress = Boolean(activeSession && activeSession.status === "IN_PROGRESS");
-  const isSessionCompleted = Boolean(activeSession && activeSession.status === "COMPLETED");
 
   // Is session running on this specific division?
   const isSessionActiveOnThisBlock = Boolean(
@@ -190,8 +193,26 @@ export function StudentRuntimeChecklistView({
     return activeBlock.items || [];
   }, [activeBlock]);
 
+  // Track if student just completed in current view
+  const [justCompletedSession, setJustCompletedSession] = useState<WorkoutExecutionSessionDto | null>(null);
+  const [isSummaryDismissed, setIsSummaryDismissed] = useState(false);
+
+  // Derive confirmed completed session:
+  // - Never show summary if activeSession is IN_PROGRESS
+  // - If dismissed by student clicking "Visualizar exercícios" or "Treinar novamente", show normal checklist
+  // - Otherwise, show justCompletedSession if available, or initialViewSummarySession if status is COMPLETED
+  const confirmedCompletedSession =
+    activeSession && activeSession.status === "IN_PROGRESS"
+      ? null
+      : isSummaryDismissed
+      ? null
+      : justCompletedSession ||
+        (initialViewSummarySession && initialViewSummarySession.status === "COMPLETED"
+          ? initialViewSummarySession
+          : null);
+
   // Sets indexed by block_item_id
-  const sessionSets = activeSession?.sets;
+  const sessionSets = confirmedCompletedSession?.sets || activeSession?.sets;
   const sessionSetsByItemPublicId = useMemo(() => {
     const map = new Map<string, WorkoutExecutionSetDto[]>();
     if (!sessionSets) return map;
@@ -237,11 +258,6 @@ export function StudentRuntimeChecklistView({
 
   // History collapsed state
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
-
-  // Server-confirmed completion session
-  const [confirmedCompletedSession, setConfirmedCompletedSession] = useState<WorkoutExecutionSessionDto | null>(
-    isSessionCompleted ? activeSession ?? null : null
-  );
 
   // --------------------------------------------------------------------------
   // REST TIMER TICKER
@@ -454,7 +470,8 @@ export function StudentRuntimeChecklistView({
 
       if (res.success && res.session) {
         setIsFeedbackModalOpen(false);
-        setConfirmedCompletedSession(res.session);
+        setIsSummaryDismissed(false);
+        setJustCompletedSession(res.session);
         onSessionUpdated?.(res.session);
       } else {
         setFinalizeError(res.error || "Não foi possível finalizar o treino. Tente novamente.");
@@ -468,13 +485,20 @@ export function StudentRuntimeChecklistView({
   }
 
   // --------------------------------------------------------------------------
-  // SUCCESS SCREEN (ONLY AFTER SERVER CONFIRMATION)
+  // SUCCESS / SUMMARY SCREEN (ONLY AFTER SERVER CONFIRMATION OR EXPLICIT VIEW)
   // --------------------------------------------------------------------------
   if (confirmedCompletedSession && confirmedCompletedSession.status === "COMPLETED") {
-    const started = new Date(confirmedCompletedSession.startedAt);
-    const finished = confirmedCompletedSession.completedAt
+    let started = new Date(confirmedCompletedSession.startedAt);
+    let finished = confirmedCompletedSession.completedAt
       ? new Date(confirmedCompletedSession.completedAt)
       : new Date();
+
+    // Sanitization: start time MUST be <= finish time
+    if (started.getTime() > finished.getTime()) {
+      const temp = started;
+      started = finished;
+      finished = temp;
+    }
 
     const isSameDay = started.toDateString() === finished.toDateString();
     const startTimeFormatted = !Number.isNaN(started.getTime())
@@ -487,13 +511,27 @@ export function StudentRuntimeChecklistView({
       ? finished.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
       : "";
 
-    // Duration in minutes if within reasonable range (same day, < 12h)
-    const diffMs = finished.getTime() - started.getTime();
-    const diffMins = Math.round(diffMs / (1000 * 60));
-    const isDurationReasonable = isSameDay && diffMins > 0 && diffMins < 720;
+    // Duration in minutes: never negative
+    const diffMs = Math.max(0, finished.getTime() - started.getTime());
+    const rawDiffMins = Math.round(diffMs / (1000 * 60));
+    const diffMins = Math.max(1, rawDiffMins);
+    const isDurationReasonable = isSameDay && rawDiffMins >= 0 && rawDiffMins < 720;
 
     const isPureFullCompletion =
       completedExercisesCount === totalExercisesCount && skippedExercisesCount === 0;
+
+    const handleExitSummary = () => {
+      setIsSummaryDismissed(true);
+      setJustCompletedSession(null);
+      onCloseSummary?.();
+    };
+
+    const handleTrainAgainFromSummary = () => {
+      setIsSummaryDismissed(true);
+      setJustCompletedSession(null);
+      onCloseSummary?.();
+      onStartWorkout?.(activeBlock.publicId);
+    };
 
     return (
       <div className="w-full max-w-xl mx-auto pt-6 pb-24 px-4 text-center space-y-6 animate-in fade-in duration-300">
@@ -509,7 +547,7 @@ export function StudentRuntimeChecklistView({
             Sensacional!
           </h1>
           <p className="text-xs sm:text-sm text-[var(--text-secondary)] max-w-md mx-auto">
-            Seu treino da divisão <strong>{activeBlock.title}</strong> foi salvo e registrado com sucesso.
+            Seu treino da divisão <strong>{confirmedCompletedSession.workoutBlockTitle || activeBlock.title}</strong> foi salvo e registrado com sucesso.
           </p>
         </div>
 
@@ -559,14 +597,28 @@ export function StudentRuntimeChecklistView({
           </div>
         )}
 
-        {/* Return Button */}
-        <div className="pt-2">
+        {/* Action Buttons */}
+        <div className="pt-2 flex flex-col sm:flex-row gap-2.5 justify-center">
+          <button
+            type="button"
+            onClick={handleTrainAgainFromSummary}
+            className="w-full sm:w-auto px-6 min-h-[48px] rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-sm shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span>Treinar novamente</span>
+            <span>→</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleExitSummary}
+            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl border border-zinc-200 dark:border-zinc-800 text-[var(--text-primary)] hover:bg-zinc-100 dark:hover:bg-zinc-800 font-semibold text-sm transition-colors cursor-pointer flex items-center justify-center"
+          >
+            Visualizar exercícios
+          </button>
           <Link
             href={`/consultoria/${consultancySlug}/treinos`}
-            className="w-full min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer"
           >
-            <span>Voltar aos meus treinos</span>
-            <span>→</span>
+            Voltar aos meus treinos
           </Link>
         </div>
       </div>

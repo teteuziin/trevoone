@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/icons/duotone-icons";
 import type { DailyWorkoutResolution } from "@/lib/training-v2/daily-workout-resolver";
 import { buildStudentWorkoutExecutionUrl } from "@/lib/training-v2/route-helpers";
+import { startOrResumeWorkoutExecutionAction } from "@/app/consultoria/[slug]/treinos/actions";
 import { WorkoutDivisionPickerModal } from "./workout-division-picker-modal";
 import { StudentWorkoutCompletionModal } from "./student-workout-completion-modal";
 import { StudentWorkoutRestartModal } from "./student-workout-restart-modal";
@@ -231,6 +232,53 @@ export function StudentFocusSection({
     });
   };
 
+  const [isStartingTraining, setIsStartingTraining] = useState(false);
+
+  const handleStartTraining = async (targetBlockPublicId?: string | null) => {
+    if (isStartingTraining) return;
+    const assignmentId =
+      dailyWorkoutResolution?.assignmentPublicId || activeTraining?.workouts?.[0]?.publicId;
+    const blockId =
+      targetBlockPublicId ??
+      selectedDivisionPublicId ??
+      dailyWorkoutResolution?.targetBlockPublicId ??
+      null;
+
+    if (!assignmentId) {
+      router.push(trainingActionHref);
+      return;
+    }
+
+    setIsStartingTraining(true);
+    try {
+      const res = await startOrResumeWorkoutExecutionAction(
+        consultancySlug,
+        assignmentId,
+        blockId
+      );
+
+      if (res.success && res.session) {
+        router.push(
+          buildStudentWorkoutExecutionUrl(
+            consultancySlug,
+            assignmentId,
+            res.session.workoutBlockPublicId || blockId
+          )
+        );
+        return;
+      }
+      if (res.conflict) {
+        router.push(buildStudentWorkoutExecutionUrl(consultancySlug, assignmentId, blockId));
+        return;
+      }
+    } catch (err) {
+      console.error("[Dashboard] Error starting workout execution:", err);
+    } finally {
+      setIsStartingTraining(false);
+    }
+    router.push(trainingActionHref);
+  };
+
   const handleCompletionSuccess = () => {
     router.refresh();
   };
@@ -448,14 +496,24 @@ export function StudentFocusSection({
                         <>
                           <button
                             type="button"
-                            onClick={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)}
-                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                            disabled={isStartingTraining}
+                            onClick={() => handleStartTraining(selectedDivision.publicId)}
+                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none disabled:opacity-60"
                           >
-                            <span>Treinar novamente</span>
-                            <span>→</span>
+                            {isStartingTraining ? (
+                              <>
+                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <span>Iniciando...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>Treinar novamente</span>
+                                <span>→</span>
+                              </>
+                            )}
                           </button>
                           <Link
-                            href={trainingActionHref}
+                            href={`${trainingActionHref}${trainingActionHref.includes("?") ? "&" : "?"}resumo=1`}
                             className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                           >
                             <span>Ver resumo do treino</span>
@@ -474,13 +532,24 @@ export function StudentFocusSection({
                         </>
                       ) : (
                         <>
-                          <Link
-                            href={trainingActionHref}
-                            className="w-full sm:w-auto px-6 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                          <button
+                            type="button"
+                            disabled={isStartingTraining}
+                            onClick={() => handleStartTraining(selectedDivision?.publicId)}
+                            className="w-full sm:w-auto px-6 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none disabled:opacity-60"
                           >
-                            <span>Começar treino</span>
-                            <span>→</span>
-                          </Link>
+                            {isStartingTraining ? (
+                              <>
+                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <span>Iniciando treino...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>Começar treino</span>
+                                <span>→</span>
+                              </>
+                            )}
+                          </button>
                           {dailyWorkoutResolution?.canChangeDivision && (
                             <button
                               type="button"
@@ -545,14 +614,24 @@ export function StudentFocusSection({
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-3 border-t border-emerald-500/20">
                       <button
                         type="button"
-                        onClick={() => handleOpenRestartForCurrent()}
-                        className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                        disabled={isStartingTraining}
+                        onClick={() => handleStartTraining()}
+                        className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none disabled:opacity-60"
                       >
-                        <span>Treinar novamente</span>
-                        <span>→</span>
+                        {isStartingTraining ? (
+                          <>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>Iniciando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Treinar novamente</span>
+                            <span>→</span>
+                          </>
+                        )}
                       </button>
                       <Link
-                        href={trainingActionHref}
+                        href={`${trainingActionHref}${trainingActionHref.includes("?") ? "&" : "?"}resumo=1`}
                         className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                       >
                         <span>Ver resumo do treino</span>
@@ -697,13 +776,24 @@ export function StudentFocusSection({
 
                     {/* Botão Começar treino DENTRO desse bloco */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-3 border-t border-zinc-200/60 dark:border-[#303238]/80">
-                      <Link
-                        href={trainingActionHref}
-                        className="w-full sm:w-auto px-6 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                      <button
+                        type="button"
+                        disabled={isStartingTraining}
+                        onClick={() => handleStartTraining(selectedDivision?.publicId)}
+                        className="w-full sm:w-auto px-6 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none disabled:opacity-60"
                       >
-                        <span>Começar treino</span>
-                        <span>→</span>
-                      </Link>
+                        {isStartingTraining ? (
+                          <>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>Iniciando treino...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Começar treino</span>
+                            <span>→</span>
+                          </>
+                        )}
+                      </button>
                       {dailyWorkoutResolution?.canChangeDivision && (
                         <button
                           type="button"

@@ -347,6 +347,7 @@ type StudentWorkoutRendererProps = {
   workout: StudentWorkoutViewContract;
   initialExecution?: WorkoutExecutionSessionDto | null;
   initialHistory?: WorkoutExecutionHistorySessionDto[];
+  initialViewSummarySession?: WorkoutExecutionSessionDto | null;
   consultancySlug?: string;
   userPublicId?: string;
   consultancyPublicId?: string;
@@ -360,6 +361,7 @@ export function StudentWorkoutRenderer({
   workout,
   initialExecution = null,
   initialHistory = [],
+  initialViewSummarySession = null,
   consultancySlug,
   userPublicId: initialUserPublicId,
   consultancyPublicId: initialConsultancyPublicId,
@@ -368,8 +370,17 @@ export function StudentWorkoutRenderer({
   isDraft = false,
   initialSelectedBlockPublicId = null,
 }: StudentWorkoutRendererProps) {
-  const [activeSession, setActiveSession] = useState<WorkoutExecutionSessionDto | null>(
-    initialExecution || null
+  // Only accept active IN_PROGRESS session as activeSession
+  const [activeSession, setActiveSession] = useState<WorkoutExecutionSessionDto | null>(() => {
+    if (initialExecution && initialExecution.status === "IN_PROGRESS") {
+      return initialExecution;
+    }
+    return null;
+  });
+  const [viewSummarySession, setViewSummarySession] = useState<WorkoutExecutionSessionDto | null>(
+    initialViewSummarySession && initialViewSummarySession.status === "COMPLETED"
+      ? initialViewSummarySession
+      : null
   );
   const [mobileViewMode, setMobileViewMode] = useState<"FOCUSED" | "OVERVIEW">("FOCUSED");
   const [completedSessions, setCompletedSessions] = useState<WorkoutExecutionHistorySessionDto[]>([]);
@@ -713,6 +724,7 @@ export function StudentWorkoutRenderer({
       );
 
       if (res.success && res.session) {
+        setViewSummarySession(null);
         setActiveSession(res.session);
         setManualRest(null);
       } else if (res.conflict) {
@@ -798,6 +810,7 @@ export function StudentWorkoutRenderer({
       );
 
       if (res.success && res.session) {
+        setViewSummarySession(null);
         setActiveSession(res.session);
         setManualRest(null);
         setConflictState(null);
@@ -867,7 +880,8 @@ export function StudentWorkoutRenderer({
           status: "COMPLETED",
           completedAt: new Date(),
         };
-        setActiveSession(completedSession);
+        setActiveSession(null);
+        setViewSummarySession(completedSession);
         setManualRest(null);
         setOfflineSyncedNotice(
           "Treino concluído neste dispositivo. Sincronizaremos quando a conexão voltar."
@@ -888,7 +902,8 @@ export function StudentWorkoutRenderer({
 
       if (res.success && res.session) {
         const completedSession = res.session;
-        setActiveSession(completedSession);
+        setActiveSession(null);
+        setViewSummarySession(completedSession);
         setManualRest(null);
         setShowEarlyCompleteModal(false);
 
@@ -1132,6 +1147,8 @@ export function StudentWorkoutRenderer({
           <StudentRuntimeChecklistView
             workout={workout}
             activeSession={activeSession}
+            initialViewSummarySession={viewSummarySession}
+            onCloseSummary={() => setViewSummarySession(null)}
             consultancySlug={consultancySlug || ""}
             history={history}
             activeSubstitutions={swapStatus.activeSubstitutions}

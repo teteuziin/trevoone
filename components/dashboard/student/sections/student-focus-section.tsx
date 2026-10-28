@@ -13,6 +13,7 @@ import { WorkoutDivisionPickerModal } from "./workout-division-picker-modal";
 import { StudentWorkoutCompletionModal } from "./student-workout-completion-modal";
 import { StudentWorkoutRestartModal } from "./student-workout-restart-modal";
 import { SessionMoreOptionsMenu } from "./session-more-options-menu";
+import { StudentPendingWorkoutsDrawer } from "./student-pending-workouts-drawer";
 
 interface SessionToComplete {
   sessionPublicId: string;
@@ -95,6 +96,8 @@ export function StudentFocusSection({
   const [sessionToComplete, setSessionToComplete] = useState<SessionToComplete | null>(null);
   const [sessionToRestart, setSessionToRestart] = useState<SessionToRestart | null>(null);
   const [selectedDivisionPublicId, setSelectedDivisionPublicId] = useState<string | null>(null);
+  const [isPendingDrawerOpen, setIsPendingDrawerOpen] = useState(false);
+  const pendingTriggerRef = React.useRef<HTMLButtonElement>(null);
 
   const status = dailyWorkoutResolution?.status;
   const isError = status === "ERROR";
@@ -160,13 +163,7 @@ export function StudentFocusSection({
   }
 
   const unfinished = dailyWorkoutResolution?.unfinishedSession;
-  const isUnfinishedAllDone = Boolean(
-    unfinished &&
-      ((unfinished.totalSetsCount > 0 &&
-        unfinished.completedSetsCount >= unfinished.totalSetsCount) ||
-        (unfinished.totalExercisesCount > 0 &&
-          unfinished.completedExercisesCount >= unfinished.totalExercisesCount))
-  );
+  const pendingSessionsCount = unfinished ? 1 : 0;
 
   const isActiveSessionAllDone = Boolean(
     isSessionInProgress &&
@@ -282,27 +279,45 @@ export function StudentFocusSection({
                 </div>
               </div>
 
-              {/* Status Badge Real ÚNICO (somente quando necessário) */}
-              {isError ? (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                  Atenção
-                </span>
-              ) : hasTraining ? (
-                isSessionInProgress ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Em andamento</span>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                {/* 2. ATALHO DISCRETO PARA PENDÊNCIAS */}
+                {pendingSessionsCount > 0 && (
+                  <button
+                    ref={pendingTriggerRef}
+                    type="button"
+                    onClick={() => setIsPendingDrawerOpen(true)}
+                    aria-haspopup="dialog"
+                    aria-expanded={isPendingDrawerOpen}
+                    aria-label="Treinos pendentes: Treino não finalizado"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 text-amber-800 dark:text-amber-300 border border-amber-500/30 transition-colors cursor-pointer select-none shrink-0"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    <span>Treinos pendentes · {pendingSessionsCount}</span>
+                  </button>
+                )}
+
+                {/* Status Badge Real ÚNICO (somente quando necessário) */}
+                {isError ? (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                    Atenção
                   </span>
-                ) : isCompletedToday ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
-                    <span>✓ Realizado</span>
+                ) : hasTraining ? (
+                  isSessionInProgress ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Em andamento</span>
+                    </span>
+                  ) : isCompletedToday ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                      <span>✓ Realizado</span>
+                    </span>
+                  ) : null
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                    {trainingServiceEnabled ? "Sem ficha ativa" : "Não habilitado"}
                   </span>
-                ) : null
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                  {trainingServiceEnabled ? "Sem ficha ativa" : "Não habilitado"}
-                </span>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Conteúdo Central */}
@@ -339,7 +354,7 @@ export function StudentFocusSection({
                   <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-3 text-left">
                     <div className="flex items-center justify-between gap-2 pb-0.5">
                       <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                        Divisão escolhida
+                        Treino escolhido para hoje
                       </span>
                       <button
                         type="button"
@@ -364,6 +379,9 @@ export function StudentFocusSection({
                           {effectiveExerciseCount} {effectiveExerciseCount === 1 ? "exercício" : "exercícios"}
                         </div>
                       )}
+                      <p className="text-xs text-zinc-500 dark:text-[#8E95A2] pt-0.5">
+                        Essa escolha não altera sua programação semanal.
+                      </p>
                     </div>
 
                     {/* Ações DENTRO do bloco da divisão escolhida */}
@@ -481,7 +499,7 @@ export function StudentFocusSection({
                 ) : isRestDay ? (
                   <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-3 text-left">
                     <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block">
-                      Hoje
+                      Treino de hoje
                     </span>
                     <div className="space-y-1">
                       <h3 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
@@ -508,7 +526,7 @@ export function StudentFocusSection({
                 ) : isCompletedToday ? (
                   <div className="p-4 sm:p-5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/25 space-y-3 text-left">
                     <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
-                      Hoje
+                      Treino de hoje · Concluído
                     </span>
                     <div className="space-y-1">
                       <h3 className="text-lg font-semibold text-emerald-800 dark:text-emerald-300 tracking-tight">
@@ -556,7 +574,7 @@ export function StudentFocusSection({
                   /* Sessão iniciada HOJE em andamento */
                   <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-3 text-left">
                     <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
-                      Hoje · Em andamento
+                      Treino de hoje · Em andamento
                     </span>
                     <div className="space-y-1">
                       <h3 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
@@ -645,9 +663,12 @@ export function StudentFocusSection({
                 ) : (
                   /* Treino previsto para hoje (antes de iniciar - Ingrid) */
                   <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-3 text-left">
-                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block">
-                      Hoje
-                    </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block">
+                        Treino de hoje
+                      </span>
+                      <span className="sr-only">Treino previsto para hoje</span>
+                    </div>
                     <div className="space-y-1">
                       <h3 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
                         {divisionTitle}
@@ -694,89 +715,6 @@ export function StudentFocusSection({
                         </button>
                       )}
                       <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent()} />
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. Bloco Secundário — Sessão Anterior em bloco separado, quando existir */}
-                {unfinished && (
-                  <div className="p-4 sm:p-5 rounded-xl bg-amber-500/8 dark:bg-amber-500/5 border border-amber-500/25 space-y-3.5 text-left">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
-                          Treino não finalizado
-                        </span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
-                        {unfinished.divisionTitle}
-                      </h4>
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        Iniciado em {unfinished.startedFormatted}
-                      </p>
-                    </div>
-
-                    {/* Progresso simplificado */}
-                    <div className="text-base font-medium text-zinc-800 dark:text-zinc-200">
-                      {isUnfinishedAllDone ? (
-                        <span className="inline-flex items-center gap-1.5 text-purple-700 dark:text-purple-300 font-semibold">
-                          <span>✓</span>
-                          <span>Todas as séries concluídas. Falta finalizar o treino.</span>
-                        </span>
-                      ) : (
-                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                          <span className="text-base font-medium text-zinc-900 dark:text-zinc-100">
-                            {unfinished.completedExercisesCount} de {unfinished.totalExercisesCount}{" "}
-                            {unfinished.totalExercisesCount === 1 ? "exercício concluído" : "exercícios concluídos"}
-                          </span>
-                          {unfinished.totalSetsCount > 0 && (
-                            <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                              (Séries: {unfinished.completedSetsCount} de {unfinished.totalSetsCount})
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Ações da Sessão Anterior DENTRO do próprio bloco */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-3 border-t border-amber-500/20">
-                      {isUnfinishedAllDone ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={handleOpenCompletionForUnfinished}
-                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
-                          >
-                            <span>✓ Finalizar treino</span>
-                          </button>
-                          <Link
-                            href={unfinished.actionHref}
-                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center select-none"
-                          >
-                            <span>Ver treino</span>
-                            <span>→</span>
-                          </Link>
-                        </>
-                      ) : (
-                        <>
-                          <Link
-                            href={unfinished.actionHref}
-                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-semibold text-sm sm:text-base bg-blue-600/10 hover:bg-blue-600/20 active:bg-blue-600/30 text-blue-700 dark:text-blue-300 border border-blue-500/30 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
-                          >
-                            <span>Continuar treino</span>
-                            <span>→</span>
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={handleOpenCompletionForUnfinished}
-                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-purple-600/10 hover:bg-purple-600/20 active:bg-purple-600/30 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
-                          >
-                            <span>Finalizar treino</span>
-                          </button>
-                        </>
-                      )}
-
-                      <SessionMoreOptionsMenu onRestart={handleOpenRestartForUnfinished} />
                     </div>
                   </div>
                 )}
@@ -839,9 +777,24 @@ export function StudentFocusSection({
 
             {hasNutrition ? (
               <div className="space-y-3 text-left">
+                {/* Identificação Segura: Paciente Destinatário vs Título da Prescrição */}
+                {activeNutrition?.studentName && (
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs pb-0.5">
+                    <span className="font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-md">
+                      Destinatário: {activeNutrition.studentName}
+                    </span>
+                    {activeNutrition.prescriberName && (
+                      <span className="text-[11px] text-zinc-500 dark:text-[#8E95A2]">
+                        • Nutricionista: <strong className="font-medium text-zinc-700 dark:text-zinc-300">{activeNutrition.prescriberName}</strong>
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-1">
-                  <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
-                    {activeNutrition?.title || "Plano Alimentar"}
+                  <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight flex flex-wrap items-baseline gap-1.5">
+                    <span className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Título da Prescrição:</span>
+                    <span>{activeNutrition?.title || "Plano Alimentar"}</span>
                   </h3>
                   {activeNutrition?.subtitle && (
                     <p className="text-sm text-zinc-500 dark:text-[#8E95A2]">
@@ -960,6 +913,16 @@ export function StudentFocusSection({
           onSuccess={handleRestartSuccess}
         />
       )}
+
+      {/* DRAWER / SHEET: SESSÕES PENDENTES ANTERIORES */}
+      <StudentPendingWorkoutsDrawer
+        isOpen={isPendingDrawerOpen}
+        onClose={() => setIsPendingDrawerOpen(false)}
+        pendingSession={unfinished || null}
+        onOpenCompletion={handleOpenCompletionForUnfinished}
+        onOpenRestart={handleOpenRestartForUnfinished}
+        triggerRef={pendingTriggerRef}
+      />
     </div>
   );
 }

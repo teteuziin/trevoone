@@ -123,21 +123,12 @@ export function StudentFocusSection({
         : null);
 
   let trainingActionHref = dailyWorkoutResolution?.actionHref || `/consultoria/${consultancySlug}/treinos`;
-  let trainingActionLabel = isSessionInProgress
-    ? "Continuar treino"
-    : isCompletedToday
-    ? "Ver resumo do treino"
-    : isRestDay
-    ? "Escolher outro treino"
-    : (dailyWorkoutResolution?.actionLabel === "Iniciar treino" ? "Começar treino" : dailyWorkoutResolution?.actionLabel || "Começar treino");
 
   if ((!dailyWorkoutResolution || status === "ERROR") && hasTraining) {
     if (isSessionInProgress && activeSessionAssignmentPublicId) {
       trainingActionHref = `/consultoria/${consultancySlug}/treinos/${activeSessionAssignmentPublicId}`;
-      trainingActionLabel = "Continuar treino";
     } else if (activeTraining?.workouts && activeTraining.workouts.length > 0) {
       trainingActionHref = `/consultoria/${consultancySlug}/treinos/${activeTraining.workouts[0].publicId}`;
-      trainingActionLabel = "Começar treino";
     }
   }
 
@@ -291,7 +282,7 @@ export function StudentFocusSection({
               </div>
             ) : hasTraining ? (
               <div className="space-y-4">
-                {/* 1. Situação de Hoje: Descanso, Concluído ou Treino Previsto */}
+                {/* 1. Bloco do treino selecionado de hoje */}
                 {isRestDay ? (
                   <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-1.5 text-left">
                     <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
@@ -315,40 +306,32 @@ export function StudentFocusSection({
                       </p>
                     )}
                   </div>
-                ) : (
-                  <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-1.5 text-left">
-                    {unfinished && (
-                      <span className="text-xs uppercase font-bold tracking-wider text-emerald-600 dark:text-emerald-400 block mb-0.5">
-                        Treino previsto para hoje
-                      </span>
-                    )}
-                    <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
-                      {divisionTitle}
-                    </h3>
-                    {routineTitle && (
-                      <p className="text-sm text-zinc-500 dark:text-[#8E95A2] mt-0.5">
-                        Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
-                        {dailyWorkoutResolution?.versionNumber ? ` • Versão ${dailyWorkoutResolution.versionNumber}` : ""}
-                      </p>
-                    )}
-                  </div>
-                )}
+                ) : isSessionInProgress ? (
+                  /* Sessão iniciada HOJE em andamento */
+                  <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-2 text-left">
+                    <div>
+                      <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
+                        {divisionTitle}
+                      </h3>
+                      {routineTitle && (
+                        <p className="text-sm text-zinc-500 dark:text-[#8E95A2] mt-0.5">
+                          Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
+                        </p>
+                      )}
+                      {dailyWorkoutResolution?.activeSessionStartedFormatted && (
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mt-1">
+                          Iniciado em {dailyWorkoutResolution.activeSessionStartedFormatted}
+                        </p>
+                      )}
+                    </div>
 
-                {/* 2. Progresso Real da Sessão em Andamento HOJE */}
-                {isSessionInProgress && (
-                  <div className="p-3.5 sm:p-4 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/25 text-left space-y-1.5">
-                    {dailyWorkoutResolution?.activeSessionStartedFormatted && (
-                      <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 font-medium">
-                        Iniciado em {dailyWorkoutResolution.activeSessionStartedFormatted}
-                      </p>
-                    )}
                     {isActiveSessionAllDone ? (
-                      <div className="inline-flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400 font-semibold">
+                      <div className="pt-1.5 inline-flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400 font-semibold">
                         <span>✓</span>
                         <span>Todas as séries concluídas. Falta finalizar o treino.</span>
                       </div>
                     ) : (
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-emerald-800 dark:text-emerald-300">
+                      <div className="pt-1.5 flex flex-wrap items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 font-medium">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                         <span>
                           Progresso da sessão:{" "}
@@ -366,9 +349,44 @@ export function StudentFocusSection({
                       </div>
                     )}
                   </div>
+                ) : (
+                  /* Treino previsto para hoje (antes de iniciar - Ingrid) */
+                  <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-1.5 text-left">
+                    {unfinished && (
+                      <span className="text-xs uppercase font-bold tracking-wider text-emerald-600 dark:text-emerald-400 block mb-0.5">
+                        Treino previsto para hoje
+                      </span>
+                    )}
+                    <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
+                      {divisionTitle}
+                    </h3>
+                    {routineTitle && (
+                      <p className="text-sm text-zinc-500 dark:text-[#8E95A2] mt-0.5">
+                        Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
+                      </p>
+                    )}
+                    {exerciseCount > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 pt-1 text-xs sm:text-sm text-zinc-500 dark:text-[#8E95A2]">
+                        <span>
+                          {exerciseCount} {exerciseCount === 1 ? "exercício" : "exercícios"}
+                        </span>
+                        {durationEstimate !== null && durationEstimate > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              ~{durationEstimate} min{" "}
+                              <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                                (estimativa)
+                              </span>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
 
-                {/* 3. Se houver sessão aberta anterior: mostrar separadamente com divisão e data real de início */}
+                {/* 2. Sessão anterior em bloco separado, quando existir */}
                 {unfinished && (
                   <div className="p-4 sm:p-5 rounded-xl bg-amber-500/8 dark:bg-amber-500/5 border border-amber-500/25 space-y-3.5 text-left">
                     <div className="space-y-1">
@@ -415,13 +433,13 @@ export function StudentFocusSection({
                           <button
                             type="button"
                             onClick={handleOpenCompletionForUnfinished}
-                            className="w-full sm:w-auto px-5 py-3 min-h-[48px] sm:min-h-[50px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
                           >
                             <span>✓ Finalizar treino</span>
                           </button>
                           <Link
                             href={unfinished.actionHref}
-                            className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center select-none"
+                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center select-none"
                           >
                             <span>Ver treino</span>
                             <span>→</span>
@@ -431,7 +449,7 @@ export function StudentFocusSection({
                         <>
                           <Link
                             href={unfinished.actionHref}
-                            className="w-full sm:w-auto px-5 py-3 min-h-[48px] sm:min-h-[50px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
                           >
                             <span>Continuar treino</span>
                             <span>→</span>
@@ -439,7 +457,7 @@ export function StudentFocusSection({
                           <button
                             type="button"
                             onClick={handleOpenCompletionForUnfinished}
-                            className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                           >
                             <span>Finalizar treino</span>
                           </button>
@@ -448,26 +466,6 @@ export function StudentFocusSection({
 
                       <SessionMoreOptionsMenu onRestart={handleOpenRestartForUnfinished} />
                     </div>
-                  </div>
-                )}
-
-                {/* Resumo da Divisão Programada (somente quando há treino programado hoje) */}
-                {!isRestDay && exerciseCount > 0 && (
-                  <div className="flex flex-wrap items-center gap-2.5 text-sm text-zinc-600 dark:text-[#8E95A2] pt-2 border-t border-zinc-200/60 dark:border-[#303238]/60 text-left">
-                    <span>
-                      {exerciseCount} {exerciseCount === 1 ? "exercício" : "exercícios"}
-                    </span>
-                    {durationEstimate !== null && durationEstimate > 0 && (
-                      <>
-                        <span>•</span>
-                        <span>
-                          ~{durationEstimate} min{" "}
-                          <span className="text-xs text-zinc-400">
-                            (estimativa)
-                          </span>
-                        </span>
-                      </>
-                    )}
                   </div>
                 )}
               </div>
@@ -488,13 +486,13 @@ export function StudentFocusSection({
               <div className="flex flex-wrap items-center gap-2.5 w-full justify-between">
                 <Link
                   href={`/consultoria/${consultancySlug}/treinos`}
-                  className="px-4 min-h-[44px] rounded-xl font-bold text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 flex items-center justify-center gap-2 transition-opacity cursor-pointer"
+                  className="px-5 min-h-[48px] rounded-xl font-bold text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 flex items-center justify-center gap-2 transition-opacity cursor-pointer select-none"
                 >
                   Ver meus treinos
                 </Link>
                 <Link
                   href={`/consultoria/${consultancySlug}`}
-                  className="px-3.5 min-h-[44px] rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5"
+                  className="px-4 min-h-[48px] rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 select-none"
                 >
                   Tentar novamente
                 </Link>
@@ -502,13 +500,13 @@ export function StudentFocusSection({
             ) : hasTraining ? (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
-                  {/* Situação: Dia de Descanso -> UMA única entrada clara para escolher outro treino */}
+                  {/* Situação 1: Dia de Descanso -> UMA única entrada clara para escolher outro treino */}
                   {isRestDay ? (
                     dailyWorkoutResolution?.canChangeDivision ? (
                       <button
                         type="button"
                         onClick={() => setIsPickerOpen(true)}
-                        className="w-full sm:w-auto px-5 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm sm:text-base bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
+                        className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-semibold text-sm sm:text-base bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
                       >
                         <span>Escolher outro treino</span>
                         <span>→</span>
@@ -518,7 +516,7 @@ export function StudentFocusSection({
                     <>
                       <Link
                         href={trainingActionHref}
-                        className="w-full sm:w-auto px-5 py-2.5 min-h-[44px] rounded-xl font-bold text-sm bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
+                        className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
                       >
                         <span>Ver resumo do treino</span>
                         <span>→</span>
@@ -527,7 +525,7 @@ export function StudentFocusSection({
                         <button
                           type="button"
                           onClick={() => setIsPickerOpen(true)}
-                          className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-[#303238] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                          className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                         >
                           <span>Escolher outro treino</span>
                           <span>→</span>
@@ -541,13 +539,13 @@ export function StudentFocusSection({
                           <button
                             type="button"
                             onClick={handleOpenCompletionForActive}
-                            className="w-full sm:w-auto px-5 py-3 min-h-[48px] sm:min-h-[50px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
                           >
                             <span>✓ Finalizar treino</span>
                           </button>
                           <Link
                             href={trainingActionHref}
-                            className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center select-none"
+                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center select-none"
                           >
                             <span>Ver treino</span>
                             <span>→</span>
@@ -557,7 +555,7 @@ export function StudentFocusSection({
                         <>
                           <Link
                             href={trainingActionHref}
-                            className="w-full sm:w-auto px-5 py-3 min-h-[48px] sm:min-h-[50px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
                           >
                             <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
                             <span>Continuar treino</span>
@@ -566,7 +564,7 @@ export function StudentFocusSection({
                           <button
                             type="button"
                             onClick={handleOpenCompletionForActive}
-                            className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                           >
                             <span>Finalizar treino</span>
                           </button>
@@ -577,7 +575,7 @@ export function StudentFocusSection({
                         <button
                           type="button"
                           onClick={() => setIsPickerOpen(true)}
-                          className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-[#303238] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                          className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                         >
                           <span>Escolher outro treino</span>
                           <span>→</span>
@@ -585,19 +583,20 @@ export function StudentFocusSection({
                       )}
                     </>
                   ) : (
+                    /* Antes de iniciar o treino previsto de hoje (Ingrid) */
                     <>
                       <Link
                         href={trainingActionHref}
-                        className="w-full sm:w-auto px-5 py-3 min-h-[48px] sm:min-h-[50px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                        className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
                       >
-                        <span>{trainingActionLabel}</span>
+                        <span>Começar treino</span>
                         <span>→</span>
                       </Link>
                       {dailyWorkoutResolution?.canChangeDivision && (
                         <button
                           type="button"
                           onClick={() => setIsPickerOpen(true)}
-                          className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-[#303238] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                          className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-semibold text-sm sm:text-base bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                         >
                           <span>Escolher outro treino</span>
                           <span>→</span>

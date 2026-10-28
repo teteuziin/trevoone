@@ -245,7 +245,7 @@ export function StudentTreinosClientView({
                 </button>
                 <Link
                   href={unfinishedSession.actionHref}
-                  className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center select-none"
+                  className="w-full sm:w-auto px-4 py-2.5 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center select-none"
                 >
                   <span>Ver treino</span>
                   <span>→</span>
@@ -263,7 +263,7 @@ export function StudentTreinosClientView({
                 <button
                   type="button"
                   onClick={handleOpenCompletionForUnfinished}
-                  className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                  className="w-full sm:w-auto px-4 py-2.5 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                 >
                   <span>Finalizar treino</span>
                 </button>
@@ -304,7 +304,6 @@ export function StudentTreinosClientView({
             </h2>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
               Ficha: <strong className="font-semibold text-[var(--text-primary)]">{effectiveRecommendedDivision.routineTitle}</strong>
-              {effectiveRecommendedDivision.versionNumber ? ` • Versão ${effectiveRecommendedDivision.versionNumber}` : ""}
             </p>
           </div>
 

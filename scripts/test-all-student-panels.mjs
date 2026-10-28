@@ -76,7 +76,7 @@ assert.ok(
   "Deve oferecer a ação 'Começar treino' como primária"
 );
 assert.ok(
-  focusCode.includes("min-h-[48px] sm:min-h-[50px]"),
+  focusCode.includes("min-h-[48px]"),
   "Botão primário de treino deve ter touch target >= 48px"
 );
 assert.ok(
@@ -90,6 +90,14 @@ assert.ok(
 assert.ok(
   focusCode.includes("Ver meus treinos →"),
   "Deve manter 'Ver meus treinos →' como link discreto"
+);
+assert.ok(
+  !focusCode.includes("Versão ${dailyWorkoutResolution.versionNumber}"),
+  "Não deve poluir o card com número de versão (ex: Versão 17)"
+);
+assert.ok(
+  !treinosCode.includes("Versão ${effectiveRecommendedDivision.versionNumber}"),
+  "Tela de treinos não deve exibir número de versão na apresentação principal"
 );
 console.log("✓ Estado 1 (Treino programado hoje) verificado.");
 

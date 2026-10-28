@@ -147,7 +147,7 @@ export default async function StudentRegularizationPage({ params }: PageProps) {
 
             <Link
               href={`/consultoria/${slug}/pagamentos/${blockingCharge.publicId}`}
-              className="px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 text-white min-h-[44px] flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+              className="px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white min-h-[44px] flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:focus-visible:outline-emerald-400"
             >
               <span>Ver pagamento e regularizar</span>
               <span>→</span>

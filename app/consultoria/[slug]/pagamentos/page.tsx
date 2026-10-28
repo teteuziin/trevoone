@@ -194,10 +194,10 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
         <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-[#303238] pb-3">
           <Link
             href={`/consultoria/${slug}/pagamentos?view=pending`}
-            className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all min-h-[44px] flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all min-h-[44px] flex items-center gap-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 ${
               activeView === "pending"
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "bg-zinc-100 dark:bg-[#1B1D21] text-zinc-600 dark:text-[#8E95A2] hover:text-zinc-900 dark:hover:text-white border border-zinc-200/60 dark:border-[#303238]"
+                ? "bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm focus-visible:outline-emerald-600 dark:focus-visible:outline-emerald-400"
+                : "bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-700 dark:text-[#E5E7EB] hover:text-zinc-900 dark:hover:text-white border border-zinc-200/60 dark:border-[#303238] focus-visible:outline-zinc-400"
             }`}
           >
             <span>Em aberto</span>
@@ -209,10 +209,10 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
           </Link>
           <Link
             href={`/consultoria/${slug}/pagamentos?view=history`}
-            className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all min-h-[44px] flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all min-h-[44px] flex items-center gap-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 ${
               activeView === "history"
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "bg-zinc-100 dark:bg-[#1B1D21] text-zinc-600 dark:text-[#8E95A2] hover:text-zinc-900 dark:hover:text-white border border-zinc-200/60 dark:border-[#303238]"
+                ? "bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm focus-visible:outline-emerald-600 dark:focus-visible:outline-emerald-400"
+                : "bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-zinc-700 dark:text-[#E5E7EB] hover:text-zinc-900 dark:hover:text-white border border-zinc-200/60 dark:border-[#303238] focus-visible:outline-zinc-400"
             }`}
           >
             <span>Histórico</span>
@@ -286,25 +286,26 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
                 ? `${formatDateBr(charge.referencePeriodStart!)} a ${formatDateBr(charge.referencePeriodEnd!)}`
                 : null;
               const badgeStyle = getStatusBadgeConfig(charge.derivedStatus);
-              const isOverdue = charge.derivedStatus === "OVERDUE";
+              // A indicação de vencida é exclusiva para cobranças em aberto com status OVERDUE confirmado
+              const isOverdue = charge.derivedStatus === "OVERDUE" && activeView === "pending";
 
-              // Ação principal condicional e sem ambiguidade
+              // Ação principal condicional, sem ambiguidade e com alto contraste WCAG AA
               let actionLabel = "Ver pagamento";
               let actionButtonClass =
-                "px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 text-white min-h-[44px] flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-98";
+                "px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white min-h-[44px] flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-98 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:focus-visible:outline-emerald-400";
 
               if (charge.derivedStatus === "UNDER_REVIEW") {
                 actionLabel = "Ver comprovante";
                 actionButtonClass =
-                  "px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#1B1D21] hover:bg-[#252830] border border-amber-500/40 text-amber-500 dark:text-amber-400 hover:text-amber-300 min-h-[44px] flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs";
+                  "px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#1B1D21] hover:bg-[#252830] border border-amber-500/40 text-amber-500 dark:text-amber-400 hover:text-amber-300 min-h-[44px] flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500";
               } else if (charge.derivedStatus === "PAID") {
                 actionLabel = "Ver pagamento";
                 actionButtonClass =
-                  "px-5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-zinc-100 dark:bg-[#1B1D21] hover:bg-zinc-200 dark:hover:bg-[#252830] border border-zinc-200 dark:border-[#303238] text-zinc-800 dark:text-[#E5E7EB] hover:text-zinc-900 dark:hover:text-white min-h-[44px] flex items-center justify-center gap-2 transition-all cursor-pointer";
+                  "px-5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-zinc-100 dark:bg-[#1B1D21] hover:bg-zinc-200 dark:hover:bg-[#252830] border border-zinc-200 dark:border-[#303238] text-zinc-800 dark:text-[#E5E7EB] hover:text-zinc-900 dark:hover:text-white min-h-[44px] flex items-center justify-center gap-2 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400";
               } else if (charge.derivedStatus === "CANCELED") {
                 actionLabel = "Ver detalhes";
                 actionButtonClass =
-                  "px-5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-zinc-100 dark:bg-[#1B1D21] hover:bg-zinc-200 dark:hover:bg-[#252830] border border-zinc-200 dark:border-[#303238] text-zinc-500 dark:text-[#8E95A2] min-h-[44px] flex items-center justify-center gap-2 transition-all cursor-pointer";
+                  "px-5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-zinc-100 dark:bg-[#1B1D21] hover:bg-zinc-200 dark:hover:bg-[#252830] border border-zinc-200 dark:border-[#303238] text-zinc-700 dark:text-[#8E95A2] min-h-[44px] flex items-center justify-center gap-2 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400";
               }
 
               return (

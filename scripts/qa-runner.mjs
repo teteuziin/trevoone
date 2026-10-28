@@ -19,6 +19,7 @@ import { runConsultationsCheckinsSuite } from "./qa-suite-consultations-checkins
 import { runActionsSuite } from "./qa-suite-actions.mjs";
 import { runPwaOfflineSuite } from "./qa-suite-pwa-offline.mjs";
 import { runStudentDashboardFixesSuite } from "./test-student-dashboard-fixes.mjs";
+import { runStudentFinanceSuite } from "./test-student-finance-flows.mjs";
 
 console.log("\n==================================================");
 console.log("TREVO ONE — AUTOMATED FULL APP QA (TERMINAL / NO BROWSER)");
@@ -67,6 +68,7 @@ await executeSuite("8. Consultations, Checkins & Anthropometry", runConsultation
 await executeSuite("9. Server Actions Contract & Error Security", runActionsSuite);
 await executeSuite("10. PWA Update Lifecycle & Offline Engine", runPwaOfflineSuite);
 await executeSuite("11. Student Dashboard & Focus Section Fixes", runStudentDashboardFixesSuite);
+await executeSuite("12. Student Finance & Pix Payment Flows", runStudentFinanceSuite);
 
 // External live networks explicitly NOT RUN in terminal QA
 grandNotRun += 3; // Web Push delivery external, WebRTC live TURN media, Browser Visual QA

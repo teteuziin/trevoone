@@ -291,7 +291,7 @@ export function deriveStudentChargeStatus(params: DeriveStatusParams): StudentCh
     return "UNDER_REVIEW";
   }
 
-  if (params.dueOn < params.localToday) {
+  if (params.state === "OPEN" && params.dueOn < params.localToday) {
     return "OVERDUE";
   }
 
@@ -2308,18 +2308,13 @@ export async function getPaymentReceiptReviewDetail(params: {
     const localToday = getConsultancyLocalDate(timeZone);
     const dueOnStr = String(r.due_on);
 
-    let derivedStatus: StudentChargeDerivedStatus = "PENDING";
-    if (persistedState === "CANCELED") {
-      derivedStatus = "CANCELED";
-    } else if (hasPayment) {
-      derivedStatus = "PAID";
-    } else if (receiptStatus === "SUBMITTED") {
-      derivedStatus = "UNDER_REVIEW";
-    } else if (dueOnStr < localToday) {
-      derivedStatus = "OVERDUE";
-    } else {
-      derivedStatus = "PENDING";
-    }
+    const derivedStatus = deriveStudentChargeStatus({
+      state: persistedState,
+      dueOn: dueOnStr,
+      localToday,
+      hasConfirmedPayment: hasPayment,
+      hasSubmittedReceipt: receiptStatus === "SUBMITTED",
+    });
 
     return {
       receiptPublicId: r.receipt_public_id,

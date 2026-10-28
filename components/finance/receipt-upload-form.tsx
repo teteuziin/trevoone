@@ -206,7 +206,7 @@ export function ReceiptUploadForm({
         variant="primary"
         size="md"
         disabled={!selectedFile || isSubmitting}
-        className="w-full min-h-[44px]"
+        className="w-full min-h-[44px] !bg-emerald-700 hover:!bg-emerald-800 active:!bg-emerald-900 !text-white font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:focus-visible:outline-emerald-400"
       >
         {isSubmitting ? "Enviando comprovante..." : "Enviar comprovante para análise"}
       </Button>

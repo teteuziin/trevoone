@@ -199,7 +199,7 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
               <div className="flex items-center gap-2 shrink-0">
                 <Link
                   href={`/consultoria/${slug}/pagamentos`}
-                  className="px-4 min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] text-[#E5E7EB] hover:text-white flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
+                  className="px-4 min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] text-[#E5E7EB] hover:text-white flex items-center justify-center gap-2 transition-colors cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 >
                   <span>←</span>
                   <span>Voltar para pagamentos</span>

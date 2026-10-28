@@ -94,6 +94,7 @@ export function StudentFocusSection({
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [sessionToComplete, setSessionToComplete] = useState<SessionToComplete | null>(null);
   const [sessionToRestart, setSessionToRestart] = useState<SessionToRestart | null>(null);
+  const [selectedDivisionPublicId, setSelectedDivisionPublicId] = useState<string | null>(null);
 
   const status = dailyWorkoutResolution?.status;
   const isError = status === "ERROR";
@@ -110,12 +111,32 @@ export function StudentFocusSection({
   const cardHeaderTitle = "Meu treino";
   const cardHeaderSubtitle = dailyWorkoutResolution?.todayWeekdayName || "Hoje";
 
+  const selectedDivision = dailyWorkoutResolution?.availableDivisions?.find(
+    (d) => d.publicId === selectedDivisionPublicId
+  );
+
+  const isSelectedDivisionActive = selectedDivision
+    ? selectedDivision.status === "IN_PROGRESS"
+    : isSessionInProgress;
+
+  const isSelectedDivisionDone = selectedDivision
+    ? selectedDivision.status === "COMPLETED_TODAY"
+    : isCompletedToday;
+
   const divisionTitle = dailyWorkoutResolution?.divisionTitle || activeTraining?.title || "Ficha de treino";
+  const effectiveDivisionTitle = selectedDivision
+    ? selectedDivision.title
+    : divisionTitle;
+
   const routineTitle = dailyWorkoutResolution?.routineTitle || activeTraining?.title || "";
   const exerciseCount =
     !isError && dailyWorkoutResolution?.exerciseCount != null
       ? Number(dailyWorkoutResolution.exerciseCount)
       : 0;
+  const effectiveExerciseCount = selectedDivision
+    ? selectedDivision.exerciseCount
+    : exerciseCount;
+
   const durationEstimate = isError
     ? null
     : (dailyWorkoutResolution?.estimatedDurationMinutes != null
@@ -124,7 +145,13 @@ export function StudentFocusSection({
 
   let trainingActionHref = dailyWorkoutResolution?.actionHref || `/consultoria/${consultancySlug}/treinos`;
 
-  if ((!dailyWorkoutResolution || status === "ERROR") && hasTraining) {
+  if (selectedDivision && dailyWorkoutResolution?.assignmentPublicId) {
+    trainingActionHref = buildStudentWorkoutExecutionUrl(
+      consultancySlug,
+      dailyWorkoutResolution.assignmentPublicId,
+      selectedDivision.publicId
+    );
+  } else if ((!dailyWorkoutResolution || status === "ERROR") && hasTraining) {
     if (isSessionInProgress && activeSessionAssignmentPublicId) {
       trainingActionHref = `/consultoria/${consultancySlug}/treinos/${activeSessionAssignmentPublicId}`;
     } else if (activeTraining?.workouts && activeTraining.workouts.length > 0) {
@@ -177,9 +204,9 @@ export function StudentFocusSection({
     if (!dailyWorkoutResolution?.activeSessionPublicId) return;
     setSessionToComplete({
       sessionPublicId: dailyWorkoutResolution.activeSessionPublicId,
-      divisionTitle: divisionTitle,
+      divisionTitle: effectiveDivisionTitle,
       startedFormatted: dailyWorkoutResolution.activeSessionStartedFormatted || "Hoje",
-      totalExercisesCount: exerciseCount,
+      totalExercisesCount: effectiveExerciseCount,
       completedExercisesCount: dailyWorkoutResolution.completedExercisesCount ?? 0,
       totalSetsCount: dailyWorkoutResolution.totalSetsCount,
       completedSetsCount: dailyWorkoutResolution.completedSetsCount,
@@ -191,8 +218,19 @@ export function StudentFocusSection({
     setSessionToRestart({
       assignmentPublicId: dailyWorkoutResolution.assignmentPublicId,
       blockPublicId: dailyWorkoutResolution.targetBlockPublicId,
-      divisionTitle: divisionTitle,
+      divisionTitle: effectiveDivisionTitle,
       startedFormatted: dailyWorkoutResolution.activeSessionStartedFormatted || "Hoje",
+    });
+  };
+
+  const handleOpenRestartForCurrent = (targetBlockPublicId?: string | null, targetTitle?: string) => {
+    const assignmentId = dailyWorkoutResolution?.assignmentPublicId || activeTraining?.workouts?.[0]?.publicId;
+    if (!assignmentId) return;
+    setSessionToRestart({
+      assignmentPublicId: assignmentId,
+      blockPublicId: targetBlockPublicId ?? selectedDivisionPublicId ?? dailyWorkoutResolution?.targetBlockPublicId ?? null,
+      divisionTitle: targetTitle || effectiveDivisionTitle,
+      startedFormatted: dailyWorkoutResolution?.activeSessionStartedFormatted || undefined,
     });
   };
 
@@ -283,7 +321,37 @@ export function StudentFocusSection({
             ) : hasTraining ? (
               <div className="space-y-4">
                 {/* 1. Bloco do treino selecionado de hoje */}
-                {isRestDay ? (
+                {selectedDivision ? (
+                  <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-2 text-left">
+                    <div className="flex items-center justify-between gap-2 pb-0.5">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                        <span>Divisão escolhida</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDivisionPublicId(null)}
+                        className="text-xs text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 underline cursor-pointer"
+                      >
+                        Voltar ao treino programado
+                      </button>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
+                      {effectiveDivisionTitle}
+                    </h3>
+                    {routineTitle && (
+                      <p className="text-sm text-zinc-500 dark:text-[#8E95A2] mt-0.5">
+                        Ficha: <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{routineTitle}</strong>
+                      </p>
+                    )}
+                    {effectiveExerciseCount > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 pt-1 text-xs sm:text-sm text-zinc-500 dark:text-[#8E95A2]">
+                        <span>
+                          {effectiveExerciseCount} {effectiveExerciseCount === 1 ? "exercício" : "exercícios"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : isRestDay ? (
                   <div className="p-4 sm:p-5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-[#303238] space-y-1.5 text-left">
                     <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
                       Hoje é dia de descanso
@@ -500,8 +568,87 @@ export function StudentFocusSection({
             ) : hasTraining ? (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
-                  {/* Situação 1: Dia de Descanso -> UMA única entrada clara para escolher outro treino */}
-                  {isRestDay ? (
+                  {selectedDivision ? (
+                    isSelectedDivisionActive ? (
+                      <>
+                        <Link
+                          href={trainingActionHref}
+                          className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs select-none"
+                        >
+                          <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
+                          <span>Continuar treino</span>
+                          <span>→</span>
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={handleOpenCompletionForActive}
+                          className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                        >
+                          <span>Finalizar treino</span>
+                        </button>
+                        <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)} />
+                        {dailyWorkoutResolution?.canChangeDivision && (
+                          <button
+                            type="button"
+                            onClick={() => setIsPickerOpen(true)}
+                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                          >
+                            <span>Escolher outro treino</span>
+                            <span>→</span>
+                          </button>
+                        )}
+                      </>
+                    ) : isSelectedDivisionDone ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)}
+                          className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                        >
+                          <span>Treinar novamente</span>
+                          <span>→</span>
+                        </button>
+                        <Link
+                          href={trainingActionHref}
+                          className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                        >
+                          <span>Ver resumo do treino</span>
+                        </Link>
+                        <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)} />
+                        {dailyWorkoutResolution?.canChangeDivision && (
+                          <button
+                            type="button"
+                            onClick={() => setIsPickerOpen(true)}
+                            className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                          >
+                            <span>Escolher outro treino</span>
+                            <span>→</span>
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          href={trainingActionHref}
+                          className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                        >
+                          <span>Começar treino</span>
+                          <span>→</span>
+                        </Link>
+                        <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent(selectedDivision.publicId, selectedDivision.title)} />
+                        {dailyWorkoutResolution?.canChangeDivision && (
+                          <button
+                            type="button"
+                            onClick={() => setIsPickerOpen(true)}
+                            className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-semibold text-sm sm:text-base bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
+                          >
+                            <span>Escolher outro treino</span>
+                            <span>→</span>
+                          </button>
+                        )}
+                      </>
+                    )
+                  ) : isRestDay ? (
                     dailyWorkoutResolution?.canChangeDivision ? (
                       <button
                         type="button"
@@ -514,13 +661,21 @@ export function StudentFocusSection({
                     ) : null
                   ) : isCompletedToday ? (
                     <>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenRestartForCurrent()}
+                        className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none"
+                      >
+                        <span>Treinar novamente</span>
+                        <span>→</span>
+                      </button>
                       <Link
                         href={trainingActionHref}
-                        className="w-full sm:w-auto px-5 min-h-[48px] rounded-xl font-bold text-sm bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
+                        className="w-full sm:w-auto px-4 min-h-[48px] rounded-xl font-semibold text-sm bg-white dark:bg-[#151619] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
                       >
                         <span>Ver resumo do treino</span>
-                        <span>→</span>
                       </Link>
+                      <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent()} />
                       {dailyWorkoutResolution?.canChangeDivision && (
                         <button
                           type="button"
@@ -592,6 +747,7 @@ export function StudentFocusSection({
                         <span>Começar treino</span>
                         <span>→</span>
                       </Link>
+                      <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForCurrent()} />
                       {dailyWorkoutResolution?.canChangeDivision && (
                         <button
                           type="button"
@@ -755,8 +911,9 @@ export function StudentFocusSection({
           consultancySlug={consultancySlug}
           divisions={dailyWorkoutResolution?.availableDivisions || []}
           assignmentPublicId={dailyWorkoutResolution?.assignmentPublicId || activeTraining?.workouts?.[0]?.publicId || ""}
-          currentDivisionPublicId={dailyWorkoutResolution?.targetBlockPublicId}
+          currentDivisionPublicId={selectedDivisionPublicId ?? dailyWorkoutResolution?.targetBlockPublicId}
           hasActiveSession={isSessionInProgress}
+          onSelectDivision={(pubId) => setSelectedDivisionPublicId(pubId)}
         />
       )}
 

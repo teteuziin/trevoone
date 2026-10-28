@@ -224,6 +224,7 @@ export async function resolveStudentDailyWorkout(
            AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
            AND wes.status = 'IN_PROGRESS'
            AND wa.deleted_at IS NULL
+         ORDER BY wes.started_at DESC, wes.id DESC
          LIMIT 1;`,
         [ctx.consultancyId!, ctx.membershipId!, ctx.userId, ctx.consultancyId!]
       );
@@ -250,8 +251,9 @@ export async function resolveStudentDailyWorkout(
              WHERE wes.consultancy_id = ?
                AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
                AND wes.status = 'IN_PROGRESS'
-               AND wa.deleted_at IS NULL
-             LIMIT 1;`,
+           AND wa.deleted_at IS NULL
+         ORDER BY wes.started_at DESC, wes.id DESC
+         LIMIT 1;`,
             [ctx.consultancyId!, ctx.membershipId!, ctx.userId, ctx.consultancyId!]
           );
           inProgressRows = rows;
@@ -276,8 +278,9 @@ export async function resolveStudentDailyWorkout(
                WHERE wes.consultancy_id = ?
                  AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
                  AND wes.status = 'IN_PROGRESS'
-                 AND wa.deleted_at IS NULL
-               LIMIT 1;`,
+           AND wa.deleted_at IS NULL
+         ORDER BY wes.started_at DESC, wes.id DESC
+         LIMIT 1;`,
               [ctx.consultancyId!, ctx.membershipId!, ctx.userId, ctx.consultancyId!]
             );
             inProgressRows = rows;

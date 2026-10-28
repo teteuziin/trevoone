@@ -13,6 +13,7 @@ export interface WorkoutDivisionPickerModalProps {
   divisions: DailyWorkoutDivisionOption[];
   currentDivisionPublicId?: string | null;
   hasActiveSession?: boolean;
+  onSelectDivision?: (publicId: string) => void;
 }
 
 export function WorkoutDivisionPickerModal({
@@ -23,6 +24,7 @@ export function WorkoutDivisionPickerModal({
   divisions,
   currentDivisionPublicId,
   hasActiveSession = false,
+  onSelectDivision,
 }: WorkoutDivisionPickerModalProps) {
   const router = useRouter();
   const [overridePublicId, setOverridePublicId] = useState<string | null>(null);
@@ -52,6 +54,9 @@ export function WorkoutDivisionPickerModal({
 
   const handleConfirm = () => {
     if (!selectedPublicId) return;
+    if (onSelectDivision) {
+      onSelectDivision(selectedPublicId);
+    }
     handleClose();
     // Navega para a página de execução com o parâmetro de query bloco selecionado
     router.push(
@@ -210,6 +215,20 @@ export function WorkoutDivisionPickerModal({
           >
             Cancelar
           </button>
+          {onSelectDivision && (
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedPublicId) {
+                  onSelectDivision(selectedPublicId);
+                  handleClose();
+                }
+              }}
+              className="min-h-[44px] px-4 rounded-xl font-semibold text-xs sm:text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-colors cursor-pointer"
+            >
+              Selecionar no painel
+            </button>
+          )}
           <button
             type="button"
             onClick={handleConfirm}

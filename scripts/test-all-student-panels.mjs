@@ -235,6 +235,66 @@ assert.ok(
 );
 console.log("✓ Roteamento multi-role e autorização server-side verificados.");
 
+// =========================================================================
+// 10. CONTROLES DE TREINO UNIVERSAIS (COMEÇAR DO INÍCIO, RETOMAR, FINALIZAR)
+// =========================================================================
+console.log("\n10. Verificando controles de treino universais para todos os alunos...");
+
+const repoPath = path.resolve("lib/training-v2/execution-repository.ts");
+const resolverPath = path.resolve("lib/training-v2/daily-workout-resolver.ts");
+const pickerPath = path.resolve("components/dashboard/student/sections/workout-division-picker-modal.tsx");
+
+const repoCode = fs.readFileSync(repoPath, "utf-8");
+const resolverCode = fs.readFileSync(resolverPath, "utf-8");
+const pickerCode = fs.readFileSync(pickerPath, "utf-8");
+
+// 10.1 Ordenação do resolver para capturar sempre a sessão mais recente
+assert.ok(
+  resolverCode.includes("ORDER BY wes.started_at DESC, wes.id DESC"),
+  "daily-workout-resolver deve ordenar sessões IN_PROGRESS por started_at DESC, id DESC"
+);
+
+// 10.2 Preservação de ciclo de vida seguro no repositório (ABANDON)
+assert.ok(
+  repoCode.includes("options?.resolveConflict === \"ABANDON\"") &&
+  repoCode.includes("SET status = 'ABANDONED'"),
+  "execution-repository deve marcar sessão anterior como ABANDONED ao recomeçar do início"
+);
+
+// 10.3 Começar do início no Dashboard para treinos agendados, em andamento, concluídos e divisões alternativas
+assert.ok(
+  focusCode.includes("handleOpenRestartForCurrent"),
+  "student-focus-section deve conter handleOpenRestartForCurrent"
+);
+assert.ok(
+  focusCode.includes("Treinar novamente"),
+  "student-focus-section deve disponibilizar 'Treinar novamente' após treino concluído"
+);
+assert.ok(
+  focusCode.includes("setSelectedDivisionPublicId"),
+  "student-focus-section deve suportar seleção de divisão sem alterar programação semanal"
+);
+
+// 10.4 Finalizar treino e Mais opções em student-treinos-client-view
+assert.ok(
+  treinosCode.includes("handleOpenCompletionForActive"),
+  "student-treinos-client-view deve permitir finalizar sessão ativa do dia"
+);
+assert.ok(
+  treinosCode.includes("handleOpenRestartForActive"),
+  "student-treinos-client-view deve permitir recomeçar sessão ativa do dia"
+);
+assert.ok(
+  pickerCode.includes("onSelectDivision"),
+  "workout-division-picker-modal deve aceitar callback onSelectDivision"
+);
+assert.ok(
+  pickerCode.includes("Selecionar no painel"),
+  "workout-division-picker-modal deve oferecer 'Selecionar no painel'"
+);
+
+console.log("✓ Controles universais (Começar do início, Retomar, Finalizar e Trocar divisão) 100% verificados.");
+
 console.log("\n==================================================");
 console.log("TODOS OS TESTES DE ESCOPO GERAL DOS ALUNOS PASSARAM!");
 console.log("==================================================");

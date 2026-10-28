@@ -699,7 +699,81 @@ export async function startOrResumeWorkoutExecution(
         requestedTargetBlock != null &&
         (activeBlockId == null || requestedTargetBlock.id !== activeBlockId);
 
-      if (isConflict) {
+      if (options?.resolveConflict === "ABANDON") {
+        // End previous session as interrupted: mark ABANDONED (preserves all sets, reps, and loads)
+        await connection.execute<ResultSetHeader>(
+          `UPDATE workout_execution_sessions
+           SET status = 'ABANDONED', updated_at = NOW(3)
+           WHERE id = ?;`,
+          [activeSession.id]
+        );
+        // If no explicit requestedTargetBlock was passed, restart the same block that was active
+        if (!requestedTargetBlock && activeBlockId != null) {
+          const [bRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT id, public_id, title, sort_order
+             FROM workout_blocks
+             WHERE id = ?
+             LIMIT 1;`,
+            [activeBlockId]
+          );
+          if (bRows && bRows.length > 0) {
+            requestedTargetBlock = bRows[0] as unknown as {
+              id: number;
+              public_id: string;
+              title: string;
+              sort_order: number;
+            };
+          }
+        }
+        // Proceed to create new session for targetBlock below!
+      } else if (options?.resolveConflict === "COMPLETE_EARLY") {
+        // Conclude previous session early: mark pending sets as skipped and session COMPLETED
+        try {
+          await connection.execute<ResultSetHeader>(
+            `UPDATE workout_execution_sets
+             SET completed_at = NOW(3), is_skipped = 1, updated_at = NOW(3)
+             WHERE execution_session_id = ? AND completed_at IS NULL;`,
+            [activeSession.id]
+          );
+        } catch (err: unknown) {
+          if (isMissingColumnError(err, ["is_skipped"])) {
+            await connection.execute<ResultSetHeader>(
+              `UPDATE workout_execution_sets
+               SET completed_at = NOW(3), updated_at = NOW(3)
+               WHERE execution_session_id = ? AND completed_at IS NULL;`,
+              [activeSession.id]
+            );
+          } else {
+            throw err;
+          }
+        }
+
+        await connection.execute<ResultSetHeader>(
+          `UPDATE workout_execution_sessions
+           SET status = 'COMPLETED', completed_at = NOW(3), updated_at = NOW(3)
+           WHERE id = ?;`,
+          [activeSession.id]
+        );
+        // If no explicit requestedTargetBlock was passed, restart the same block that was active
+        if (!requestedTargetBlock && activeBlockId != null) {
+          const [bRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT id, public_id, title, sort_order
+             FROM workout_blocks
+             WHERE id = ?
+             LIMIT 1;`,
+            [activeBlockId]
+          );
+          if (bRows && bRows.length > 0) {
+            requestedTargetBlock = bRows[0] as unknown as {
+              id: number;
+              public_id: string;
+              title: string;
+              sort_order: number;
+            };
+          }
+        }
+        // Proceed to create new session for targetBlock below!
+      } else if (isConflict) {
         if (options?.resolveConflict === "RESUME") {
           // Explicit resume of active session
           const setRows = await queryExecutionSetsBySessionId(connection, Number(activeSession.id));
@@ -722,44 +796,6 @@ export async function startOrResumeWorkoutExecution(
             updatedAt: new Date(activeSession.updated_at),
             sets: setRows.map(mapExecutionSetRow),
           };
-        } else if (options?.resolveConflict === "COMPLETE_EARLY") {
-          // Conclude previous session early: mark pending sets as skipped and session COMPLETED
-          try {
-            await connection.execute<ResultSetHeader>(
-              `UPDATE workout_execution_sets
-               SET completed_at = NOW(3), is_skipped = 1, updated_at = NOW(3)
-               WHERE execution_session_id = ? AND completed_at IS NULL;`,
-              [activeSession.id]
-            );
-          } catch (err: unknown) {
-            if (isMissingColumnError(err, ["is_skipped"])) {
-              await connection.execute<ResultSetHeader>(
-                `UPDATE workout_execution_sets
-                 SET completed_at = NOW(3), updated_at = NOW(3)
-                 WHERE execution_session_id = ? AND completed_at IS NULL;`,
-                [activeSession.id]
-              );
-            } else {
-              throw err;
-            }
-          }
-
-          await connection.execute<ResultSetHeader>(
-            `UPDATE workout_execution_sessions
-             SET status = 'COMPLETED', completed_at = NOW(3), updated_at = NOW(3)
-             WHERE id = ?;`,
-            [activeSession.id]
-          );
-          // Proceed to create new session for requestedTargetBlock below!
-        } else if (options?.resolveConflict === "ABANDON") {
-          // End previous session as interrupted: mark ABANDONED (preserves all sets, reps, and loads)
-          await connection.execute<ResultSetHeader>(
-            `UPDATE workout_execution_sessions
-             SET status = 'ABANDONED', updated_at = NOW(3)
-             WHERE id = ?;`,
-            [activeSession.id]
-          );
-          // Proceed to create new session for requestedTargetBlock below!
         } else {
           // No resolution specified: throw conflict error for explicit user choice
           await connection.commit();

@@ -96,6 +96,30 @@ export function StudentTreinosClientView({
     });
   };
 
+  const handleOpenCompletionForActive = () => {
+    if (!dailyWorkout?.activeSessionPublicId) return;
+    setSessionToComplete({
+      sessionPublicId: dailyWorkout.activeSessionPublicId,
+      divisionTitle: effectiveRecommendedDivision?.divisionTitle || dailyWorkout.divisionTitle,
+      startedFormatted: dailyWorkout.activeSessionStartedFormatted || "Hoje",
+      totalExercisesCount: effectiveRecommendedDivision?.exerciseCount || 0,
+      completedExercisesCount: dailyWorkout.completedExercisesCount ?? 0,
+      totalSetsCount: dailyWorkout.totalSetsCount,
+      completedSetsCount: dailyWorkout.completedSetsCount,
+    });
+  };
+
+  const handleOpenRestartForActive = (targetBlockPublicId?: string | null, targetTitle?: string) => {
+    const assignmentId = dailyWorkout?.assignmentPublicId || primaryAssignment?.assignmentPublicId;
+    if (!assignmentId) return;
+    setSessionToRestart({
+      assignmentPublicId: assignmentId,
+      blockPublicId: targetBlockPublicId ?? dailyWorkout?.targetBlockPublicId ?? null,
+      divisionTitle: targetTitle || effectiveRecommendedDivision?.divisionTitle || "Ficha de treino",
+      startedFormatted: dailyWorkout?.activeSessionStartedFormatted || undefined,
+    });
+  };
+
   const handleCompletionSuccess = () => {
     router.refresh();
   };
@@ -136,7 +160,7 @@ export function StudentTreinosClientView({
   }, [dailyWorkout, primaryWorkoutDetail]);
 
   // Divisão recomendada para hoje infalível
-  const effectiveRecommendedDivision = useMemo(() => {
+  const effectiveRecommendedDivision = (() => {
     if (dailyWorkout && dailyWorkout.targetBlockPublicId && dailyWorkout.status !== "ERROR") {
       return {
         divisionTitle: dailyWorkout.divisionTitle,
@@ -170,7 +194,15 @@ export function StudentTreinosClientView({
       };
     }
     return null;
-  }, [dailyWorkout, primaryAssignment, derivedDivisions, consultancySlug]);
+  })();
+
+  const isActiveSessionAllDone = Boolean(
+    dailyWorkout?.status === "IN_PROGRESS" &&
+      ((dailyWorkout?.totalSetsCount &&
+        (dailyWorkout?.completedSetsCount ?? 0) >= dailyWorkout.totalSetsCount) ||
+        ((effectiveRecommendedDivision?.exerciseCount ?? 0) > 0 &&
+          (dailyWorkout?.completedExercisesCount ?? 0) >= (effectiveRecommendedDivision?.exerciseCount ?? 0)))
+  );
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 pb-20 overflow-x-hidden">
@@ -315,19 +347,81 @@ export function StudentTreinosClientView({
 
           {/* Ações: Começar treino (min-52px, verde Trevo One) + Escolher outro treino */}
           <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[var(--border-subtle)]">
-            <Link
-              href={effectiveRecommendedDivision.actionHref}
-              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-extrabold text-sm sm:text-base text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 min-h-[52px] shadow-sm transition-all cursor-pointer flex-1 sm:flex-initial"
-            >
-              <span>{effectiveRecommendedDivision.actionLabel || "Começar treino"}</span>
-              <span>→</span>
-            </Link>
+            {effectiveRecommendedDivision.status === "IN_PROGRESS" ? (
+              isActiveSessionAllDone ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleOpenCompletionForActive}
+                    className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-extrabold text-sm sm:text-base text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 min-h-[52px] shadow-sm transition-all cursor-pointer flex-1 sm:flex-initial select-none"
+                  >
+                    <span>✓ Finalizar treino</span>
+                  </button>
+                  <Link
+                    href={effectiveRecommendedDivision.actionHref}
+                    className="inline-flex items-center justify-center px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)] min-h-[48px] transition-colors cursor-pointer select-none"
+                  >
+                    <span>Ver treino</span>
+                    <span>→</span>
+                  </Link>
+                  <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForActive()} />
+                </>
+              ) : (
+                <>
+                  <Link
+                    href={effectiveRecommendedDivision.actionHref}
+                    className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-extrabold text-sm sm:text-base text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 min-h-[52px] shadow-sm transition-all cursor-pointer flex-1 sm:flex-initial select-none"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
+                    <span>Continuar treino</span>
+                    <span>→</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleOpenCompletionForActive}
+                    className="inline-flex items-center justify-center px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)] min-h-[48px] transition-colors cursor-pointer select-none"
+                  >
+                    <span>Finalizar treino</span>
+                  </button>
+                  <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForActive()} />
+                </>
+              )
+            ) : effectiveRecommendedDivision.status === "COMPLETED_TODAY" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleOpenRestartForActive()}
+                  className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-extrabold text-sm sm:text-base text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 min-h-[52px] shadow-sm transition-all cursor-pointer flex-1 sm:flex-initial select-none"
+                >
+                  <span>Treinar novamente</span>
+                  <span>→</span>
+                </button>
+                <Link
+                  href={effectiveRecommendedDivision.actionHref}
+                  className="inline-flex items-center justify-center px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)] min-h-[48px] transition-colors cursor-pointer select-none"
+                >
+                  <span>Ver resumo</span>
+                </Link>
+                <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForActive()} />
+              </>
+            ) : (
+              <>
+                <Link
+                  href={effectiveRecommendedDivision.actionHref}
+                  className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-extrabold text-sm sm:text-base text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 min-h-[52px] shadow-sm transition-all cursor-pointer flex-1 sm:flex-initial select-none"
+                >
+                  <span>{effectiveRecommendedDivision.actionLabel || "Começar treino"}</span>
+                  <span>→</span>
+                </Link>
+                <SessionMoreOptionsMenu onRestart={() => handleOpenRestartForActive()} />
+              </>
+            )}
 
             {effectiveRecommendedDivision.canChangeDivision && (
               <button
                 type="button"
                 onClick={() => setIsPickerOpen(true)}
-                className="inline-flex items-center justify-center px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)] min-h-[48px] transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)] min-h-[48px] transition-colors cursor-pointer select-none"
               >
                 <span>Escolher outro treino</span>
               </button>
@@ -355,6 +449,7 @@ export function StudentTreinosClientView({
             {derivedDivisions.map((div, dIdx) => {
               const isTodayDiv = div.publicId === effectiveRecommendedDivision?.assignmentPublicId || div.status === "SCHEDULED_TODAY";
               const isDoneToday = div.status === "COMPLETED_TODAY";
+              const isInProgress = div.status === "IN_PROGRESS";
               const href = buildStudentWorkoutExecutionUrl(
                 consultancySlug,
                 primaryAssignment.assignmentPublicId,
@@ -375,7 +470,13 @@ export function StudentTreinosClientView({
                       <span className="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center justify-center">
                         {String.fromCharCode(65 + dIdx)}
                       </span>
-                      {isTodayDiv && (
+                      {isInProgress && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          Em andamento
+                        </span>
+                      )}
+                      {isTodayDiv && !isInProgress && (
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                           Previsto para hoje
                         </span>
@@ -407,12 +508,20 @@ export function StudentTreinosClientView({
                   <Link
                     href={href}
                     className={`w-full min-h-[48px] rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                      isTodayDiv
+                      isTodayDiv || isInProgress
                         ? "bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white shadow-xs"
                         : "bg-[var(--surface-subtle)] hover:bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-default)]"
                     }`}
                   >
-                    <span>{isTodayDiv ? "Treinar hoje" : "Treinar esta divisão"}</span>
+                    <span>
+                      {isInProgress
+                        ? "Continuar treino"
+                        : isDoneToday
+                        ? "Treinar novamente"
+                        : isTodayDiv
+                        ? "Treinar hoje"
+                        : "Treinar esta divisão"}
+                    </span>
                     <span>→</span>
                   </Link>
                 </div>

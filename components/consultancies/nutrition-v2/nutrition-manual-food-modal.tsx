@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useTransition } from "react";
 import { registerFoodManuallyAction } from "@/app/consultoria/[slug]/planos-v2/actions";
@@ -9,19 +9,49 @@ interface NutritionManualFoodModalProps {
   isOpen: boolean;
   onClose: () => void;
   onFoodCreated: (result: FoodSelectionResult) => void;
+  initialName?: string;
+  initialBrand?: string;
+  initialReferenceAmount?: number;
+  initialReferenceUnitCode?: string;
+  prescribedQuantityHint?: number | null;
+  prescribedUnitHint?: string | null;
 }
 
-export function NutritionManualFoodModal({
+export function NutritionManualFoodModal(props: NutritionManualFoodModalProps) {
+  if (!props.isOpen) return null;
+  return (
+    <NutritionManualFoodModalContent
+      key={`${props.initialName || ""}-${props.prescribedQuantityHint || ""}`}
+      {...props}
+    />
+  );
+}
+
+function NutritionManualFoodModalContent({
   slug,
-  isOpen,
   onClose,
   onFoodCreated,
+  initialName = "",
+  initialBrand = "",
+  initialReferenceAmount,
+  initialReferenceUnitCode = "G",
+  prescribedQuantityHint,
+  prescribedUnitHint = "g",
 }: NutritionManualFoodModalProps) {
-  const [name, setName] = useState("");
-  const [brand, setBrand] = useState("");
+  const [name, setName] = useState(initialName);
+  const [brand, setBrand] = useState(initialBrand);
   const [category, setCategory] = useState("");
-  const [referenceAmount, setReferenceAmount] = useState("100");
-  const [referenceUnitCode, setReferenceUnitCode] = useState("G");
+  const [referenceAmount, setReferenceAmount] = useState(
+    initialReferenceAmount
+      ? String(initialReferenceAmount)
+      : prescribedQuantityHint
+      ? String(prescribedQuantityHint)
+      : "100"
+  );
+  const [referenceUnitCode, setReferenceUnitCode] = useState(
+    initialReferenceUnitCode ||
+      (prescribedUnitHint?.toUpperCase() === "ML" || prescribedUnitHint?.toUpperCase() === "L" ? "ML" : "G")
+  );
   const [caloriesKcal, setCaloriesKcal] = useState("");
   const [proteinG, setProteinG] = useState("");
   const [carbohydrateG, setCarbohydrateG] = useState("");
@@ -32,8 +62,6 @@ export function NutritionManualFoodModal({
   const [sourceReference, setSourceReference] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  if (!isOpen) return null;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -176,48 +204,82 @@ export function NutritionManualFoodModal({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
-                  Porção Ref. *
+            <div className="space-y-1.5 sm:col-span-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <label className="block text-xs font-bold text-[var(--text-primary)]">
+                  Base de Referência dos Nutrientes *
                 </label>
-                <input
-                  type="number"
-                  step="any"
-                  required
-                  value={referenceAmount}
-                  onChange={(e) => setReferenceAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm text-center font-bold rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
-                />
+                <div className="flex items-center gap-1 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => { setReferenceAmount("100"); setReferenceUnitCode("G"); }}
+                    className="px-2 py-0.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[10px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                  >
+                    100 g
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setReferenceAmount("100"); setReferenceUnitCode("ML"); }}
+                    className="px-2 py-0.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[10px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                  >
+                    100 ml
+                  </button>
+                  {prescribedQuantityHint && prescribedQuantityHint > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReferenceAmount(String(prescribedQuantityHint));
+                        setReferenceUnitCode(prescribedUnitHint?.toUpperCase() === "ML" ? "ML" : "G");
+                      }}
+                      className="px-2 py-0.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
+                    >
+                      Porção informada ({prescribedQuantityHint} {prescribedUnitHint || "g"})
+                    </button>
+                  )}
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
-                  Unidade *
-                </label>
-                <select
-                  value={referenceUnitCode}
-                  onChange={(e) => setReferenceUnitCode(e.target.value)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
-                >
-                  <option value="G">g (gramas)</option>
-                  <option value="ML">ml (mililitros)</option>
-                  <option value="UNIDADE">unidade</option>
-                  <option value="PORCAO">porção</option>
-                </select>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={referenceAmount}
+                    onChange={(e) => setReferenceAmount(e.target.value)}
+                    className="w-full px-3 py-2 text-xs sm:text-sm text-center font-bold rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+                  />
+                </div>
+                <div>
+                  <select
+                    value={referenceUnitCode}
+                    onChange={(e) => setReferenceUnitCode(e.target.value)}
+                    className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+                  >
+                    <option value="G">g (gramas)</option>
+                    <option value="ML">ml (mililitros)</option>
+                    <option value="UNIDADE">unidade</option>
+                    <option value="PORCAO">porção</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Macros Grid */}
           <div className="p-3.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)]/40 space-y-3">
-            <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">
-              Composição Nutricional (por porção de referência)
-            </span>
+            <div className="space-y-0.5">
+              <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">
+                Composição Nutricional (por porção de referência)
+              </span>
+              <p className="text-[11px] text-[var(--text-tertiary)]">
+                Campos em branco são registrados como não informados (—). Se o alimento comprovadamente não contém o nutriente (ex: 0g de gordura), digite 0.
+              </p>
+            </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <div>
                 <label className="block text-[11px] font-bold text-[var(--text-secondary)] mb-1">
-                  Calorias (kcal) *
+                  Calorias (kcal)
                 </label>
                 <input
                   type="number"

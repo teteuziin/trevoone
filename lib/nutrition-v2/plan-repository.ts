@@ -362,6 +362,8 @@ export type AddMealItemInput = {
 
 export type UpdateMealItemInput = {
   foodPublicId?: string | null;
+  foodNameSnapshot?: string | null;
+  preserveFoodName?: boolean;
   prescribedQuantity?: number | null;
   prescribedUnitCode?: string | null;
   prescribedUnitLabel?: string | null;
@@ -387,6 +389,8 @@ export type AddSubstitutionInput = {
 
 export type UpdateSubstitutionInput = {
   foodPublicId?: string | null;
+  foodNameSnapshot?: string | null;
+  preserveFoodName?: boolean;
   prescribedQuantity?: number | null;
   prescribedUnitCode?: string | null;
   prescribedUnitLabel?: string | null;
@@ -2038,6 +2042,9 @@ export async function updateMealItem(
     let categorySnapshot = item.category_snapshot ? String(item.category_snapshot) : null;
     let foodReplaced = false;
 
+    if (input.foodNameSnapshot !== undefined && input.foodNameSnapshot !== null && !input.foodPublicId) {
+      foodNameSnapshot = input.foodNameSnapshot.trim();
+    }
     if (input.foodPublicId !== undefined) {
       if (input.foodPublicId && input.foodPublicId.trim()) {
         const [foods] = await connection.query<RowDataPacket[]>(
@@ -2056,7 +2063,13 @@ export async function updateMealItem(
         }
         effectiveFoodId = Number(newFood.id);
         effectiveFoodRow = newFood;
-        foodNameSnapshot = String(newFood.display_name_pt_br || newFood.name);
+        if (input.foodNameSnapshot !== undefined && input.foodNameSnapshot !== null) {
+          foodNameSnapshot = input.foodNameSnapshot.trim();
+        } else if (input.preserveFoodName !== false && item.food_name_snapshot && String(item.food_name_snapshot).trim()) {
+          foodNameSnapshot = String(item.food_name_snapshot);
+        } else {
+          foodNameSnapshot = String(newFood.display_name_pt_br || newFood.name);
+        }
         categorySnapshot = newFood.category ? String(newFood.category) : null;
         foodReplaced = true;
       } else {
@@ -2092,14 +2105,13 @@ export async function updateMealItem(
     let carbsSnapshot = item.carbohydrate_g_snapshot != null ? Number(item.carbohydrate_g_snapshot) : null;
     let fatSnapshot = item.fat_g_snapshot != null ? Number(item.fat_g_snapshot) : null;
     let factor: number | null = null;
+    let portionEquivalentAmount: number | null = input.portionEquivalentAmount !== undefined ? input.portionEquivalentAmount : null;
 
     // Recalculate if library food and quantities/portion changed or food replaced
     if (effectiveFoodId != null && effectiveFoodRow != null) {
       if (prescribedQuantity == null || prescribedQuantity <= 0) {
         throw new NutritionAuthorizationError("A quantidade prescrita deve ser um número positivo e finito.", "INVALID_QUANTITY", 400);
       }
-
-      let portionEquivalentAmount: number | null = input.portionEquivalentAmount !== undefined ? input.portionEquivalentAmount : null;
       if (input.portionPublicId !== undefined) {
         if (input.portionPublicId && input.portionPublicId.trim()) {
           let portions: RowDataPacket[] = [];
@@ -2335,6 +2347,27 @@ export async function updateMealItem(
         throw updateErr;
       }
     }
+
+    // Reset reviewed without nutrition acknowledgment if prescription changed
+    try {
+      const [vRows] = await connection.query<RowDataPacket[]>(
+        "SELECT guidance_json FROM nutrition_v2_plan_versions WHERE id = ? FOR UPDATE",
+        [item.nutrition_plan_version_id]
+      );
+      if (vRows.length > 0 && vRows[0].guidance_json) {
+        let gj: Record<string, unknown> | null = vRows[0].guidance_json as Record<string, unknown> | null;
+        if (typeof gj === "string") {
+          try { gj = JSON.parse(gj); } catch { gj = null; }
+        }
+        if (gj && gj.reviewedWithoutNutrition && typeof gj.reviewedWithoutNutrition === 'object' && (gj.reviewedWithoutNutrition as Record<string, unknown>)[itemPublicId]) {
+          delete (gj.reviewedWithoutNutrition as Record<string, unknown>)[itemPublicId];
+          await connection.query(
+            "UPDATE nutrition_v2_plan_versions SET guidance_json = ?, updated_at = UTC_TIMESTAMP(3) WHERE id = ?",
+            [JSON.stringify(gj), item.nutrition_plan_version_id]
+          );
+        }
+      }
+    } catch {}
 
     // When base item food_id, quantity, or unit changes: mark child substitutions as STALE (Rule 21 & 22)
     const isBaseFoodChanged = foodReplaced && effectiveFoodId !== (item.food_id != null ? Number(item.food_id) : null);
@@ -2974,7 +3007,13 @@ export async function updateSubstitution(
         }
         effectiveFoodId = Number(newFood.id);
         effectiveFoodRow = newFood;
-        foodNameSnapshot = String(newFood.display_name_pt_br || newFood.name);
+        if (input.foodNameSnapshot !== undefined && input.foodNameSnapshot !== null) {
+          foodNameSnapshot = input.foodNameSnapshot.trim();
+        } else if (input.preserveFoodName !== false && sub.food_name_snapshot && String(sub.food_name_snapshot).trim()) {
+          foodNameSnapshot = String(sub.food_name_snapshot);
+        } else {
+          foodNameSnapshot = String(newFood.display_name_pt_br || newFood.name);
+        }
         foodReplaced = true;
       } else {
         effectiveFoodId = null;
@@ -3043,13 +3082,12 @@ export async function updateSubstitution(
     let carbsSnapshot = sub.carbohydrate_g_snapshot != null ? Number(sub.carbohydrate_g_snapshot) : null;
     let fatSnapshot = sub.fat_g_snapshot != null ? Number(sub.fat_g_snapshot) : null;
     let factor: number | null = null;
+    let portionEquivalentAmount: number | null = input.portionEquivalentAmount !== undefined ? input.portionEquivalentAmount : null;
 
     if (effectiveFoodId != null && effectiveFoodRow != null) {
       if (prescribedQuantity == null || prescribedQuantity <= 0) {
         throw new NutritionAuthorizationError("A quantidade prescrita deve ser um número positivo e finito.", "INVALID_QUANTITY", 400);
       }
-
-      let portionEquivalentAmount: number | null = input.portionEquivalentAmount !== undefined ? input.portionEquivalentAmount : null;
       if (input.portionPublicId !== undefined) {
         if (input.portionPublicId && input.portionPublicId.trim()) {
           let portions: RowDataPacket[] = [];
@@ -3514,8 +3552,10 @@ export async function publishPlanVersion(
   ctx: NutritionAccessContext,
   planPublicId: string,
   versionPublicId: string,
-  testHook?: "FAIL_BEFORE_ARCHIVE" | "FAIL_AFTER_ARCHIVE" | "FAIL_BEFORE_COMMIT"
-): Promise<{ success: boolean; versionPublicId: string; status: string; publishedAt: string }> {
+  optionsOrHook?: { allowPartialNutrition?: boolean; testHook?: string } | "FAIL_BEFORE_ARCHIVE" | "FAIL_AFTER_ARCHIVE" | "FAIL_BEFORE_COMMIT"
+): Promise<{ success: boolean; versionPublicId: string; status: string; publishedAt: string; isPartialNutrition?: boolean }> {
+  const allowPartial = typeof optionsOrHook === "object" ? Boolean(optionsOrHook?.allowPartialNutrition) : false;
+  const testHook = typeof optionsOrHook === "string" ? optionsOrHook : optionsOrHook?.testHook;
   assertCanAuthorNutrition(ctx);
 
   let connection;
@@ -3542,7 +3582,7 @@ export async function publishPlanVersion(
 
     // 2. Lock target version and verify relationship
     const [targetVersions] = await connection.query<RowDataPacket[]>(
-      `SELECT id, public_id, nutrition_plan_id, version_number, status, published_at
+      `SELECT id, public_id, nutrition_plan_id, version_number, status, published_at, title, guidance_json
        FROM nutrition_v2_plan_versions
        WHERE public_id = ? AND nutrition_plan_id = ? AND deleted_at IS NULL FOR UPDATE`,
       [versionPublicId, plan.id]
@@ -3581,14 +3621,25 @@ export async function publishPlanVersion(
     // 4. Validate persisted tree for publication
     const validation = validatePlanTreeForPublication(tree);
     if (!validation.valid) {
-      throw new NutritionAuthorizationError(
-        validation.errors[0] || "Plano incompleto para publicação.",
-        validation.pendingItems && validation.pendingItems.length > 0
-          ? "PLAN_NUTRITION_INCOMPLETE"
-          : "PUBLICATION_VALIDATION_FAILED",
-        400,
-        validation.pendingItems
-      );
+      if (validation.hasFatalErrors || (validation.fatalErrors && validation.fatalErrors.length > 0)) {
+        throw new NutritionAuthorizationError(
+          validation.fatalErrors[0] || "Plano com dados impeditivos para publicação.",
+          "PUBLICATION_VALIDATION_FAILED",
+          400,
+          validation.pendingItems
+        );
+      }
+
+      if (!allowPartial) {
+        throw new NutritionAuthorizationError(
+          validation.errors[0] || "Plano incompleto para publicação.",
+          validation.pendingItems && validation.pendingItems.length > 0
+            ? "PLAN_NUTRITION_INCOMPLETE"
+            : "PUBLICATION_VALIDATION_FAILED",
+          400,
+          validation.pendingItems
+        );
+      }
     }
 
     if (testHook === "FAIL_BEFORE_ARCHIVE") {
@@ -3617,12 +3668,72 @@ export async function publishPlanVersion(
 
     // 6. Transition target version DRAFT -> PUBLISHED
     const nowIso = new Date().toISOString();
-    await connection.query(
-      `UPDATE nutrition_v2_plan_versions
-       SET status = 'PUBLISHED', published_at = UTC_TIMESTAMP(3), updated_at = UTC_TIMESTAMP(3)
-       WHERE id = ?`,
-      [target.id]
-    );
+    const hasPartialPending = validation.pendingItems && validation.pendingItems.length > 0;
+
+    let updatedGuidanceJson: string | null = null;
+    if (hasPartialPending) {
+      let gj: Record<string, unknown> | null = target.guidance_json as Record<string, unknown> | null;
+      if (typeof gj === "string") {
+        try { gj = JSON.parse(gj); } catch { gj = null; }
+      }
+      if (!gj || typeof gj !== "object") {
+        gj = { schemaVersion: 1, recommendations: [], supplements: [], phytotherapeutics: [] };
+      }
+      gj.partialPublicationAudit = {
+        authorizedByMembershipId: ctx.membershipId,
+        authorizedByName: "Profissional",
+        authorizedAt: nowIso,
+        pendingItemsCount: validation.pendingItems.length,
+        pendingItems: validation.pendingItems.map((p) => ({
+          itemPublicId: p.itemPublicId,
+          mealTitle: p.mealTitle,
+          foodName: p.foodName,
+          reason: p.reason,
+        })),
+      };
+      updatedGuidanceJson = JSON.stringify(gj);
+    }
+
+    if (updatedGuidanceJson) {
+      await connection.query(
+        `UPDATE nutrition_v2_plan_versions
+         SET status = 'PUBLISHED', published_at = UTC_TIMESTAMP(3), guidance_json = ?, updated_at = UTC_TIMESTAMP(3)
+         WHERE id = ?`,
+        [updatedGuidanceJson, target.id]
+      );
+    } else {
+      await connection.query(
+        `UPDATE nutrition_v2_plan_versions
+         SET status = 'PUBLISHED', published_at = UTC_TIMESTAMP(3), updated_at = UTC_TIMESTAMP(3)
+         WHERE id = ?`,
+        [target.id]
+      );
+    }
+
+    if (hasPartialPending) {
+      try {
+        await recordConsultancyActivity({
+          consultancyId: ctx.consultancyId!,
+          actorUserId: ctx.userId!,
+          actorMembershipId: ctx.membershipId,
+          actorRole: (ctx.roles && ctx.roles[0]) || (ctx.isPlatformAdmin ? "PLATFORM_ADMIN" : "NUTRITIONIST"),
+          action: "NUTRITION_PLAN_PUBLISHED_PARTIAL",
+          module: "NUTRITION",
+          resourceType: "NUTRITION_PLAN_VERSION",
+          resourcePublicId: String(target.public_id),
+          summary: `Publicação do plano "${target.title || "Sem título"}" com dados nutricionais parciais autorizada (${validation.pendingItems.length} alimentos sem dados completos).`,
+          metadata: {
+            partialPublication: true,
+            pendingCount: validation.pendingItems.length,
+            pendingItems: validation.pendingItems.map((p) => ({
+              foodName: p.foodName,
+              reason: p.reason,
+            })),
+          },
+          connection,
+        });
+      } catch {}
+    }
 
     // Also update plan root updated_at
     await connection.query(
@@ -4707,6 +4818,81 @@ export async function autoPublishPlanVersion(
       try {
         await connection.rollback();
       } catch {}
+    }
+    throw err;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+// ============================================================================
+// ITEM REVIEWED WITHOUT NUTRITION (AUDITED ACKNOWLEDGMENT)
+// ============================================================================
+
+export async function setItemReviewedWithoutNutrition(
+  ctx: NutritionAccessContext,
+  planPublicId: string,
+  versionPublicId: string,
+  itemPublicId: string,
+  acknowledged: boolean
+): Promise<{ success: boolean; acknowledged: boolean; reviewedAt?: string }> {
+  assertCanAuthorNutrition(ctx);
+  let connection;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    const [vRows] = await connection.query<RowDataPacket[]>(
+      `SELECT v.id, v.status, v.guidance_json, p.consultancy_id
+       FROM nutrition_v2_plan_versions v
+       INNER JOIN nutrition_v2_plans p ON p.id = v.nutrition_plan_id
+       WHERE v.public_id = ? AND p.public_id = ? AND v.deleted_at IS NULL FOR UPDATE`,
+      [versionPublicId, planPublicId]
+    );
+
+    if (vRows.length === 0) {
+      throw new NutritionAuthorizationError("Versão do plano não encontrada.", "VERSION_NOT_FOUND", 404);
+    }
+    const versionRow = vRows[0];
+    if (Number(versionRow.consultancy_id) !== ctx.consultancyId) {
+      throw new NutritionAuthorizationError("Acesso negado ao plano desta consultoria.", "FORBIDDEN_TENANT_PLAN", 403);
+    }
+    if (versionRow.status !== "DRAFT") {
+      throw new NutritionAuthorizationError("Apenas rascunhos podem ter itens revisados.", "NOT_DRAFT", 400);
+    }
+
+    let gj: Record<string, unknown> | null = versionRow.guidance_json as Record<string, unknown> | null;
+    if (typeof gj === "string") {
+      try { gj = JSON.parse(gj); } catch { gj = null; }
+    }
+    if (!gj || typeof gj !== "object") {
+      gj = { schemaVersion: 1, recommendations: [], supplements: [], phytotherapeutics: [] };
+    }
+    if (!gj.reviewedWithoutNutrition || typeof gj.reviewedWithoutNutrition !== "object") {
+      gj.reviewedWithoutNutrition = {};
+    }
+
+    const nowIso = new Date().toISOString();
+    if (acknowledged) {
+      gj.reviewedWithoutNutrition[itemPublicId] = {
+        reviewedAt: nowIso,
+        reviewedByMembershipId: ctx.membershipId,
+        reviewedByName: "Profissional",
+      };
+    } else {
+      delete gj.reviewedWithoutNutrition[itemPublicId];
+    }
+
+    await connection.query(
+      `UPDATE nutrition_v2_plan_versions SET guidance_json = ?, updated_at = UTC_TIMESTAMP(3) WHERE id = ?`,
+      [JSON.stringify(gj), versionRow.id]
+    );
+
+    await connection.commit();
+    return { success: true, acknowledged, reviewedAt: acknowledged ? nowIso : undefined };
+  } catch (err) {
+    if (connection) {
+      try { await connection.rollback(); } catch {}
     }
     throw err;
   } finally {

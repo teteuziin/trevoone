@@ -38,6 +38,26 @@ export interface PlanStructuredGuidance {
   recommendations: PlanRecommendationItem[];
   supplements: PlanPrescriptionItem[];
   phytotherapeutics: PlanPrescriptionItem[];
+  reviewedWithoutNutrition?: Record<
+    string,
+    {
+      reviewedAt: string;
+      reviewedByMembershipId?: number;
+      reviewedByName?: string;
+    }
+  >;
+  partialPublicationAudit?: {
+    authorizedByMembershipId: number;
+    authorizedByName: string;
+    authorizedAt: string;
+    pendingItemsCount: number;
+    pendingItems: Array<{
+      itemPublicId: string;
+      mealTitle?: string;
+      foodName: string;
+      reason: string;
+    }>;
+  } | null;
 }
 
 export interface PresentedPrescriptionItem {
@@ -165,6 +185,8 @@ export function parseStructuredGuidance(
         recommendations,
         supplements,
         phytotherapeutics,
+        reviewedWithoutNutrition: ((p as Record<string, unknown>).reviewedWithoutNutrition as Record<string, { reviewedAt: string; reviewedByMembershipId?: number; reviewedByName?: string }>) || undefined,
+        partialPublicationAudit: ((p as Record<string, unknown>).partialPublicationAudit as PlanStructuredGuidance["partialPublicationAudit"]) || undefined,
       };
     }
   }

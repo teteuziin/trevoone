@@ -2388,6 +2388,7 @@ export async function confirmNutritionAiImport(params: {
         let p: number | null = null;
         let c: number | null = null;
         let fat: number | null = null;
+        let portionEquiv: number | null = null;
         let refUnit = f.unitCandidate || "G";
 
         if (f.foodPublicId) {
@@ -2460,7 +2461,7 @@ export async function confirmNutritionAiImport(params: {
                 });
 
                 const explicitTotalGrams = extractExplicitGrams(f.notes) || extractExplicitGrams(f.originalText);
-                let portionEquiv: number | null = null;
+                portionEquiv = null;
                 if (explicitTotalGrams && f.quantity && f.quantity > 0) {
                   portionEquiv = Math.round((explicitTotalGrams / f.quantity) * 10) / 10;
                 } else {
@@ -2565,6 +2566,7 @@ export async function confirmNutritionAiImport(params: {
             let subP: number | null = null;
             let subC: number | null = null;
             let subFat: number | null = null;
+            let sPortionEquiv: number | null = null;
             let subUnit = sub.unitCandidate || "G";
 
             if (sub.foodPublicId) {
@@ -2631,7 +2633,7 @@ export async function confirmNutritionAiImport(params: {
                     });
 
                     const sExplicitGrams = extractExplicitGrams(sub.notes) || extractExplicitGrams(sub.originalText);
-                    let sPortionEquiv: number | null = null;
+                    sPortionEquiv = null;
                     if (sExplicitGrams && sub.quantity && sub.quantity > 0) {
                       sPortionEquiv = Math.round((sExplicitGrams / sub.quantity) * 10) / 10;
                     } else {

@@ -13,6 +13,7 @@ import dynamic from "next/dynamic";
 import { NutritionSubstitutionEditor } from "./nutrition-substitution-editor";
 import { NutritionFoodPicker } from "./nutrition-food-picker";
 import { NutritionSubstitutionInlineSearch } from "./nutrition-substitution-inline-search";
+import { NutritionManualFoodModal } from "./nutrition-manual-food-modal";
 
 const NutritionSubstitutionCompareModal = dynamic(
   () => import("./nutrition-substitution-compare-modal").then((m) => m.NutritionSubstitutionCompareModal),
@@ -52,6 +53,8 @@ interface NutritionItemEditorProps {
   onRemoveSubstitution: (subPublicId: string) => Promise<void>;
   onReorderSubstitutions: (orderedSubPublicIds: string[]) => Promise<void>;
   initialFoodsForEquivalents?: FoodListItemDto[];
+  isReviewedWithoutNutrition?: boolean;
+  onToggleAcknowledge?: (acknowledged: boolean) => Promise<void>;
 }
 
 export function NutritionItemEditor({
@@ -71,6 +74,8 @@ export function NutritionItemEditor({
   onRemoveSubstitution,
   onReorderSubstitutions,
   initialFoodsForEquivalents,
+  isReviewedWithoutNutrition = false,
+  onToggleAcknowledge,
 }: NutritionItemEditorProps) {
   // Inline quantity input state
   const [localQuantity, setLocalQuantity] = useState(
@@ -80,6 +85,22 @@ export function NutritionItemEditor({
   const [notes, setNotes] = useState(item.notes || "");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [areSubsExpanded, setAreSubsExpanded] = useState(true);
+
+  // States for resolving unlinked / incomplete nutrition
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isActionChoiceOpen, setIsActionChoiceOpen] = useState(false);
+  const actionChoiceRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isActionChoiceOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (actionChoiceRef.current && !actionChoiceRef.current.contains(e.target as Node)) {
+        setIsActionChoiceOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isActionChoiceOpen]);
 
   // Available portions / measures loaded for this food
   const [availablePortions, setAvailablePortions] = useState<FoodPortionOption[]>([]);
@@ -499,25 +520,81 @@ export function NutritionItemEditor({
           >
             Referência do cálculo
           </span>
-          {item.foodId == null ? (
-            <span
-              onClick={() => setIsResolvePickerOpen(true)}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0 cursor-pointer"
-              title="Clique para vincular alimento"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Sem vínculo
-            </span>
-          ) : hasIssues ? (
-            <span
-              onClick={() => setIsResolvePickerOpen(true)}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0 cursor-pointer"
-              title="Clique para revisar dados ausentes"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Revisar dados
-            </span>
-          ) : null}
+          <div className="relative inline-flex items-center" ref={actionChoiceRef}>
+            {item.foodId == null ? (
+              <span
+                onClick={() => setIsActionChoiceOpen(!isActionChoiceOpen)}
+                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border shrink-0 cursor-pointer ${
+                  isReviewedWithoutNutrition
+                    ? "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                    : "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                }`}
+                title="Clique para opções de vínculo e dados nutricionais"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${isReviewedWithoutNutrition ? "bg-zinc-400" : "bg-amber-500 animate-pulse"}`} />
+                {isReviewedWithoutNutrition ? "Sem macros (revisado)" : "Sem vínculo"}
+              </span>
+            ) : hasIssues ? (
+              <span
+                onClick={() => setIsActionChoiceOpen(!isActionChoiceOpen)}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0 cursor-pointer"
+                title="Clique para revisar dados ausentes"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Revisar dados
+              </span>
+            ) : null}
+
+            {/* Quick 3-Choice Action Menu */}
+            {isActionChoiceOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-60 rounded-xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-2xl py-1.5 z-40 text-xs animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-subtle)] mb-1">
+                  Resolver Pendência
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsActionChoiceOpen(false);
+                    setIsResolvePickerOpen(true);
+                  }}
+                  className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <span>Buscar na biblioteca</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsActionChoiceOpen(false);
+                    setIsManualModalOpen(true);
+                  }}
+                  className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span>Informar valores nutricionais</span>
+                </button>
+                {onToggleAcknowledge && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsActionChoiceOpen(false);
+                      await onToggleAcknowledge(!isReviewedWithoutNutrition);
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-medium"
+                  >
+                    <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>{isReviewedWithoutNutrition ? "Desmarcar revisão" : "Manter sem dados"}</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Action Menu ⋮ */}
@@ -581,6 +658,50 @@ export function NutritionItemEditor({
                 >
                   <span>+ Adicionar substituição</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsResolvePickerOpen(true);
+                  }}
+                  className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <span>Buscar na biblioteca</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsManualModalOpen(true);
+                  }}
+                  className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span>Informar valores nutricionais</span>
+                </button>
+
+                {onToggleAcknowledge && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsMenuOpen(false);
+                      await onToggleAcknowledge(!isReviewedWithoutNutrition);
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-medium"
+                  >
+                    <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>{isReviewedWithoutNutrition ? "Desmarcar revisão de macros" : "Manter sem dados nutricionais"}</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -1088,10 +1209,28 @@ export function NutritionItemEditor({
             prescribedQuantity: selection.prescribedQuantity ?? item.prescribedQuantity,
             prescribedUnitCode: selection.prescribedUnitCode ?? item.prescribedUnitCode,
             prescribedUnitLabel: selection.prescribedUnitLabel ?? item.prescribedUnitLabel,
+            preserveFoodName: true,
           });
           setIsResolvePickerOpen(false);
         }}
         title={item.foodId == null ? `Vincular Alimento para "${item.foodNameSnapshot}"` : `Escolher Medida para "${item.foodNameSnapshot}"`}
+      />
+
+      {/* Manual Food Modal for registering macros */}
+      <NutritionManualFoodModal
+        slug={slug}
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+        initialName={item.foodNameSnapshot}
+        prescribedQuantityHint={item.prescribedQuantity}
+        prescribedUnitHint={item.prescribedUnitLabel || item.prescribedUnitCode || "g"}
+        onFoodCreated={async (result) => {
+          await onUpdateItem({
+            foodPublicId: result.foodPublicId,
+            preserveFoodName: true,
+          });
+          setIsManualModalOpen(false);
+        }}
       />
     </div>
   );

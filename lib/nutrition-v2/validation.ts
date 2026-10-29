@@ -406,6 +406,10 @@ export interface PublishValidationResult {
   valid: boolean;
   errors: string[];
   pendingItems: PendingPublicationItem[];
+  fatalErrors: string[];
+  canPublishWithPartialData: boolean;
+  hasFatalErrors: boolean;
+  hasPartialData: boolean;
 }
 
 const VALID_PUBLICATION_UNIT_CODES_SET = new Set([
@@ -453,17 +457,28 @@ export function validatePlanTreeForPublication(tree: {
   }>;
 }): PublishValidationResult {
   const errors: string[] = [];
+  const fatalErrors: string[] = [];
   const pendingItems: PendingPublicationItem[] = [];
 
   // 1. Version title non-empty
   if (!tree.version.title || !tree.version.title.trim()) {
     errors.push("O título do plano é obrigatório.");
+    fatalErrors.push("O título do plano é obrigatório.");
   }
 
   // 2. Meal count >= 1
   if (!tree.meals || tree.meals.length === 0) {
     errors.push("Adicione pelo menos uma refeição antes de publicar o plano.");
-    return { valid: false, errors, pendingItems: [] };
+    fatalErrors.push("Adicione pelo menos uma refeição antes de publicar o plano.");
+    return {
+      valid: false,
+      errors,
+      pendingItems: [],
+      fatalErrors,
+      canPublishWithPartialData: false,
+      hasFatalErrors: true,
+      hasPartialData: false,
+    };
   }
 
   // 3. Inspect each meal
@@ -473,10 +488,12 @@ export function validatePlanTreeForPublication(tree: {
 
     if (!meal.title || !meal.title.trim()) {
       errors.push(`O título da refeição ${mIdx + 1} é obrigatório.`);
+      fatalErrors.push(`O título da refeição ${mIdx + 1} é obrigatório.`);
     }
 
     if (!meal.items || meal.items.length === 0) {
       errors.push(`Adicione pelo menos um alimento à refeição ${mealLabel}.`);
+      fatalErrors.push(`Adicione pelo menos um alimento à refeição ${mealLabel}.`);
     }
 
     // Inspect items
@@ -488,11 +505,13 @@ export function validatePlanTreeForPublication(tree: {
 
       if (!item.foodNameSnapshot || !item.foodNameSnapshot.trim()) {
         errors.push(`O item ${iIdx + 1} da refeição ${mealLabel} está sem o nome do alimento.`);
+        fatalErrors.push(`O item ${iIdx + 1} da refeição ${mealLabel} está sem o nome do alimento.`);
       }
 
       // Quantity validation: must be > 0
       if (item.prescribedQuantity == null || item.prescribedQuantity <= 0) {
         errors.push(`A quantidade do item ${itemLabel} deve ser maior que zero.`);
+        fatalErrors.push(`A quantidade do item ${itemLabel} deve ser maior que zero.`);
         pendingItems.push({
           mealPublicId: meal.publicId,
           mealTitle: meal.title,
@@ -508,6 +527,7 @@ export function validatePlanTreeForPublication(tree: {
         !VALID_PUBLICATION_UNIT_CODES_SET.has(item.prescribedUnitCode.trim().toUpperCase())
       ) {
         errors.push(`A unidade "${item.prescribedUnitCode}" do item ${itemLabel} é inválida.`);
+        fatalErrors.push(`A unidade "${item.prescribedUnitCode}" do item ${itemLabel} é inválida.`);
       }
 
       // Publication Gate: Food linking & 4-macro nutrition resolution (P0.3)
@@ -564,10 +584,12 @@ export function validatePlanTreeForPublication(tree: {
 
           if (!sub.foodNameSnapshot || !sub.foodNameSnapshot.trim()) {
             errors.push(`A substituição ${sIdx + 1} do item ${itemLabel} está sem nome.`);
+            fatalErrors.push(`A substituição ${sIdx + 1} do item ${itemLabel} está sem nome.`);
           }
 
           if (sub.prescribedQuantity != null && sub.prescribedQuantity <= 0) {
             errors.push(`A quantidade da substituição ${subLabel} deve ser maior que zero.`);
+            fatalErrors.push(`A quantidade da substituição ${subLabel} deve ser maior que zero.`);
           }
 
           if (
@@ -575,6 +597,7 @@ export function validatePlanTreeForPublication(tree: {
             !VALID_PUBLICATION_UNIT_CODES_SET.has(sub.prescribedUnitCode.trim().toUpperCase())
           ) {
             errors.push(`A unidade "${sub.prescribedUnitCode}" da substituição ${subLabel} é inválida.`);
+            fatalErrors.push(`A unidade "${sub.prescribedUnitCode}" da substituição ${subLabel} é inválida.`);
           }
         }
       }
@@ -587,10 +610,18 @@ export function validatePlanTreeForPublication(tree: {
     );
   }
 
+  const hasFatalErrors = fatalErrors.length > 0;
+  const hasPartialData = pendingItems.some((p) => p.reason !== "INVALID_QUANTITY");
+  const canPublishWithPartialData = !hasFatalErrors;
+
   return {
-    valid: errors.length === 0,
+    valid: errors.length === 0 && !hasFatalErrors && pendingItems.length === 0,
     errors,
     pendingItems,
+    fatalErrors,
+    canPublishWithPartialData,
+    hasFatalErrors,
+    hasPartialData,
   };
 }
 

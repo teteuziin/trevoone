@@ -29,6 +29,7 @@ import {
   listPlanAssignmentsAction,
   setPlanUpdatePolicyAction,
   autoPublishPlanAction,
+  setItemReviewedWithoutNutritionAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
 import { AutoPublishConfirmDialog } from "./auto-publish-confirm-dialog";
 import { validatePlanTreeForPublication } from "@/lib/nutrition-v2/validation";
@@ -51,7 +52,8 @@ import { SettingsIcon } from "@/components/ui/icons";
 import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
 import { MobileActionSheet } from "@/components/ui/mobile";
 import type { AssignmentListItemDto } from "@/lib/nutrition-v2/assignment-repository";
-import type { FoodSelectionResult } from "./nutrition-food-picker";
+import { NutritionFoodPicker, type FoodSelectionResult } from "./nutrition-food-picker";
+import { NutritionManualFoodModal } from "./nutrition-manual-food-modal";
 import type { AddSubstitutionInput } from "@/lib/nutrition-v2/plan-repository";
 import type { PendingPublicationItem } from "@/lib/nutrition-v2/validation";
 import { scaleItemSnapshots, calculateMealTotals, calculatePlanTotals, calculateDailySummary, detectPlanDays, filterMealsBySelectedDay, type DailyNutritionalSummary, type PlanDayInfo } from "@/lib/nutrition-v2/nutrient-calculator";
@@ -207,6 +209,22 @@ export function NutritionPlanBuilder({
   const [isSaveTemplateDialogOpen, setIsSaveTemplateDialogOpen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [pickerPendingItem, setPickerPendingItem] = useState<{
+    mealPublicId: string;
+    itemPublicId: string;
+    foodName: string;
+    prescribedQuantity?: number;
+    prescribedUnitLabel?: string;
+    prescribedUnitCode?: string;
+  } | null>(null);
+  const [manualPendingItem, setManualPendingItem] = useState<{
+    mealPublicId: string;
+    itemPublicId: string;
+    foodName: string;
+    prescribedQuantity?: number;
+    prescribedUnitLabel?: string;
+    prescribedUnitCode?: string;
+  } | null>(null);
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isMicronutrientsDrawerOpen, setIsMicronutrientsDrawerOpen] = useState(false);
@@ -444,7 +462,7 @@ export function NutritionPlanBuilder({
   };
 
   // Handle Publish
-  const handleConfirmPublish = async () => {
+  const handleConfirmPublish = async (options?: { allowPartialNutrition?: boolean }) => {
     setIsPublishing(true);
     setPublishError(null);
 
@@ -453,6 +471,7 @@ export function NutritionPlanBuilder({
         planPublicId: tree.plan.publicId,
         versionPublicId: tree.version.publicId,
         studentMembershipPublicId: patientContext.studentMembershipPublicId,
+        allowPartialNutrition: options?.allowPartialNutrition,
       });
 
       if (res.success) {
@@ -467,7 +486,12 @@ export function NutritionPlanBuilder({
       return;
     }
 
-    const res = await publishPlanVersionAction(slug, tree.plan.publicId, tree.version.publicId);
+    const res = await publishPlanVersionAction(
+      slug,
+      tree.plan.publicId,
+      tree.version.publicId,
+      options?.allowPartialNutrition ? { allowPartialNutrition: true } : undefined
+    );
 
     if (res.success) {
       setIsPublishDialogOpen(false);
@@ -793,6 +817,80 @@ export function NutritionPlanBuilder({
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       el.classList.add("ring-2", "ring-amber-500");
       setTimeout(() => el.classList.remove("ring-2", "ring-amber-500"), 3500);
+    }
+  };
+
+  const handleToggleAcknowledgeItem = async (itemPublicId: string, acknowledged: boolean) => {
+    try {
+      const res = await setItemReviewedWithoutNutritionAction(
+        slug,
+        tree.plan.publicId,
+        tree.version.publicId,
+        itemPublicId,
+        acknowledged
+      );
+      if (res.success) {
+        await refreshTree();
+      } else {
+        alert(res.error || "Não foi possível atualizar o status do alimento.");
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao atualizar status do alimento.";
+      alert(message);
+    }
+  };
+
+  const handleSearchLibraryItem = (pendingItem: PendingPublicationItem) => {
+    const meal = tree.meals.find((m) => m.publicId === pendingItem.mealPublicId);
+    const item = meal?.items.find((i) => i.publicId === pendingItem.itemPublicId);
+    setPickerPendingItem({
+      mealPublicId: pendingItem.mealPublicId,
+      itemPublicId: pendingItem.itemPublicId,
+      foodName: item?.foodNameSnapshot || pendingItem.foodName,
+      prescribedQuantity: item?.prescribedQuantity != null ? item.prescribedQuantity : undefined,
+      prescribedUnitLabel: item?.prescribedUnitLabel || undefined,
+      prescribedUnitCode: item?.prescribedUnitCode || undefined,
+    });
+  };
+
+  const handleManualNutritionItem = (pendingItem: PendingPublicationItem) => {
+    const meal = tree.meals.find((m) => m.publicId === pendingItem.mealPublicId);
+    const item = meal?.items.find((i) => i.publicId === pendingItem.itemPublicId);
+    setManualPendingItem({
+      mealPublicId: pendingItem.mealPublicId,
+      itemPublicId: pendingItem.itemPublicId,
+      foodName: item?.foodNameSnapshot || pendingItem.foodName,
+      prescribedQuantity: item?.prescribedQuantity != null ? item.prescribedQuantity : undefined,
+      prescribedUnitLabel: item?.prescribedUnitLabel || undefined,
+      prescribedUnitCode: item?.prescribedUnitCode || undefined,
+    });
+  };
+
+  const handlePickerPendingSelect = async (selection: FoodSelectionResult) => {
+    if (!pickerPendingItem && !manualPendingItem) return;
+    const targetItem = pickerPendingItem || manualPendingItem;
+    setPickerPendingItem(null);
+    setManualPendingItem(null);
+    setAutosaveStatus("saving");
+    try {
+      const res = await updateMealItemAction(slug, tree.plan.publicId, targetItem!.itemPublicId, {
+        foodPublicId: selection.foodPublicId,
+        foodNameSnapshot: targetItem!.foodName,
+        preserveFoodName: true,
+        prescribedQuantity: selection.prescribedQuantity != null ? selection.prescribedQuantity : targetItem!.prescribedQuantity,
+        prescribedUnitCode: selection.prescribedUnitCode || targetItem!.prescribedUnitCode,
+        prescribedUnitLabel: selection.prescribedUnitLabel || targetItem!.prescribedUnitLabel,
+        portionPublicId: selection.portionPublicId,
+      });
+      if (res.success) {
+        setAutosaveStatus("saved");
+        await refreshTree();
+      } else {
+        setAutosaveStatus("error");
+        alert(res.error || "Erro ao vincular alimento.");
+      }
+    } catch {
+      setAutosaveStatus("error");
     }
   };
 
@@ -1284,6 +1382,8 @@ export function NutritionPlanBuilder({
                         isLast={actualIdx === tree.meals.length - 1}
                         forceCollapsed={allMealsCollapsed}
                         showMealMicronutrients={preferences.showMealMicronutrients}
+                        reviewedWithoutNutritionMap={tree.version.guidanceJson?.reviewedWithoutNutrition}
+                        onToggleAcknowledgeItem={handleToggleAcknowledgeItem}
                         onLiveQuantityChange={handleLiveQuantityChange}
                         onMoveUp={() => handleMoveMeal(idx, "UP")}
                         onMoveDown={() => handleMoveMeal(idx, "DOWN")}
@@ -1916,13 +2016,44 @@ export function NutritionPlanBuilder({
         <NutritionPublishDialog
           isOpen={isPublishDialogOpen}
           onClose={() => setIsPublishDialogOpen(false)}
-          onConfirm={handleConfirmPublish}
+          onConfirm={() => handleConfirmPublish({ allowPartialNutrition: false })}
+          onConfirmPublishPartial={() => handleConfirmPublish({ allowPartialNutrition: true })}
           tree={tree}
           isPublishing={isPublishing}
           errorMessage={publishError}
           patientName={patientContext?.studentName}
           onReviewItem={handleReviewPublicationItem}
+          onSearchLibraryItem={handleSearchLibraryItem}
+          onManualNutritionItem={handleManualNutritionItem}
+          onToggleAcknowledgeItem={async (item, ack) => {
+            await handleToggleAcknowledgeItem(item.itemPublicId, ack);
+          }}
         />
+
+        {/* Global Food Picker for pending publication items */}
+        {pickerPendingItem && (
+          <NutritionFoodPicker
+            slug={slug}
+            isOpen={true}
+            onClose={() => setPickerPendingItem(null)}
+            onSelect={handlePickerPendingSelect}
+            title={`Vincular: ${pickerPendingItem.foodName}`}
+            initialQuery={pickerPendingItem.foodName}
+          />
+        )}
+
+        {/* Global Manual Food Modal for pending publication items */}
+        {manualPendingItem && (
+          <NutritionManualFoodModal
+            slug={slug}
+            isOpen={true}
+            onClose={() => setManualPendingItem(null)}
+            onFoodCreated={handlePickerPendingSelect}
+            initialName={manualPendingItem.foodName}
+            prescribedQuantityHint={manualPendingItem.prescribedQuantity}
+            prescribedUnitHint={manualPendingItem.prescribedUnitLabel || manualPendingItem.prescribedUnitCode}
+          />
+        )}
 
         {/* Version History Drawer */}
         <NutritionVersionHistory

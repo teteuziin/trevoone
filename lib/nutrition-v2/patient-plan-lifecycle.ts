@@ -14,6 +14,7 @@
 import type { RowDataPacket, ResultSetHeader, PoolConnection } from "mysql2/promise";
 import crypto from "node:crypto";
 import { getDbConnection } from "../db/mysql";
+import { recordConsultancyActivity } from "../consultancies/activity-log";
 import {
   type NutritionAccessContext,
   assertCanAuthorNutrition,
@@ -755,6 +756,7 @@ export async function publishPatientPlanUpdate(
     planPublicId: string;
     versionPublicId: string;
     studentMembershipPublicId: string;
+    allowPartialNutrition?: boolean;
   }
 ): Promise<{
   success: boolean;
@@ -822,7 +824,7 @@ export async function publishPatientPlanUpdate(
 
     // 4. Lock target version
     const [versionRows] = await connection.query<RowDataPacket[]>(
-      `SELECT id, public_id, nutrition_plan_id, version_number, status, title
+      `SELECT id, public_id, nutrition_plan_id, version_number, status, title, guidance_json
        FROM nutrition_v2_plan_versions
        WHERE public_id = ? AND nutrition_plan_id = ? AND deleted_at IS NULL FOR UPDATE`,
       [versionPublicId, plan.id]
@@ -842,14 +844,25 @@ export async function publishPatientPlanUpdate(
     }
     const validation = validatePlanTreeForPublication(tree);
     if (!validation.valid) {
-      throw new NutritionAuthorizationError(
-        validation.errors[0] || "Plano incompleto para publicação.",
-        validation.pendingItems && validation.pendingItems.length > 0
-          ? "PLAN_NUTRITION_INCOMPLETE"
-          : "PUBLICATION_VALIDATION_FAILED",
-        400,
-        validation.pendingItems
-      );
+      if (validation.hasFatalErrors || (validation.fatalErrors && validation.fatalErrors.length > 0)) {
+        throw new NutritionAuthorizationError(
+          validation.fatalErrors[0] || "Plano com dados impeditivos para publicação.",
+          "PUBLICATION_VALIDATION_FAILED",
+          400,
+          validation.pendingItems
+        );
+      }
+
+      if (!params.allowPartialNutrition) {
+        throw new NutritionAuthorizationError(
+          validation.errors[0] || "Plano incompleto para publicação.",
+          validation.pendingItems && validation.pendingItems.length > 0
+            ? "PLAN_NUTRITION_INCOMPLETE"
+            : "PUBLICATION_VALIDATION_FAILED",
+          400,
+          validation.pendingItems
+        );
+      }
     }
 
     // 6. Transition target version to PUBLISHED (archive previous published versions under this root)
@@ -866,12 +879,74 @@ export async function publishPatientPlanUpdate(
         );
       }
 
-      await connection.query(
-        `UPDATE nutrition_v2_plan_versions
-         SET status = 'PUBLISHED', published_at = UTC_TIMESTAMP(3), updated_at = UTC_TIMESTAMP(3)
-         WHERE id = ?`,
-        [targetVersion.id]
-      );
+      const nowIso = new Date().toISOString();
+      const hasPartialPending = validation.pendingItems && validation.pendingItems.length > 0;
+      let updatedGuidanceJson: string | null = null;
+
+      if (hasPartialPending) {
+        let gj: Record<string, unknown> | null = targetVersion.guidance_json as Record<string, unknown> | null;
+        if (typeof gj === "string") {
+          try { gj = JSON.parse(gj); } catch { gj = null; }
+        }
+        if (!gj || typeof gj !== "object") {
+          gj = { schemaVersion: 1, recommendations: [], supplements: [], phytotherapeutics: [] };
+        }
+        gj.partialPublicationAudit = {
+          authorizedByMembershipId: ctx.membershipId,
+          authorizedByName: "Profissional",
+          authorizedAt: nowIso,
+          pendingItemsCount: validation.pendingItems.length,
+          pendingItems: validation.pendingItems.map((p) => ({
+            itemPublicId: p.itemPublicId,
+            mealTitle: p.mealTitle,
+            foodName: p.foodName,
+            reason: p.reason,
+          })),
+        };
+        updatedGuidanceJson = JSON.stringify(gj);
+      }
+
+      if (updatedGuidanceJson) {
+        await connection.query(
+          `UPDATE nutrition_v2_plan_versions
+           SET status = 'PUBLISHED', published_at = UTC_TIMESTAMP(3), guidance_json = ?, updated_at = UTC_TIMESTAMP(3)
+           WHERE id = ?`,
+          [updatedGuidanceJson, targetVersion.id]
+        );
+      } else {
+        await connection.query(
+          `UPDATE nutrition_v2_plan_versions
+           SET status = 'PUBLISHED', published_at = UTC_TIMESTAMP(3), updated_at = UTC_TIMESTAMP(3)
+           WHERE id = ?`,
+          [targetVersion.id]
+        );
+      }
+
+      if (hasPartialPending) {
+        try {
+          await recordConsultancyActivity({
+            consultancyId: ctx.consultancyId!,
+            actorUserId: ctx.userId!,
+            actorMembershipId: ctx.membershipId,
+            actorRole: (ctx.roles && ctx.roles[0]) || (ctx.isPlatformAdmin ? "PLATFORM_ADMIN" : "NUTRITIONIST"),
+            action: "NUTRITION_PLAN_PUBLISHED_PARTIAL",
+            module: "NUTRITION",
+            resourceType: "NUTRITION_PLAN_VERSION",
+            resourcePublicId: String(targetVersion.public_id),
+            summary: `Publicação do plano "${targetVersion.title || "Sem título"}" com dados nutricionais parciais autorizada (${validation.pendingItems.length} alimentos sem dados completos).`,
+            metadata: {
+              partialPublication: true,
+              pendingCount: validation.pendingItems.length,
+              pendingItems: validation.pendingItems.map((p) => ({
+                foodName: p.foodName,
+                reason: p.reason,
+              })),
+            },
+            connection,
+          });
+        } catch {}
+      }
+
       await connection.query(
         `UPDATE nutrition_v2_plans SET updated_at = UTC_TIMESTAMP(3) WHERE id = ?`,
         [plan.id]

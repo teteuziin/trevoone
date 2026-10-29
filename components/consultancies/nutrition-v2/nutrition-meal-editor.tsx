@@ -34,6 +34,8 @@ interface NutritionMealEditorProps {
   onReorderSubstitutions: (itemPublicId: string, orderedSubPublicIds: string[]) => Promise<void>;
   forceCollapsed?: boolean;
   showMealMicronutrients?: boolean;
+  reviewedWithoutNutritionMap?: Record<string, { reviewedAt: string }>;
+  onToggleAcknowledgeItem?: (itemPublicId: string, acknowledged: boolean) => Promise<void>;
 }
 
 export function NutritionMealEditor({
@@ -58,6 +60,8 @@ export function NutritionMealEditor({
   onReorderSubstitutions,
   forceCollapsed,
   showMealMicronutrients = false,
+  reviewedWithoutNutritionMap,
+  onToggleAcknowledgeItem,
 }: NutritionMealEditorProps) {
   const [isEditingMeal, setIsEditingMeal] = useState(false);
   const [title, setTitle] = useState(meal.title);
@@ -421,6 +425,8 @@ export function NutritionMealEditor({
                   onUpdateSubstitution={onUpdateSubstitution}
                   onRemoveSubstitution={onRemoveSubstitution}
                   onReorderSubstitutions={(orderedSubs) => onReorderSubstitutions(item.publicId, orderedSubs)}
+                  isReviewedWithoutNutrition={Boolean(reviewedWithoutNutritionMap?.[item.publicId])}
+                  onToggleAcknowledge={onToggleAcknowledgeItem ? (ack) => onToggleAcknowledgeItem(item.publicId, ack) : undefined}
                 />
               ))
             )}

@@ -47,6 +47,7 @@ import {
   removeSubstitution,
   reorderSubstitutions,
   publishPlanVersion,
+  setItemReviewedWithoutNutrition,
   createNextDraftVersion,
   getPlanVersionHistory,
   getPlanVersionTreeByPlanPublicId,
@@ -820,14 +821,15 @@ export async function calculateEquivalentsAction(
 export async function publishPlanVersionAction(
   slug: string,
   planPublicId: string,
-  versionPublicId: string
+  versionPublicId: string,
+  options?: { allowPartialNutrition?: boolean }
 ): Promise<ActionResult<{ versionPublicId: string; status: string; publishedAt: string }>> {
   try {
     const ctx = await resolveNutritionAccessContext(slug);
     if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
     assertCanAuthorNutrition(ctx);
 
-    const res = await publishPlanVersion(ctx, planPublicId, versionPublicId);
+    const res = await publishPlanVersion(ctx, planPublicId, versionPublicId, options);
 
     revalidatePath(`/consultoria/${slug}/planos-v2`);
     revalidatePath(`/consultoria/${slug}/planos-v2/${planPublicId}`);
@@ -1378,6 +1380,7 @@ export async function publishPatientPlanUpdateAction(
     planPublicId: string;
     versionPublicId: string;
     studentMembershipPublicId: string;
+    allowPartialNutrition?: boolean;
   }
 ): Promise<ActionResult<{
   success: boolean;
@@ -1621,6 +1624,30 @@ export async function autoPublishPlanAction(
       return { success: false, error: err.message, code: err.code };
     }
     const message = err instanceof Error ? err.message : "Erro ao atualizar automaticamente o plano.";
+    return { success: false, error: message };
+  }
+}
+
+export async function setItemReviewedWithoutNutritionAction(
+  slug: string,
+  planPublicId: string,
+  versionPublicId: string,
+  itemPublicId: string,
+  acknowledged: boolean
+): Promise<ActionResult<{ success: boolean; acknowledged: boolean; reviewedAt?: string }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const data = await setItemReviewedWithoutNutrition(ctx, planPublicId, versionPublicId, itemPublicId, acknowledged);
+    revalidatePath(`/consultoria/${slug}/planos-v2/${planPublicId}`);
+    return { success: true, data };
+  } catch (err: unknown) {
+    if (err instanceof NutritionAuthorizationError) {
+      return { success: false, error: err.message, code: err.code };
+    }
+    const message = err instanceof Error ? err.message : "Erro ao revisar alimento.";
     return { success: false, error: message };
   }
 }

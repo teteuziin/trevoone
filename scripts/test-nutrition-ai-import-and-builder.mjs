@@ -19,7 +19,17 @@ const {
   parseQuantityAndUnit,
   calculateAuthoritativeItemNutrients,
   groupMealFoodsAndAlternatives,
+  extractExplicitGrams,
 } = await import("../lib/nutrition-v2/nutrition-ai-importer.ts");
+
+const {
+  calculateNutrientFactor,
+} = await import("../lib/nutrition-v2/nutrient-calculator.ts");
+
+const {
+  detectMealSectionHeaders,
+  splitTextIntoMealSections,
+} = await import("../lib/ai/openai-client.ts");
 
 let passedCount = 0;
 let totalCount = 0;
@@ -179,6 +189,55 @@ export async function runNutritionAiImportAndBuilderSuite() {
     assert.equal(mainItem.name, "cuscuz de milho");
     // Substitutions count must be exactly 6, NEVER 12!
     assert.equal(grouped[0].substitutions.length, 6);
+  });
+
+  // 5. extractExplicitGrams
+  runTest("extractExplicitGrams extracts (183 g) and (20 g) cleanly", () => {
+    assert.equal(extractExplicitGrams("3 unidades grandes de ovo, galinha, inteiro, cozido, mexido (183 g)"), 183);
+    assert.equal(extractExplicitGrams("2 unidades comerciais de torrada (20 g)"), 20);
+    assert.equal(extractExplicitGrams("1 fatia de pão"), null);
+    assert.equal(extractExplicitGrams(null), null);
+  });
+
+  // 6. calculateNutrientFactor does not multiply metric units by portion equivalent
+  runTest("calculateNutrientFactor treats 60g as 60g, never 3600g", () => {
+    const res = calculateNutrientFactor(100, "G", 60, "G", 60);
+    assert.equal(res.factor, 0.6);
+    assert.equal(res.effectiveQty, 60);
+  });
+
+  runTest("calculateNutrientFactor correctly converts household units via portion equivalent (3 un * 61g = 183g)", () => {
+    const res = calculateNutrientFactor(100, "G", 3, "UNIDADE", 61);
+    assert.equal(res.factor, 1.83);
+    assert.equal(res.effectiveQty, 183);
+  });
+
+  // 7. detectMealSectionHeaders and splitTextIntoMealSections
+  runTest("detectMealSectionHeaders identifies all 5 meals from Patricia's document", () => {
+    const doc = `Patricia
+Café da Manhã
+• 60g de cuscuz
+LANCHE DA MANHA
+• 1 banana
+Almoço
+• 160g de frango
+PRE TREINO
+• 1 fatia de pão
+Jantar
+• 60g de cuscuz
+Sugestões, sucos laxantes
+• Suco de mamão`;
+    const headers = detectMealSectionHeaders(doc);
+    assert.equal(headers.length, 5);
+    assert.equal(headers[0].title, "Café da Manhã");
+    assert.equal(headers[1].title, "LANCHE DA MANHA");
+    assert.equal(headers[2].title, "Almoço");
+    assert.equal(headers[3].title, "PRE TREINO");
+    assert.equal(headers[4].title, "Jantar");
+
+    const split = splitTextIntoMealSections(doc);
+    assert.equal(split.sections.length, 5);
+    assert.match(split.postamble, /Sugestões/);
   });
 
   console.log(`\nSUITE RESULT: ${passedCount}/${totalCount} tests passed.\n`);

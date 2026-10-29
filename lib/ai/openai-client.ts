@@ -8,7 +8,6 @@ import OpenAI, { toFile } from "openai";
 import JSZip from "jszip";
 import {
   TRAINING_IMPORT_JSON_SCHEMA,
-  NUTRITION_IMPORT_JSON_SCHEMA,
   type RawTrainingImportProposal,
   type RawNutritionImportProposal,
 } from "./schemas";
@@ -358,6 +357,114 @@ export async function callOpenAiForTraining(
   }
 }
 
+export const NUTRITION_SYSTEM_PROMPT = `${SYSTEM_PROMPT}
+
+ATENÇÃO CRÍTICA DE FORMATO DE RESPOSTA:
+Você DEVE responder EXCLUSIVAMENTE em formato JSON compatível com o seguinte formato:
+{
+  "title": string,
+  "patientNameCandidate": string | null,
+  "objective": string | null,
+  "notes": string | null,
+  "meals": [
+    {
+      "name": string,
+      "time": string | null,
+      "notes": string | null,
+      "foods": [
+        {
+          "originalText": string,
+          "foodNameCandidate": string,
+          "quantity": number | null,
+          "unitCandidate": string | null,
+          "notes": string | null,
+          "sourceDocumentClaim": {
+            "kcal": number | null,
+            "protein": number | null,
+            "carbs": number | null,
+            "fat": number | null
+          } | null,
+          "substitutions": [
+            {
+              "originalText": string,
+              "foodNameCandidate": string,
+              "quantity": number | null,
+              "unitCandidate": string | null,
+              "notes": string | null,
+              "sourceDocumentClaim": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}`;
+
+export const MEAL_HEADER_PATTERNS = [
+  /^(?:#+\s*)?(?:refei[çc][ãa]o\s*\d+|caf[ée]\s+da\s+manh[ãa]|desjejum|caf[ée]|lanche\s+da\s+manh[ãa]|colac[ãa]o|almo[çc]o|lanche\s+da\s+tarde|merenda|pr[ée][- ]treino|p[óo]s[- ]treino|jantar|janta|ceia)(?!\p{L})/iu,
+  /^(?:refei[çc][ãa]o\s*\d+|refei[çc][ãa]o\s+[a-z]|op[çc][ãa]o\s*\d+)(?!\p{L})/iu,
+];
+
+export function detectMealSectionHeaders(text: string): Array<{ lineIndex: number; title: string }> {
+  if (!text) return [];
+  const lines = text.split(/\r?\n/);
+  const detected: Array<{ lineIndex: number; title: string }> = [];
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i].trim();
+    if (!rawLine || rawLine.length > 60) continue;
+    if (/^sugest[õo]es|sucos|suplementa[çc][ãa]o|hidrata[çc][ãa]o|orienta[çc]/iu.test(rawLine)) continue;
+    for (const pat of MEAL_HEADER_PATTERNS) {
+      if (pat.test(rawLine)) {
+        detected.push({ lineIndex: i, title: rawLine });
+        break;
+      }
+    }
+  }
+  return detected;
+}
+
+export function splitTextIntoMealSections(text: string): {
+  preamble: string;
+  sections: Array<{ title: string; sectionText: string }>;
+  postamble: string;
+} {
+  const headers = detectMealSectionHeaders(text);
+  if (headers.length === 0) {
+    return { preamble: "", sections: [{ title: "Refeição 1", sectionText: text }], postamble: "" };
+  }
+
+  const lines = text.split(/\r?\n/);
+  const preamble = lines.slice(0, headers[0].lineIndex).join("\n").trim();
+  const sections: Array<{ title: string; sectionText: string }> = [];
+
+  for (let i = 0; i < headers.length; i++) {
+    const start = headers[i].lineIndex;
+    const end = i < headers.length - 1 ? headers[i + 1].lineIndex : lines.length;
+    const sectionLines = lines.slice(start, end);
+    const title = headers[i].title;
+
+    if (i === headers.length - 1) {
+      let postambleStart = -1;
+      for (let j = 0; j < sectionLines.length; j++) {
+        if (/^sugest[õo]es|sucos|suplementa[çc][ãa]o|hidrata[çc][ãa]o|orienta[çc]/iu.test(sectionLines[j].trim())) {
+          postambleStart = j;
+          break;
+        }
+      }
+      if (postambleStart > 0) {
+        const mealLines = sectionLines.slice(0, postambleStart);
+        const postLines = sectionLines.slice(postambleStart);
+        sections.push({ title, sectionText: mealLines.join("\n").trim() });
+        return { preamble, sections, postamble: postLines.join("\n").trim() };
+      }
+    }
+
+    sections.push({ title, sectionText: sectionLines.join("\n").trim() });
+  }
+
+  return { preamble, sections, postamble: "" };
+}
+
 /**
  * Extracts a structured Nutrition Import Proposal from a document (PDF, TXT, MD, DOCX, or pasted text).
  */
@@ -384,19 +491,23 @@ export async function callOpenAiForNutrition(
     let outputTokens = 0;
     let providerRequestId: string | undefined;
 
+    const detectedHeaders = userPromptText ? detectMealSectionHeaders(userPromptText) : [];
+    const headerListInstruction = detectedHeaders.length > 0
+      ? `\n\nREFEIÇÕES IDENTIFICADAS NO DOCUMENTO (${detectedHeaders.length}):\n${detectedHeaders.map((h, i) => `${i + 1}. ${h.title}`).join("\n")}\n\nINSTRUÇÃO CRÍTICA OBRIGATÓRIA: Você DEVE gerar exatamente um objeto em 'meals' para CADA UMA das ${detectedHeaders.length} refeições listadas acima, na ordem original exata. NUNCA pare na primeira refeição.`
+      : "";
+
     if (userPromptText.length > 0) {
       const response = await client.chat.completions.create({
         model,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: NUTRITION_SYSTEM_PROMPT },
           {
             role: "user",
-            content: `Documento de plano alimentar recebido (${input.filename}):\n\n${userPromptText}\n\nINSTRUÇÕES DE EXTRAÇÃO:\n- Extraia TODAS as refeições presentes no documento para a lista 'meals' na ordem original exata. NUNCA pare na primeira refeição.\n- Se uma refeição começou em uma página e continuou na seguinte, todos os alimentos pertencem à MESMA refeição em andamento.\n- Separe alternativas 'OU' no campo 'substitutions' de cada alimento correspondente com suas respectivas quantidades e unidades.\n- Reúna suplementações e recomendações/sucos opcionais no campo 'notes' do plano alimentar.\n- Nomes de alimentos devem ser limpos: adjetivos de tamanho como 'grandes' pertencem à porção/unidade, nunca ao nome do alimento.`,
+            content: `Documento de plano alimentar recebido (${input.filename}):\n\n${userPromptText}${headerListInstruction}\n\nINSTRUÇÕES DE EXTRAÇÃO:\n- Extraia TODAS as refeições presentes no documento para a lista 'meals' na ordem original exata. NUNCA pare na primeira refeição.\n- Se uma refeição começou em uma página e continuou na seguinte, todos os alimentos pertencem à MESMA refeição em andamento.\n- Separe alternativas 'OU' no campo 'substitutions' de cada alimento correspondente com suas respectivas quantidades e unidades.\n- Reúna suplementações e recomendações/sucos opcionais no campo 'notes' do plano alimentar.\n- Nomes de alimentos devem ser limpos: adjetivos de tamanho como 'grandes' pertencem à porção/unidade, nunca ao nome do alimento.`,
           },
         ],
         response_format: {
-          type: "json_schema",
-          json_schema: NUTRITION_IMPORT_JSON_SCHEMA,
+          type: "json_object",
         },
         temperature: 0.1,
         max_completion_tokens: 16384,
@@ -417,7 +528,7 @@ export async function callOpenAiForNutrition(
       try {
         const response = await (client as unknown as ResponsesApiClient).responses.create({
           model,
-          instructions: SYSTEM_PROMPT,
+          instructions: NUTRITION_SYSTEM_PROMPT,
           input: [
             {
               role: "user",
@@ -429,10 +540,7 @@ export async function callOpenAiForNutrition(
           ],
           text: {
             format: {
-              type: "json_schema",
-              name: NUTRITION_IMPORT_JSON_SCHEMA.name,
-              schema: NUTRITION_IMPORT_JSON_SCHEMA.schema,
-              strict: true,
+              type: "json_object",
             },
           },
         });
@@ -469,7 +577,7 @@ export async function callOpenAiForNutrition(
       const response = await client.chat.completions.create({
         model,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: NUTRITION_SYSTEM_PROMPT },
           {
             role: "user",
             content: [
@@ -488,8 +596,7 @@ export async function callOpenAiForNutrition(
           },
         ],
         response_format: {
-          type: "json_schema",
-          json_schema: NUTRITION_IMPORT_JSON_SCHEMA,
+          type: "json_object",
         },
         temperature: 0.1,
         max_completion_tokens: 16384,
@@ -508,6 +615,63 @@ export async function callOpenAiForNutrition(
     }
 
     const proposal: RawNutritionImportProposal = JSON.parse(parsedContent);
+
+    // Section recovery: if headers detected but missing in response, attempt targeted extraction
+    if (detectedHeaders.length > 1 && (!proposal.meals || proposal.meals.length < detectedHeaders.length) && userPromptText) {
+      const split = splitTextIntoMealSections(userPromptText);
+      if (split.sections.length > (proposal.meals?.length || 0)) {
+        const existingMealNames = new Set(
+          (proposal.meals || []).map((m) => m.name.toLowerCase().trim())
+        );
+
+        for (const sec of split.sections) {
+          const secNorm = sec.title.toLowerCase().trim();
+          const alreadyExtracted = Array.from(existingMealNames).some(
+            (em) => em.includes(secNorm) || secNorm.includes(em)
+          );
+
+          if (!alreadyExtracted) {
+            try {
+              const secResp = await client.chat.completions.create({
+                model,
+                messages: [
+                  {
+                    role: "system",
+                    content: `${NUTRITION_SYSTEM_PROMPT}\nExtraia a seção específica de refeição fornecida para o array 'meals'.`
+                  },
+                  {
+                    role: "user",
+                    content: `Seção de refeição:\n${sec.sectionText}`
+                  }
+                ],
+                response_format: { type: "json_object" },
+                temperature: 0.1,
+                max_completion_tokens: 4096,
+              });
+              const secJson = JSON.parse(secResp.choices[0]?.message?.content || "{}");
+              if (Array.isArray(secJson.meals) && secJson.meals.length > 0) {
+                proposal.meals = proposal.meals || [];
+                for (const recoveredMeal of secJson.meals) {
+                  proposal.meals.push(recoveredMeal);
+                  existingMealNames.add(recoveredMeal.name.toLowerCase().trim());
+                }
+              }
+            } catch {
+              // Non-blocking recovery
+            }
+          }
+        }
+      }
+    }
+
+    // Strict non-loss guarantee
+    if (detectedHeaders.length > 1 && (proposal.meals || []).length < detectedHeaders.length) {
+      const extractedTitles = (proposal.meals || []).map((m) => m.name).join(", ");
+      const expectedTitles = detectedHeaders.map((h) => h.title).join(", ");
+      throw new Error(
+        `Falha na extração de nutrição com IA: o documento contém ${detectedHeaders.length} refeições (${expectedTitles}), mas foram extraídas apenas ${(proposal.meals || []).length} (${extractedTitles}). Operação interrompida para evitar salvamento parcial de dados de saúde.`
+      );
+    }
 
     return {
       proposal,

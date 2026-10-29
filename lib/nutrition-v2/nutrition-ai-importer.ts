@@ -65,7 +65,7 @@ import {
   markAiQuotaConsumed,
   refundAiQuota,
 } from "../ai/quotas";
-import type { DocumentInput } from "../ai/openai-client";
+import { detectMealSectionHeaders, type DocumentInput } from "../ai/openai-client";
 import type { RawNutritionImportProposal } from "../ai/schemas";
 import { recordConsultancyActivity } from "../consultancies/activity-log";
 import { normalizeSearchText, USER_SEARCH_ALIASES, getPortugueseWordRoots } from "./food-search";
@@ -257,6 +257,21 @@ export function isPurePreparation(text: string): boolean {
         w === "de"
     )
   );
+}
+
+/**
+ * Extracts explicit physical gram equivalents provided in parentheses in the prescription.
+ * e.g. "3 unidades grandes de ovo, galinha, inteiro, cozido, mexido (183 g)" -> 183
+ * e.g. "2 unidades comerciais de torrada (20 g)" -> 20
+ */
+export function extractExplicitGrams(text?: string | null): number | null {
+  if (!text) return null;
+  const m = text.match(/\(\s*(\d+(?:[.,]\d+)?)\s*g(?:ramas?)?\s*\)/i);
+  if (m) {
+    const val = parseFloat(m[1].replace(",", "."));
+    if (Number.isFinite(val) && val > 0) return val;
+  }
+  return null;
 }
 
 export function parseQuantityAndUnit(segment: string): {
@@ -1876,7 +1891,12 @@ export async function processNutritionAiImport(params: {
 
           let portionEquiv: number | null = null;
           if (isHousehold) {
-            portionEquiv = matchResult.matched.portionEquivalentAmount || null;
+            const explicitTotalGrams = extractExplicitGrams(f.notes) || extractExplicitGrams(f.originalText);
+            if (explicitTotalGrams && f.quantity && f.quantity > 0) {
+              portionEquiv = Math.round((explicitTotalGrams / f.quantity) * 10) / 10;
+            } else {
+              portionEquiv = matchResult.matched.portionEquivalentAmount || null;
+            }
             if (!portionEquiv && matchResult.matched.foodPublicId) {
               const dbPortion = await getDbConnection();
               try {
@@ -1982,7 +2002,15 @@ export async function processNutritionAiImport(params: {
           const subUnitNorm = (sub.unitCandidate || "").toLowerCase().trim();
           const subIsMetric = isMetricUnit(subUnitNorm);
           const subIsHousehold = !subIsMetric && /fatia|colher|xicara|copo|pote|pedaco|unidade|dosador|scoop/i.test(subUnitNorm);
-          let subPortionEquiv: number | null = subIsHousehold ? (subMatch.matched.portionEquivalentAmount || null) : null;
+          const subExplicitGrams = extractExplicitGrams(sub.notes) || extractExplicitGrams(sub.originalText);
+          let subPortionEquiv: number | null = null;
+          if (subIsHousehold) {
+            if (subExplicitGrams && sub.quantity && sub.quantity > 0) {
+              subPortionEquiv = Math.round((subExplicitGrams / sub.quantity) * 10) / 10;
+            } else {
+              subPortionEquiv = subMatch.matched.portionEquivalentAmount || null;
+            }
+          }
 
           if (!subPortionEquiv && subIsHousehold && subMatch.matched.foodPublicId) {
             const dbSubPortion = await getDbConnection();
@@ -2094,6 +2122,14 @@ export async function processNutritionAiImport(params: {
     }
   } finally {
     dbPatient.release();
+  }
+
+  const rawTextForHeaders = input.text || (input.buffer && (input.filename.endsWith(".txt") || input.filename.endsWith(".md")) ? input.buffer.toString("utf8") : "");
+  const detectedHeaders = rawTextForHeaders ? detectMealSectionHeaders(rawTextForHeaders) : [];
+  if (detectedHeaders.length > 1 && resolvedMeals.length < detectedHeaders.length) {
+    throw new Error(
+      `A importação identificou ${detectedHeaders.length} refeições no documento (${detectedHeaders.map((h) => h.title).join(", ")}), mas foram processadas apenas ${resolvedMeals.length}. Para proteger a integridade do plano alimentar e evitar perda de dados de saúde, o salvamento parcial foi bloqueado.`
+    );
   }
 
   const proposalStatus: "READY" | "NEEDS_REVIEW" =
@@ -2403,9 +2439,15 @@ export async function confirmNutritionAiImport(params: {
                   );
                 });
 
-                let portionEquiv: number | null = matchedPortion ? Number(matchedPortion.equivalent_reference_amount) : null;
-                if (!portionEquiv) {
-                  portionEquiv = getCalibratedFallbackPortionGrams(displayName || f.foodNameCandidate, f.unitCandidate);
+                const explicitTotalGrams = extractExplicitGrams(f.notes) || extractExplicitGrams(f.originalText);
+                let portionEquiv: number | null = null;
+                if (explicitTotalGrams && f.quantity && f.quantity > 0) {
+                  portionEquiv = Math.round((explicitTotalGrams / f.quantity) * 10) / 10;
+                } else {
+                  portionEquiv = matchedPortion ? Number(matchedPortion.equivalent_reference_amount) : null;
+                  if (!portionEquiv) {
+                    portionEquiv = getCalibratedFallbackPortionGrams(displayName || f.foodNameCandidate, f.unitCandidate);
+                  }
                 }
 
                 if (portionEquiv && portionEquiv > 0) {
@@ -2538,9 +2580,15 @@ export async function confirmNutritionAiImport(params: {
                       );
                     });
 
-                    let sPortionEquiv: number | null = sMatchedPortion ? Number(sMatchedPortion.equivalent_reference_amount) : null;
-                    if (!sPortionEquiv) {
-                      sPortionEquiv = getCalibratedFallbackPortionGrams(subDisplayName || sub.foodNameCandidate, sub.unitCandidate);
+                    const sExplicitGrams = extractExplicitGrams(sub.notes) || extractExplicitGrams(sub.originalText);
+                    let sPortionEquiv: number | null = null;
+                    if (sExplicitGrams && sub.quantity && sub.quantity > 0) {
+                      sPortionEquiv = Math.round((sExplicitGrams / sub.quantity) * 10) / 10;
+                    } else {
+                      sPortionEquiv = sMatchedPortion ? Number(sMatchedPortion.equivalent_reference_amount) : null;
+                      if (!sPortionEquiv) {
+                        sPortionEquiv = getCalibratedFallbackPortionGrams(subDisplayName || sub.foodNameCandidate, sub.unitCandidate);
+                      }
                     }
 
                     if (sPortionEquiv && sPortionEquiv > 0) {

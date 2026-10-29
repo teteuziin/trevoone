@@ -194,7 +194,10 @@ export function NutritionItemEditor({
         const rawLabel = (item.prescribedUnitLabel || "").trim().toLowerCase();
         const isStandardMetric =
           ["G", "KG", "ML", "L"].includes(rawCode) ||
-          ["g", "gr", "grama", "gramas", "ml", "mililitro", "mililitros", "kg", "quilo", "quilos", "quilograma", "quilogramas", "l", "litro", "litros"].includes(rawLabel);
+          ["g", "gr", "grama", "gramas", "ml", "mililitro", "mililitros", "kg", "quilo", "quilos", "quilograma", "quilogramas", "l", "litro", "litros"].includes(rawLabel) ||
+          /^gramas?\b/i.test(rawLabel) ||
+          /^mililitros?\b/i.test(rawLabel) ||
+          /^g\b/i.test(rawLabel);
 
         if (isStandardMetric) {
           const isVolume = rawCode === "ML" || rawCode === "L" || rawLabel.includes("ml") || rawLabel.includes("litro") || refUnit === "ML";

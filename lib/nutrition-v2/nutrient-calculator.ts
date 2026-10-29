@@ -162,17 +162,10 @@ export function calculateNutrientFactor(
   const rUnit = (refUnit || "").trim().toUpperCase();
   const pUnit = (prescribedUnit || "").trim().toUpperCase();
 
-  // 2. Food-specific household portion provided
-  if (portionEquivalentAmount != null) {
-    if (!Number.isFinite(portionEquivalentAmount) || portionEquivalentAmount <= 0) {
-      return { factor: null, effectiveQty: null, error: "O peso/equivalência da porção deve ser maior que zero e finito." };
-    }
-    const effectiveQty = prescribedQty * portionEquivalentAmount;
-    const factor = effectiveQty / refAmount;
-    return { factor, effectiveQty };
-  }
-
-  // 3. Direct mass conversion (G <-> KG)
+  // 2. Direct mass conversion (G <-> KG)
+  // If prescribed unit is directly a metric mass (e.g. G, KG, GR, GRAMA, GRAMAS),
+  // the prescribed quantity is ALREADY an absolute physical measure.
+  // Never multiply by portionEquivalentAmount when prescribed unit is already metric mass!
   if (MASS_UNITS.has(rUnit) && MASS_UNITS.has(pUnit)) {
     let rInG = refAmount;
     if (rUnit === "KG") rInG = refAmount * 1000;
@@ -185,7 +178,8 @@ export function calculateNutrientFactor(
     return { factor, effectiveQty };
   }
 
-  // 4. Direct volume conversion (ML <-> L)
+  // 3. Direct volume conversion (ML <-> L)
+  // Never multiply by portionEquivalentAmount when prescribed unit is already metric volume!
   if (VOLUME_UNITS.has(rUnit) && VOLUME_UNITS.has(pUnit)) {
     let rInMl = refAmount;
     if (rUnit === "L") rInMl = refAmount * 1000;
@@ -195,6 +189,16 @@ export function calculateNutrientFactor(
 
     const factor = pInMl / rInMl;
     const effectiveQty = rUnit === "L" ? pInMl / 1000 : pInMl;
+    return { factor, effectiveQty };
+  }
+
+  // 4. Food-specific household portion provided (unidades, fatias, colheres, etc.)
+  if (portionEquivalentAmount != null) {
+    if (!Number.isFinite(portionEquivalentAmount) || portionEquivalentAmount <= 0) {
+      return { factor: null, effectiveQty: null, error: "O peso/equivalência da porção deve ser maior que zero e finito." };
+    }
+    const effectiveQty = prescribedQty * portionEquivalentAmount;
+    const factor = effectiveQty / refAmount;
     return { factor, effectiveQty };
   }
 

@@ -344,6 +344,116 @@ export async function runRestartModalAndVideoExecutionSuite() {
     assert.strictEqual(resNone.source, "NONE");
   });
 
+  // =========================================================================
+  // TEST 9: Multi-Media Candidates (3 medias) & Prioritized allAvailableMedia
+  // =========================================================================
+  runTest('Media Resolver: prioritizes 3 pinned medias (EXECUTION_VIDEO > START_IMAGE > ALTERNATE_IMAGE) for fallback', async () => {
+    const { resolveExerciseExecutionMedia } = await import('../lib/training-v2/execution-media-resolver.ts');
+
+    const multiRes = resolveExerciseExecutionMedia({
+      consultancySlug: "saiya-shape",
+      item: {
+        pinnedMedia: [
+          {
+            role: "ALTERNATE_IMAGE",
+            sortOrder: 2,
+            mediaAsset: {
+              publicId: "asset-alt-img",
+              mediaType: "IMAGE",
+              mimeType: "image/jpeg",
+            },
+          },
+          {
+            role: "EXECUTION_VIDEO",
+            sortOrder: 0,
+            mediaAsset: {
+              publicId: "asset-exec-vid",
+              mediaType: "VIDEO",
+              mimeType: "video/mp4",
+            },
+          },
+          {
+            role: "START_IMAGE",
+            sortOrder: 1,
+            mediaAsset: {
+              publicId: "asset-start-img",
+              mediaType: "IMAGE",
+              mimeType: "image/jpeg",
+            },
+          },
+        ],
+      },
+    });
+
+    assert.strictEqual(multiRes.hasMedia, true);
+    assert.strictEqual(multiRes.allAvailableMedia.length, 3);
+    // 1st candidate: EXECUTION_VIDEO
+    assert.strictEqual(multiRes.allAvailableMedia[0].role, "EXECUTION_VIDEO");
+    assert.strictEqual(multiRes.allAvailableMedia[0].isVideo, true);
+    assert.ok(multiRes.allAvailableMedia[0].url.includes("asset-exec-vid"));
+    assert.ok(multiRes.allAvailableMedia[0].url.includes("consultancy=saiya-shape"));
+    assert.ok(multiRes.allAvailableMedia[0].thumbnailUrl.includes("asset-start-img"));
+
+    // 2nd candidate: START_IMAGE (photo demonstration fallback)
+    assert.strictEqual(multiRes.allAvailableMedia[1].role, "START_IMAGE");
+    assert.strictEqual(multiRes.allAvailableMedia[1].isVideo, false);
+    assert.ok(multiRes.allAvailableMedia[1].url.includes("asset-start-img"));
+
+    // 3rd candidate: ALTERNATE_IMAGE
+    assert.strictEqual(multiRes.allAvailableMedia[2].role, "ALTERNATE_IMAGE");
+    assert.strictEqual(multiRes.allAvailableMedia[2].isVideo, false);
+    assert.ok(multiRes.allAvailableMedia[2].url.includes("asset-alt-img"));
+  });
+
+  // =========================================================================
+  // TEST 10: Route & Diagnostic: Range 206, Storage Resolution & Sanitized Details
+  // =========================================================================
+  runTest('Route & Diagnostic: range 206 header parsing, multi-root storage fallback and technical diagnostic', () => {
+    const routeCode = fs.readFileSync(
+      path.resolve(process.cwd(), 'app/api/training-v2/media/[publicId]/route.ts'),
+      'utf-8'
+    );
+
+    assert.ok(
+      routeCode.includes('Accept-Ranges') && routeCode.includes('206'),
+      'Media route must declare Accept-Ranges and return 206 Partial Content'
+    );
+    assert.ok(
+      routeCode.includes('Content-Range') && routeCode.includes('Content-Length'),
+      'Range responses must specify Content-Range and Content-Length headers'
+    );
+    assert.ok(
+      routeCode.includes('/home/u406031981/persistent_storage') && routeCode.includes('.data'),
+      'Media route must verify physical storage across candidate persistent locations before rejecting'
+    );
+
+    const focusedViewCode = fs.readFileSync(
+      path.resolve(process.cwd(), 'components/consultancies/training-v2/student-runtime-focused-view.tsx'),
+      'utf-8'
+    );
+
+    assert.ok(
+      focusedViewCode.includes('getEmbedVideoInfo') && focusedViewCode.includes('shorts'),
+      'Focused view must detect and embed YouTube shorts and standard URLs'
+    );
+    assert.ok(
+      focusedViewCode.includes('isGenericWebLink'),
+      'Focused view must prevent raw external web pages from entering <video> tags'
+    );
+    assert.ok(
+      focusedViewCode.includes('handleMediaError'),
+      'Focused view must capture real player error and probe HTTP status on failure'
+    );
+    assert.ok(
+      focusedViewCode.includes('Código do Player') && focusedViewCode.includes('Status HTTP do Recurso'),
+      'Sanitized diagnostic modal must present player error code, HTTP status and failure stage'
+    );
+    assert.ok(
+      focusedViewCode.includes('Demonstração em foto (vídeo alternativo)'),
+      'Focused view must render subtle indicator when falling back to static exercise photo'
+    );
+  });
+
   console.log(`=== TODOS OS ${passedCount}/${totalCount} TESTES DE REINÍCIO MOBILE E VÍDEO PASSARAM! ===\n`);
   return { passedCount, totalCount };
 }

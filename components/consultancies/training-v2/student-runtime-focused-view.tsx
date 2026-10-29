@@ -363,10 +363,29 @@ export function StudentRuntimeFocusedView({
   const [showDiagnostic, setShowDiagnostic] = useState(false);
   const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
   const [failedImgUrl, setFailedImgUrl] = useState<string | null>(null);
+  const [failedMediaUrls, setFailedMediaUrls] = useState<string[]>([]);
+  const [diagnosticDetails, setDiagnosticDetails] = useState<{
+    selectedRole?: string;
+    mediaType?: "VIDEO" | "IMAGE" | "EMBED" | "EXTERNAL_LINK";
+    playerType?: string;
+    sourceType?: "HOSTINGER_LOCAL" | "EXTERNAL_PROVIDER" | "CATALOG";
+    playerErrorCode?: string;
+    playerErrorMessage?: string;
+    httpStatus?: number | string;
+    contentType?: string;
+    failureStage?: "AUTHENTICATION" | "TENANCY_OR_PERMISSIONS" | "STORAGE_DISCOVERY" | "STREAM_INITIALIZATION" | "DECODE_OR_PLAYBACK" | "NETWORK";
+    sourceUrlSanitized?: string;
+    fallbackActive?: boolean;
+    fallbackRole?: string;
+  }>({});
   const [exerciseMediaCache, setExerciseMediaCache] = useState<
     Record<
       string,
-      | { status: "AVAILABLE"; media: { url: string; isVideo: boolean; isGif: boolean; thumbnailUrl?: string | null } }
+      | {
+          status: "AVAILABLE";
+          media: { url: string; isVideo: boolean; isGif: boolean; thumbnailUrl?: string | null; role?: string };
+          allAvailableMedia?: Array<{ url: string; isVideo: boolean; isGif: boolean; thumbnailUrl?: string | null; role?: string }>;
+        }
       | { status: "NO_MEDIA_REGISTERED" }
       | { status: "NOT_FOUND"; message: string }
       | { status: "ACCESS_DENIED"; message: string }
@@ -376,17 +395,115 @@ export function StudentRuntimeFocusedView({
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   function getEmbedVideoInfo(url: string) {
-    if (!url) return null;
-    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/i);
+    if (!url || typeof url !== "string") return null;
+    const trimmed = url.trim();
+
+    // YouTube Shorts: https://www.youtube.com/shorts/VIDEO_ID or youtube.com/shorts/VIDEO_ID
+    const shortsMatch = trimmed.match(/(?:youtube\.com|youtu\.be)\/shorts\/([a-zA-Z0-9_-]+)/i);
+    if (shortsMatch && shortsMatch[1]) {
+      return {
+        type: "youtube" as const,
+        embedUrl: `https://www.youtube-nocookie.com/embed/${shortsMatch[1]}?autoplay=0&mute=1&playsinline=1&rel=0`,
+      };
+    }
+
+    // YouTube standard watch or embed: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID
+    const ytMatch = trimmed.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/i);
     if (ytMatch && ytMatch[1]) {
-      return { type: "youtube" as const, embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=0&mute=1` };
+      return {
+        type: "youtube" as const,
+        embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=0&mute=1&playsinline=1&rel=0`,
+      };
     }
-    const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?([0-9]+)/i);
+
+    // Vimeo: vimeo.com/VIDEO_ID or player.vimeo.com/video/VIDEO_ID
+    const vimeoMatch = trimmed.match(/vimeo\.com\/(?:video\/)?([0-9]+)/i);
     if (vimeoMatch && vimeoMatch[1]) {
-      return { type: "vimeo" as const, embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}?muted=1` };
+      return {
+        type: "vimeo" as const,
+        embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}?muted=1&playsinline=1`,
+      };
     }
+
     return null;
   }
+
+  function isGenericWebLink(url: string): boolean {
+    if (!url || typeof url !== "string") return false;
+    const trimmed = url.trim();
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false;
+    if (getEmbedVideoInfo(trimmed)) return false;
+    const lower = trimmed.toLowerCase();
+    const hasMediaExt =
+      lower.includes(".mp4") ||
+      lower.includes(".webm") ||
+      lower.includes(".mov") ||
+      lower.includes(".gif") ||
+      lower.includes(".jpg") ||
+      lower.includes(".jpeg") ||
+      lower.includes(".png") ||
+      lower.includes(".webp");
+    return !hasMediaExt;
+  }
+
+  const handleMediaError = async (
+    failedUrl: string,
+    mediaItem?: { url: string; isVideo?: boolean; role?: string } | null
+  ) => {
+    setFailedMediaUrls((prev) => (prev.includes(failedUrl) ? prev : [...prev, failedUrl]));
+    setFailedVideoUrl(failedUrl);
+    setFailedImgUrl(failedUrl);
+
+    const vErr = videoRef.current?.error;
+    let codeStr = "HTML_MEDIA_ERROR";
+    let msgStr = "Falha no elemento de mídia do navegador";
+    if (vErr) {
+      if (vErr.code === 1) codeStr = "MEDIA_ERR_ABORTED (1)";
+      else if (vErr.code === 2) codeStr = "MEDIA_ERR_NETWORK (2)";
+      else if (vErr.code === 3) codeStr = "MEDIA_ERR_DECODE (3)";
+      else if (vErr.code === 4) codeStr = "MEDIA_ERR_SRC_NOT_SUPPORTED (4)";
+      else codeStr = `CODE_${vErr.code}`;
+      if (vErr.message) msgStr = vErr.message;
+    }
+
+    let httpStatus: number | string = "Falha de rede";
+    let contentType = "desconhecido";
+    let failureStage: "AUTHENTICATION" | "TENANCY_OR_PERMISSIONS" | "STORAGE_DISCOVERY" | "STREAM_INITIALIZATION" | "DECODE_OR_PLAYBACK" | "NETWORK" = "DECODE_OR_PLAYBACK";
+
+    try {
+      const probe = await fetch(failedUrl, { method: "HEAD", cache: "no-store" });
+      httpStatus = probe.status;
+      contentType = probe.headers.get("content-type") || "desconhecido";
+      if (probe.status === 401) {
+        failureStage = "AUTHENTICATION";
+      } else if (probe.status === 403) {
+        failureStage = "TENANCY_OR_PERMISSIONS";
+      } else if (probe.status === 404) {
+        failureStage = "STORAGE_DISCOVERY";
+      } else if (probe.status === 416 || probe.status >= 500) {
+        failureStage = "STREAM_INITIALIZATION";
+      } else if (probe.ok) {
+        failureStage = "DECODE_OR_PLAYBACK";
+      }
+    } catch {
+      httpStatus = "Sem conexão ou bloqueio CORS";
+      failureStage = "NETWORK";
+    }
+
+    const isLocal = failedUrl.startsWith("/api/training-v2/media/");
+    setDiagnosticDetails({
+      selectedRole: mediaItem?.role || (mediaItem?.isVideo ? "EXECUTION_VIDEO" : "START_IMAGE"),
+      mediaType: mediaItem?.isVideo ? "VIDEO" : "IMAGE",
+      playerType: mediaItem?.isVideo ? "HTML5 <video> (inline, muted)" : "HTML5 <img> (imagem estática)",
+      sourceType: isLocal ? "HOSTINGER_LOCAL" : "EXTERNAL_PROVIDER",
+      playerErrorCode: codeStr,
+      playerErrorMessage: msgStr,
+      httpStatus,
+      contentType,
+      failureStage,
+      sourceUrlSanitized: failedUrl.replace(/\?.*$/, ""),
+    });
+  };
 
   const currentDraft = currentSet ? draftInputs[currentSet.publicId] : undefined;
 
@@ -707,7 +824,7 @@ export function StudentRuntimeFocusedView({
   // Media resolution and on-demand catalog fetch for the current active exercise
   const activeExerciseItem = currentItemContext?.item;
   const targetExPublicId = activeExerciseItem?.exercisePublicId || activeExerciseItem?.customExercisePublicId || null;
-  const directResolvedMedia = resolveExerciseExecutionMedia({ item: activeExerciseItem });
+  const directResolvedMedia = resolveExerciseExecutionMedia({ item: activeExerciseItem, consultancySlug });
 
   useEffect(() => {
     if (!targetExPublicId) return;
@@ -715,6 +832,7 @@ export function StudentRuntimeFocusedView({
     if (exerciseMediaCache[targetExPublicId] !== undefined) return;
 
     let isMounted = true;
+    const consultancyParam = consultancySlug ? `?consultancy=${encodeURIComponent(consultancySlug)}` : "";
 
     fetch(`/api/training-v2/exercises/${targetExPublicId}`)
       .then(async (res) => {
@@ -743,17 +861,33 @@ export function StudentRuntimeFocusedView({
             const isVid = chosen.mediaAsset.mediaType === "VIDEO" || chosen.mediaAsset.mimeType === "video/mp4";
             const isGif = chosen.mediaAsset.mimeType === "image/gif";
             const thumbUrl = thumbMatch?.mediaAsset?.publicId
-              ? `/api/training-v2/media/${thumbMatch.mediaAsset.publicId}`
+              ? `/api/training-v2/media/${thumbMatch.mediaAsset.publicId}${consultancyParam}`
               : null;
+
+            const allAvailableMedia = data.exercise.media
+              .filter((m: { mediaAsset?: { publicId?: string } }) => Boolean(m.mediaAsset?.publicId))
+              .map((m: { role?: string; mediaAsset?: { publicId?: string; mediaType?: string; mimeType?: string } }) => {
+                const vid = m.mediaAsset?.mediaType === "VIDEO" || m.mediaAsset?.mimeType === "video/mp4";
+                const gif = m.mediaAsset?.mimeType === "image/gif";
+                return {
+                  url: `/api/training-v2/media/${m.mediaAsset!.publicId}${consultancyParam}`,
+                  isVideo: vid,
+                  isGif: gif,
+                  thumbnailUrl: thumbUrl,
+                  role: m.role,
+                };
+              });
 
             return {
               status: "AVAILABLE" as const,
               media: {
-                url: `/api/training-v2/media/${chosen.mediaAsset.publicId}`,
+                url: `/api/training-v2/media/${chosen.mediaAsset.publicId}${consultancyParam}`,
                 isVideo: isVid,
                 isGif,
                 thumbnailUrl: thumbUrl,
+                role: chosen.role,
               },
+              allAvailableMedia,
             };
           }
         }
@@ -780,7 +914,7 @@ export function StudentRuntimeFocusedView({
     return () => {
       isMounted = false;
     };
-  }, [targetExPublicId, directResolvedMedia.hasMedia, directResolvedMedia.url, exerciseMediaCache]);
+  }, [targetExPublicId, directResolvedMedia.hasMedia, directResolvedMedia.url, exerciseMediaCache, consultancySlug]);
 
   // Pause previous video when changing exercise item
   useEffect(() => {
@@ -1068,12 +1202,22 @@ export function StudentRuntimeFocusedView({
 
   const isSequence = Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence);
   const itemExPublicId = item?.exercisePublicId || item?.customExercisePublicId || null;
-  const directItemMedia = resolveExerciseExecutionMedia({ item });
+  const directItemMedia = resolveExerciseExecutionMedia({ item, consultancySlug });
 
   type MediaStateView =
-    | { type: "AVAILABLE"; url: string; isVideo: boolean; isGif: boolean; thumbnailUrl: string | null }
+    | {
+        type: "AVAILABLE";
+        url: string;
+        isVideo: boolean;
+        isGif: boolean;
+        thumbnailUrl: string | null;
+        role?: string;
+        isFallback?: boolean;
+        fallbackRole?: string;
+        allCount?: number;
+      }
     | { type: "LOADING" }
-    | { type: "PLAYBACK_ERROR"; url: string }
+    | { type: "PLAYBACK_ERROR"; url: string; attemptedCount?: number }
     | { type: "QUERY_ERROR"; message: string }
     | { type: "ACCESS_DENIED"; message: string }
     | { type: "NOT_FOUND"; message: string }
@@ -1083,16 +1227,30 @@ export function StudentRuntimeFocusedView({
 
   const activeMediaState: MediaStateView = (() => {
     // 1. Direct item override or pinned media
-    if (directItemMedia.hasMedia && directItemMedia.url) {
-      if (failedVideoUrl === directItemMedia.url || failedImgUrl === directItemMedia.url) {
-        return { type: "PLAYBACK_ERROR", url: directItemMedia.url };
+    if (directItemMedia.hasMedia && directItemMedia.allAvailableMedia.length > 0) {
+      const working = directItemMedia.allAvailableMedia.find(
+        (m) => !failedMediaUrls.includes(m.url) && failedVideoUrl !== m.url && failedImgUrl !== m.url
+      );
+
+      if (working) {
+        const isFallback = working.url !== directItemMedia.allAvailableMedia[0].url;
+        return {
+          type: "AVAILABLE",
+          url: working.url,
+          isVideo: working.isVideo,
+          isGif: working.isGif,
+          thumbnailUrl: working.thumbnailUrl || null,
+          role: working.role,
+          isFallback,
+          fallbackRole: isFallback ? working.role : undefined,
+          allCount: directItemMedia.allAvailableMedia.length,
+        };
       }
+
       return {
-        type: "AVAILABLE",
-        url: directItemMedia.url,
-        isVideo: directItemMedia.isVideo,
-        isGif: directItemMedia.isGif,
-        thumbnailUrl: directItemMedia.thumbnailUrl,
+        type: "PLAYBACK_ERROR",
+        url: directItemMedia.url || "",
+        attemptedCount: directItemMedia.allAvailableMedia.length,
       };
     }
 
@@ -1108,15 +1266,30 @@ export function StudentRuntimeFocusedView({
     }
 
     if (cached.status === "AVAILABLE") {
-      if (failedVideoUrl === cached.media.url || failedImgUrl === cached.media.url) {
-        return { type: "PLAYBACK_ERROR", url: cached.media.url };
+      const allCandidates = cached.allAvailableMedia || [cached.media];
+      const working = allCandidates.find(
+        (m) => !failedMediaUrls.includes(m.url) && failedVideoUrl !== m.url && failedImgUrl !== m.url
+      );
+
+      if (working) {
+        const isFallback = working.url !== allCandidates[0].url;
+        return {
+          type: "AVAILABLE",
+          url: working.url,
+          isVideo: working.isVideo,
+          isGif: working.isGif,
+          thumbnailUrl: working.thumbnailUrl || null,
+          role: working.role,
+          isFallback,
+          fallbackRole: isFallback ? working.role : undefined,
+          allCount: allCandidates.length,
+        };
       }
+
       return {
-        type: "AVAILABLE",
+        type: "PLAYBACK_ERROR",
         url: cached.media.url,
-        isVideo: cached.media.isVideo,
-        isGif: cached.media.isGif,
-        thumbnailUrl: cached.media.thumbnailUrl || null,
+        attemptedCount: allCandidates.length,
       };
     }
 
@@ -1145,6 +1318,9 @@ export function StudentRuntimeFocusedView({
         isVideo: activeMediaState.isVideo,
         isGif: activeMediaState.isGif,
         thumbnailUrl: activeMediaState.thumbnailUrl,
+        role: activeMediaState.role,
+        isFallback: activeMediaState.isFallback,
+        fallbackRole: activeMediaState.fallbackRole,
       }
     : null;
 
@@ -1344,6 +1520,13 @@ export function StudentRuntimeFocusedView({
             {/* Topo do exercício: Área de demonstração / feedback do vínculo com o catálogo */}
             {activeMediaState.type === "AVAILABLE" && effectiveMedia ? (
               <div className="w-full max-w-full sm:max-w-sm lg:max-w-md mx-auto aspect-square rounded-2xl bg-black dark:bg-[#101114] border border-zinc-900 dark:border-zinc-800 overflow-hidden flex items-center justify-center relative shadow-inner">
+                {effectiveMedia.isFallback && (
+                  <div className="absolute top-2.5 left-2.5 z-10 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-xs border border-white/15 text-[10px] font-semibold text-zinc-200 shadow-sm flex items-center gap-1.5 pointer-events-none">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span>Demonstração em foto (vídeo alternativo)</span>
+                  </div>
+                )}
+
                 {(() => {
                   const embed = getEmbedVideoInfo(effectiveMedia.url);
                   if (embed) {
@@ -1358,13 +1541,36 @@ export function StudentRuntimeFocusedView({
                     );
                   }
 
+                  if (isGenericWebLink(effectiveMedia.url)) {
+                    return (
+                      <div className="w-full h-full p-6 flex flex-col items-center justify-center text-center space-y-3 bg-zinc-950 text-white">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                          <VideoIcon className="w-6 h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-white">Vídeo externo prescrito</p>
+                          <p className="text-[11px] text-zinc-400">Toque no botão abaixo para assistir à demonstração</p>
+                        </div>
+                        <a
+                          href={effectiveMedia.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer min-h-[40px] inline-flex items-center gap-1.5"
+                        >
+                          <span>Abrir demonstração</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    );
+                  }
+
                   if (effectiveMedia.isGif || !effectiveMedia.isVideo) {
                     return (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={effectiveMedia.url}
                         alt={item.exerciseNameSnapshot}
-                        onError={() => setFailedImgUrl(effectiveMedia.url)}
+                        onError={() => handleMediaError(effectiveMedia.url, effectiveMedia)}
                         className="w-full h-full object-contain"
                       />
                     );
@@ -1380,7 +1586,7 @@ export function StudentRuntimeFocusedView({
                       playsInline
                       muted
                       preload="metadata"
-                      onError={() => setFailedVideoUrl(effectiveMedia.url)}
+                      onError={() => handleMediaError(effectiveMedia.url, effectiveMedia)}
                       className="w-full h-full object-contain"
                     />
                   );
@@ -1398,6 +1604,7 @@ export function StudentRuntimeFocusedView({
                 <button
                   type="button"
                   onClick={() => {
+                    setFailedMediaUrls([]);
                     setFailedVideoUrl(null);
                     setFailedImgUrl(null);
                   }}
@@ -1881,13 +2088,13 @@ export function StudentRuntimeFocusedView({
 
             {/* Diagnóstico Sanitizado de Mídia */}
             {showDiagnostic && (
-              <div className="mt-3 p-3.5 rounded-2xl bg-zinc-950 text-zinc-300 border border-zinc-800 text-[11px] font-mono space-y-1 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between pb-1 border-b border-zinc-800">
+              <div className="mt-3 p-4 rounded-2xl bg-zinc-950 text-zinc-300 border border-zinc-800 text-[11px] font-mono space-y-1.5 animate-in fade-in duration-150 shadow-lg">
+                <div className="flex items-center justify-between pb-1.5 border-b border-zinc-800">
                   <span className="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">Diagnóstico Sanitizado</span>
                   <button
                     type="button"
                     onClick={() => setShowDiagnostic(false)}
-                    className="text-zinc-400 hover:text-white cursor-pointer px-1.5 py-0.5 rounded"
+                    className="text-zinc-400 hover:text-white cursor-pointer px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800"
                   >
                     ✕ Fechar
                   </button>
@@ -1895,8 +2102,81 @@ export function StudentRuntimeFocusedView({
                 <div>Exercício: <strong className="text-white">{item.exerciseNameSnapshot}</strong></div>
                 <div>Item Public ID: <span className="text-zinc-400">{item.publicId}</span></div>
                 <div>Vínculo Catálogo: <span className={itemExPublicId ? "text-emerald-400" : "text-amber-400"}>{itemExPublicId || "Nenhum (exercise_id nulo)"}</span></div>
-                <div>Status da Mídia: <span className="text-emerald-400 font-bold">{activeMediaState.type}</span></div>
-                <div>Mídias na Ficha: <span className="text-zinc-400">{item.pinnedMedia?.length || 0}</span></div>
+                <div>
+                  Status da Mídia:{" "}
+                  <span className={activeMediaState.type === "AVAILABLE" ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>
+                    {activeMediaState.type === "AVAILABLE" && activeMediaState.isFallback ? `FALLBACK_ATIVO (${activeMediaState.fallbackRole})` : activeMediaState.type}
+                  </span>
+                </div>
+                <div>
+                  Mídias na Ficha: <span className="text-zinc-400">{item.pinnedMedia?.length || 0}</span>
+                  {item.pinnedMedia && item.pinnedMedia.length > 0 && (
+                    <span className="text-zinc-500 text-[10px] block mt-0.5">
+                      {item.pinnedMedia
+                        .map((m, idx) => `${idx + 1}. ${m.role} [${m.mediaAsset?.mediaType || "MÍDIA"}${m.mediaAsset?.mimeType ? ` · ${m.mediaAsset.mimeType}` : ""}]`)
+                        .join(", ")}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  Mídia Selecionada:{" "}
+                  <span className="text-zinc-200">
+                    {effectiveMedia?.role || diagnosticDetails.selectedRole || (effectiveMedia?.isVideo ? "EXECUTION_VIDEO" : "START_IMAGE")}
+                  </span>
+                </div>
+                <div>
+                  Player Utilizado:{" "}
+                  <span className="text-zinc-400">
+                    {diagnosticDetails.playerType ||
+                      (effectiveMedia?.isVideo
+                        ? "HTML5 <video> (inline, muted)"
+                        : isGenericWebLink(effectiveMedia?.url || "")
+                        ? "Link Externo"
+                        : getEmbedVideoInfo(effectiveMedia?.url || "")
+                        ? "<iframe> Embed"
+                        : "HTML5 <img> (imagem estática)")}
+                  </span>
+                </div>
+                <div>
+                  Tipo de Fonte:{" "}
+                  <span className="text-zinc-400">
+                    {diagnosticDetails.sourceType ||
+                      (effectiveMedia?.url?.startsWith("/api/training-v2/media/") ? "HOSTINGER_LOCAL" : "Provedor externo")}
+                  </span>
+                </div>
+                {diagnosticDetails.playerErrorCode && (
+                  <div>
+                    Código do Player: <span className="text-amber-400">{diagnosticDetails.playerErrorCode}</span>
+                  </div>
+                )}
+                {diagnosticDetails.playerErrorMessage && (
+                  <div>
+                    Mensagem do Player: <span className="text-zinc-400">{diagnosticDetails.playerErrorMessage}</span>
+                  </div>
+                )}
+                {diagnosticDetails.httpStatus !== undefined && (
+                  <div>
+                    Status HTTP do Recurso:{" "}
+                    <span className={String(diagnosticDetails.httpStatus).startsWith("2") ? "text-emerald-400" : "text-red-400"}>
+                      {diagnosticDetails.httpStatus}
+                    </span>
+                  </div>
+                )}
+                {diagnosticDetails.contentType && (
+                  <div>
+                    Content-Type: <span className="text-zinc-400">{diagnosticDetails.contentType}</span>
+                  </div>
+                )}
+                {diagnosticDetails.failureStage && (
+                  <div>
+                    Etapa da Falha: <span className="text-amber-400 font-bold">{diagnosticDetails.failureStage}</span>
+                  </div>
+                )}
+                {activeMediaState.type === "AVAILABLE" && activeMediaState.isFallback && (
+                  <div>
+                    Fallback em Exibição: <span className="text-emerald-400 font-bold">{activeMediaState.fallbackRole} (Demonstração alternativa ativa)</span>
+                  </div>
+                )}
               </div>
             )}
           </div>

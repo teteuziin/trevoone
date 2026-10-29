@@ -358,26 +358,49 @@ export async function authorizeMediaAssetAccess(
         }
       }
     } else if (ctx.isStudent && (ctx.membershipId || ctx.userId)) {
-      // Automatic student grant: check if asset is pinned, linked via exercise catalog or referenced via custom_video_url in ANY active/assigned workout version for this student
+      // Automatic student grant: check if asset is pinned, linked via exercise catalog or referenced via custom_video_url
+      // in ANY assigned routine OR active/completed execution session for this student
       const [anyPinnedRows] = await connection.execute<RowDataPacket[]>(
         `SELECT wbi.id
          FROM workout_block_items wbi
          INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-         INNER JOIN workout_assignments wa ON wa.workout_version_id = wb.workout_version_id
+         LEFT JOIN workout_assignments wa ON wa.workout_version_id = wb.workout_version_id AND wa.deleted_at IS NULL
+         LEFT JOIN workout_execution_sessions wes ON wes.workout_version_id = wb.workout_version_id
          LEFT JOIN workout_block_item_media wbim ON wbim.block_item_id = wbi.id AND wbim.media_asset_id = ?
          LEFT JOIN exercise_media em ON em.media_asset_id = ? AND (em.exercise_id = wbi.exercise_id OR em.exercise_id = wbi.custom_exercise_id)
-         WHERE (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ?))
-           AND wa.deleted_at IS NULL
+         WHERE (
+             wa.student_membership_id = ?
+             OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ?)
+             OR wes.student_membership_id = ?
+             OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ?)
+             OR wes.user_id = ?
+           )
            AND (
              wbim.id IS NOT NULL
              OR em.id IS NOT NULL
              OR wbi.custom_video_url LIKE CONCAT('%', ?, '%')
            )
          LIMIT 1;`,
-        [r.id, r.id, ctx.membershipId || 0, ctx.userId, r.public_id]
+        [r.id, r.id, ctx.membershipId || 0, ctx.userId, ctx.membershipId || 0, ctx.userId, ctx.userId, r.public_id]
       );
 
       if (Array.isArray(anyPinnedRows) && anyPinnedRows.length > 0) {
+        return { authorized: true, mediaAsset, storageKey };
+      }
+
+      // Check if media belongs to an active catalog exercise available to this student's consultancy
+      const [catalogRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT em.id
+         FROM exercise_media em
+         INNER JOIN exercises e ON e.id = em.exercise_id
+         WHERE em.media_asset_id = ?
+           AND e.deleted_at IS NULL
+           AND (e.scope = 'GLOBAL' OR (e.scope = 'CONSULTANCY' AND e.consultancy_id = ?))
+         LIMIT 1;`,
+        [r.id, ctx.consultancyId || 0]
+      );
+
+      if (Array.isArray(catalogRows) && catalogRows.length > 0) {
         return { authorized: true, mediaAsset, storageKey };
       }
     }

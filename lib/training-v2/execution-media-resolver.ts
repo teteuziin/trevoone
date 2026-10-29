@@ -23,6 +23,10 @@ export interface ResolvedMediaPayload {
   isVideo: boolean;
   isGif: boolean;
   thumbnailUrl?: string | null;
+  role?: string;
+  mediaAssetPublicId?: string | null;
+  mimeType?: string | null;
+  mediaType?: "VIDEO" | "IMAGE";
 }
 
 export interface ResolvedExecutionMedia {
@@ -33,6 +37,8 @@ export interface ResolvedExecutionMedia {
   isVideo: boolean;
   isGif: boolean;
   thumbnailUrl: string | null;
+  role?: string;
+  allAvailableMedia: ResolvedMediaPayload[];
 }
 
 export interface ResolveMediaInput {
@@ -50,6 +56,7 @@ export interface ResolveMediaInput {
   libraryExercise?: {
     media?: ExerciseMediaDto[] | null;
   } | null;
+  consultancySlug?: string | null;
 }
 
 export function isValidMediaUrl(url?: string | null): boolean {
@@ -68,6 +75,59 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
   const item = input.item;
   const customExercise = input.customExercise;
   const libraryExercise = input.libraryExercise;
+  const consultancySuffix = input.consultancySlug
+    ? `?consultancy=${encodeURIComponent(input.consultancySlug)}`
+    : "";
+
+  const allAvailableMedia: ResolvedMediaPayload[] = [];
+
+  // Helper to build media payload from asset
+  const toPayload = (
+    m: BlockItemMediaDto | ExerciseMediaDto,
+    candidateList: (BlockItemMediaDto | ExerciseMediaDto)[]
+  ): ResolvedMediaPayload | null => {
+    const pubId = m.mediaAsset?.publicId;
+    if (!pubId) return null;
+
+    const mime = m.mediaAsset?.mimeType || "";
+    const isVid = m.mediaAsset?.mediaType === "VIDEO" || mime === "video/mp4";
+    const isGif = mime === "image/gif";
+    const url = `/api/training-v2/media/${pubId}${consultancySuffix}`;
+
+    let thumbUrl: string | null = null;
+    if (isVid) {
+      const thumb = candidateList.find(
+        (c) => c.role === "START_IMAGE" || c.role === "VIDEO_POSTER"
+      );
+      if (thumb?.mediaAsset?.publicId) {
+        thumbUrl = `/api/training-v2/media/${thumb.mediaAsset.publicId}${consultancySuffix}`;
+      }
+    } else {
+      thumbUrl = url;
+    }
+
+    return {
+      url,
+      isVideo: isVid,
+      isGif,
+      thumbnailUrl: thumbUrl,
+      role: m.role,
+      mediaAssetPublicId: pubId,
+      mimeType: mime,
+      mediaType: m.mediaAsset?.mediaType as "VIDEO" | "IMAGE" | undefined,
+    };
+  };
+
+  // Helper to score media role priority
+  const scoreRole = (role?: string, mediaType?: string): number => {
+    if (role === "EXECUTION_VIDEO") return 1;
+    if (role === "ALTERNATE_VIDEO") return 2;
+    if (mediaType === "VIDEO") return 3;
+    if (role === "START_IMAGE") return 4;
+    if (role === "VIDEO_POSTER") return 5;
+    if (role === "ALTERNATE_IMAGE") return 6;
+    return 10;
+  };
 
   // 1. ITEM / PRESCRIÇÃO (Highest Priority: Item-level override)
   if (item?.customVideoUrl && item.customVideoUrl.trim().length > 0) {
@@ -86,7 +146,7 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
       (m) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER" || m.role === "ALTERNATE_IMAGE"
     );
     const thumbnailUrl = thumbItem?.mediaAsset?.publicId
-      ? `/api/training-v2/media/${thumbItem.mediaAsset.publicId}`
+      ? `/api/training-v2/media/${thumbItem.mediaAsset.publicId}${consultancySuffix}`
       : null;
 
     const payload: ResolvedMediaPayload = {
@@ -94,7 +154,26 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
       isVideo,
       isGif,
       thumbnailUrl,
+      role: "ITEM_OVERRIDE",
+      mediaAssetPublicId: matchingPinned?.mediaAsset?.publicId || null,
+      mimeType: matchingPinned?.mediaAsset?.mimeType || null,
+      mediaType: isVideo ? "VIDEO" : "IMAGE",
     };
+
+    allAvailableMedia.push(payload);
+
+    // Also collect remaining pinned media as potential fallbacks
+    if (item.pinnedMedia && item.pinnedMedia.length > 0) {
+      const sorted = [...item.pinnedMedia].sort(
+        (a, b) => scoreRole(a.role, a.mediaAsset?.mediaType) - scoreRole(b.role, b.mediaAsset?.mediaType)
+      );
+      for (const m of sorted) {
+        const p = toPayload(m, item.pinnedMedia);
+        if (p && !allAvailableMedia.some((x) => x.url === p.url)) {
+          allAvailableMedia.push(p);
+        }
+      }
+    }
 
     return {
       source: "ITEM_OVERRIDE",
@@ -104,6 +183,8 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
       isVideo,
       isGif,
       thumbnailUrl,
+      role: "ITEM_OVERRIDE",
+      allAvailableMedia,
     };
   }
 
@@ -119,92 +200,92 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
       const url = customExercise.customVideoUrl.trim();
       const isGif = url.toLowerCase().endsWith(".gif");
       const isVideo = !isGif;
-      return {
-        source: "CUSTOM_EXERCISE",
-        hasMedia: true,
-        media: { url, isVideo, isGif, thumbnailUrl: null },
+      const payload: ResolvedMediaPayload = {
         url,
         isVideo,
         isGif,
         thumbnailUrl: null,
+        role: "CUSTOM_OVERRIDE",
+        mediaType: isVideo ? "VIDEO" : "IMAGE",
       };
-    }
-
-    const customMediaList = customExercise?.media || (item?.pinnedMedia ?? []);
-    const customExec = customMediaList.find(
-      (m) => m.role === "EXECUTION_VIDEO" || m.role === "ALTERNATE_VIDEO" || m.mediaAsset?.mediaType === "VIDEO" || m.mediaAsset?.mimeType === "video/mp4"
-    );
-    if (customExec?.mediaAsset?.publicId) {
-      const isVid = customExec.mediaAsset.mediaType === "VIDEO" || customExec.mediaAsset.mimeType === "video/mp4";
-      const isGif = customExec.mediaAsset.mimeType === "image/gif";
-      const url = `/api/training-v2/media/${customExec.mediaAsset.publicId}`;
-      const thumb = customMediaList.find((m) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER");
-      const thumbnailUrl = thumb?.mediaAsset?.publicId
-        ? `/api/training-v2/media/${thumb.mediaAsset.publicId}`
-        : null;
+      allAvailableMedia.push(payload);
 
       return {
         source: "CUSTOM_EXERCISE",
         hasMedia: true,
-        media: { url, isVideo: isVid, isGif, thumbnailUrl },
+        media: payload,
         url,
-        isVideo: isVid,
+        isVideo,
         isGif,
-        thumbnailUrl,
+        thumbnailUrl: null,
+        role: "CUSTOM_OVERRIDE",
+        allAvailableMedia,
       };
+    }
+
+    const customMediaList = customExercise?.media || (item?.pinnedMedia ?? []);
+    if (customMediaList.length > 0) {
+      const sorted = [...customMediaList].sort(
+        (a, b) => scoreRole(a.role, a.mediaAsset?.mediaType) - scoreRole(b.role, b.mediaAsset?.mediaType)
+      );
+      for (const m of sorted) {
+        const p = toPayload(m, customMediaList);
+        if (p && !allAvailableMedia.some((x) => x.url === p.url)) {
+          allAvailableMedia.push(p);
+        }
+      }
+
+      if (allAvailableMedia.length > 0) {
+        const primary = allAvailableMedia[0];
+        return {
+          source: "CUSTOM_EXERCISE",
+          hasMedia: true,
+          media: primary,
+          url: primary.url,
+          isVideo: primary.isVideo,
+          isGif: primary.isGif,
+          thumbnailUrl: primary.thumbnailUrl || null,
+          role: primary.role,
+          allAvailableMedia,
+        };
+      }
     }
   }
 
-  // 3. LIBRARY EXERCISE (EXECUTION_VIDEO / GIF / ALTERNATE_VIDEO)
+  // 3. LIBRARY EXERCISE (EXECUTION_VIDEO / GIF / ALTERNATE_VIDEO / IMAGES)
   const candidateMediaList = (item?.pinnedMedia && item.pinnedMedia.length > 0)
     ? item.pinnedMedia
     : (libraryExercise?.media || []);
 
-  const libraryExec = candidateMediaList.find(
-    (m) => m.role === "EXECUTION_VIDEO" || m.role === "ALTERNATE_VIDEO" || m.mediaAsset?.mediaType === "VIDEO" || m.mediaAsset?.mimeType === "video/mp4"
-  );
-  if (libraryExec?.mediaAsset?.publicId) {
-    const isVid = libraryExec.mediaAsset.mediaType === "VIDEO" || libraryExec.mediaAsset.mimeType === "video/mp4";
-    const isGif = libraryExec.mediaAsset.mimeType === "image/gif";
-    const url = `/api/training-v2/media/${libraryExec.mediaAsset.publicId}`;
-    const thumb = candidateMediaList.find((m) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER");
-    const thumbnailUrl = thumb?.mediaAsset?.publicId
-      ? `/api/training-v2/media/${thumb.mediaAsset.publicId}`
-      : null;
+  if (candidateMediaList.length > 0) {
+    const sorted = [...candidateMediaList].sort(
+      (a, b) => scoreRole(a.role, a.mediaAsset?.mediaType) - scoreRole(b.role, b.mediaAsset?.mediaType)
+    );
+    for (const m of sorted) {
+      const p = toPayload(m, candidateMediaList);
+      if (p && !allAvailableMedia.some((x) => x.url === p.url)) {
+        allAvailableMedia.push(p);
+      }
+    }
 
-    return {
-      source: "LIBRARY",
-      hasMedia: true,
-      media: { url, isVideo: isVid, isGif, thumbnailUrl },
-      url,
-      isVideo: isVid,
-      isGif,
-      thumbnailUrl,
-    };
+    if (allAvailableMedia.length > 0) {
+      const primary = allAvailableMedia[0];
+      const source: ExecutionMediaSource = primary.isVideo ? "LIBRARY" : "IMAGE";
+      return {
+        source,
+        hasMedia: true,
+        media: primary,
+        url: primary.url,
+        isVideo: primary.isVideo,
+        isGif: primary.isGif,
+        thumbnailUrl: primary.thumbnailUrl || null,
+        role: primary.role,
+        allAvailableMedia,
+      };
+    }
   }
 
-  // 4. IMAGEM / FRAME (Static image fallback)
-  const imageFallback = candidateMediaList.find(
-    (m) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER" || m.role === "ALTERNATE_IMAGE"
-  ) || candidateMediaList[0];
-
-  if (imageFallback?.mediaAsset?.publicId) {
-    const isGif = imageFallback.mediaAsset.mimeType === "image/gif";
-    const isVid = imageFallback.mediaAsset.mediaType === "VIDEO" || imageFallback.mediaAsset.mimeType === "video/mp4";
-    const url = `/api/training-v2/media/${imageFallback.mediaAsset.publicId}`;
-
-    return {
-      source: "IMAGE",
-      hasMedia: true,
-      media: { url, isVideo: isVid, isGif, thumbnailUrl: url },
-      url,
-      isVideo: isVid,
-      isGif,
-      thumbnailUrl: url,
-    };
-  }
-
-  // 5. NONE (No media, text/instructions fallback)
+  // 4. NONE (No media, text/instructions fallback)
   return {
     source: "NONE",
     hasMedia: false,
@@ -213,5 +294,6 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
     isVideo: false,
     isGif: false,
     thumbnailUrl: null,
+    allAvailableMedia: [],
   };
 }

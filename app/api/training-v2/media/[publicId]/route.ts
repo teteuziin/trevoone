@@ -9,13 +9,14 @@
 
 import fs from "node:fs/promises";
 import { createReadStream } from "node:fs";
+import path from "node:path";
 import { Readable } from "node:stream";
 import type { RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "@/lib/db/mysql";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import { authorizeMediaAssetAccess } from "@/lib/training-v2/media-repository";
-import { resolveSafeTrainingMediaPath } from "@/lib/training-v2/media-storage";
+import { resolveSafeTrainingMediaPath, getTrainingMediaStorageRoot } from "@/lib/training-v2/media-storage";
 
 export const runtime = "nodejs";
 
@@ -101,8 +102,28 @@ async function handleMediaRequest(request: Request, paramsPromise: Promise<{ pub
   });
 
   if (!authResult.authorized || !authResult.mediaAsset || !authResult.storageKey) {
-    // Non-enumerating safe rejection
-    return new Response(null, { status: 404 });
+    if (!authResult.authorized) {
+      return new Response(
+        JSON.stringify({
+          error: authResult.reason || "Acesso não autorizado para esta mídia.",
+          code: "ACCESS_DENIED",
+        }),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+    return new Response(
+      JSON.stringify({
+        error: "Recurso de mídia não encontrado no catálogo.",
+        code: "MEDIA_NOT_FOUND",
+      }),
+      {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   // 5. Resolve safe physical file path under private storage root
@@ -110,16 +131,58 @@ async function handleMediaRequest(request: Request, paramsPromise: Promise<{ pub
   try {
     physicalPath = resolveSafeTrainingMediaPath(authResult.storageKey);
   } catch {
-    return new Response(null, { status: 404 });
+    return new Response(
+      JSON.stringify({
+        error: "Caminho de armazenamento inválido.",
+        code: "INVALID_PATH",
+      }),
+      {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
-  // 6. Check physical file existence and metadata
+  // 6. Check physical file existence and metadata with multi-root resolution
   let fileStats;
   try {
     fileStats = await fs.stat(physicalPath);
   } catch {
-    console.error("[TRAINING_V2] MEDIA_FILE_MISSING");
-    return new Response(null, { status: 404 });
+    // Secondary fallback search in legitimate persistent roots
+    const normalizedKey = authResult.storageKey.replace(/^[/\\]+/, "");
+    const candidateRoots = [
+      path.resolve(process.cwd(), ".data", "private"),
+      "/home/u406031981/persistent_storage",
+    ];
+    let found = false;
+    for (const altRoot of candidateRoots) {
+      if (altRoot === path.resolve(getTrainingMediaStorageRoot())) continue;
+      const altPath = path.resolve(altRoot, normalizedKey);
+      if (altPath.startsWith(altRoot + path.sep)) {
+        try {
+          fileStats = await fs.stat(altPath);
+          physicalPath = altPath;
+          found = true;
+          break;
+        } catch {
+          // continue search
+        }
+      }
+    }
+
+    if (!found) {
+      console.error("[TRAINING_V2] MEDIA_FILE_MISSING", publicId);
+      return new Response(
+        JSON.stringify({
+          error: "Arquivo físico de mídia ausente no armazenamento do servidor.",
+          code: "FILE_NOT_FOUND",
+        }),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
   }
 
   const totalSize = fileStats.size;

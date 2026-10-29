@@ -377,6 +377,9 @@ export function StudentRuntimeFocusedView({
     sourceUrlSanitized?: string;
     fallbackActive?: boolean;
     fallbackRole?: string;
+    probeMethod?: string;
+    serverErrorCode?: string;
+    serverErrorMessage?: string;
   }>({});
   const [exerciseMediaCache, setExerciseMediaCache] = useState<
     Record<
@@ -469,6 +472,9 @@ export function StudentRuntimeFocusedView({
     let httpStatus: number | string = "Falha de rede";
     let contentType = "desconhecido";
     let failureStage: "AUTHENTICATION" | "TENANCY_OR_PERMISSIONS" | "STORAGE_DISCOVERY" | "STREAM_INITIALIZATION" | "DECODE_OR_PLAYBACK" | "NETWORK" = "DECODE_OR_PLAYBACK";
+    let probeMethod = "HEAD";
+    let serverErrorCode: string | undefined = undefined;
+    let serverErrorMessage: string | undefined = undefined;
 
     try {
       let probe = await fetch(failedUrl, { method: "HEAD", cache: "no-store" });
@@ -477,6 +483,7 @@ export function StudentRuntimeFocusedView({
           const getProbe = await fetch(failedUrl, { method: "GET", headers: { Range: "bytes=0-0" }, cache: "no-store" });
           if (getProbe.status !== 405) {
             probe = getProbe;
+            probeMethod = "GET (bytes=0-0)";
           }
         } catch {
           // ignore get probe error
@@ -484,6 +491,21 @@ export function StudentRuntimeFocusedView({
       }
       httpStatus = probe.status;
       contentType = probe.headers.get("content-type") || "desconhecido";
+
+      if (contentType.includes("json")) {
+        try {
+          const errData = await probe.json();
+          if (errData?.technicalMessage || errData?.error) {
+            serverErrorMessage = errData.technicalMessage || errData.error;
+          }
+          if (errData?.code) {
+            serverErrorCode = errData.code;
+          }
+        } catch {
+          // ignore json parse error
+        }
+      }
+
       if (probe.status === 401) {
         failureStage = "AUTHENTICATION";
       } else if (probe.status === 403) {
@@ -512,6 +534,9 @@ export function StudentRuntimeFocusedView({
       contentType,
       failureStage,
       sourceUrlSanitized: failedUrl.replace(/\?.*$/, ""),
+      probeMethod,
+      serverErrorCode,
+      serverErrorMessage,
     });
   };
 
@@ -2211,6 +2236,21 @@ export function StudentRuntimeFocusedView({
                 {diagnosticDetails.failureStage && (
                   <div>
                     Etapa da Falha: <span className="text-amber-400 font-bold">{diagnosticDetails.failureStage}</span>
+                  </div>
+                )}
+                {diagnosticDetails.probeMethod && (
+                  <div>
+                    Método de Teste: <span className="text-zinc-400">{diagnosticDetails.probeMethod}</span>
+                  </div>
+                )}
+                {diagnosticDetails.serverErrorCode && (
+                  <div>
+                    Código do Servidor: <span className="text-red-400 font-bold">{diagnosticDetails.serverErrorCode}</span>
+                  </div>
+                )}
+                {diagnosticDetails.serverErrorMessage && (
+                  <div>
+                    Mensagem Técnica do Servidor: <span className="text-red-300 font-bold">{diagnosticDetails.serverErrorMessage}</span>
                   </div>
                 )}
                 {activeMediaState.type === "AVAILABLE" && activeMediaState.isFallback && (

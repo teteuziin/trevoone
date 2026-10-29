@@ -314,7 +314,31 @@ export async function authorizeMediaAssetAccess(
       createdAt: new Date(r.created_at),
     };
 
-    // 2. Student assignment grant check
+    // 2. Global demonstration catalog: universally available to all authenticated platform users
+    if (r.scope === "GLOBAL") {
+      if (ctx.userId) {
+        return { authorized: true, mediaAsset, storageKey };
+      }
+      return { authorized: false, reason: "Acesso a mídias globais requer usuário autenticado." };
+    }
+
+    // 3. Consultancy catalog exercises: authorized if attached to an active exercise in this consultancy
+    const [catalogRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT em.id
+       FROM exercise_media em
+       INNER JOIN exercises e ON e.id = em.exercise_id
+       WHERE em.media_asset_id = ?
+         AND e.deleted_at IS NULL
+         AND (e.scope = 'GLOBAL' OR (e.scope = 'CONSULTANCY' AND e.consultancy_id = ?))
+       LIMIT 1;`,
+      [r.id, ctx.consultancyId || 0]
+    );
+
+    if (Array.isArray(catalogRows) && catalogRows.length > 0) {
+      return { authorized: true, mediaAsset, storageKey };
+    }
+
+    // 4. Student assignment or routine grant check
     if (options?.assignmentPublicId) {
       const [assignRows] = await connection.execute<RowDataPacket[]>(
         `SELECT
@@ -352,67 +376,50 @@ export async function authorizeMediaAssetAccess(
           );
 
           if (Array.isArray(pinnedRows) && pinnedRows.length > 0) {
-            // Access granted through immutable assignment pin, exercise catalog or item video override!
             return { authorized: true, mediaAsset, storageKey };
           }
         }
       }
     } else if (ctx.isStudent && (ctx.membershipId || ctx.userId)) {
-      // Automatic student grant: check if asset is pinned, linked via exercise catalog or referenced via custom_video_url
-      // in ANY assigned routine OR active/completed execution session for this student
-      const [anyPinnedRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT wbi.id
-         FROM workout_block_items wbi
-         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-         LEFT JOIN workout_assignments wa ON wa.workout_version_id = wb.workout_version_id AND wa.deleted_at IS NULL
-         LEFT JOIN workout_execution_sessions wes ON wes.workout_version_id = wb.workout_version_id
-         LEFT JOIN workout_block_item_media wbim ON wbim.block_item_id = wbi.id AND wbim.media_asset_id = ?
-         LEFT JOIN exercise_media em ON em.media_asset_id = ? AND (em.exercise_id = wbi.exercise_id OR em.exercise_id = wbi.custom_exercise_id)
+      // Automatic student grant: check if asset is pinned to any assigned routine for this student
+      const [studentAssigns] = await connection.execute<RowDataPacket[]>(
+        `SELECT wa.workout_version_id
+         FROM workout_assignments wa
          WHERE (
-             wa.student_membership_id = ?
-             OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ?)
-             OR wes.student_membership_id = ?
-             OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ?)
-           )
-           AND (
-             wbim.id IS NOT NULL
-             OR em.id IS NOT NULL
-             OR wbi.custom_video_url LIKE CONCAT('%', ?, '%')
-           )
-         LIMIT 1;`,
-        [r.id, r.id, ctx.membershipId || 0, ctx.userId, ctx.membershipId || 0, ctx.userId, r.public_id]
+           wa.student_membership_id = ?
+           OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ?)
+         ) AND wa.deleted_at IS NULL;`,
+        [ctx.membershipId || 0, ctx.userId]
       );
 
-      if (Array.isArray(anyPinnedRows) && anyPinnedRows.length > 0) {
-        return { authorized: true, mediaAsset, storageKey };
-      }
+      if (Array.isArray(studentAssigns) && studentAssigns.length > 0) {
+        const versionIds = studentAssigns.map((row) => Number(row.workout_version_id)).filter(Boolean);
+        if (versionIds.length > 0) {
+          const versionPlaceholders = versionIds.map(() => "?").join(",");
+          const [pinnedRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT wbi.id
+             FROM workout_blocks wb
+             INNER JOIN workout_block_items wbi ON wbi.block_id = wb.id
+             LEFT JOIN workout_block_item_media wbim ON wbim.block_item_id = wbi.id AND wbim.media_asset_id = ?
+             LEFT JOIN exercise_media em ON em.media_asset_id = ? AND (em.exercise_id = wbi.exercise_id OR em.exercise_id = wbi.custom_exercise_id)
+             WHERE wb.workout_version_id IN (${versionPlaceholders})
+               AND (
+                 wbim.id IS NOT NULL
+                 OR em.id IS NOT NULL
+                 OR wbi.custom_video_url LIKE CONCAT('%', ?, '%')
+               )
+             LIMIT 1;`,
+            [r.id, r.id, ...versionIds, r.public_id]
+          );
 
-      // Check if media belongs to an active catalog exercise available to this student's consultancy
-      const [catalogRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT em.id
-         FROM exercise_media em
-         INNER JOIN exercises e ON e.id = em.exercise_id
-         WHERE em.media_asset_id = ?
-           AND e.deleted_at IS NULL
-           AND (e.scope = 'GLOBAL' OR (e.scope = 'CONSULTANCY' AND e.consultancy_id = ?))
-         LIMIT 1;`,
-        [r.id, ctx.consultancyId || 0]
-      );
-
-      if (Array.isArray(catalogRows) && catalogRows.length > 0) {
-        return { authorized: true, mediaAsset, storageKey };
+          if (Array.isArray(pinnedRows) && pinnedRows.length > 0) {
+            return { authorized: true, mediaAsset, storageKey };
+          }
+        }
       }
     }
 
-    // 3. Fallback: ordinary library visibility for platform admin, coaches, or global demonstration catalog
-    if (r.scope === "GLOBAL") {
-      // Global exercise library demonstrations are accessible to all authenticated users
-      if (ctx.userId) {
-        return { authorized: true, mediaAsset, storageKey };
-      }
-      return { authorized: false, reason: "Acesso a mídias globais requer usuário autenticado." };
-    }
-
+    // 5. Fallback: consultancy member authorization
     if (r.scope === "CONSULTANCY") {
       if (!ctx.consultancyId || Number(r.consultancy_id) !== ctx.consultancyId) {
         return { authorized: false, reason: "Acesso negado: mídia de outra consultoria." };

@@ -151,6 +151,18 @@ async function handleMediaRequest(request: Request, paramsPromise: Promise<{ pub
     } catch {
       // Secondary fallback search in legitimate persistent roots
       const normalizedKey = authResult.storageKey.replace(/^[/\\]+/, "");
+      const keyVariants = [normalizedKey];
+      if (!path.extname(normalizedKey)) {
+        keyVariants.push(
+          `${normalizedKey}.gif`,
+          `${normalizedKey}.mp4`,
+          `${normalizedKey}.webp`,
+          `${normalizedKey}.png`,
+          `${normalizedKey}.jpg`,
+          `${normalizedKey}.jpeg`
+        );
+      }
+
       const candidateRoots = [
         path.resolve(process.cwd(), ".data", "private"),
         "/home/u406031981/persistent_storage",
@@ -158,17 +170,20 @@ async function handleMediaRequest(request: Request, paramsPromise: Promise<{ pub
       let found = false;
       for (const altRoot of candidateRoots) {
         if (altRoot === path.resolve(getTrainingMediaStorageRoot())) continue;
-        const altPath = path.resolve(altRoot, normalizedKey);
-        if (altPath.startsWith(altRoot + path.sep)) {
-          try {
-            fileStats = await fs.stat(altPath);
-            physicalPath = altPath;
-            found = true;
-            break;
-          } catch {
-            // continue search
+        for (const variant of keyVariants) {
+          const altPath = path.resolve(altRoot, variant);
+          if (altPath.startsWith(altRoot + path.sep)) {
+            try {
+              fileStats = await fs.stat(altPath);
+              physicalPath = altPath;
+              found = true;
+              break;
+            } catch {
+              // continue search
+            }
           }
         }
+        if (found) break;
       }
 
       if (!found) {
@@ -213,9 +228,8 @@ async function handleMediaRequest(request: Request, paramsPromise: Promise<{ pub
         return new Response(null, { status: 200, headers: standardHeaders });
       }
 
-      const fileStream = createReadStream(physicalPath);
-      const webStream = Readable.toWeb(fileStream) as ReadableStream<Uint8Array>;
-      return new Response(webStream, { status: 200, headers: standardHeaders });
+      const fileBuffer = await fs.readFile(physicalPath);
+      return new Response(fileBuffer, { status: 200, headers: standardHeaders });
     }
 
     // 8. Video Delivery with HTTP Range (206 Partial Content) support
@@ -312,11 +326,16 @@ async function handleMediaRequest(request: Request, paramsPromise: Promise<{ pub
     const webStream = Readable.toWeb(chunkStream) as ReadableStream<Uint8Array>;
     return new Response(webStream, { status: 206, headers: rangeHeaders });
   } catch (err: unknown) {
-    console.error("[TRAINING_V2] MEDIA_STREAMING_UNHANDLED_ERROR", err);
+    const rawMessage = err instanceof Error ? err.message : String(err);
+    const sanitizedError = rawMessage
+      .replace(/password=[^&;\s]*/gi, "password=***")
+      .replace(/:\/\/.*@/g, "://***@");
+    console.error("[TRAINING_V2] MEDIA_STREAMING_UNHANDLED_ERROR", sanitizedError);
     return new Response(
       JSON.stringify({
         error: "Erro interno ao processar requisição de mídia.",
         code: "INTERNAL_ERROR",
+        technicalMessage: sanitizedError,
       }),
       {
         status: 500,

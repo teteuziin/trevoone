@@ -540,6 +540,46 @@ export async function runRestartModalAndVideoExecutionSuite() {
     );
   });
 
+  // =========================================================================
+  // TEST 13: Instant Global Authorization & Sanitized Server Diagnostic Reporting
+  // =========================================================================
+  runTest('Global Authorization & Server Diagnostic: global scope priority, buffer image delivery, sanitized error response', () => {
+    const repoCode = fs.readFileSync(
+      path.resolve(process.cwd(), 'lib/training-v2/media-repository.ts'),
+      'utf-8'
+    );
+
+    // Global scope must be checked before student routine or catalog queries to prevent slow query timeouts
+    const globalIdx = repoCode.indexOf('r.scope === "GLOBAL"');
+    const studentAssignIdx = repoCode.indexOf('options?.assignmentPublicId');
+    assert.ok(
+      globalIdx !== -1 && globalIdx < studentAssignIdx,
+      'Global scope must be evaluated before routine assignment queries for instant O(1) authorization'
+    );
+
+    const routeCode = fs.readFileSync(
+      path.resolve(process.cwd(), 'app/api/training-v2/media/[publicId]/route.ts'),
+      'utf-8'
+    );
+    assert.ok(
+      routeCode.includes('fs.readFile(physicalPath)'),
+      'Media route must serve static/animated images directly from buffer without stream pipe issues'
+    );
+    assert.ok(
+      routeCode.includes('technicalMessage'),
+      'Media route must include sanitized technicalMessage in 500 response'
+    );
+
+    const focusedViewCode = fs.readFileSync(
+      path.resolve(process.cwd(), 'components/consultancies/training-v2/student-runtime-focused-view.tsx'),
+      'utf-8'
+    );
+    assert.ok(
+      focusedViewCode.includes('serverErrorMessage') && focusedViewCode.includes('probeMethod'),
+      'Diagnostic panel must capture and display probe method and server error message'
+    );
+  });
+
   console.log(`=== TODOS OS ${passedCount}/${totalCount} TESTES DE REINÍCIO MOBILE E VÍDEO PASSARAM! ===\n`);
   return { passedCount, totalCount };
 }

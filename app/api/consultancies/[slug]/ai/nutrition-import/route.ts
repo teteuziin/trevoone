@@ -16,7 +16,7 @@ interface RouteContext {
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
 const MAX_TEXT_LENGTH_CHARS = 100 * 1024; // 100K characters
 
-const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".md", ".docx"];
+const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".md", ".docx", ".png", ".jpg", ".jpeg", ".webp"];
 
 export async function POST(request: Request, context: RouteContext) {
   const { slug } = await context.params;
@@ -67,7 +67,7 @@ export async function POST(request: Request, context: RouteContext) {
       const hasAllowedExt = ALLOWED_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
       if (!hasAllowedExt) {
         return NextResponse.json(
-          { success: false, error: "Formato de arquivo não suportado. Use PDF, TXT, MD ou DOCX." },
+          { success: false, error: "Formato de arquivo não suportado. Use PDF, TXT, MD, DOCX ou Imagens (PNG/JPG)." },
           { status: 400 }
         );
       }

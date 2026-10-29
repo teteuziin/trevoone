@@ -51,7 +51,26 @@ Quando uma única linha contiver múltiplas opções (ex: '1 fatia de pão de fo
 16. Para alimentos e planos alimentares:
     - NUNCA inclua prefixos de categorias, macronutrientes ou marcadores de lista em 'foodNameCandidate' (ex: se o documento contiver 'Proteína: 2 ovos' ou 'Carboidrato: 3 colheres de arroz' ou 'Opção 1: 1 pote de iogurte', extraia 'foodNameCandidate' estritamente como 'Ovo' ou 'Arroz' ou 'Iogurte', NUNCA como 'Proteína: ovos' ou 'Carboidrato: arroz').
     - PRESERVE UNIDADES CASEIRAS E ITENS POR UNIDADE/CONTAGEM: Quando um alimento for prescrito por contagem de itens (ex: '2 ovos', '1 ovo', '2 bananas', '1 maçã', '1 iogurte', '2 fatias de pão'), preencha 'quantity' com o número (ex: 2, 1) e 'unitCandidate' com a unidade caseira explícita ('unidade', 'fatia', 'pote', 'colher de sopa', 'xícara', 'concha', etc.). NUNCA deixe 'unitCandidate' nulo para contagens de itens e NUNCA converta '2 ovos' para '2 g' ou '1 iogurte' para '1 g'.
-    - Se a unidade de peso ou volume for informada (ex: '150g de frango', '200ml de leite'), preencha 'quantity': 150 e 'unitCandidate': 'g' (ou 'ml').`;
+    - Se a unidade de peso ou volume for informada (ex: '150g de frango', '200ml de leite'), preencha 'quantity': 150 e 'unitCandidate': 'g' (ou 'ml').
+17. EXTRAÇÃO INTEGRAL DE TODAS AS REFEIÇÕES DO DOCUMENTO:
+    - O documento contém múltiplas refeições distribuídas por várias seções e páginas (ex: Café da Manhã, Lanche da Manhã, Almoço, Pré-Treino, Jantar, etc.).
+    - Você DEVE extrair TODAS as refeições presentes para a lista 'meals', sem omitir nenhuma, preservando a ordem exata em que aparecem no documento original.
+    - É EXPRESSAMENTE PROIBIDO interromper a extração após a primeira refeição ou retornar apenas um subconjunto de refeições.
+18. CONTINUIDADE DE REFEIÇÕES ENTRE PÁGINAS:
+    - Quando o conteúdo de uma refeição começar no final de uma página e continuar na página seguinte (exemplo: Almoço começa no final da página 1 e continua na página 2 com peixe, arroz, feijão), todos os alimentos da página seguinte pertencem à MESMA refeição em andamento.
+    - NUNCA descarte itens por estarem após uma quebra de página e NUNCA crie uma nova refeição sem título para eles.
+19. SEPARAÇÃO ESTRITA DE ORIENTAÇÕES, SUPLEMENTAÇÃO E SUCOS DAS REFEIÇÕES:
+    - Orientações gerais de saúde, suplementação geral ('Suplementação recomendada', creatina, psyllium, ômega 3, whey isolado/avulso), horários de hidratação ('40min antes do treino: chá verde...'), pesagem de alimentos e listas de opções secundárias como 'Sugestões, sucos laxantes', 'Sucos Diuréticos' e 'Sucos funcionais' DEVEM ser reunidas no campo 'notes' do plano.
+    - NUNCA crie refeições do dia para essas orientações nem force o aluno a consumi-las como refeições obrigatórias do cardápio.
+20. ADJETIVOS DE TAMANHO E NOMES DE ALIMENTOS:
+    - Quando o documento contiver descrições como '3 unidades grandes de ovo, galinha, inteiro, cozido, mexido (183 g)':
+      * 'foodNameCandidate': deve ser 'Ovo de galinha' ou 'Ovo' (NUNCA 'grandes', 'unidades grandes' ou adjetivos isolados).
+      * 'quantity': 3
+      * 'unitCandidate': 'unidade' (ou 'unidade grande')
+      * 'notes': 'cozido, mexido (183 g)'
+      Adjetivos de tamanho ('grandes', 'médias', 'pequenas', 'comerciais') qualificam a unidade ou porção, JAMAIS o nome do alimento.
+21. BASE MÉTRICA E NÃO MULTIPLICAÇÃO DE QUANTIDADES:
+    - Se a prescrição indicar gramas ou mililitros (ex: '60 gramas de cuscuz de milho', '10g de psyllium', '300ml de chá'), 'quantity' é o valor exato (60, 10, 300) e 'unitCandidate' é 'g' ou 'ml'. NUNCA multiplique porções ou confunda gramas com porções caseiras de 60g.`;
 
 export const TRAINING_GENERATION_SYSTEM_PROMPT = `Você é o treinador especialista em musculação e prescrição esportiva do TREVO ONE.
 Sua função é CRIAR E PRESCREVER uma rotina de treino personalizada completa, estruturada, segura e equilibrada com base nas solicitações e parâmetros informados pelo profissional de educação física.
@@ -142,6 +161,9 @@ export async function extractDocxText(buffer: Buffer): Promise<string> {
   const docXml = await zip.file("word/document.xml")?.async("text");
   if (!docXml) return "";
   return docXml
+    .replace(/<w:tab[^>]*\/>/g, " ")
+    .replace(/<w:br[^>]*\/>/g, "\n")
+    .replace(/<w:cr[^>]*\/>/g, "\n")
     .replace(/<w:p[^>]*>/g, "\n")
     .replace(/<[^>]+>/g, "")
     .replace(/&amp;/g, "&")
@@ -297,6 +319,7 @@ export async function callOpenAiForTraining(
           json_schema: TRAINING_IMPORT_JSON_SCHEMA,
         },
         temperature: 0.1,
+        max_completion_tokens: 16384,
       });
 
       parsedContent = response.choices[0]?.message?.content || null;
@@ -368,7 +391,7 @@ export async function callOpenAiForNutrition(
           { role: "system", content: SYSTEM_PROMPT },
           {
             role: "user",
-            content: `Documento de plano alimentar recebido (${input.filename}):\n\n${userPromptText}`,
+            content: `Documento de plano alimentar recebido (${input.filename}):\n\n${userPromptText}\n\nINSTRUÇÕES DE EXTRAÇÃO:\n- Extraia TODAS as refeições presentes no documento para a lista 'meals' na ordem original exata. NUNCA pare na primeira refeição.\n- Se uma refeição começou em uma página e continuou na seguinte, todos os alimentos pertencem à MESMA refeição em andamento.\n- Separe alternativas 'OU' no campo 'substitutions' de cada alimento correspondente com suas respectivas quantidades e unidades.\n- Reúna suplementações e recomendações/sucos opcionais no campo 'notes' do plano alimentar.\n- Nomes de alimentos devem ser limpos: adjetivos de tamanho como 'grandes' pertencem à porção/unidade, nunca ao nome do alimento.`,
           },
         ],
         response_format: {
@@ -376,6 +399,7 @@ export async function callOpenAiForNutrition(
           json_schema: NUTRITION_IMPORT_JSON_SCHEMA,
         },
         temperature: 0.1,
+        max_completion_tokens: 16384,
       });
 
       parsedContent = response.choices[0]?.message?.content || null;
@@ -398,7 +422,7 @@ export async function callOpenAiForNutrition(
             {
               role: "user",
               content: [
-                { type: "input_text", text: `Extraia o plano alimentar do arquivo PDF anexado: ${input.filename}` },
+                { type: "input_text", text: `Extraia o plano alimentar completo do arquivo PDF anexado (${input.filename}), incluindo TODAS as refeições presentes de todas as páginas na ordem original exata. Separe alternativas 'OU' no campo 'substitutions' de cada alimento correspondente e registre suplementações e orientações gerais em 'notes'. Adjetivos de tamanho como 'grandes' pertencem à unidade/porção, nunca ao nome do alimento.` },
                 { type: "input_file", file_id: uploadedFileId },
               ],
             },
@@ -421,6 +445,60 @@ export async function callOpenAiForNutrition(
         const msg = respErr instanceof Error ? respErr.message : String(respErr);
         throw new Error(`Falha no processamento de PDF via Responses API: ${msg}`);
       }
+    } else if (
+      input.buffer &&
+      (input.filename.toLowerCase().endsWith(".png") ||
+        input.filename.toLowerCase().endsWith(".jpg") ||
+        input.filename.toLowerCase().endsWith(".jpeg") ||
+        input.filename.toLowerCase().endsWith(".webp") ||
+        (input.mimeType && input.mimeType.startsWith("image/")))
+    ) {
+      const lower = input.filename.toLowerCase();
+      let imgMime = input.mimeType || "image/jpeg";
+      if (!imgMime.startsWith("image/")) {
+        imgMime = lower.endsWith(".png")
+          ? "image/png"
+          : lower.endsWith(".webp")
+          ? "image/webp"
+          : "image/jpeg";
+      }
+
+      const base64Data = input.buffer.toString("base64");
+      const dataUri = `data:${imgMime};base64,${base64Data}`;
+
+      const response = await client.chat.completions.create({
+        model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Documento de plano alimentar recebido em formato de imagem/print (${input.filename}). Extraia TODAS as refeições presentes na ordem original exata, agrupando alternativas 'OU' em substitutions e orientações/suplementações gerais em notes. NUNCA use adjetivos como 'grandes' no nome do alimento:`,
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: dataUri,
+                  detail: "high",
+                },
+              },
+            ],
+          },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: NUTRITION_IMPORT_JSON_SCHEMA,
+        },
+        temperature: 0.1,
+        max_completion_tokens: 16384,
+      });
+
+      parsedContent = response.choices[0]?.message?.content || null;
+      inputTokens = response.usage?.prompt_tokens ?? 0;
+      outputTokens = response.usage?.completion_tokens ?? 0;
+      providerRequestId = response.id;
     } else {
       throw new Error(`Tipo de arquivo não suportado para importação: ${input.filename}`);
     }

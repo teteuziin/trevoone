@@ -28,6 +28,28 @@ export function getCalibratedFallbackPortionGrams(foodName: string, unit: string
   }
   return null;
 }
+
+export function isMetricUnit(unit?: string | null): boolean {
+  if (!unit) return false;
+  const norm = unit.trim().toLowerCase();
+  return [
+    "g",
+    "gr",
+    "grama",
+    "gramas",
+    "ml",
+    "mililitro",
+    "mililitros",
+    "kg",
+    "quilo",
+    "quilos",
+    "quilograma",
+    "quilogramas",
+    "l",
+    "litro",
+    "litros",
+  ].includes(norm);
+}
 /**
  * TREVO ONE — NUTRITION AI IMPORTER
  * Multi-tenant AI extraction, universal Food Library V3 matching,
@@ -244,11 +266,13 @@ export function parseQuantityAndUnit(segment: string): {
   rawText: string;
 } {
   let trimmed = segment.trim();
+  // Strip leading bullet characters
+  trimmed = trimmed.replace(/^[\s•\-\*·]+\s*/, "").trim();
   // Strip category prefixes like "Proteína: ", "Carboidrato: ", "Opção 1: "
   trimmed = trimmed.replace(/^(?:prote[ií]na|carboidrato|gordura|op[cç][aã]o\s*\d*|fruta|vegetal|salada|bebida)\s*:\s*/i, "").trim();
 
   const regex =
-    /^(\d+(?:[.,]\d+)?|\d+\/\d+)?\s*(colheres(?:\s+de\s+(?:sopa|sobremesa|cha|chá|cafe|café))?|colher(?:\s+de\s+(?:sopa|sobremesa|cha|chá|cafe|café))?|fatias?|xícaras?|xicaras?|copos?|potes?|pedacos?|pedaços?|unidades?|unid\.?|un\.?|ovos?|doses?|scoops?|dosador(?:es)?|conchas?|escumadeiras?|gramas?|g|kg|ml|litros?|l)?\s*(?:de\s+|da\s+|do\s+)?(.*)$/i;
+    /^(\d+(?:[.,]\d+)?|\d+\/\d+)?\s*(colheres(?:\s+de\s+(?:sopa|sobremesa|cha|chá|cafe|café))?(?:\s+(?:cheias?|rasas?))?|colher(?:\s+de\s+(?:sopa|sobremesa|cha|chá|cafe|café))?(?:\s+(?:cheia?|rasa?))?|fatias?(?:\s+(?:grandes?|m[eé]dias?|pequenas?))?|xícaras?(?:\s+de\s+(?:chá|café))?|xicaras?|copos?|potes?|pedacos?(?:\s+(?:grandes?|m[eé]dias?|pequenas?))?|pedaços?(?:\s+(?:grandes?|m[eé]dias?|pequenas?))?|unidades?(?:\s+(?:comerciais?|grandes?|m[eé]dias?|pequenas?))?|unid\.?|un\.?|ovos?|doses?|scoops?|dosador(?:es)?|conchas?|escumadeiras?|gramas?|g|kg|ml|litros?|l)?\s*(?:de\s+|da\s+|do\s+)?(.*)$/i;
 
   const match = trimmed.match(regex);
   if (!match) {
@@ -267,12 +291,19 @@ export function parseQuantityAndUnit(segment: string): {
 
   let unit = match[2] ? match[2].trim() : null;
   let foodName = match[3] ? match[3].trim() : "";
+  // Strip leading size qualifiers/adjectives that belong to measure or preposition
+  foodName = foodName.replace(/^(?:grandes?|m[eé]dias?|pequenas?|comerciais?)\s+/i, "");
   foodName = foodName.replace(/^(?:de|da|do|dos|das)\s+/i, "").trim();
 
   // If unit was "ovo" or "ovos", the food is "ovo" and the unit is "unidade"
   if (unit && /^ovos?$/i.test(unit)) {
     unit = "unidade";
     foodName = foodName ? `ovo ${foodName}`.trim() : "ovo";
+  }
+
+  // Handle TACO egg phrase: "ovo, galinha, inteiro..." -> "ovo de galinha"
+  if (/^ovos?,\s*galinha/i.test(foodName)) {
+    foodName = foodName.replace(/^ovos?,\s*galinha/i, "ovo de galinha");
   }
 
   if (!foodName) {
@@ -373,6 +404,21 @@ export function groupMealFoodsAndAlternatives<T extends GroupableFoodItem>(rawFo
   const groupedFoods: Array<{ primary: T; substitutions: T[] }> = [];
 
   for (const f of rawFoods) {
+    const hasAiSubstitutions = Array.isArray(f.substitutions) && f.substitutions.length > 0;
+
+    if (hasAiSubstitutions) {
+      // The AI already structured substitutions for this food!
+      // Do not re-parse the text to avoid duplicate substitutions (e.g. 6 -> 12)
+      groupedFoods.push({
+        primary: {
+          ...f,
+          substitutions: [],
+        },
+        substitutions: [...(f.substitutions as T[])],
+      });
+      continue;
+    }
+
     const isLeadingAlternative =
       /^\s*(ou|opção|opcao)\b/i.test(f.originalText || "") ||
       /^\s*(ou|opção|opcao)\b/i.test(f.foodNameCandidate) ||
@@ -411,27 +457,21 @@ export function groupMealFoodsAndAlternatives<T extends GroupableFoodItem>(rawFo
         } as unknown as T);
       }
 
-      if (Array.isArray(f.substitutions)) {
-        subs.push(...(f.substitutions as T[]));
-      }
-
       groupedFoods.push({
         primary: primaryItem,
         substitutions: subs,
       });
     } else if (isLeadingAlternative && groupedFoods.length > 0) {
       const cleanName = f.foodNameCandidate.replace(/^\s*(ou|opção|opcao)\s*:?\s*/i, "").trim();
-      const existingSubs = Array.isArray(f.substitutions) ? ([...f.substitutions] as T[]) : [];
       groupedFoods[groupedFoods.length - 1].substitutions.push({
         ...f,
         foodNameCandidate: cleanName || f.foodNameCandidate,
-        substitutions: existingSubs,
+        substitutions: [],
       });
     } else {
-      const existingSubs = Array.isArray(f.substitutions) ? ([...f.substitutions] as T[]) : [];
       groupedFoods.push({
         primary: f,
-        substitutions: existingSubs,
+        substitutions: [],
       });
     }
   }
@@ -1583,7 +1623,15 @@ export function calculateAuthoritativeItemNutrients(
 ) {
   let effectiveQty = quantity && quantity > 0 ? quantity : 100;
 
-  if (unitCandidate && portionEquivalentAmount && portionEquivalentAmount > 0) {
+  const unitNorm = (unitCandidate || "").trim().toLowerCase();
+  const isMetricGramsOrMl = ["g", "gr", "grama", "gramas", "ml", "mililitro", "mililitros"].includes(unitNorm);
+  const isMetricKgOrL = ["kg", "quilo", "quilos", "quilograma", "quilogramas", "l", "litro", "litros"].includes(unitNorm);
+
+  if (isMetricGramsOrMl) {
+    effectiveQty = quantity && quantity > 0 ? quantity : 100;
+  } else if (isMetricKgOrL) {
+    effectiveQty = (quantity && quantity > 0 ? quantity : 1) * 1000;
+  } else if (unitCandidate && portionEquivalentAmount && portionEquivalentAmount > 0) {
     effectiveQty = (quantity && quantity > 0 ? quantity : 1) * portionEquivalentAmount;
   }
 
@@ -1822,39 +1870,43 @@ export async function processNutritionAiImport(params: {
           hasUnknownFiber = true;
         } else {
           // Check portion for measure resolution
-          let portionEquiv: number | null = matchResult.matched.portionEquivalentAmount || null;
           const unitNorm = (f.unitCandidate || "").toLowerCase().trim();
-          const isHousehold = /fatia|colher|xicara|copo|pote|pedaco|unidade|dosador|scoop/i.test(unitNorm);
+          const isMetric = isMetricUnit(unitNorm);
+          const isHousehold = !isMetric && /fatia|colher|xicara|copo|pote|pedaco|unidade|dosador|scoop/i.test(unitNorm);
 
-          if (!portionEquiv && isHousehold && matchResult.matched.foodPublicId) {
-            const dbPortion = await getDbConnection();
-            try {
-              const [pRows] = await dbPortion.query<RowDataPacket[]>(
-                `SELECT p.equivalent_reference_amount, p.label
-                 FROM nutrition_v2_food_portions p
-                 JOIN nutrition_v2_foods f_db ON f_db.id = p.food_id
-                 WHERE f_db.public_id = ? AND p.status = 'ACTIVE' AND p.deleted_at IS NULL`,
-                [matchResult.matched.foodPublicId]
-              );
-              const found = pRows.find((p) => {
-                const l = String(p.label).toLowerCase();
-                return (
-                  l.includes(unitNorm) ||
-                  (unitNorm.includes("fatia") && l.includes("fatia")) ||
-                  (unitNorm.includes("colher") && l.includes("colher")) ||
-                  (unitNorm.includes("pote") && l.includes("pote"))
+          let portionEquiv: number | null = null;
+          if (isHousehold) {
+            portionEquiv = matchResult.matched.portionEquivalentAmount || null;
+            if (!portionEquiv && matchResult.matched.foodPublicId) {
+              const dbPortion = await getDbConnection();
+              try {
+                const [pRows] = await dbPortion.query<RowDataPacket[]>(
+                  `SELECT p.equivalent_reference_amount, p.label
+                   FROM nutrition_v2_food_portions p
+                   JOIN nutrition_v2_foods f_db ON f_db.id = p.food_id
+                   WHERE f_db.public_id = ? AND p.status = 'ACTIVE' AND p.deleted_at IS NULL`,
+                  [matchResult.matched.foodPublicId]
                 );
-              });
-              if (found) {
-                portionEquiv = Number(found.equivalent_reference_amount);
+                const found = pRows.find((p) => {
+                  const l = String(p.label).toLowerCase();
+                  return (
+                    l.includes(unitNorm) ||
+                    (unitNorm.includes("fatia") && l.includes("fatia")) ||
+                    (unitNorm.includes("colher") && l.includes("colher")) ||
+                    (unitNorm.includes("pote") && l.includes("pote"))
+                  );
+                });
+                if (found) {
+                  portionEquiv = Number(found.equivalent_reference_amount);
+                }
+              } finally {
+                dbPortion.release();
               }
-            } finally {
-              dbPortion.release();
             }
-          }
 
-          if (!portionEquiv && isHousehold) {
-            portionEquiv = getCalibratedFallbackPortionGrams(matchResult.matched.name || f.foodNameCandidate, f.unitCandidate);
+            if (!portionEquiv) {
+              portionEquiv = getCalibratedFallbackPortionGrams(matchResult.matched.name || f.foodNameCandidate, f.unitCandidate);
+            }
           }
 
           if (isHousehold && !portionEquiv) {
@@ -1927,9 +1979,10 @@ export async function processNutritionAiImport(params: {
           subFoodPublicId = subMatch.matched.foodPublicId;
           subFoodNameSnapshot = subMatch.matched.name;
 
-          let subPortionEquiv = subMatch.matched.portionEquivalentAmount || null;
           const subUnitNorm = (sub.unitCandidate || "").toLowerCase().trim();
-          const subIsHousehold = /fatia|colher|xicara|copo|pote|pedaco|unidade|dosador|scoop/i.test(subUnitNorm);
+          const subIsMetric = isMetricUnit(subUnitNorm);
+          const subIsHousehold = !subIsMetric && /fatia|colher|xicara|copo|pote|pedaco|unidade|dosador|scoop/i.test(subUnitNorm);
+          let subPortionEquiv: number | null = subIsHousehold ? (subMatch.matched.portionEquivalentAmount || null) : null;
 
           if (!subPortionEquiv && subIsHousehold && subMatch.matched.foodPublicId) {
             const dbSubPortion = await getDbConnection();
@@ -2197,7 +2250,7 @@ export async function confirmNutritionAiImport(params: {
     await db.beginTransaction();
 
     const [jobRows] = await db.query<RowDataPacket[]>(
-      `SELECT id, status, created_plan_public_id, source_filename
+      `SELECT id, status, created_plan_public_id, source_filename, resolved_proposal_json
        FROM ai_import_jobs
        WHERE public_id = ? AND consultancy_id = ? FOR UPDATE`,
       [jobPublicId, consultancyId]
@@ -2214,6 +2267,18 @@ export async function confirmNutritionAiImport(params: {
         planPublicId: String(jobRows[0].created_plan_public_id),
         versionPublicId: "",
       };
+    }
+
+    let extractedNotes: string | null = null;
+    let extractedObjective: string | null = null;
+    if (jobRows.length > 0 && jobRows[0].resolved_proposal_json) {
+      try {
+        const parsed = JSON.parse(String(jobRows[0].resolved_proposal_json));
+        extractedNotes = parsed.notes ? String(parsed.notes).trim() : null;
+        extractedObjective = parsed.objective ? String(parsed.objective).trim() : null;
+      } catch {
+        // Safe parse
+      }
     }
 
     const title = (confirmedTitle || (isTemplate ? "Modelo de Plano Alimentar" : "Plano Alimentar Importado com IA")).trim();
@@ -2233,9 +2298,10 @@ export async function confirmNutritionAiImport(params: {
     const [vRes] = await db.query<ResultSetHeader>(
       `INSERT INTO nutrition_v2_plan_versions (
         public_id, nutrition_plan_id, version_number, status, title,
+        objective, notes, general_guidance,
         created_by_membership_id, created_at, updated_at
-      ) VALUES (?, ?, 1, 'DRAFT', ?, ?, NOW(3), NOW(3))`,
-      [versionPublicId, planId, title, memberId]
+      ) VALUES (?, ?, 1, 'DRAFT', ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+      [versionPublicId, planId, title, extractedObjective, extractedNotes, extractedNotes, memberId]
     );
     const versionId = vRes.insertId;
 
@@ -2300,48 +2366,67 @@ export async function confirmNutritionAiImport(params: {
 
             if (f.quantity && f.quantity > 0) {
               const refAmount = Number(foodDb.reference_amount || 100);
+              const unitNorm = (f.unitCandidate || "").toLowerCase().trim();
+              const isMetricGramsOrMl = ["g", "gr", "grama", "gramas", "ml", "mililitro", "mililitros"].includes(unitNorm);
+              const isMetricKgOrL = ["kg", "quilo", "quilos", "quilograma", "quilogramas", "l", "litro", "litros"].includes(unitNorm);
+              const isHousehold = !isMetricGramsOrMl && !isMetricKgOrL && /fatia|colher|xicara|copo|pote|pedaco|unidade|dosador|scoop/i.test(unitNorm);
+
               let effectiveQty = f.quantity;
 
-              // Check if portion matches prescribed unit
-              const [portions] = await db.query<RowDataPacket[]>(
-                `SELECT label, equivalent_reference_amount FROM nutrition_v2_food_portions WHERE food_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL`,
-                [foodId]
-              );
-              const unitNorm = (f.unitCandidate || "").toLowerCase().trim();
-              const isHousehold = /fatia|colher|xicara|copo|pote|pedaco|unidade|dosador|scoop/i.test(unitNorm);
-              const matchedPortion = portions.find((p) => {
-                const pLabel = String(p.label).toLowerCase();
-                return (
-                  pLabel.includes(unitNorm) ||
-                  (unitNorm.includes("fatia") && pLabel.includes("fatia")) ||
-                  (unitNorm.includes("colher") && pLabel.includes("colher")) ||
-                  (unitNorm.includes("pote") && pLabel.includes("pote"))
+              if (isMetricGramsOrMl) {
+                effectiveQty = f.quantity;
+                const factor = effectiveQty / refAmount;
+                cal = foodDb.calories_kcal !== null ? Math.round(Number(foodDb.calories_kcal) * factor * 10) / 10 : null;
+                p = foodDb.protein_g !== null ? Math.round(Number(foodDb.protein_g) * factor * 10) / 10 : null;
+                c = foodDb.carbohydrate_g !== null ? Math.round(Number(foodDb.carbohydrate_g) * factor * 10) / 10 : null;
+                fat = foodDb.fat_g !== null ? Math.round(Number(foodDb.fat_g) * factor * 10) / 10 : null;
+              } else if (isMetricKgOrL) {
+                effectiveQty = f.quantity * 1000;
+                const factor = effectiveQty / refAmount;
+                cal = foodDb.calories_kcal !== null ? Math.round(Number(foodDb.calories_kcal) * factor * 10) / 10 : null;
+                p = foodDb.protein_g !== null ? Math.round(Number(foodDb.protein_g) * factor * 10) / 10 : null;
+                c = foodDb.carbohydrate_g !== null ? Math.round(Number(foodDb.carbohydrate_g) * factor * 10) / 10 : null;
+                fat = foodDb.fat_g !== null ? Math.round(Number(foodDb.fat_g) * factor * 10) / 10 : null;
+              } else if (isHousehold) {
+                // Check if portion matches prescribed unit
+                const [portions] = await db.query<RowDataPacket[]>(
+                  `SELECT label, equivalent_reference_amount FROM nutrition_v2_food_portions WHERE food_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL`,
+                  [foodId]
                 );
-              });
+                const matchedPortion = portions.find((pr) => {
+                  const pLabel = String(pr.label).toLowerCase();
+                  return (
+                    pLabel.includes(unitNorm) ||
+                    (unitNorm.includes("fatia") && pLabel.includes("fatia")) ||
+                    (unitNorm.includes("colher") && pLabel.includes("colher")) ||
+                    (unitNorm.includes("pote") && pLabel.includes("pote"))
+                  );
+                });
 
-              let portionEquiv: number | null = matchedPortion ? Number(matchedPortion.equivalent_reference_amount) : null;
-              if (!portionEquiv && isHousehold) {
-                portionEquiv = getCalibratedFallbackPortionGrams(displayName || f.foodNameCandidate, f.unitCandidate);
-              }
+                let portionEquiv: number | null = matchedPortion ? Number(matchedPortion.equivalent_reference_amount) : null;
+                if (!portionEquiv) {
+                  portionEquiv = getCalibratedFallbackPortionGrams(displayName || f.foodNameCandidate, f.unitCandidate);
+                }
 
-              if (portionEquiv && portionEquiv > 0) {
-                effectiveQty = f.quantity * portionEquiv;
-                const factor = effectiveQty / refAmount;
-                cal = foodDb.calories_kcal !== null ? Math.round(Number(foodDb.calories_kcal) * factor * 10) / 10 : null;
-                p = foodDb.protein_g !== null ? Math.round(Number(foodDb.protein_g) * factor * 10) / 10 : null;
-                c = foodDb.carbohydrate_g !== null ? Math.round(Number(foodDb.carbohydrate_g) * factor * 10) / 10 : null;
-                fat = foodDb.fat_g !== null ? Math.round(Number(foodDb.fat_g) * factor * 10) / 10 : null;
-              } else if (!isHousehold) {
-                const factor = effectiveQty / refAmount;
-                cal = foodDb.calories_kcal !== null ? Math.round(Number(foodDb.calories_kcal) * factor * 10) / 10 : null;
-                p = foodDb.protein_g !== null ? Math.round(Number(foodDb.protein_g) * factor * 10) / 10 : null;
-                c = foodDb.carbohydrate_g !== null ? Math.round(Number(foodDb.carbohydrate_g) * factor * 10) / 10 : null;
-                fat = foodDb.fat_g !== null ? Math.round(Number(foodDb.fat_g) * factor * 10) / 10 : null;
+                if (portionEquiv && portionEquiv > 0) {
+                  effectiveQty = f.quantity * portionEquiv;
+                  const factor = effectiveQty / refAmount;
+                  cal = foodDb.calories_kcal !== null ? Math.round(Number(foodDb.calories_kcal) * factor * 10) / 10 : null;
+                  p = foodDb.protein_g !== null ? Math.round(Number(foodDb.protein_g) * factor * 10) / 10 : null;
+                  c = foodDb.carbohydrate_g !== null ? Math.round(Number(foodDb.carbohydrate_g) * factor * 10) / 10 : null;
+                  fat = foodDb.fat_g !== null ? Math.round(Number(foodDb.fat_g) * factor * 10) / 10 : null;
+                } else {
+                  cal = null;
+                  p = null;
+                  c = null;
+                  fat = null;
+                }
               } else {
-                cal = null;
-                p = null;
-                c = null;
-                fat = null;
+                const factor = effectiveQty / refAmount;
+                cal = foodDb.calories_kcal !== null ? Math.round(Number(foodDb.calories_kcal) * factor * 10) / 10 : null;
+                p = foodDb.protein_g !== null ? Math.round(Number(foodDb.protein_g) * factor * 10) / 10 : null;
+                c = foodDb.carbohydrate_g !== null ? Math.round(Number(foodDb.carbohydrate_g) * factor * 10) / 10 : null;
+                fat = foodDb.fat_g !== null ? Math.round(Number(foodDb.fat_g) * factor * 10) / 10 : null;
               }
             }
           }
@@ -2417,42 +2502,66 @@ export async function confirmNutritionAiImport(params: {
 
                 if (sub.quantity && sub.quantity > 0) {
                   const sRefAmount = Number(sDb.reference_amount || 100);
+                  const sUnitNorm = (sub.unitCandidate || "").toLowerCase().trim();
+                  const sIsMetricGramsOrMl = ["g", "gr", "grama", "gramas", "ml", "mililitro", "mililitros"].includes(sUnitNorm);
+                  const sIsMetricKgOrL = ["kg", "quilo", "quilos", "quilograma", "quilogramas", "l", "litro", "litros"].includes(sUnitNorm);
+                  const sIsHousehold = !sIsMetricGramsOrMl && !sIsMetricKgOrL && /fatia|colher|xicara|copo|pote|pedaco|unidade|dosador|scoop/i.test(sUnitNorm);
+
                   let sEffectiveQty = sub.quantity;
 
-                  const [sPortions] = await db.query<RowDataPacket[]>(
-                    `SELECT label, equivalent_reference_amount FROM nutrition_v2_food_portions WHERE food_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL`,
-                    [subFoodId]
-                  );
-                  const sUnitNorm = (sub.unitCandidate || "").toLowerCase().trim();
-                  const sIsHousehold = /fatia|colher|xicara|copo|pote|pedaco|unidade|dosador|scoop/i.test(sUnitNorm);
-                  const sMatchedPortion = sPortions.find((p) => {
-                    const pLabel = String(p.label).toLowerCase();
-                    return (
-                      pLabel.includes(sUnitNorm) ||
-                      (sUnitNorm.includes("fatia") && pLabel.includes("fatia")) ||
-                      (sUnitNorm.includes("colher") && pLabel.includes("colher")) ||
-                      (sUnitNorm.includes("pote") && pLabel.includes("pote"))
+                  if (sIsMetricGramsOrMl) {
+                    sEffectiveQty = sub.quantity;
+                    const sFactor = sEffectiveQty / sRefAmount;
+                    subCal = sDb.calories_kcal !== null ? Math.round(Number(sDb.calories_kcal) * sFactor * 10) / 10 : null;
+                    subP = sDb.protein_g !== null ? Math.round(Number(sDb.protein_g) * sFactor * 10) / 10 : null;
+                    subC = sDb.carbohydrate_g !== null ? Math.round(Number(sDb.carbohydrate_g) * sFactor * 10) / 10 : null;
+                    subFat = sDb.fat_g !== null ? Math.round(Number(sDb.fat_g) * sFactor * 10) / 10 : null;
+                  } else if (sIsMetricKgOrL) {
+                    sEffectiveQty = sub.quantity * 1000;
+                    const sFactor = sEffectiveQty / sRefAmount;
+                    subCal = sDb.calories_kcal !== null ? Math.round(Number(sDb.calories_kcal) * sFactor * 10) / 10 : null;
+                    subP = sDb.protein_g !== null ? Math.round(Number(sDb.protein_g) * sFactor * 10) / 10 : null;
+                    subC = sDb.carbohydrate_g !== null ? Math.round(Number(sDb.carbohydrate_g) * sFactor * 10) / 10 : null;
+                    subFat = sDb.fat_g !== null ? Math.round(Number(sDb.fat_g) * sFactor * 10) / 10 : null;
+                  } else if (sIsHousehold) {
+                    const [sPortions] = await db.query<RowDataPacket[]>(
+                      `SELECT label, equivalent_reference_amount FROM nutrition_v2_food_portions WHERE food_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL`,
+                      [subFoodId]
                     );
-                  });
+                    const sMatchedPortion = sPortions.find((p) => {
+                      const pLabel = String(p.label).toLowerCase();
+                      return (
+                        pLabel.includes(sUnitNorm) ||
+                        (sUnitNorm.includes("fatia") && pLabel.includes("fatia")) ||
+                        (sUnitNorm.includes("colher") && pLabel.includes("colher")) ||
+                        (sUnitNorm.includes("pote") && pLabel.includes("pote"))
+                      );
+                    });
 
-                  if (sMatchedPortion) {
-                    sEffectiveQty = sub.quantity * Number(sMatchedPortion.equivalent_reference_amount);
-                    const sFactor = sEffectiveQty / sRefAmount;
-                    subCal = sDb.calories_kcal !== null ? Math.round(Number(sDb.calories_kcal) * sFactor * 10) / 10 : null;
-                    subP = sDb.protein_g !== null ? Math.round(Number(sDb.protein_g) * sFactor * 10) / 10 : null;
-                    subC = sDb.carbohydrate_g !== null ? Math.round(Number(sDb.carbohydrate_g) * sFactor * 10) / 10 : null;
-                    subFat = sDb.fat_g !== null ? Math.round(Number(sDb.fat_g) * sFactor * 10) / 10 : null;
-                  } else if (!sIsHousehold) {
-                    const sFactor = sEffectiveQty / sRefAmount;
-                    subCal = sDb.calories_kcal !== null ? Math.round(Number(sDb.calories_kcal) * sFactor * 10) / 10 : null;
-                    subP = sDb.protein_g !== null ? Math.round(Number(sDb.protein_g) * sFactor * 10) / 10 : null;
-                    subC = sDb.carbohydrate_g !== null ? Math.round(Number(sDb.carbohydrate_g) * sFactor * 10) / 10 : null;
-                    subFat = sDb.fat_g !== null ? Math.round(Number(sDb.fat_g) * sFactor * 10) / 10 : null;
+                    let sPortionEquiv: number | null = sMatchedPortion ? Number(sMatchedPortion.equivalent_reference_amount) : null;
+                    if (!sPortionEquiv) {
+                      sPortionEquiv = getCalibratedFallbackPortionGrams(subDisplayName || sub.foodNameCandidate, sub.unitCandidate);
+                    }
+
+                    if (sPortionEquiv && sPortionEquiv > 0) {
+                      sEffectiveQty = sub.quantity * sPortionEquiv;
+                      const sFactor = sEffectiveQty / sRefAmount;
+                      subCal = sDb.calories_kcal !== null ? Math.round(Number(sDb.calories_kcal) * sFactor * 10) / 10 : null;
+                      subP = sDb.protein_g !== null ? Math.round(Number(sDb.protein_g) * sFactor * 10) / 10 : null;
+                      subC = sDb.carbohydrate_g !== null ? Math.round(Number(sDb.carbohydrate_g) * sFactor * 10) / 10 : null;
+                      subFat = sDb.fat_g !== null ? Math.round(Number(sDb.fat_g) * sFactor * 10) / 10 : null;
+                    } else {
+                      subCal = null;
+                      subP = null;
+                      subC = null;
+                      subFat = null;
+                    }
                   } else {
-                    subCal = null;
-                    subP = null;
-                    subC = null;
-                    subFat = null;
+                    const sFactor = sEffectiveQty / sRefAmount;
+                    subCal = sDb.calories_kcal !== null ? Math.round(Number(sDb.calories_kcal) * sFactor * 10) / 10 : null;
+                    subP = sDb.protein_g !== null ? Math.round(Number(sDb.protein_g) * sFactor * 10) / 10 : null;
+                    subC = sDb.carbohydrate_g !== null ? Math.round(Number(sDb.carbohydrate_g) * sFactor * 10) / 10 : null;
+                    subFat = sDb.fat_g !== null ? Math.round(Number(sDb.fat_g) * sFactor * 10) / 10 : null;
                   }
                 }
               }

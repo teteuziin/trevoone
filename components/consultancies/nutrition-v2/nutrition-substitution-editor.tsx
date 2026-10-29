@@ -111,6 +111,17 @@ export function NutritionSubstitutionEditor({
         setAvailablePortions(activePortions);
 
         // Resolve active unit selection against loaded portions
+        const rawCode = (substitution.prescribedUnitCode || "").trim().toUpperCase();
+        const rawLabel = (substitution.prescribedUnitLabel || "").trim().toLowerCase();
+        const isStandardMetric =
+          ["G", "KG", "ML", "L"].includes(rawCode) ||
+          ["g", "gr", "grama", "gramas", "ml", "mililitro", "mililitros", "kg", "quilo", "quilos", "quilograma", "quilogramas", "l", "litro", "litros"].includes(rawLabel);
+
+        if (isStandardMetric) {
+          setSelectedUnitValue("G");
+          return;
+        }
+
         if (substitution.prescribedUnitLabel) {
           const matching = activePortions.find(
             (p) => p.label.trim().toLowerCase() === substitution.prescribedUnitLabel!.trim().toLowerCase()
@@ -121,8 +132,7 @@ export function NutritionSubstitutionEditor({
           }
         }
 
-        const code = (substitution.prescribedUnitCode || "").trim().toUpperCase();
-        if (code === "G" || code === "KG" || !code) {
+        if (rawCode === "G" || rawCode === "KG" || !rawCode) {
           setSelectedUnitValue("G");
         } else {
           // Non-standard legacy unit with no conversion

@@ -190,6 +190,18 @@ export function NutritionItemEditor({
         setAvailablePortions(activePortions);
 
         // Resolve active measure key
+        const rawCode = (item.prescribedUnitCode || "").trim().toUpperCase();
+        const rawLabel = (item.prescribedUnitLabel || "").trim().toLowerCase();
+        const isStandardMetric =
+          ["G", "KG", "ML", "L"].includes(rawCode) ||
+          ["g", "gr", "grama", "gramas", "ml", "mililitro", "mililitros", "kg", "quilo", "quilos", "quilograma", "quilogramas", "l", "litro", "litros"].includes(rawLabel);
+
+        if (isStandardMetric) {
+          const isVolume = rawCode === "ML" || rawCode === "L" || rawLabel.includes("ml") || rawLabel.includes("litro") || refUnit === "ML";
+          setSelectedMeasureKey(isVolume ? "ML" : "G");
+          return;
+        }
+
         if (item.prescribedUnitLabel) {
           const match = activePortions.find(
             (p) => p.label.trim().toLowerCase() === item.prescribedUnitLabel!.trim().toLowerCase()
@@ -200,8 +212,7 @@ export function NutritionItemEditor({
           }
         }
 
-        const code = (item.prescribedUnitCode || "").trim().toUpperCase();
-        if (code === "ML" || code === "L" || refUnit === "ML") {
+        if (rawCode === "ML" || rawCode === "L" || refUnit === "ML") {
           setSelectedMeasureKey("ML");
         } else {
           setSelectedMeasureKey("G");
@@ -242,12 +253,17 @@ export function NutritionItemEditor({
 
   // Portion weight calculation
   // Active portion reference amount
-  const currentPortion = availablePortions.find((p) => p.publicId === selectedMeasureKey);
-  const activeEquivalent = currentPortion
-    ? currentPortion.equivalentReferenceAmount
-    : (item.portionEquivalentAmount != null && item.portionEquivalentAmount > 0 ? item.portionEquivalentAmount : null);
+  const isStandardMetricSelected = selectedMeasureKey === "G" || selectedMeasureKey === "ML";
+  const currentPortion = !isStandardMetricSelected
+    ? availablePortions.find((p) => p.publicId === selectedMeasureKey)
+    : null;
+  const activeEquivalent = !isStandardMetricSelected
+    ? (currentPortion
+        ? currentPortion.equivalentReferenceAmount
+        : (item.portionEquivalentAmount != null && item.portionEquivalentAmount > 0 ? item.portionEquivalentAmount : null))
+    : null;
 
-  const equivGrams = activeEquivalent != null && activeEquivalent > 0
+  const equivGrams = !isStandardMetricSelected && activeEquivalent != null && activeEquivalent > 0
     ? Math.round((isCustomQtyValid ? parsedLocalQty! : (item.prescribedQuantity || 0)) * activeEquivalent * 10) / 10
     : null;
 
@@ -461,12 +477,16 @@ export function NutritionItemEditor({
       className="p-2 sm:p-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] shadow-2xs hover:border-[var(--brand)]/40 transition-all space-y-2 w-full max-w-full min-w-0"
     >
       {/* ========================================================================= */}
-      {/* DESKTOP LAYOUT (Clean unified row)                                       */}
+      {/* UNIFIED STRUCTURED LAYOUT (Linha 1 a 4)                                   */}
       {/* ========================================================================= */}
-      <div className="hidden sm:flex sm:items-center sm:justify-between gap-3 w-full min-w-0">
-        {/* Left: Food name & status indicator */}
-        <div className="flex items-center gap-2 min-w-0 flex-1 max-w-[32%]">
-          <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate" title={item.foodNameSnapshot}>
+
+      {/* LINHA 1: Nome completo do alimento + Badges + Menu ⋮ */}
+      <div className="flex items-start justify-between gap-2 w-full min-w-0">
+        <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
+          <span
+            className="font-bold text-sm sm:text-base text-[var(--text-primary)] leading-snug break-words"
+            title={item.foodNameSnapshot}
+          >
             {item.foodNameSnapshot}
           </span>
           {item.foodId == null ? (
@@ -490,312 +510,261 @@ export function NutritionItemEditor({
           ) : null}
         </div>
 
-        {/* Middle: Quantity + Measure Selector + Conversion + Macros */}
-        <div className="flex items-center gap-2 shrink-0 text-xs">
-          {/* Quantity Input */}
-          {!readOnly ? (
-            <input
-              data-item-input={item.publicId}
-              type="text"
-              inputMode="decimal"
-              value={localQuantity}
-              onChange={(e) => handleQuantityChange(e.target.value)}
-              placeholder="100"
-              className="w-14 px-1.5 py-1 text-xs text-center font-bold rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[32px]"
-              title="Quantidade prescrita"
-            />
-          ) : (
-            <span className="font-bold text-[var(--text-primary)] px-1">
-              {localQuantity}
-            </span>
-          )}
-
-          {/* Measure Selector Dropdown */}
-          {!readOnly && item.foodPublicId ? (
-            <select
-              value={selectedMeasureKey}
-              onChange={(e) => handleMeasureChange(e.target.value)}
-              className="text-xs font-semibold px-2 py-1 rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[32px] max-w-[170px] truncate cursor-pointer"
-              title="Selecione a medida deste alimento"
+        {/* Action Menu ⋮ */}
+        {!readOnly && (
+          <div
+            className="relative shrink-0"
+            ref={(el) => {
+              (desktopMenuRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+              (mobileMenuRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer min-h-[32px] min-w-[32px] sm:min-h-[36px] sm:min-w-[36px] flex items-center justify-center transition-colors"
+              title="Mais opções do alimento"
             >
-              <optgroup label="Unidade Padrão">
-                <option value={isVolumeFood ? "ML" : "G"}>
-                  {standardUnitLabel}
-                </option>
-              </optgroup>
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+            </button>
 
-              {availablePortions.length > 0 ? (
-                <optgroup label="Medidas do Alimento">
-                  {availablePortions.map((p) => (
-                    <option key={p.publicId} value={p.publicId}>
-                      {p.label} · {p.equivalentReferenceAmount} {standardUnitShort}
-                      {p.scope === "PERSONAL" ? " (Pessoal)" : p.scope === "CONSULTANCY" ? " (Consultoria)" : ""}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : (
-                <optgroup label="Medidas do Alimento">
-                  <option value="" disabled>
-                    Equivalência não cadastrada
-                  </option>
-                </optgroup>
-              )}
+            {/* Dropdown Menu */}
+            {isMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-56 rounded-xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-xl py-1 z-30 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleOpenEquivalents();
+                  }}
+                  className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-semibold"
+                >
+                  <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <span>Equivalência nutricional</span>
+                </button>
 
-              <optgroup label="Personalização">
-                <option value="__CREATE_CUSTOM__">+ Cadastrar medida...</option>
-              </optgroup>
-            </select>
-          ) : (
-            <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              {item.prescribedUnitLabel || item.prescribedUnitCode || standardUnitShort}
-            </span>
-          )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsCustomMeasureModalOpen(true);
+                  }}
+                  className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>Cadastrar nova medida</span>
+                </button>
 
-          {/* Empty state informative label with quick add button */}
-          {!readOnly && item.foodPublicId && availablePortions.length === 0 && (
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)] italic">
-              <span>Este alimento ainda não tem medidas caseiras cadastradas.</span>
-              <button
-                type="button"
-                onClick={() => setIsCustomMeasureModalOpen(true)}
-                className="not-italic font-semibold text-[var(--brand)] hover:underline cursor-pointer"
-              >
-                + Cadastrar medida
-              </button>
-            </span>
-          )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleOpenAddSubstitution();
+                  }}
+                  className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-semibold"
+                >
+                  <span>+ Adicionar substituição</span>
+                </button>
 
-          {/* Corresponding Conversion Display */}
-          {selectedMeasureKey !== "G" && selectedMeasureKey !== "ML" && equivGrams != null && (
-            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20 whitespace-nowrap" title="Equivalência física correspondente">
-              = {equivGrams} {standardUnitShort}
-            </span>
-          )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleOpenReplaceFood();
+                  }}
+                  className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer text-amber-700 dark:text-amber-400"
+                >
+                  <span>Substituir este alimento</span>
+                </button>
 
-          {isMissingPortionConversion && (
-            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded-md border border-amber-500/20 whitespace-nowrap">
-              Conversão não cadastrada para esta medida.
-            </span>
-          )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setSubstitutionToReview(null);
+                    setIsEquivalentsOpen(true);
+                  }}
+                  className="w-full text-left px-3 py-2 text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
+                >
+                  <span>Comparação avançada (Modal)</span>
+                </button>
 
-          <span className="text-[var(--text-tertiary)]">•</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsEditingNotes(true);
+                  }}
+                  className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
+                >
+                  <span>{item.notes ? "Editar nota de preparo" : "Adicionar nota"}</span>
+                </button>
 
-          {/* Macros snapshot / preview */}
-          <div className="flex items-center gap-1.5 font-mono text-[11px] text-[var(--text-secondary)]">
-            <span className="font-bold text-[var(--brand)]">
-              {displayKcal != null ? `${displayKcal} kcal` : "— kcal"}
-            </span>
-            <span className="text-[var(--text-tertiary)]">·</span>
-            <span>P {displayP != null ? `${displayP}g` : "—"}</span>
-            <span className="text-[var(--text-tertiary)]">·</span>
-            <span>C {displayC != null ? `${displayC}g` : "—"}</span>
-            <span className="text-[var(--text-tertiary)]">·</span>
-            <span>G {displayG != null ? `${displayG}g` : "—"}</span>
+                {item.micronutrientsSnapshotJson && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setShowMicro(!showMicro);
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                    <span>{showMicro ? "Ocultar micros" : "Ver micronutrientes"}</span>
+                  </button>
+                )}
+
+                {onMoveUp && !isFirst && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onMoveUp();
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                    </svg>
+                    <span>Mover para cima</span>
+                  </button>
+                )}
+
+                {onMoveDown && !isLast && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onMoveDown();
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                    <span>Mover para baixo</span>
+                  </button>
+                )}
+
+                <div className="border-t border-[var(--border-subtle)] my-1" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onRemoveItem();
+                  }}
+                  className="w-full text-left px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span>Remover alimento</span>
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-
-        {/* Right: Substitutions toggle button, Equivalentes & Action menu ⋮ */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Equivalentes Button Desktop */}
-          {!readOnly && (
-            <button
-              type="button"
-              onClick={handleOpenEquivalents}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 min-h-[32px] rounded-lg text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
-              title="Calcular equivalência nutricional deste alimento"
-            >
-              <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-              <span>Equivalentes</span>
-            </button>
-          )}
-
-          {/* Substitutions Toggle Button (if any) */}
-          {item.substitutions.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setAreSubsExpanded(!areSubsExpanded)}
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                areSubsExpanded
-                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30"
-                  : "bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]"
-              }`}
-              title="Expandir ou recolher substituições"
-            >
-              <span>Substituições ({item.substitutions.length})</span>
-              {unverifiedSubsCount > 0 && (
-                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-500 text-white shrink-0">
-                  {unverifiedSubsCount}
-                </span>
-              )}
-              <svg className={`w-3 h-3 transition-transform duration-200 ${areSubsExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-          )}
-
-          {/* Action Menu ⋮ Button */}
-          {!readOnly && (
-            <div className="relative" ref={desktopMenuRef}>
-              <button
-                type="button"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center"
-                title="Mais opções do alimento"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
-              </button>
-
-              {/* Dropdown Menu */}
-              {isMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-56 rounded-xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-lg py-1 z-30 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleOpenEquivalents();
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-semibold"
-                  >
-                    <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    <span>Equivalência nutricional</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      setIsCustomMeasureModalOpen(true);
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
-                  >
-                    <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span>Cadastrar nova medida</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleOpenAddSubstitution();
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-semibold"
-                  >
-                    <span>+ Adicionar substituição</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleOpenReplaceFood();
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer text-amber-700 dark:text-amber-400"
-                  >
-                    <span>Substituir este alimento</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      setSubstitutionToReview(null);
-                      setIsEquivalentsOpen(true);
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
-                  >
-                    <span>Comparação avançada (Modal)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      setIsEditingNotes(true);
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
-                  >
-                    <span>{item.notes ? "Editar nota de preparo" : "Adicionar nota"}</span>
-                  </button>
-
-                  {item.micronutrientsSnapshotJson && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        setShowMicro(!showMicro);
-                      }}
-                      className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
-                    >
-                      <svg className="w-3.5 h-3.5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                      </svg>
-                      <span>{showMicro ? "Ocultar micros" : "Ver micronutrientes"}</span>
-                    </button>
-                  )}
-
-                  {onMoveUp && !isFirst && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        onMoveUp();
-                      }}
-                      className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
-                    >
-                      <svg className="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
-                      </svg>
-                      <span>Mover para cima</span>
-                    </button>
-                  )}
-
-                  {onMoveDown && !isLast && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        onMoveDown();
-                      }}
-                      className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer"
-                    >
-                      <svg className="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                      </svg>
-                      <span>Mover para baixo</span>
-                    </button>
-                  )}
-
-                  <div className="border-t border-[var(--border-subtle)] my-1" />
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      onRemoveItem();
-                    }}
-                    className="w-full text-left px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    <span>Remover alimento</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Practical Rounding Banner (Desktop & Mobile) */}
+      {/* LINHA 2: Quantidade + Medida + Conversão Física */}
+      <div className="flex items-center gap-2 flex-wrap text-xs pt-0.5">
+        {!readOnly ? (
+          <input
+            data-item-input={item.publicId}
+            type="text"
+            inputMode="decimal"
+            value={localQuantity}
+            onChange={(e) => handleQuantityChange(e.target.value)}
+            placeholder="100"
+            className="w-16 px-2 py-1.5 text-xs sm:text-sm text-center font-bold rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[34px]"
+            title="Quantidade prescrita"
+          />
+        ) : (
+          <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] px-1">
+            {localQuantity}
+          </span>
+        )}
+
+        {!readOnly && item.foodPublicId ? (
+          <select
+            value={selectedMeasureKey}
+            onChange={(e) => handleMeasureChange(e.target.value)}
+            className="text-xs sm:text-sm font-semibold px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[34px] max-w-[220px] truncate cursor-pointer"
+            title="Selecione a medida deste alimento"
+          >
+            <optgroup label="Unidade Padrão">
+              <option value={isVolumeFood ? "ML" : "G"}>
+                {standardUnitLabel}
+              </option>
+            </optgroup>
+
+            {availablePortions.length > 0 ? (
+              <optgroup label="Medidas do Alimento">
+                {availablePortions.map((p) => (
+                  <option key={p.publicId} value={p.publicId}>
+                    {p.label} · {p.equivalentReferenceAmount} {standardUnitShort}
+                    {p.scope === "PERSONAL" ? " (Pessoal)" : p.scope === "CONSULTANCY" ? " (Consultoria)" : ""}
+                  </option>
+                ))}
+              </optgroup>
+            ) : (
+              <optgroup label="Medidas do Alimento">
+                <option value="" disabled>
+                  Equivalência não cadastrada
+                </option>
+              </optgroup>
+            )}
+
+            <optgroup label="Personalização">
+              <option value="__CREATE_CUSTOM__">+ Cadastrar medida...</option>
+            </optgroup>
+          </select>
+        ) : (
+          <span className="text-xs font-semibold text-[var(--text-secondary)]">
+            {item.prescribedUnitLabel || item.prescribedUnitCode || standardUnitShort}
+          </span>
+        )}
+
+        {/* Conversão em gramas (APENAS quando não for unidade métrica padrão) */}
+        {selectedMeasureKey !== "G" && selectedMeasureKey !== "ML" && equivGrams != null && (
+          <span
+            className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20 whitespace-nowrap"
+            title="Equivalência física correspondente"
+          >
+            = {equivGrams} {standardUnitShort}
+          </span>
+        )}
+
+        {isMissingPortionConversion && (
+          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-2 py-1 rounded-md border border-amber-500/20 whitespace-nowrap">
+            Conversão não cadastrada para esta medida.
+          </span>
+        )}
+
+        {!readOnly && item.foodPublicId && availablePortions.length === 0 && (
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)] italic">
+            <span>Este alimento ainda não tem medidas caseiras cadastradas.</span>
+            <button
+              type="button"
+              onClick={() => setIsCustomMeasureModalOpen(true)}
+              className="not-italic font-semibold text-[var(--brand)] hover:underline cursor-pointer"
+            >
+              + Cadastrar medida
+            </button>
+          </span>
+        )}
+      </div>
+
+      {/* Practical Rounding Banner */}
       {practicalRoundingSuggestion && !readOnly && (
         <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-sky-500/10 border border-sky-500/25 text-xs text-sky-900 dark:text-sky-200 animate-in fade-in duration-150">
           <div className="flex items-center gap-1.5 min-w-0">
@@ -832,260 +801,57 @@ export function NutritionItemEditor({
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* SMARTPHONE LAYOUT (Clean 3-line layout)                                    */}
-      {/* ========================================================================= */}
-      <div className="flex sm:hidden flex-col gap-2 w-full min-w-0">
-        {/* Line 1: Food name + Warnings + Action Menu ⋮ */}
-        <div className="flex items-start justify-between gap-2 min-w-0 w-full">
-          <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
-            <span className="font-bold text-xs text-[var(--text-primary)] leading-snug break-words">
-              {item.foodNameSnapshot}
-            </span>
-            {item.foodId == null ? (
-              <span
-                onClick={() => setIsResolvePickerOpen(true)}
-                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0 cursor-pointer"
-              >
-                Sem vínculo
-              </span>
-            ) : hasIssues ? (
-              <span
-                onClick={() => setIsResolvePickerOpen(true)}
-                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0 cursor-pointer"
-              >
-                Revisar
-              </span>
-            ) : null}
-          </div>
+      {/* LINHA 3: Macros à esquerda + Botões de ação (Equivalentes, Substituições) à direita */}
+      <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-[var(--border-subtle)]/60 text-xs">
+        <div className="flex items-center gap-1.5 font-mono text-xs sm:text-sm text-[var(--text-secondary)]">
+          <span className="font-bold text-[var(--brand)]">
+            {displayKcal != null ? `${displayKcal} kcal` : "— kcal"}
+          </span>
+          <span className="text-[var(--text-tertiary)]">·</span>
+          <span>P {displayP != null ? `${displayP}g` : "—"}</span>
+          <span className="text-[var(--text-tertiary)]">·</span>
+          <span>C {displayC != null ? `${displayC}g` : "—"}</span>
+          <span className="text-[var(--text-tertiary)]">·</span>
+          <span>G {displayG != null ? `${displayG}g` : "—"}</span>
+        </div>
 
-          {/* Action Menu ⋮ Mobile */}
+        <div className="flex items-center gap-1.5 shrink-0">
           {!readOnly && (
-            <div className="relative shrink-0" ref={mobileMenuRef}>
-              <button
-                type="button"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
-              </button>
-
-              {/* Mobile Dropdown Menu */}
-              {isMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-52 rounded-xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-xl py-1 z-30 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleOpenEquivalents();
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 font-semibold"
-                  >
-                    <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    <span>Equivalência nutricional</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      setIsCustomMeasureModalOpen(true);
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2"
-                  >
-                    <span>+ Cadastrar nova medida</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleOpenAddSubstitution();
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 font-semibold"
-                  >
-                    <span>+ Adicionar substituição</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleOpenReplaceFood();
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 text-amber-700 dark:text-amber-400"
-                  >
-                    <span>Substituir este alimento</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      setSubstitutionToReview(null);
-                      setIsEquivalentsOpen(true);
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2"
-                  >
-                    <span>Comparação avançada (Modal)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      setIsEditingNotes(true);
-                    }}
-                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2"
-                  >
-                    <span>{item.notes ? "Editar nota" : "Adicionar nota"}</span>
-                  </button>
-
-                  <div className="border-t border-[var(--border-subtle)] my-1" />
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      onRemoveItem();
-                    }}
-                    className="w-full text-left px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 flex items-center gap-2"
-                  >
-                    <span>Remover alimento</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Line 2: Quantity Input + Measure Selector + Conversion Display */}
-        <div className="flex items-center gap-2 flex-wrap text-xs">
-          {/* Quantity Input */}
-          {!readOnly ? (
-            <input
-              data-item-input={item.publicId}
-              type="text"
-              inputMode="decimal"
-              value={localQuantity}
-              onChange={(e) => handleQuantityChange(e.target.value)}
-              placeholder="100"
-              className="w-16 px-2 py-2 text-base text-center font-bold rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] min-h-[44px]"
-            />
-          ) : (
-            <span className="font-bold text-sm text-[var(--text-primary)] px-2">{localQuantity}</span>
-          )}
-
-          {/* Measure Selector Dropdown Mobile */}
-          {!readOnly && item.foodPublicId ? (
-            <select
-              value={selectedMeasureKey}
-              onChange={(e) => handleMeasureChange(e.target.value)}
-              className="text-sm font-semibold px-2.5 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] min-h-[44px] flex-1 min-w-[130px] truncate"
-            >
-              <optgroup label="Unidade Padrão">
-                <option value={isVolumeFood ? "ML" : "G"}>
-                  {standardUnitLabel}
-                </option>
-              </optgroup>
-
-              {availablePortions.length > 0 ? (
-                <optgroup label="Medidas do Alimento">
-                  {availablePortions.map((p) => (
-                    <option key={p.publicId} value={p.publicId}>
-                      {p.label} · {p.equivalentReferenceAmount} {standardUnitShort}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : (
-                <optgroup label="Medidas do Alimento">
-                  <option value="" disabled>
-                    Equivalência não cadastrada
-                  </option>
-                </optgroup>
-              )}
-
-              <optgroup label="Personalização">
-                <option value="__CREATE_CUSTOM__">+ Cadastrar medida...</option>
-              </optgroup>
-            </select>
-          ) : (
-            <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              {item.prescribedUnitLabel || item.prescribedUnitCode || standardUnitShort}
-            </span>
-          )}
-
-          {/* Corresponding Conversion Display */}
-          {selectedMeasureKey !== "G" && selectedMeasureKey !== "ML" && equivGrams != null && (
-            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 whitespace-nowrap">
-              = {equivGrams} {standardUnitShort}
-            </span>
-          )}
-
-          {isMissingPortionConversion && (
-            <span className="block w-full text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20 mt-0.5">
-              Conversão não cadastrada para esta medida.
-            </span>
-          )}
-        </div>
-
-        {/* Empty state message on mobile */}
-        {!readOnly && item.foodPublicId && availablePortions.length === 0 && (
-          <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-tertiary)]">
-            <span className="truncate">Este alimento ainda não tem medidas caseiras cadastradas.</span>
             <button
               type="button"
-              onClick={() => setIsCustomMeasureModalOpen(true)}
-              className="shrink-0 font-semibold text-[var(--brand)] hover:underline cursor-pointer min-h-[36px] flex items-center px-1"
+              onClick={handleOpenEquivalents}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 min-h-[32px] rounded-lg text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
+              title="Calcular equivalência nutricional deste alimento"
             >
-              + Cadastrar
+              <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              <span>Equivalentes</span>
             </button>
-          </div>
-        )}
+          )}
 
-        {/* Line 3: Macros + Equivalentes + Substitutions toggle */}
-        <div className="flex items-center justify-between gap-2 text-[11px] pt-0.5">
-          <div className="flex items-center gap-1.5 font-mono text-[var(--text-secondary)] flex-wrap">
-            <span className="font-bold text-[var(--brand)]">
-              {displayKcal != null ? `${displayKcal} kcal` : "—"}
-            </span>
-            <span>·</span>
-            <span>P {displayP != null ? `${displayP}g` : "—"}</span>
-            <span>·</span>
-            <span>C {displayC != null ? `${displayC}g` : "—"}</span>
-            <span>·</span>
-            <span>G {displayG != null ? `${displayG}g` : "—"}</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            {!readOnly && (
-              <button
-                type="button"
-                onClick={handleOpenEquivalents}
-                className="inline-flex items-center gap-1 px-2.5 py-1 min-h-[36px] rounded-lg text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 shrink-0 cursor-pointer"
-                title="Calcular equivalentes nutricionais"
-              >
-                <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                <span>Equivalentes</span>
-              </button>
-            )}
-
-            {item.substitutions.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setAreSubsExpanded(!areSubsExpanded)}
-                className="px-2.5 py-1 min-h-[36px] rounded-lg text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0 cursor-pointer"
-              >
-                {item.substitutions.length} subs {areSubsExpanded ? "▲" : "▼"}
-              </button>
-            )}
-          </div>
+          {item.substitutions.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setAreSubsExpanded(!areSubsExpanded)}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 min-h-[32px] rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                areSubsExpanded
+                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30"
+                  : "bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]"
+              }`}
+              title="Expandir ou recolher substituições"
+            >
+              <span>Substituições ({item.substitutions.length})</span>
+              {unverifiedSubsCount > 0 && (
+                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-500 text-white shrink-0">
+                  {unverifiedSubsCount}
+                </span>
+              )}
+              <svg className={`w-3 h-3 transition-transform duration-200 ${areSubsExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 

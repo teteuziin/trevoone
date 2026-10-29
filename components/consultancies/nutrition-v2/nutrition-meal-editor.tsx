@@ -396,8 +396,8 @@ export function NutritionMealEditor({
             </div>
           )}
 
-          {/* Items List */}
-          <div className="space-y-1.5">
+          {/* Items List — Grupos de alimentos com espaçamento claro */}
+          <div className="space-y-3.5">
             {meal.items.length === 0 ? (
               <div className="py-4 px-3 text-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/20">
                 <p className="text-xs text-[var(--text-muted)]">Nenhum alimento adicionado nesta refeição.</p>
@@ -488,10 +488,13 @@ export function NutritionMealEditor({
                     <button
                       type="button"
                       onClick={() => setIsPickerOpen(true)}
-                      className="px-2.5 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold transition-colors cursor-pointer min-h-[38px] shrink-0"
-                      title="Abrir busca avançada com tabela em modal"
+                      className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold transition-colors cursor-pointer min-h-[38px] shrink-0 inline-flex items-center gap-1.5"
+                      title="Abrir catálogo completo de alimentos com busca avançada"
                     >
-                      Modal
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                      <span>Catálogo</span>
                     </button>
                   </div>
                 )}

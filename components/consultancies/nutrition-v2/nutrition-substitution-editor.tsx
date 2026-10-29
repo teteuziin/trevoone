@@ -300,7 +300,7 @@ export function NutritionSubstitutionEditor({
           )}
           {substitution.prescribedQuantity != null && (
             <span className="text-xs text-[var(--text-secondary)] shrink-0 font-medium">
-              · {substitution.prescribedQuantity} {substitution.prescribedUnitLabel || substitution.prescribedUnitCode || "g"}
+              — {substitution.prescribedQuantity} {substitution.prescribedUnitLabel || substitution.prescribedUnitCode || "g"}
             </span>
           )}
           {substitution.equivalenceCriterion && (
@@ -376,7 +376,7 @@ export function NutritionSubstitutionEditor({
           )}
         </div>
 
-        {/* Action icons */}
+        {/* Action icons com touch targets acessíveis (mínimo 44px/área de toque) */}
         {!readOnly && (
           <div className="flex items-center justify-end gap-1 shrink-0 ml-auto">
             {!isEditing && (
@@ -386,9 +386,9 @@ export function NutritionSubstitutionEditor({
                     type="button"
                     title="Mover para cima"
                     onClick={() => onMoveUp()}
-                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] flex items-center justify-center cursor-pointer"
+                    className="min-h-[38px] min-w-[36px] sm:min-h-[34px] sm:min-w-[32px] p-2 sm:p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
                     </svg>
                   </button>
@@ -398,9 +398,9 @@ export function NutritionSubstitutionEditor({
                     type="button"
                     title="Mover para baixo"
                     onClick={() => onMoveDown()}
-                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] flex items-center justify-center cursor-pointer"
+                    className="min-h-[38px] min-w-[36px] sm:min-h-[34px] sm:min-w-[32px] p-2 sm:p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
@@ -409,9 +409,9 @@ export function NutritionSubstitutionEditor({
                   type="button"
                   title="Editar quantidade e unidade"
                   onClick={handleOpenEdit}
-                  className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] flex items-center justify-center cursor-pointer"
+                  className="min-h-[38px] min-w-[36px] sm:min-h-[34px] sm:min-w-[32px] p-2 sm:p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                 </button>
@@ -419,9 +419,9 @@ export function NutritionSubstitutionEditor({
                   type="button"
                   title="Remover substituição"
                   onClick={onRemove}
-                  className="p-1 text-red-500/80 hover:text-red-600 rounded-lg hover:bg-red-500/10 flex items-center justify-center cursor-pointer"
+                  className="min-h-[38px] min-w-[36px] sm:min-h-[34px] sm:min-w-[32px] p-2 sm:p-1.5 text-red-500/80 hover:text-red-600 rounded-lg hover:bg-red-500/10 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>

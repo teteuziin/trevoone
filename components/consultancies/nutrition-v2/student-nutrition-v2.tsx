@@ -610,7 +610,7 @@ export function StudentNutritionV2({
                         <div className="mt-1.5 pl-3 py-2 border-l-2 border-amber-400/80 bg-amber-500/5 rounded-r-xl space-y-1.5">
                           <div className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
                             <span>⇄</span>
-                            <span>Opções de substituição autorizadas:</span>
+                            <span>Opções de substituição (OU):</span>
                           </div>
                           <div className="space-y-1">
                             {item.substitutions.map((sub) => (
@@ -619,6 +619,9 @@ export function StudentNutritionV2({
                                 className="flex items-baseline justify-between gap-2 text-xs text-[var(--text-secondary)]"
                               >
                                 <div>
+                                  <span className="px-1 py-0.2 rounded text-[9px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/20 mr-1.5 shrink-0">
+                                    OU
+                                  </span>
                                   <span className="font-semibold text-[var(--text-primary)]">{sub.foodName}</span>
                                   {sub.quantityFormatted && (
                                     <span className="font-medium text-amber-700 dark:text-amber-400 ml-1.5 tabular-nums">
@@ -957,7 +960,7 @@ export function StudentNutritionV2({
                         <div className="mt-2 pl-3 py-2 border-l-2 border-amber-400/80 bg-amber-500/5 rounded-r-xl space-y-1.5">
                           <div className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
                             <span>⇄</span>
-                            <span>Opções de substituição autorizadas:</span>
+                            <span>Opções de substituição (OU):</span>
                           </div>
                           <div className="space-y-1">
                             {item.substitutions.map((sub) => (
@@ -966,6 +969,9 @@ export function StudentNutritionV2({
                                 className="flex items-baseline justify-between gap-3 text-xs text-[var(--text-secondary)]"
                               >
                                 <div className="min-w-0 pr-2">
+                                  <span className="px-1 py-0.2 rounded text-[9px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/20 mr-1.5 shrink-0">
+                                    OU
+                                  </span>
                                   <span className="font-semibold text-[var(--text-primary)]">{sub.foodName}</span>
                                   {sub.quantityFormatted && (
                                     <span className="font-medium text-amber-700 dark:text-amber-400 ml-1.5 tabular-nums">

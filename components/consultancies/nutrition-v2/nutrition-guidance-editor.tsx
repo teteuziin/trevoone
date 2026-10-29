@@ -336,7 +336,7 @@ export function NutritionGuidanceEditor({
                 onClick={handleAddRecommendation}
                 className="px-3.5 py-2 rounded-xl bg-[var(--brand)] text-white text-xs font-bold hover:opacity-90 shadow-2xs transition-all min-h-[38px] cursor-pointer inline-flex items-center gap-1.5"
               >
-                <span>+ Nova Recomendação</span>
+                <span>+ Adicionar orientação</span>
               </button>
             )}
           </div>
@@ -355,7 +355,7 @@ export function NutritionGuidanceEditor({
                   onClick={handleAddRecommendation}
                   className="mt-2 text-xs font-bold text-[var(--brand)] hover:underline cursor-pointer"
                 >
-                  Adicionar primeira recomendação
+                  + Adicionar primeira orientação
                 </button>
               )}
             </div>
@@ -368,7 +368,7 @@ export function NutritionGuidanceEditor({
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                      Recomendação #{idx + 1}
+                      Orientação #{idx + 1}
                     </span>
                     {!readOnly && (
                       <div className="flex items-center gap-1">
@@ -376,7 +376,7 @@ export function NutritionGuidanceEditor({
                           type="button"
                           disabled={idx === 0}
                           onClick={() => handleMoveRecommendation(idx, "UP")}
-                          className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-30 cursor-pointer min-w-[32px] min-h-[32px] flex items-center justify-center text-xs"
+                          className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-30 cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center text-xs"
                           title="Mover para cima"
                         >
                           ▲
@@ -385,7 +385,7 @@ export function NutritionGuidanceEditor({
                           type="button"
                           disabled={idx === guidance.recommendations.length - 1}
                           onClick={() => handleMoveRecommendation(idx, "DOWN")}
-                          className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-30 cursor-pointer min-w-[32px] min-h-[32px] flex items-center justify-center text-xs"
+                          className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-30 cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center text-xs"
                           title="Mover para baixo"
                         >
                           ▼
@@ -393,8 +393,8 @@ export function NutritionGuidanceEditor({
                         <button
                           type="button"
                           onClick={() => handleRemoveRecommendation(item.id)}
-                          className="p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-500/10 cursor-pointer min-w-[32px] min-h-[32px] flex items-center justify-center text-xs font-bold"
-                          title="Excluir recomendação"
+                          className="p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-500/10 cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center text-xs font-bold"
+                          title="Excluir orientação"
                         >
                           ✕
                         </button>
@@ -405,27 +405,27 @@ export function NutritionGuidanceEditor({
                   <div className="space-y-2">
                     <div>
                       <label className="block text-[11px] font-semibold text-[var(--text-secondary)] mb-1">
-                        Título (Opcional)
+                        Título da Orientação (Personalizado)
                       </label>
                       <input
                         type="text"
                         disabled={readOnly}
                         value={item.title || ""}
                         onChange={(e) => handleUpdateRecommendation(item.id, { title: e.target.value })}
-                        placeholder="Ex: Hidratação e Consumo Hídrico"
+                        placeholder="Ex: Sugestões, sucos laxantes / Hidratação / Orientações gerais"
                         className="w-full px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-base sm:text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] min-h-[40px] sm:min-h-[36px]"
                       />
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold text-[var(--text-secondary)] mb-1">
-                        Texto da Orientação
+                        Conteúdo da Orientação ou Lista de Itens
                       </label>
                       <textarea
                         rows={4}
                         disabled={readOnly}
                         value={item.text}
                         onChange={(e) => handleUpdateRecommendation(item.id, { text: e.target.value })}
-                        placeholder="Descreva a recomendação para o paciente com parágrafos ou listas..."
+                        placeholder="Descreva as orientações ou liste opções com marcadores (ex: • Suco de mamão, ameixa e aveia)..."
                         className="w-full px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-base sm:text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] resize-y min-h-[90px]"
                       />
                     </div>

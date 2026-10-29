@@ -31,6 +31,10 @@ const {
   splitTextIntoMealSections,
 } = await import("../lib/ai/openai-client.ts");
 
+const {
+  parseTextIntoStructuredGuidance,
+} = await import("../lib/nutrition-v2/guidance-types.ts");
+
 let passedCount = 0;
 let totalCount = 0;
 
@@ -238,6 +242,43 @@ Sugestões, sucos laxantes
     const split = splitTextIntoMealSections(doc);
     assert.equal(split.sections.length, 5);
     assert.match(split.postamble, /Sugestões/);
+  });
+
+  // 8. parseTextIntoStructuredGuidance
+  runTest("parseTextIntoStructuredGuidance organizes sucos and supplementation into structured blocks", () => {
+    const rawNotes = `Suplementação recomendada
+Psyllium, ômega 3, creatina.
+40min antes do treino: 300ml de cha verde ou cha de gengibre.
+Acrescentar whey
+
+Sugestões, sucos laxantes
+• Suco de mamão, ameixa e aveia
+• Suco de mamão e laranja
+• Suco de beterraba, cenoura e laranja
+• Suco de maracujá, couve e cenoura
+
+Sucos Diuréticos
+• Melancia e Chia
+• Morango, laranja e mamão
+
+Sucos funcionais
+• Beterraba, chia e gengibre
+• Mamão, linhaça e limão
+• Couve, maça e chia`;
+
+    const guidance = parseTextIntoStructuredGuidance(rawNotes);
+    assert.equal(guidance.schemaVersion, 1);
+    assert.equal(guidance.supplements.length, 1);
+    assert.equal(guidance.supplements[0].name, "Suplementação recomendada");
+    assert.match(guidance.supplements[0].notes, /Psyllium/);
+
+    assert.equal(guidance.recommendations.length, 3);
+    assert.equal(guidance.recommendations[0].title, "Sugestões, sucos laxantes");
+    assert.match(guidance.recommendations[0].text, /Suco de mamão, ameixa/);
+    assert.equal(guidance.recommendations[1].title, "Sucos Diuréticos");
+    assert.match(guidance.recommendations[1].text, /Melancia e Chia/);
+    assert.equal(guidance.recommendations[2].title, "Sucos funcionais");
+    assert.match(guidance.recommendations[2].text, /Beterraba, chia e gengibre/);
   });
 
   console.log(`\nSUITE RESULT: ${passedCount}/${totalCount} tests passed.\n`);

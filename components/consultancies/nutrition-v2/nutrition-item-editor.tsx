@@ -79,7 +79,7 @@ export function NutritionItemEditor({
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notes, setNotes] = useState(item.notes || "");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [areSubsExpanded, setAreSubsExpanded] = useState(false);
+  const [areSubsExpanded, setAreSubsExpanded] = useState(true);
 
   // Available portions / measures loaded for this food
   const [availablePortions, setAvailablePortions] = useState<FoodPortionOption[]>([]);
@@ -260,10 +260,11 @@ export function NutritionItemEditor({
   const currentPortion = !isStandardMetricSelected
     ? availablePortions.find((p) => p.publicId === selectedMeasureKey)
     : null;
+  // Prioritize explicit prescribed equivalent snapshot (e.g. 183g / 3 = 61g) over standard catalogue default
   const activeEquivalent = !isStandardMetricSelected
-    ? (currentPortion
-        ? currentPortion.equivalentReferenceAmount
-        : (item.portionEquivalentAmount != null && item.portionEquivalentAmount > 0 ? item.portionEquivalentAmount : null))
+    ? ((item.portionEquivalentAmount != null && item.portionEquivalentAmount > 0)
+        ? item.portionEquivalentAmount
+        : (currentPortion ? currentPortion.equivalentReferenceAmount : null))
     : null;
 
   const equivGrams = !isStandardMetricSelected && activeEquivalent != null && activeEquivalent > 0
@@ -492,6 +493,12 @@ export function NutritionItemEditor({
           >
             {item.foodNameSnapshot}
           </span>
+          <span
+            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0"
+            title="Alimento de referência para o cálculo de calorias e macronutrientes da refeição"
+          >
+            Referência do cálculo
+          </span>
           {item.foodId == null ? (
             <span
               onClick={() => setIsResolvePickerOpen(true)}
@@ -712,12 +719,18 @@ export function NutritionItemEditor({
 
             {availablePortions.length > 0 ? (
               <optgroup label="Medidas do Alimento">
-                {availablePortions.map((p) => (
-                  <option key={p.publicId} value={p.publicId}>
-                    {p.label} · {p.equivalentReferenceAmount} {standardUnitShort}
-                    {p.scope === "PERSONAL" ? " (Pessoal)" : p.scope === "CONSULTANCY" ? " (Consultoria)" : ""}
-                  </option>
-                ))}
+                {availablePortions.map((p) => {
+                  const isCurrentSelected = p.publicId === selectedMeasureKey;
+                  const displayEq = isCurrentSelected && item.portionEquivalentAmount && item.portionEquivalentAmount > 0
+                    ? item.portionEquivalentAmount
+                    : p.equivalentReferenceAmount;
+                  return (
+                    <option key={p.publicId} value={p.publicId}>
+                      {p.label} · {displayEq} {standardUnitShort}
+                      {p.scope === "PERSONAL" ? " (Pessoal)" : p.scope === "CONSULTANCY" ? " (Consultoria)" : ""}
+                    </option>
+                  );
+                })}
               </optgroup>
             ) : (
               <optgroup label="Medidas do Alimento">
@@ -837,20 +850,21 @@ export function NutritionItemEditor({
             <button
               type="button"
               onClick={() => setAreSubsExpanded(!areSubsExpanded)}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 min-h-[32px] rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 min-h-[34px] rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                 areSubsExpanded
                   ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30"
                   : "bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]"
               }`}
-              title="Expandir ou recolher substituições"
+              title={areSubsExpanded ? "Recolher alternativas OU" : "Ver alternativas OU"}
             >
-              <span>Substituições ({item.substitutions.length})</span>
+              <span className="px-1 py-0.2 rounded text-[9px] font-black bg-amber-500 text-white shrink-0">OU</span>
+              <span>Alternativas ({item.substitutions.length})</span>
               {unverifiedSubsCount > 0 && (
                 <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-500 text-white shrink-0">
                   {unverifiedSubsCount}
                 </span>
               )}
-              <svg className={`w-3 h-3 transition-transform duration-200 ${areSubsExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${areSubsExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
@@ -931,13 +945,20 @@ export function NutritionItemEditor({
       )}
 
       {/* ========================================================================= */}
-      {/* SUBSTITUTIONS SUB-TREE (Collapsed by default)                             */}
+      {/* SUBSTITUTIONS SUB-TREE (Visible by default, collapsible)                  */}
       {/* ========================================================================= */}
       {areSubsExpanded && item.substitutions.length > 0 && (
-        <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle)] animate-in fade-in duration-150">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider px-1">
-            <span>Opções de Substituição (OU)</span>
-            <span>{item.substitutions.length} alternativa{item.substitutions.length > 1 ? "s" : ""}</span>
+        <div className="space-y-2 pt-2.5 border-t border-[var(--border-subtle)] animate-in fade-in duration-150">
+          <div className="flex items-center justify-between text-[11px] font-bold text-[var(--text-secondary)] px-1">
+            <span className="flex items-center gap-1.5">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                OU
+              </span>
+              <span>Opções de Substituição</span>
+            </span>
+            <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
+              {item.substitutions.length} alternativa{item.substitutions.length > 1 ? "s" : ""}
+            </span>
           </div>
 
           <div className="space-y-1.5">
@@ -971,16 +992,16 @@ export function NutritionItemEditor({
 
           {/* Quick Actions at bottom of expanded substitutions */}
           {!readOnly && (
-            <div className="pt-1.5 flex items-center gap-2 flex-wrap text-xs">
+            <div className="pt-2 flex items-center justify-between gap-2 flex-wrap text-xs">
               <button
                 type="button"
                 onClick={handleOpenAddSubstitution}
-                className="text-xs text-[var(--brand)] hover:underline font-semibold inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-[var(--brand)]/5 cursor-pointer"
+                className="min-h-[44px] px-3.5 py-2 text-xs font-bold text-[var(--brand)] hover:bg-[var(--brand)]/10 rounded-xl border border-dashed border-[var(--brand)]/40 hover:border-[var(--brand)] transition-colors inline-flex items-center gap-1.5 cursor-pointer active:scale-[0.99]"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                 </svg>
-                <span>+ Adicionar Substituição</span>
+                <span>+ Adicionar alternativa (OU)</span>
               </button>
 
               <button
@@ -989,13 +1010,13 @@ export function NutritionItemEditor({
                   setSubstitutionToReview(null);
                   setIsEquivalentsOpen(true);
                 }}
-                className="text-xs text-amber-700 dark:text-amber-400 hover:underline font-semibold inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-amber-500/10 cursor-pointer"
+                className="min-h-[44px] px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 rounded-xl border border-amber-500/30 transition-colors inline-flex items-center gap-1.5 cursor-pointer ml-auto"
                 title="Calcular quantidade equivalente com base em energia, proteína, carboidrato ou gordura"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
-                <span>Recalcular equivalentes</span>
+                <span>Equivalentes</span>
               </button>
             </div>
           )}

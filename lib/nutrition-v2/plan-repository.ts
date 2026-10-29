@@ -366,6 +366,7 @@ export type UpdateMealItemInput = {
   prescribedUnitCode?: string | null;
   prescribedUnitLabel?: string | null;
   portionPublicId?: string | null;
+  portionEquivalentAmount?: number | null;
   notes?: string | null;
 };
 
@@ -390,6 +391,7 @@ export type UpdateSubstitutionInput = {
   prescribedUnitCode?: string | null;
   prescribedUnitLabel?: string | null;
   portionPublicId?: string | null;
+  portionEquivalentAmount?: number | null;
   notes?: string | null;
   equivalenceCriterion?: EquivalentCriterion | null;
   equivalenceTargetValueSnapshot?: number | null;
@@ -2097,7 +2099,7 @@ export async function updateMealItem(
         throw new NutritionAuthorizationError("A quantidade prescrita deve ser um número positivo e finito.", "INVALID_QUANTITY", 400);
       }
 
-      let portionEquivalentAmount: number | null = null;
+      let portionEquivalentAmount: number | null = input.portionEquivalentAmount !== undefined ? input.portionEquivalentAmount : null;
       if (input.portionPublicId !== undefined) {
         if (input.portionPublicId && input.portionPublicId.trim()) {
           let portions: RowDataPacket[] = [];
@@ -2286,6 +2288,11 @@ export async function updateMealItem(
 
     updates.push("prescribed_unit_label = ?");
     params.push(prescribedUnitLabel);
+
+    if (portionEquivalentAmount !== null || input.portionPublicId !== undefined || input.portionEquivalentAmount !== undefined) {
+      updates.push("portion_equivalent_amount = ?");
+      params.push(portionEquivalentAmount);
+    }
 
     updates.push("calories_kcal_snapshot = ?");
     params.push(caloriesSnapshot);
@@ -3042,7 +3049,7 @@ export async function updateSubstitution(
         throw new NutritionAuthorizationError("A quantidade prescrita deve ser um número positivo e finito.", "INVALID_QUANTITY", 400);
       }
 
-      let portionEquivalentAmount: number | null = null;
+      let portionEquivalentAmount: number | null = input.portionEquivalentAmount !== undefined ? input.portionEquivalentAmount : null;
       if (input.portionPublicId !== undefined) {
         if (input.portionPublicId && input.portionPublicId.trim()) {
           let portions: RowDataPacket[] = [];
@@ -3227,6 +3234,11 @@ export async function updateSubstitution(
 
     updates.push("prescribed_unit_label = ?");
     params.push(prescribedUnitLabel);
+
+    if (portionEquivalentAmount !== null || input.portionPublicId !== undefined || input.portionEquivalentAmount !== undefined) {
+      updates.push("portion_equivalent_amount = ?");
+      params.push(portionEquivalentAmount);
+    }
 
     updates.push("calories_kcal_snapshot = ?");
     params.push(caloriesSnapshot);

@@ -171,22 +171,101 @@ export function parseStructuredGuidance(
 
   // Graceful fallback for legacy plans with general_guidance plain text
   if (legacyGeneralGuidance && legacyGeneralGuidance.trim()) {
-    return {
-      schemaVersion: 1,
-      recommendations: [
-        {
-          id: "legacy-guidance",
-          title: "Orientações Gerais",
-          text: sanitizeGuidanceText(legacyGeneralGuidance),
-          sortOrder: 0,
-        },
-      ],
-      supplements: [],
-      phytotherapeutics: [],
-    };
+    return parseTextIntoStructuredGuidance(legacyGeneralGuidance);
   }
 
   return createEmptyStructuredGuidance();
+}
+
+/**
+ * Parses free text (from plan notes, Word docx import, or legacy guidance)
+ * into cleanly separated recommendations, supplements, and phytotherapeutics blocks.
+ */
+export function parseTextIntoStructuredGuidance(text?: string | null): PlanStructuredGuidance {
+  if (!text || !text.trim()) {
+    return createEmptyStructuredGuidance();
+  }
+
+  const raw = text.replace(/\r\n/g, "\n").trim();
+  const paragraphs = raw.split(/\n\s*\n+/);
+
+  const recommendations: PlanRecommendationItem[] = [];
+  const supplements: PlanPrescriptionItem[] = [];
+  const phytotherapeutics: PlanPrescriptionItem[] = [];
+
+  let currentSectionTitle: string | null = null;
+  let currentSectionLines: string[] = [];
+
+  const isHeaderLine = (line: string): boolean => {
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+    if (/^[•\-\*·]/.test(trimmed)) return false;
+    if (trimmed.length > 70) return false;
+    if (/^(sugest[oõ]es[,:\s]+sucos|sucos\b|suplementa[cç][aã]o|fitoter[aá]picos|orienta[cç][oõ]es|hidrata[cç][aã]o|recomenda[cç][oõ]es|ch[aá]s\b)/i.test(trimmed)) {
+      return true;
+    }
+    return false;
+  };
+
+  const flushSection = (title: string | null, lines: string[]) => {
+    const content = lines.join("\n").trim();
+    if (!content && !title) return;
+
+    const lowerTitle = (title || "").toLowerCase();
+    if (/suplementa/i.test(lowerTitle)) {
+      supplements.push({
+        id: `sup-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        name: sanitizeGuidanceText(title || "Suplementação recomendada"),
+        notes: sanitizeGuidanceText(content),
+        sortOrder: supplements.length,
+      });
+    } else if (/fitoter/i.test(lowerTitle)) {
+      phytotherapeutics.push({
+        id: `fito-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        name: sanitizeGuidanceText(title || "Fitoterápicos recomendados"),
+        notes: sanitizeGuidanceText(content),
+        sortOrder: phytotherapeutics.length,
+      });
+    } else {
+      recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        title: sanitizeGuidanceText(title || "Orientações Gerais"),
+        text: sanitizeGuidanceText(content || title || ""),
+        sortOrder: recommendations.length,
+      });
+    }
+  };
+
+  for (const para of paragraphs) {
+    const lines = para.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) continue;
+
+    const firstLine = lines[0];
+    if (isHeaderLine(firstLine)) {
+      if (currentSectionTitle || currentSectionLines.length > 0) {
+        flushSection(currentSectionTitle, currentSectionLines);
+        currentSectionLines = [];
+      }
+      currentSectionTitle = firstLine;
+      currentSectionLines = lines.slice(1);
+    } else if (currentSectionTitle) {
+      currentSectionLines.push(...lines);
+    } else {
+      currentSectionTitle = "Orientações Gerais";
+      currentSectionLines = lines;
+    }
+  }
+
+  if (currentSectionTitle || currentSectionLines.length > 0) {
+    flushSection(currentSectionTitle, currentSectionLines);
+  }
+
+  return {
+    schemaVersion: 1,
+    recommendations,
+    supplements,
+    phytotherapeutics,
+  };
 }
 
 export function hasAnyGuidanceContent(guidance: PlanStructuredGuidance | null | undefined): boolean {

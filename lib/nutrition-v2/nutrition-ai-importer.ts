@@ -75,6 +75,10 @@ import {
   autoPromoteReferenceFood,
   INHERENTLY_AMBIGUOUS_CONCEPTS,
 } from "./reference-catalog-service";
+import {
+  parseTextIntoStructuredGuidance,
+  hasAnyGuidanceContent,
+} from "./guidance-types";
 
 export type FoodMatchStatus = "MATCHED" | "AMBIGUOUS" | "NOT_FOUND";
 
@@ -2330,16 +2334,32 @@ export async function confirmNutritionAiImport(params: {
     );
     const planId = pRes.insertId;
 
-    // 2. Insert draft version (version 1)
-    const [vRes] = await db.query<ResultSetHeader>(
-      `INSERT INTO nutrition_v2_plan_versions (
-        public_id, nutrition_plan_id, version_number, status, title,
-        objective, notes, general_guidance,
-        created_by_membership_id, created_at, updated_at
-      ) VALUES (?, ?, 1, 'DRAFT', ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
-      [versionPublicId, planId, title, extractedObjective, extractedNotes, extractedNotes, memberId]
-    );
-    const versionId = vRes.insertId;
+    // 2. Insert draft version (version 1) with structured guidance parsing
+    const structuredGuidance = parseTextIntoStructuredGuidance(extractedNotes || "");
+    const guidanceJson = hasAnyGuidanceContent(structuredGuidance) ? JSON.stringify(structuredGuidance) : null;
+
+    let versionId: number | bigint;
+    try {
+      const [vRes] = await db.query<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_plan_versions (
+          public_id, nutrition_plan_id, version_number, status, title,
+          objective, notes, general_guidance, guidance_json,
+          created_by_membership_id, created_at, updated_at
+        ) VALUES (?, ?, 1, 'DRAFT', ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+        [versionPublicId, planId, title, extractedObjective, extractedNotes, extractedNotes, guidanceJson, memberId]
+      );
+      versionId = vRes.insertId;
+    } catch {
+      const [vRes] = await db.query<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_plan_versions (
+          public_id, nutrition_plan_id, version_number, status, title,
+          objective, notes, general_guidance,
+          created_by_membership_id, created_at, updated_at
+        ) VALUES (?, ?, 1, 'DRAFT', ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+        [versionPublicId, planId, title, extractedObjective, extractedNotes, extractedNotes, memberId]
+      );
+      versionId = vRes.insertId;
+    }
 
     let foodsCreated = 0;
 
@@ -2478,30 +2498,60 @@ export async function confirmNutritionAiImport(params: {
         const finalUnitCode = normalizePrescribedUnitCode(f.unitCandidate) || normalizePrescribedUnitCode(inferredUnit) || normalizePrescribedUnitCode(refUnit) || "G";
         const finalUnitLabel = f.unitCandidate || inferredUnit || refUnit || "g";
 
-        const [itemRes] = await db.query<ResultSetHeader>(
-          `INSERT INTO nutrition_v2_meal_items (
-            public_id, meal_id, food_id, sort_order, food_name_snapshot,
-            prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
-            calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot,
-            fat_g_snapshot, micronutrients_snapshot_json, notes, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NOW(3), NOW(3))`,
-          [
-            itemPublicId,
-            mealId,
-            foodId,
-            itemSort,
-            displayName,
-            f.quantity,
-            finalUnitCode,
-            finalUnitLabel,
-            cal,
-            p,
-            c,
-            fat,
-            f.notes || null,
-          ]
-        );
-        const mealItemId = itemRes.insertId;
+        let mealItemId: number | bigint;
+        try {
+          const [itemRes] = await db.query<ResultSetHeader>(
+            `INSERT INTO nutrition_v2_meal_items (
+              public_id, meal_id, food_id, sort_order, food_name_snapshot,
+              prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
+              portion_equivalent_amount,
+              calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot,
+              fat_g_snapshot, micronutrients_snapshot_json, notes, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NOW(3), NOW(3))`,
+            [
+              itemPublicId,
+              mealId,
+              foodId,
+              itemSort,
+              displayName,
+              f.quantity,
+              finalUnitCode,
+              finalUnitLabel,
+              portionEquiv,
+              cal,
+              p,
+              c,
+              fat,
+              f.notes || null,
+            ]
+          );
+          mealItemId = itemRes.insertId;
+        } catch {
+          const [itemRes] = await db.query<ResultSetHeader>(
+            `INSERT INTO nutrition_v2_meal_items (
+              public_id, meal_id, food_id, sort_order, food_name_snapshot,
+              prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
+              calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot,
+              fat_g_snapshot, micronutrients_snapshot_json, notes, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NOW(3), NOW(3))`,
+            [
+              itemPublicId,
+              mealId,
+              foodId,
+              itemSort,
+              displayName,
+              f.quantity,
+              finalUnitCode,
+              finalUnitLabel,
+              cal,
+              p,
+              c,
+              fat,
+              f.notes || null,
+            ]
+          );
+          mealItemId = itemRes.insertId;
+        }
 
         // 3.1. Insert substitutions (alternativas / opções equivalentes "OU")
         if (Array.isArray(f.substitutions)) {
@@ -2618,29 +2668,57 @@ export async function confirmNutritionAiImport(params: {
             const finalSubUnitCode = normalizePrescribedUnitCode(sub.unitCandidate) || normalizePrescribedUnitCode(subUnit) || "G";
             const finalSubUnitLabel = sub.unitCandidate || subUnit || "g";
 
-            await db.query(
-              `INSERT INTO nutrition_v2_item_substitutions (
-                public_id, meal_item_id, food_id, sort_order, food_name_snapshot,
-                prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
-                calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot,
-                fat_g_snapshot, notes, created_at, updated_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
-              [
-                subPublicId,
-                mealItemId,
-                subFoodId,
-                subSort,
-                subDisplayName,
-                sub.quantity,
-                finalSubUnitCode,
-                finalSubUnitLabel,
-                subCal,
-                subP,
-                subC,
-                subFat,
-                sub.notes || null,
-              ]
-            );
+            try {
+              await db.query(
+                `INSERT INTO nutrition_v2_item_substitutions (
+                  public_id, meal_item_id, food_id, sort_order, food_name_snapshot,
+                  prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
+                  portion_equivalent_amount,
+                  calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot,
+                  fat_g_snapshot, notes, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+                [
+                  subPublicId,
+                  mealItemId,
+                  subFoodId,
+                  subSort,
+                  subDisplayName,
+                  sub.quantity,
+                  finalSubUnitCode,
+                  finalSubUnitLabel,
+                  sPortionEquiv,
+                  subCal,
+                  subP,
+                  subC,
+                  subFat,
+                  sub.notes || null,
+                ]
+              );
+            } catch {
+              await db.query(
+                `INSERT INTO nutrition_v2_item_substitutions (
+                  public_id, meal_item_id, food_id, sort_order, food_name_snapshot,
+                  prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
+                  calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot,
+                  fat_g_snapshot, notes, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+                [
+                  subPublicId,
+                  mealItemId,
+                  subFoodId,
+                  subSort,
+                  subDisplayName,
+                  sub.quantity,
+                  finalSubUnitCode,
+                  finalSubUnitLabel,
+                  subCal,
+                  subP,
+                  subC,
+                  subFat,
+                  sub.notes || null,
+                ]
+              );
+            }
           }
         }
       }

@@ -593,11 +593,11 @@ export function ServerPdfDocument({ plan }: ServerPdfDocumentProps) {
                   {item.substitutions.length > 0 && (
                     <View style={styles.substitutionsBlock}>
                       <Text style={styles.substitutionsHeading}>
-                        Pode ser substituído por:
+                        Opções de substituição (OU):
                       </Text>
                       {item.substitutions.map((sub) => (
                         <View key={sub.id} style={styles.substitutionRow}>
-                          <Text style={styles.substitutionName}>• {sub.foodName}</Text>
+                          <Text style={styles.substitutionName}>OU: {sub.foodName}</Text>
                           {sub.quantityFormatted && (
                             <Text style={styles.substitutionQuantity}>
                               {sub.quantityFormatted}

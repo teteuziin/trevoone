@@ -89,9 +89,9 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
     const pubId = m.mediaAsset?.publicId;
     if (!pubId) return null;
 
-    const mime = m.mediaAsset?.mimeType || "";
-    const isVid = m.mediaAsset?.mediaType === "VIDEO" || mime === "video/mp4";
-    const isGif = mime === "image/gif";
+    const mime = (m.mediaAsset?.mimeType || "").toLowerCase();
+    const isGif = mime === "image/gif" || mime.includes("gif") || m.role === "EXECUTION_GIF" || m.role === "ALTERNATE_GIF";
+    const isVid = !isGif && (m.mediaAsset?.mediaType === "VIDEO" || mime === "video/mp4" || mime.startsWith("video/"));
     const url = `/api/training-v2/media/${pubId}${consultancySuffix}`;
 
     let thumbUrl: string | null = null;
@@ -113,16 +113,17 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
       thumbnailUrl: thumbUrl,
       role: m.role,
       mediaAssetPublicId: pubId,
-      mimeType: mime,
-      mediaType: m.mediaAsset?.mediaType as "VIDEO" | "IMAGE" | undefined,
+      mimeType: mime || (isGif ? "image/gif" : isVid ? "video/mp4" : "image/jpeg"),
+      mediaType: isVid ? "VIDEO" : "IMAGE",
     };
   };
 
   // Helper to score media role priority
-  const scoreRole = (role?: string, mediaType?: string): number => {
-    if (role === "EXECUTION_VIDEO") return 1;
-    if (role === "ALTERNATE_VIDEO") return 2;
-    if (mediaType === "VIDEO") return 3;
+  const scoreRole = (role?: string, mediaType?: string, mimeType?: string): number => {
+    const isGif = (mimeType || "").toLowerCase().includes("gif") || role === "EXECUTION_GIF";
+    if (role === "EXECUTION_VIDEO" || role === "EXECUTION_GIF") return 1;
+    if (role === "ALTERNATE_VIDEO" || role === "ALTERNATE_GIF") return 2;
+    if (mediaType === "VIDEO" || isGif) return 3;
     if (role === "START_IMAGE") return 4;
     if (role === "VIDEO_POSTER") return 5;
     if (role === "ALTERNATE_IMAGE") return 6;
@@ -165,7 +166,9 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
     // Also collect remaining pinned media as potential fallbacks
     if (item.pinnedMedia && item.pinnedMedia.length > 0) {
       const sorted = [...item.pinnedMedia].sort(
-        (a, b) => scoreRole(a.role, a.mediaAsset?.mediaType) - scoreRole(b.role, b.mediaAsset?.mediaType)
+        (a, b) =>
+          scoreRole(a.role, a.mediaAsset?.mediaType, a.mediaAsset?.mimeType) -
+          scoreRole(b.role, b.mediaAsset?.mediaType, b.mediaAsset?.mimeType)
       );
       for (const m of sorted) {
         const p = toPayload(m, item.pinnedMedia);
@@ -226,7 +229,9 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
     const customMediaList = customExercise?.media || (item?.pinnedMedia ?? []);
     if (customMediaList.length > 0) {
       const sorted = [...customMediaList].sort(
-        (a, b) => scoreRole(a.role, a.mediaAsset?.mediaType) - scoreRole(b.role, b.mediaAsset?.mediaType)
+        (a, b) =>
+          scoreRole(a.role, a.mediaAsset?.mediaType, a.mediaAsset?.mimeType) -
+          scoreRole(b.role, b.mediaAsset?.mediaType, b.mediaAsset?.mimeType)
       );
       for (const m of sorted) {
         const p = toPayload(m, customMediaList);
@@ -259,7 +264,9 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
 
   if (candidateMediaList.length > 0) {
     const sorted = [...candidateMediaList].sort(
-      (a, b) => scoreRole(a.role, a.mediaAsset?.mediaType) - scoreRole(b.role, b.mediaAsset?.mediaType)
+      (a, b) =>
+        scoreRole(a.role, a.mediaAsset?.mediaType, a.mediaAsset?.mimeType) -
+        scoreRole(b.role, b.mediaAsset?.mediaType, b.mediaAsset?.mimeType)
     );
     for (const m of sorted) {
       const p = toPayload(m, candidateMediaList);
@@ -270,7 +277,7 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
 
     if (allAvailableMedia.length > 0) {
       const primary = allAvailableMedia[0];
-      const source: ExecutionMediaSource = primary.isVideo ? "LIBRARY" : "IMAGE";
+      const source: ExecutionMediaSource = primary.isVideo || primary.isGif ? "LIBRARY" : "IMAGE";
       return {
         source,
         hasMedia: true,

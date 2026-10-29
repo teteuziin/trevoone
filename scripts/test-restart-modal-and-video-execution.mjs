@@ -454,6 +454,92 @@ export async function runRestartModalAndVideoExecutionSuite() {
     );
   });
 
+  // =========================================================================
+  // TEST 11: Animated GIF Recognized as Primary Demonstration (Mesa Flexora case)
+  // =========================================================================
+  runTest('Animated GIF as Primary Demonstration: role EXECUTION_VIDEO with mime image/gif prioritized over START_IMAGE', async () => {
+    const { resolveExerciseExecutionMedia } = await import('../lib/training-v2/execution-media-resolver.ts');
+
+    // Case matching Mesa Flexora:
+    // Pinned media has EXECUTION_VIDEO (MIME image/gif) and START_IMAGE (MIME image/jpeg)
+    const gifRes = resolveExerciseExecutionMedia({
+      consultancySlug: "saiya-shape",
+      item: {
+        pinnedMedia: [
+          {
+            role: "START_IMAGE",
+            sortOrder: 1,
+            mediaAsset: {
+              publicId: "asset-start-photo",
+              mediaType: "IMAGE",
+              mimeType: "image/jpeg",
+            },
+          },
+          {
+            role: "EXECUTION_VIDEO",
+            sortOrder: 0,
+            mediaAsset: {
+              publicId: "asset-mesa-flexora-gif",
+              mediaType: "IMAGE",
+              mimeType: "image/gif",
+            },
+          },
+        ],
+      },
+    });
+
+    assert.strictEqual(gifRes.hasMedia, true, 'Must identify media is present');
+    assert.strictEqual(gifRes.source, "LIBRARY", 'GIF demonstration must have LIBRARY source');
+    assert.strictEqual(gifRes.isGif, true, 'isGif flag must be strictly true');
+    assert.strictEqual(gifRes.isVideo, false, 'isVideo must be false to avoid HTML5 <video> wrapper');
+    assert.strictEqual(gifRes.allAvailableMedia.length, 2, 'Both GIF and fallback photo must be available');
+
+    // Candidate 0 must be the animated GIF
+    assert.strictEqual(gifRes.allAvailableMedia[0].mediaAssetPublicId, "asset-mesa-flexora-gif");
+    assert.strictEqual(gifRes.allAvailableMedia[0].isGif, true);
+    assert.strictEqual(gifRes.allAvailableMedia[0].isVideo, false);
+    assert.strictEqual(gifRes.allAvailableMedia[0].mimeType, "image/gif");
+
+    // Candidate 1 must be the START_IMAGE
+    assert.strictEqual(gifRes.allAvailableMedia[1].mediaAssetPublicId, "asset-start-photo");
+    assert.strictEqual(gifRes.allAvailableMedia[1].role, "START_IMAGE");
+    assert.strictEqual(gifRes.allAvailableMedia[1].isGif, false);
+    assert.strictEqual(gifRes.allAvailableMedia[1].isVideo, false);
+  });
+
+  // =========================================================================
+  // TEST 12: Media Delivery Route & Repository: Raw GIF serving & No SQL Field Errors
+  // =========================================================================
+  runTest('Media Endpoint & Repo: GIF served raw inline, HEAD/GET separated, no wes.user_id SQL error', () => {
+    const routeCode = fs.readFileSync(
+      path.resolve(process.cwd(), 'app/api/training-v2/media/[publicId]/route.ts'),
+      'utf-8'
+    );
+
+    assert.ok(
+      routeCode.includes('Content-Type": "image/gif"') || routeCode.includes("image/gif"),
+      'Route must serve Content-Type: image/gif for GIF files'
+    );
+    assert.ok(
+      routeCode.includes('isHead') && routeCode.includes('HEAD'),
+      'Route must handle HEAD requests separately without streaming bytes'
+    );
+    assert.ok(
+      routeCode.includes('try {') && routeCode.includes('catch (err: unknown)'),
+      'handleMediaRequest must be protected by top-level try-catch block'
+    );
+
+    const repoCode = fs.readFileSync(
+      path.resolve(process.cwd(), 'lib/training-v2/media-repository.ts'),
+      'utf-8'
+    );
+
+    assert.ok(
+      !repoCode.includes('wes.user_id = ?'),
+      'media-repository must NOT query non-existent wes.user_id (ER_BAD_FIELD_ERROR / HTTP 500 root cause)'
+    );
+  });
+
   console.log(`=== TODOS OS ${passedCount}/${totalCount} TESTES DE REINÍCIO MOBILE E VÍDEO PASSARAM! ===\n`);
   return { passedCount, totalCount };
 }

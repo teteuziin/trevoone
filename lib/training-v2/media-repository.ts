@@ -373,7 +373,6 @@ export async function authorizeMediaAssetAccess(
              OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ?)
              OR wes.student_membership_id = ?
              OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ?)
-             OR wes.user_id = ?
            )
            AND (
              wbim.id IS NOT NULL
@@ -381,7 +380,7 @@ export async function authorizeMediaAssetAccess(
              OR wbi.custom_video_url LIKE CONCAT('%', ?, '%')
            )
          LIMIT 1;`,
-        [r.id, r.id, ctx.membershipId || 0, ctx.userId, ctx.membershipId || 0, ctx.userId, ctx.userId, r.public_id]
+        [r.id, r.id, ctx.membershipId || 0, ctx.userId, ctx.membershipId || 0, ctx.userId, r.public_id]
       );
 
       if (Array.isArray(anyPinnedRows) && anyPinnedRows.length > 0) {

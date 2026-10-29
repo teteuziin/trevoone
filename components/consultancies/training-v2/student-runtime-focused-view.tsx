@@ -471,7 +471,17 @@ export function StudentRuntimeFocusedView({
     let failureStage: "AUTHENTICATION" | "TENANCY_OR_PERMISSIONS" | "STORAGE_DISCOVERY" | "STREAM_INITIALIZATION" | "DECODE_OR_PLAYBACK" | "NETWORK" = "DECODE_OR_PLAYBACK";
 
     try {
-      const probe = await fetch(failedUrl, { method: "HEAD", cache: "no-store" });
+      let probe = await fetch(failedUrl, { method: "HEAD", cache: "no-store" });
+      if (probe.status === 405 || probe.status >= 500) {
+        try {
+          const getProbe = await fetch(failedUrl, { method: "GET", headers: { Range: "bytes=0-0" }, cache: "no-store" });
+          if (getProbe.status !== 405) {
+            probe = getProbe;
+          }
+        } catch {
+          // ignore get probe error
+        }
+      }
       httpStatus = probe.status;
       contentType = probe.headers.get("content-type") || "desconhecido";
       if (probe.status === 401) {
@@ -847,28 +857,57 @@ export function StudentRuntimeFocusedView({
         }
         const data = await res.json();
         if (data.ok && Array.isArray(data.exercise?.media) && data.exercise.media.length > 0) {
-          const videoMatch = data.exercise.media.find(
-            (m: { role?: string; mediaAsset?: { mediaType?: string; mimeType?: string } }) =>
-              m.role === "EXECUTION_VIDEO" || m.role === "ALTERNATE_VIDEO" || m.mediaAsset?.mediaType === "VIDEO" || m.mediaAsset?.mimeType === "video/mp4"
+          const scoreRole = (role?: string, mediaType?: string, mimeType?: string): number => {
+            const isGifRole = (mimeType || "").toLowerCase().includes("gif") || role === "EXECUTION_GIF";
+            if (role === "EXECUTION_VIDEO" || role === "EXECUTION_GIF") return 1;
+            if (role === "ALTERNATE_VIDEO" || role === "ALTERNATE_GIF") return 2;
+            if (mediaType === "VIDEO" || isGifRole) return 3;
+            if (role === "START_IMAGE") return 4;
+            if (role === "VIDEO_POSTER") return 5;
+            if (role === "ALTERNATE_IMAGE") return 6;
+            return 7;
+          };
+
+          const validMedia = data.exercise.media.filter(
+            (m: { mediaAsset?: { publicId?: string } }) => Boolean(m.mediaAsset?.publicId)
           );
+
+          const sortedMedia = [...validMedia].sort(
+            (a: { role?: string; mediaAsset?: { mediaType?: string; mimeType?: string } }, b: { role?: string; mediaAsset?: { mediaType?: string; mimeType?: string } }) =>
+              scoreRole(a.role, a.mediaAsset?.mediaType, a.mediaAsset?.mimeType) -
+              scoreRole(b.role, b.mediaAsset?.mediaType, b.mediaAsset?.mimeType)
+          );
+
           const thumbMatch = data.exercise.media.find(
             (m: { role?: string }) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER"
           );
-          const fallback = data.exercise.media[0];
-          const chosen = videoMatch || fallback;
+          const chosen = sortedMedia[0];
 
           if (chosen?.mediaAsset?.publicId) {
-            const isVid = chosen.mediaAsset.mediaType === "VIDEO" || chosen.mediaAsset.mimeType === "video/mp4";
-            const isGif = chosen.mediaAsset.mimeType === "image/gif";
+            const isGif =
+              (chosen.mediaAsset.mimeType || "").toLowerCase().includes("gif") ||
+              chosen.role === "EXECUTION_GIF" ||
+              chosen.role === "ALTERNATE_GIF";
+            const isVid =
+              !isGif &&
+              (chosen.mediaAsset.mediaType === "VIDEO" ||
+                chosen.mediaAsset.mimeType === "video/mp4" ||
+                (chosen.mediaAsset.mimeType || "").startsWith("video/"));
             const thumbUrl = thumbMatch?.mediaAsset?.publicId
               ? `/api/training-v2/media/${thumbMatch.mediaAsset.publicId}${consultancyParam}`
               : null;
 
-            const allAvailableMedia = data.exercise.media
-              .filter((m: { mediaAsset?: { publicId?: string } }) => Boolean(m.mediaAsset?.publicId))
-              .map((m: { role?: string; mediaAsset?: { publicId?: string; mediaType?: string; mimeType?: string } }) => {
-                const vid = m.mediaAsset?.mediaType === "VIDEO" || m.mediaAsset?.mimeType === "video/mp4";
-                const gif = m.mediaAsset?.mimeType === "image/gif";
+            const allAvailableMedia = sortedMedia.map(
+              (m: { role?: string; mediaAsset?: { publicId?: string; mediaType?: string; mimeType?: string } }) => {
+                const gif =
+                  (m.mediaAsset?.mimeType || "").toLowerCase().includes("gif") ||
+                  m.role === "EXECUTION_GIF" ||
+                  m.role === "ALTERNATE_GIF";
+                const vid =
+                  !gif &&
+                  (m.mediaAsset?.mediaType === "VIDEO" ||
+                    m.mediaAsset?.mimeType === "video/mp4" ||
+                    (m.mediaAsset?.mimeType || "").startsWith("video/"));
                 return {
                   url: `/api/training-v2/media/${m.mediaAsset!.publicId}${consultancyParam}`,
                   isVideo: vid,
@@ -876,7 +915,8 @@ export function StudentRuntimeFocusedView({
                   thumbnailUrl: thumbUrl,
                   role: m.role,
                 };
-              });
+              }
+            );
 
             return {
               status: "AVAILABLE" as const,
@@ -1568,6 +1608,7 @@ export function StudentRuntimeFocusedView({
                     return (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
+                        key={effectiveMedia.url}
                         src={effectiveMedia.url}
                         alt={item.exerciseNameSnapshot}
                         onError={() => handleMediaError(effectiveMedia.url, effectiveMedia)}

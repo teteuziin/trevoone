@@ -32,7 +32,7 @@ export async function GET(request: Request, context: RouteParams) {
         e.id, e.public_id, e.scope, e.consultancy_id, e.visibility,
         e.name, e.description, e.instructions, e.muscle_group_primary, e.equipment
        FROM exercises e
-       WHERE e.public_id = ? AND e.status = 'PUBLISHED' AND e.deleted_at IS NULL
+       WHERE e.public_id = ? AND e.deleted_at IS NULL AND e.status != 'ARCHIVED'
        LIMIT 1;`,
       [publicId]
     );
@@ -43,7 +43,7 @@ export async function GET(request: Request, context: RouteParams) {
 
     const ex = exRows[0];
 
-    // 2. Tenancy check: GLOBAL or member of consultancy
+    // 2. Tenancy check: GLOBAL or member of consultancy or assigned student
     if (ex.scope === "CONSULTANCY" && ex.consultancy_id) {
       const [memRows] = await db.query<RowDataPacket[]>(
         `SELECT id FROM consultancy_members
@@ -51,7 +51,21 @@ export async function GET(request: Request, context: RouteParams) {
         [session.userId, ex.consultancy_id]
       );
       if (!memRows || memRows.length === 0) {
-        return NextResponse.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+        // Also grant if user is an assigned student with this exercise in active/assigned routine
+        const [assignRows] = await db.query<RowDataPacket[]>(
+          `SELECT wa.id
+           FROM workout_assignments wa
+           INNER JOIN workout_blocks wb ON wb.workout_version_id = wa.workout_version_id
+           INNER JOIN workout_block_items wbi ON wbi.block_id = wb.id
+           WHERE (wbi.exercise_id = ? OR wbi.custom_exercise_id = ?)
+             AND wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ?)
+             AND wa.deleted_at IS NULL
+           LIMIT 1;`,
+          [ex.id, ex.id, session.userId]
+        );
+        if (!assignRows || assignRows.length === 0) {
+          return NextResponse.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+        }
       }
     }
 
@@ -70,17 +84,11 @@ export async function GET(request: Request, context: RouteParams) {
     // Filter media tenancy
     const media = [];
     for (const m of mediaRows || []) {
-      if (m.media_scope === "GLOBAL") {
-        media.push({
-          role: m.role,
-          sortOrder: m.sort_order,
-          mediaAsset: {
-            publicId: m.media_public_id,
-            mediaType: m.media_type,
-            mimeType: m.mime_type,
-          },
-        });
-      } else if (m.media_consultancy_id && ex.consultancy_id === m.media_consultancy_id) {
+      if (
+        m.media_scope === "GLOBAL" ||
+        !m.media_consultancy_id ||
+        (ex.consultancy_id && m.media_consultancy_id === ex.consultancy_id)
+      ) {
         media.push({
           role: m.role,
           sortOrder: m.sort_order,

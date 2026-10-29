@@ -131,7 +131,9 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
     }
 
     const customMediaList = customExercise?.media || (item?.pinnedMedia ?? []);
-    const customExec = customMediaList.find((m) => m.role === "EXECUTION_VIDEO");
+    const customExec = customMediaList.find(
+      (m) => m.role === "EXECUTION_VIDEO" || m.role === "ALTERNATE_VIDEO" || m.mediaAsset?.mediaType === "VIDEO" || m.mediaAsset?.mimeType === "video/mp4"
+    );
     if (customExec?.mediaAsset?.publicId) {
       const isVid = customExec.mediaAsset.mediaType === "VIDEO" || customExec.mediaAsset.mimeType === "video/mp4";
       const isGif = customExec.mediaAsset.mimeType === "image/gif";
@@ -153,12 +155,14 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
     }
   }
 
-  // 3. LIBRARY EXERCISE (EXECUTION_VIDEO / GIF)
+  // 3. LIBRARY EXERCISE (EXECUTION_VIDEO / GIF / ALTERNATE_VIDEO)
   const candidateMediaList = (item?.pinnedMedia && item.pinnedMedia.length > 0)
     ? item.pinnedMedia
     : (libraryExercise?.media || []);
 
-  const libraryExec = candidateMediaList.find((m) => m.role === "EXECUTION_VIDEO");
+  const libraryExec = candidateMediaList.find(
+    (m) => m.role === "EXECUTION_VIDEO" || m.role === "ALTERNATE_VIDEO" || m.mediaAsset?.mediaType === "VIDEO" || m.mediaAsset?.mimeType === "video/mp4"
+  );
   if (libraryExec?.mediaAsset?.publicId) {
     const isVid = libraryExec.mediaAsset.mediaType === "VIDEO" || libraryExec.mediaAsset.mimeType === "video/mp4";
     const isGif = libraryExec.mediaAsset.mimeType === "image/gif";

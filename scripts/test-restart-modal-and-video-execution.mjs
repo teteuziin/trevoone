@@ -149,9 +149,9 @@ export async function runRestartModalAndVideoExecutionSuite() {
   });
 
   // =========================================================================
-  // TEST 5: Fallback States: No Empty Square & Retry on Failure
+  // TEST 5: Fallback States & Clear Differentiation of All Media Scenarios
   // =========================================================================
-  runTest('Focused View: no empty square when no media, friendly retry card on load failure', () => {
+  runTest('Focused View: distinguishes all media pipeline states without silent return null', () => {
     const focusedCode = fs.readFileSync(
       path.resolve(process.cwd(), 'components/consultancies/training-v2/student-runtime-focused-view.tsx'),
       'utf-8'
@@ -159,15 +159,35 @@ export async function runRestartModalAndVideoExecutionSuite() {
 
     assert.ok(
       focusedCode.includes('Tentar carregar novamente'),
-      'Must offer a retry button if media fails to load'
+      'Must offer retry button on playback failure'
     );
     assert.ok(
       focusedCode.includes('Carregando demonstração...'),
       'Must display loading indicator while media is being fetched'
     );
     assert.ok(
-      focusedCode.includes(': null}'),
-      'Must evaluate to null when no media exists (does NOT reserve large empty square)'
+      focusedCode.includes('Exercício sem demonstração em vídeo'),
+      'Must render informative banner when exercise has no catalog link (exercise_id null)'
+    );
+    assert.ok(
+      focusedCode.includes('Demonstração não cadastrada no catálogo'),
+      'Must render informative banner when catalog exercise has no media registered'
+    );
+    assert.ok(
+      focusedCode.includes('ACCESS_DENIED') && focusedCode.includes('Demonstração com acesso restrito'),
+      'Must distinguish 403 access denied'
+    );
+    assert.ok(
+      focusedCode.includes('NOT_FOUND') && focusedCode.includes('Exercício não localizado no catálogo'),
+      'Must distinguish 404 exercise not found'
+    );
+    assert.ok(
+      focusedCode.includes('QUERY_ERROR') && focusedCode.includes('Tentar novamente'),
+      'Must distinguish network/query error with retry capability'
+    );
+    assert.ok(
+      focusedCode.includes('Diagnóstico Sanitizado'),
+      'Must provide sanitized diagnostic visibility without exposing secrets'
     );
   });
 
@@ -204,9 +224,9 @@ export async function runRestartModalAndVideoExecutionSuite() {
   });
 
   // =========================================================================
-  // TEST 7: On-demand Catalog Lazy Fetching in Focused View
+  // TEST 7: On-demand Catalog Lazy Fetching in Focused View & API Flexibility
   // =========================================================================
-  runTest('Focused View: on-demand lazy fetch for exercises with catalog demonstration media', () => {
+  runTest('Focused View & API: on-demand lazy fetch for exercises with catalog demonstration media', () => {
     const focusedCode = fs.readFileSync(
       path.resolve(process.cwd(), 'components/consultancies/training-v2/student-runtime-focused-view.tsx'),
       'utf-8'
@@ -220,6 +240,108 @@ export async function runRestartModalAndVideoExecutionSuite() {
       focusedCode.includes('setExerciseMediaCache'),
       'Must cache resolved catalog exercise media to prevent repeated network requests'
     );
+
+    const exRouteCode = fs.readFileSync(
+      path.resolve(process.cwd(), 'app/api/training-v2/exercises/[publicId]/route.ts'),
+      'utf-8'
+    );
+    assert.ok(
+      exRouteCode.includes("status != 'ARCHIVED'"),
+      'Exercise route must support active/published exercises without restrictive status filter'
+    );
+    assert.ok(
+      exRouteCode.includes("workout_assignments wa"),
+      'Exercise route must allow access if student has an active/assigned routine containing the exercise'
+    );
+  });
+
+  // =========================================================================
+  // TEST 8: Domain Media Resolver: Unit Testing Multiple Roles & Formats
+  // =========================================================================
+  runTest('Media Resolver Unit: resolves EXECUTION_VIDEO, ALTERNATE_VIDEO, mediaType VIDEO and handles unlinked', async () => {
+    const { resolveExerciseExecutionMedia } = await import('../lib/training-v2/execution-media-resolver.ts');
+
+    // 1. Pinned EXECUTION_VIDEO
+    const resExec = resolveExerciseExecutionMedia({
+      item: {
+        pinnedMedia: [
+          {
+            role: "EXECUTION_VIDEO",
+            sortOrder: 0,
+            mediaAsset: {
+              publicId: "asset-exec-1",
+              mediaType: "VIDEO",
+              mimeType: "video/mp4",
+            },
+          },
+        ],
+      },
+    });
+    assert.strictEqual(resExec.hasMedia, true);
+    assert.strictEqual(resExec.isVideo, true);
+    assert.strictEqual(resExec.url, "/api/training-v2/media/asset-exec-1");
+
+    // 2. Pinned ALTERNATE_VIDEO
+    const resAlt = resolveExerciseExecutionMedia({
+      item: {
+        pinnedMedia: [
+          {
+            role: "ALTERNATE_VIDEO",
+            sortOrder: 0,
+            mediaAsset: {
+              publicId: "asset-alt-2",
+              mediaType: "VIDEO",
+              mimeType: "video/mp4",
+            },
+          },
+        ],
+      },
+    });
+    assert.strictEqual(resAlt.hasMedia, true);
+    assert.strictEqual(resAlt.isVideo, true);
+    assert.strictEqual(resAlt.url, "/api/training-v2/media/asset-alt-2");
+
+    // 3. Pinned media with mediaType VIDEO regardless of role name
+    const resType = resolveExerciseExecutionMedia({
+      item: {
+        pinnedMedia: [
+          {
+            role: "CUSTOM_ROLE",
+            sortOrder: 0,
+            mediaAsset: {
+              publicId: "asset-vid-3",
+              mediaType: "VIDEO",
+              mimeType: "video/mp4",
+            },
+          },
+        ],
+      },
+    });
+    assert.strictEqual(resType.hasMedia, true);
+    assert.strictEqual(resType.isVideo, true);
+    assert.strictEqual(resType.url, "/api/training-v2/media/asset-vid-3");
+
+    // 4. Custom video URL override (YouTube)
+    const resYt = resolveExerciseExecutionMedia({
+      item: {
+        customVideoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      },
+    });
+    assert.strictEqual(resYt.hasMedia, true);
+    assert.strictEqual(resYt.source, "ITEM_OVERRIDE");
+    assert.strictEqual(resYt.url, "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+
+    // 5. Unlinked item with no pinned media (exercise_id is null)
+    const resNone = resolveExerciseExecutionMedia({
+      item: {
+        exercisePublicId: null,
+        customExercisePublicId: null,
+        pinnedMedia: [],
+      },
+    });
+    assert.strictEqual(resNone.hasMedia, false);
+    assert.strictEqual(resNone.url, null);
+    assert.strictEqual(resNone.source, "NONE");
   });
 
   console.log(`=== TODOS OS ${passedCount}/${totalCount} TESTES DE REINÍCIO MOBILE E VÍDEO PASSARAM! ===\n`);

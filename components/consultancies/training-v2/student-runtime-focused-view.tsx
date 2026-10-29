@@ -68,6 +68,16 @@ function ListIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function InfoIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="12" y1="8" x2="12.01" y2="8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function TrophyIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -350,10 +360,18 @@ export function StudentRuntimeFocusedView({
   const [isSequenceModalOpen, setIsSequenceModalOpen] = useState(false);
   const [isOptionalInputOpen, setIsOptionalInputOpen] = useState(false);
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
+  const [showDiagnostic, setShowDiagnostic] = useState(false);
   const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
   const [failedImgUrl, setFailedImgUrl] = useState<string | null>(null);
   const [exerciseMediaCache, setExerciseMediaCache] = useState<
-    Record<string, { url: string; isVideo: boolean; isGif: boolean; thumbnailUrl?: string | null } | null>
+    Record<
+      string,
+      | { status: "AVAILABLE"; media: { url: string; isVideo: boolean; isGif: boolean; thumbnailUrl?: string | null } }
+      | { status: "NO_MEDIA_REGISTERED" }
+      | { status: "NOT_FOUND"; message: string }
+      | { status: "ACCESS_DENIED"; message: string }
+      | { status: "QUERY_ERROR"; message: string }
+    >
   >({});
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -699,27 +717,24 @@ export function StudentRuntimeFocusedView({
     let isMounted = true;
 
     fetch(`/api/training-v2/exercises/${targetExPublicId}`)
-      .then((res) => res.json())
-      .then((data: {
-        ok?: boolean;
-        exercise?: {
-          media?: Array<{
-            role?: string;
-            mediaAsset?: {
-              publicId?: string;
-              mediaType?: string;
-              mimeType?: string;
-            };
-          }>;
-        };
-      }) => {
-        if (!isMounted) return;
+      .then(async (res) => {
+        if (res.status === 403) {
+          return { status: "ACCESS_DENIED" as const, message: "Acesso à demonstração deste exercício restrito para esta consultoria." };
+        }
+        if (res.status === 404) {
+          return { status: "NOT_FOUND" as const, message: "Exercício não localizado no catálogo." };
+        }
+        if (!res.ok) {
+          return { status: "QUERY_ERROR" as const, message: `Erro ${res.status} ao consultar demonstração.` };
+        }
+        const data = await res.json();
         if (data.ok && Array.isArray(data.exercise?.media) && data.exercise.media.length > 0) {
           const videoMatch = data.exercise.media.find(
-            (m) => m.role === "EXECUTION_VIDEO" || m.role === "ALTERNATE_VIDEO" || m.mediaAsset?.mediaType === "VIDEO"
+            (m: { role?: string; mediaAsset?: { mediaType?: string; mimeType?: string } }) =>
+              m.role === "EXECUTION_VIDEO" || m.role === "ALTERNATE_VIDEO" || m.mediaAsset?.mediaType === "VIDEO" || m.mediaAsset?.mimeType === "video/mp4"
           );
           const thumbMatch = data.exercise.media.find(
-            (m) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER"
+            (m: { role?: string }) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER"
           );
           const fallback = data.exercise.media[0];
           const chosen = videoMatch || fallback;
@@ -731,24 +746,35 @@ export function StudentRuntimeFocusedView({
               ? `/api/training-v2/media/${thumbMatch.mediaAsset.publicId}`
               : null;
 
-            setExerciseMediaCache((prev) => ({
-              ...prev,
-              [targetExPublicId]: {
-                url: `/api/training-v2/media/${chosen.mediaAsset!.publicId}`,
+            return {
+              status: "AVAILABLE" as const,
+              media: {
+                url: `/api/training-v2/media/${chosen.mediaAsset.publicId}`,
                 isVideo: isVid,
                 isGif,
                 thumbnailUrl: thumbUrl,
               },
-            }));
-            return;
+            };
           }
         }
-        setExerciseMediaCache((prev) => ({ ...prev, [targetExPublicId]: null }));
+        return { status: "NO_MEDIA_REGISTERED" as const };
+      })
+      .then((result) => {
+        if (!isMounted) return;
+        setExerciseMediaCache((prev) => ({
+          ...prev,
+          [targetExPublicId]: result,
+        }));
       })
       .catch(() => {
-        if (isMounted) {
-          setExerciseMediaCache((prev) => ({ ...prev, [targetExPublicId]: null }));
-        }
+        if (!isMounted) return;
+        setExerciseMediaCache((prev) => ({
+          ...prev,
+          [targetExPublicId]: {
+            status: "QUERY_ERROR",
+            message: "Falha de conexão ao carregar demonstração.",
+          },
+        }));
       });
 
     return () => {
@@ -1041,27 +1067,89 @@ export function StudentRuntimeFocusedView({
   const hasMethodNote = Boolean((item.methodConfig as Record<string, unknown> | null)?.name || item.notes);
 
   const isSequence = Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence);
-  const resolvedMedia = resolveExerciseExecutionMedia({ item });
-
   const itemExPublicId = item?.exercisePublicId || item?.customExercisePublicId || null;
-  const lazyMedia = itemExPublicId ? exerciseMediaCache[itemExPublicId] || null : null;
+  const directItemMedia = resolveExerciseExecutionMedia({ item });
 
-  const effectiveMedia = (resolvedMedia.hasMedia && resolvedMedia.url)
-    ? {
-        url: resolvedMedia.url,
-        isVideo: resolvedMedia.isVideo,
-        isGif: resolvedMedia.isGif,
-        thumbnailUrl: resolvedMedia.thumbnailUrl,
+  type MediaStateView =
+    | { type: "AVAILABLE"; url: string; isVideo: boolean; isGif: boolean; thumbnailUrl: string | null }
+    | { type: "LOADING" }
+    | { type: "PLAYBACK_ERROR"; url: string }
+    | { type: "QUERY_ERROR"; message: string }
+    | { type: "ACCESS_DENIED"; message: string }
+    | { type: "NOT_FOUND"; message: string }
+    | { type: "NO_MEDIA_REGISTERED" }
+    | { type: "NO_EXERCISE_LINK" }
+    | { type: "IDLE" };
+
+  const activeMediaState: MediaStateView = (() => {
+    // 1. Direct item override or pinned media
+    if (directItemMedia.hasMedia && directItemMedia.url) {
+      if (failedVideoUrl === directItemMedia.url || failedImgUrl === directItemMedia.url) {
+        return { type: "PLAYBACK_ERROR", url: directItemMedia.url };
       }
-    : lazyMedia;
+      return {
+        type: "AVAILABLE",
+        url: directItemMedia.url,
+        isVideo: directItemMedia.isVideo,
+        isGif: directItemMedia.isGif,
+        thumbnailUrl: directItemMedia.thumbnailUrl,
+      };
+    }
 
-  const isVideoFailed = Boolean(effectiveMedia?.url && failedVideoUrl === effectiveMedia.url);
-  const isImgFailed = Boolean(effectiveMedia?.url && failedImgUrl === effectiveMedia.url);
-  const isLoadingMedia = Boolean(
-    itemExPublicId &&
-    !(resolvedMedia.hasMedia && resolvedMedia.url) &&
-    exerciseMediaCache[itemExPublicId] === undefined
-  );
+    // 2. Unlinked item (exercise_id is NULL)
+    if (!itemExPublicId) {
+      return { type: "NO_EXERCISE_LINK" };
+    }
+
+    // 3. Cache lookup for targetExPublicId
+    const cached = exerciseMediaCache[itemExPublicId];
+    if (cached === undefined) {
+      return { type: "LOADING" };
+    }
+
+    if (cached.status === "AVAILABLE") {
+      if (failedVideoUrl === cached.media.url || failedImgUrl === cached.media.url) {
+        return { type: "PLAYBACK_ERROR", url: cached.media.url };
+      }
+      return {
+        type: "AVAILABLE",
+        url: cached.media.url,
+        isVideo: cached.media.isVideo,
+        isGif: cached.media.isGif,
+        thumbnailUrl: cached.media.thumbnailUrl || null,
+      };
+    }
+
+    if (cached.status === "ACCESS_DENIED") {
+      return { type: "ACCESS_DENIED", message: cached.message };
+    }
+
+    if (cached.status === "NOT_FOUND") {
+      return { type: "NOT_FOUND", message: cached.message };
+    }
+
+    if (cached.status === "QUERY_ERROR") {
+      return { type: "QUERY_ERROR", message: cached.message };
+    }
+
+    if (cached.status === "NO_MEDIA_REGISTERED") {
+      return { type: "NO_MEDIA_REGISTERED" };
+    }
+
+    return { type: "IDLE" };
+  })();
+
+  const effectiveMedia = activeMediaState.type === "AVAILABLE"
+    ? {
+        url: activeMediaState.url,
+        isVideo: activeMediaState.isVideo,
+        isGif: activeMediaState.isGif,
+        thumbnailUrl: activeMediaState.thumbnailUrl,
+      }
+    : null;
+
+  const isVideoFailed = activeMediaState.type === "PLAYBACK_ERROR";
+  const isImgFailed = activeMediaState.type === "PLAYBACK_ERROR";
 
   const sequenceExperience = isSequence
     ? buildSequenceMediaFromCustomItem(item)
@@ -1253,8 +1341,8 @@ export function StudentRuntimeFocusedView({
               )}
             </div>
 
-            {/* Topo do exercício: Área quadrada de demonstração mantendo proporção (object-contain), sem áudio automático */}
-            {effectiveMedia && effectiveMedia.url && !isVideoFailed && !isImgFailed ? (
+            {/* Topo do exercício: Área de demonstração / feedback do vínculo com o catálogo */}
+            {activeMediaState.type === "AVAILABLE" && effectiveMedia ? (
               <div className="w-full max-w-full sm:max-w-sm lg:max-w-md mx-auto aspect-square rounded-2xl bg-black dark:bg-[#101114] border border-zinc-900 dark:border-zinc-800 overflow-hidden flex items-center justify-center relative shadow-inner">
                 {(() => {
                   const embed = getEmbedVideoInfo(effectiveMedia.url);
@@ -1298,13 +1386,13 @@ export function StudentRuntimeFocusedView({
                   );
                 })()}
               </div>
-            ) : (isVideoFailed || isImgFailed) ? (
+            ) : activeMediaState.type === "PLAYBACK_ERROR" ? (
               <div className="w-full max-w-full sm:max-w-sm lg:max-w-md mx-auto aspect-square rounded-2xl bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 p-5 flex flex-col items-center justify-center text-center space-y-3">
                 <div className="w-10 h-10 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs font-bold text-[var(--text-primary)]">Não foi possível carregar a demonstração</p>
+                  <p className="text-xs font-bold text-[var(--text-primary)]">Não foi possível reproduzir a demonstração</p>
                   <p className="text-[11px] text-[var(--text-tertiary)]">Você pode continuar seu treino normalmente ou tentar carregar novamente.</p>
                 </div>
                 <button
@@ -1318,10 +1406,71 @@ export function StudentRuntimeFocusedView({
                   Tentar carregar novamente
                 </button>
               </div>
-            ) : isLoadingMedia ? (
+            ) : activeMediaState.type === "QUERY_ERROR" ? (
+              <div className="w-full max-w-full sm:max-w-sm lg:max-w-md mx-auto aspect-square rounded-2xl bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 p-5 flex flex-col items-center justify-center text-center space-y-3">
+                <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-[var(--text-primary)]">Erro ao consultar demonstração</p>
+                  <p className="text-[11px] text-[var(--text-tertiary)]">{activeMediaState.message}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (itemExPublicId) {
+                      setExerciseMediaCache((prev) => {
+                        const copy = { ...prev };
+                        delete copy[itemExPublicId];
+                        return copy;
+                      });
+                    }
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-zinc-200 dark:bg-zinc-800 text-[var(--text-primary)] hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors cursor-pointer min-h-[40px] flex items-center justify-center"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : activeMediaState.type === "ACCESS_DENIED" ? (
+              <div className="w-full max-w-full sm:max-w-sm lg:max-w-md mx-auto aspect-square rounded-2xl bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 p-5 flex flex-col items-center justify-center text-center space-y-2">
+                <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <p className="text-xs font-bold text-[var(--text-primary)]">Demonstração com acesso restrito</p>
+                <p className="text-[11px] text-[var(--text-tertiary)]">{activeMediaState.message}</p>
+              </div>
+            ) : activeMediaState.type === "NOT_FOUND" ? (
+              <div className="w-full max-w-full sm:max-w-sm lg:max-w-md mx-auto aspect-square rounded-2xl bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 p-5 flex flex-col items-center justify-center text-center space-y-2">
+                <div className="w-10 h-10 rounded-full bg-zinc-500/10 text-zinc-500 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <p className="text-xs font-bold text-[var(--text-primary)]">Exercício não localizado no catálogo</p>
+                <p className="text-[11px] text-[var(--text-tertiary)]">{activeMediaState.message}</p>
+              </div>
+            ) : activeMediaState.type === "LOADING" ? (
               <div className="w-full max-w-full sm:max-w-sm lg:max-w-md mx-auto aspect-square rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center text-center space-y-2 animate-pulse">
                 <span className="w-6 h-6 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
                 <span className="text-[11px] font-medium text-[var(--text-tertiary)]">Carregando demonstração...</span>
+              </div>
+            ) : activeMediaState.type === "NO_EXERCISE_LINK" ? (
+              <div className="p-3.5 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 flex items-start gap-2.5 text-xs text-[var(--text-secondary)]">
+                <InfoIcon className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
+                <div className="min-w-0 space-y-0.5">
+                  <p className="font-bold text-[var(--text-primary)]">Exercício sem demonstração em vídeo</p>
+                  <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
+                    Prescrição, séries e histórico preservados integralmente. O personal pode vincular este exercício ao catálogo na gestão de rotinas.
+                  </p>
+                </div>
+              </div>
+            ) : activeMediaState.type === "NO_MEDIA_REGISTERED" ? (
+              <div className="p-3.5 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 flex items-start gap-2.5 text-xs text-[var(--text-secondary)]">
+                <InfoIcon className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
+                <div className="min-w-0 space-y-0.5">
+                  <p className="font-bold text-[var(--text-primary)]">Demonstração não cadastrada no catálogo</p>
+                  <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
+                    Este exercício está vinculado ao catálogo, mas ainda não possui arquivo de demonstração em vídeo registrado na biblioteca.
+                  </p>
+                </div>
               </div>
             ) : null}
 
@@ -1674,6 +1823,21 @@ export function StudentRuntimeFocusedView({
                           type="button"
                           onClick={() => {
                             setIsMoreOptionsOpen(false);
+                            setShowDiagnostic((prev) => !prev);
+                          }}
+                          className="w-full min-h-[44px] px-3 py-2 rounded-xl text-left text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors flex items-center gap-2 cursor-pointer"
+                          role="menuitem"
+                        >
+                          <InfoIcon className="w-4 h-4 text-zinc-500" />
+                          <span>Diagnóstico da mídia</span>
+                        </button>
+
+                        <div className="border-t border-[var(--border-subtle)] my-1" />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMoreOptionsOpen(false);
                             setIsFeedbackModalOpen(true);
                           }}
                           disabled={isCompleting}
@@ -1714,6 +1878,27 @@ export function StudentRuntimeFocusedView({
                 </div>
               )}
             </div>
+
+            {/* Diagnóstico Sanitizado de Mídia */}
+            {showDiagnostic && (
+              <div className="mt-3 p-3.5 rounded-2xl bg-zinc-950 text-zinc-300 border border-zinc-800 text-[11px] font-mono space-y-1 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between pb-1 border-b border-zinc-800">
+                  <span className="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">Diagnóstico Sanitizado</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowDiagnostic(false)}
+                    className="text-zinc-400 hover:text-white cursor-pointer px-1.5 py-0.5 rounded"
+                  >
+                    ✕ Fechar
+                  </button>
+                </div>
+                <div>Exercício: <strong className="text-white">{item.exerciseNameSnapshot}</strong></div>
+                <div>Item Public ID: <span className="text-zinc-400">{item.publicId}</span></div>
+                <div>Vínculo Catálogo: <span className={itemExPublicId ? "text-emerald-400" : "text-amber-400"}>{itemExPublicId || "Nenhum (exercise_id nulo)"}</span></div>
+                <div>Status da Mídia: <span className="text-emerald-400 font-bold">{activeMediaState.type}</span></div>
+                <div>Mídias na Ficha: <span className="text-zinc-400">{item.pinnedMedia?.length || 0}</span></div>
+              </div>
+            )}
           </div>
         </div>
       </div>

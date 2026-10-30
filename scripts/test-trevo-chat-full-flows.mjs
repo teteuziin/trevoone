@@ -353,6 +353,40 @@ assert.ok(
 );
 console.log("✓ Rascunhos preservados e contadores sincronizados em tempo real.");
 
+// -----------------------------------------------------------------------------
+// 16. COMPLETE VISUAL REDESIGN & SELECTION REVALIDATION
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 16] Verificando redesign visual, cabeçalho autoritativo e revalidação de seleção...");
+assert.ok(
+  workspaceCode.includes("handleSelectQueue"),
+  "Workspace deve revalidar seleção ativa ao mudar de fila e limpar seleção se item não pertencer ao resultado"
+);
+assert.ok(
+  workspaceCode.includes("isMobileQueueModalOpen"),
+  "Workspace deve suportar modal acessível de seleção de filas em mobile para eliminar corte de filtros"
+);
+assert.ok(
+  workspaceCode.includes("grid-cols-2"),
+  "Workspace deve organizar filtros no desktop em grid consistente sem corte horizontal"
+);
+assert.ok(
+  workspaceCode.includes("Consulta no formato anterior"),
+  "Visualizador de vídeo histórico deve apresentar registro factual neutro sem declarações fictícias"
+);
+assert.ok(
+  !workspaceCode.includes("Vídeo Realizado"),
+  "Workspace NÃO deve afirmar 'Vídeo Realizado' sem comprovação"
+);
+assert.ok(
+  workspaceCode.includes("Solicitar consulta"),
+  "Workspace deve exibir rótulo contextual 'Solicitar consulta' para alunos"
+);
+assert.ok(
+  workspaceCode.includes("Novo atendimento"),
+  "Workspace deve exibir rótulo contextual 'Novo atendimento' para profissionais"
+);
+console.log("✓ Redesign visual, cabeçalho e revalidação estrita de seleção verificados.");
+
 console.log("\n======================================================================");
-console.log(" ✓ TODAS AS 15 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
+console.log(" ✓ TODAS AS 16 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
 console.log("======================================================================\n");

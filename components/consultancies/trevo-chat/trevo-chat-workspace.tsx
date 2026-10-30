@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useTransition } from "react";
+import Link from "next/link";
 import type {
   ChatConsultationDto,
   ChatMessageDto,
@@ -162,18 +163,37 @@ export function TrevoChatWorkspace({
       if ((queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER > 0) return "PRECISO_RESPONDER";
       if ((queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO > 0) return "AGUARDANDO_ALUNO";
       if ((queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS > 0) return "SOLICITACOES_RECEBIDAS";
+      if ((queueCounts as Record<ProQueue, number>).CONCLUIDOS > 0) return "CONCLUIDOS";
       return "ALL";
     } else {
       if ((queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO > 0) return "EM_ATENDIMENTO";
       if ((queueCounts as Record<StudentQueue, number>).SOLICITACOES > 0) return "SOLICITACOES";
+      if ((queueCounts as Record<StudentQueue, number>).CONCLUIDAS > 0) return "CONCLUIDAS";
       return "ALL";
     }
   });
 
-  // Selected chat publicId
-  const [selectedChatPublicId, setSelectedChatPublicId] = useState<string | null>(
-    initialActivePublicId || (consultations.length > 0 ? consultations[0].publicId : null)
-  );
+  // Selected chat publicId (NEVER auto-select a video consultation on initial load!)
+  const [selectedChatPublicId, setSelectedChatPublicId] = useState<string | null>(() => {
+    if (initialActivePublicId) return initialActivePublicId;
+
+    const initialQueue = isProfessional
+      ? ((queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER > 0 ? "PRECISO_RESPONDER" : (queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO > 0 ? "AGUARDANDO_ALUNO" : (queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS > 0 ? "SOLICITACOES_RECEBIDAS" : "ALL")
+      : ((queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO > 0 ? "EM_ATENDIMENTO" : (queueCounts as Record<StudentQueue, number>).SOLICITACOES > 0 ? "SOLICITACOES" : "CONCLUIDAS");
+
+    const match = consultations.find((c) => {
+      if (c.modality === "VIDEO") return false; // Never auto-select historical video
+      if (isProfessional) {
+        return initialQueue === "ALL" || getProQueueKey(c) === initialQueue;
+      }
+      return initialQueue === "ALL" || getStudentQueueKey(c) === initialQueue;
+    });
+
+    return match ? match.publicId : null;
+  });
+
+  // Mobile queue selection modal
+  const [isMobileQueueModalOpen, setIsMobileQueueModalOpen] = useState(false);
 
   // Mobile navigation screen: "LIST" vs "CHAT"
   const [mobileScreen, setMobileScreen] = useState<"LIST" | "CHAT">(
@@ -328,6 +348,21 @@ export function TrevoChatWorkspace({
       // Non-blocking
     } finally {
       setIsLoadingOlderMessages(false);
+    }
+  };
+
+  const handleSelectQueue = (newQueue: string) => {
+    setActiveQueueTab(newQueue);
+    if (selectedChatPublicId) {
+      const current = consultations.find((c) => c.publicId === selectedChatPublicId);
+      if (current) {
+        const belongs = isProfessional
+          ? newQueue === "ALL" || getProQueueKey(current) === newQueue
+          : newQueue === "ALL" || getStudentQueueKey(current) === newQueue;
+        if (!belongs) {
+          setSelectedChatPublicId(null);
+        }
+      }
     }
   };
 
@@ -724,6 +759,52 @@ export function TrevoChatWorkspace({
     });
   }, [consultations, activeQueueTab, searchFilter, isProfessional]);
 
+  const activeQueueLabel = useMemo(() => {
+    if (isProfessional) {
+      switch (activeQueueTab) {
+        case "PRECISO_RESPONDER": return "Preciso responder";
+        case "AGUARDANDO_ALUNO": return "Aguardando aluno";
+        case "SOLICITACOES_RECEBIDAS": return "Solicitações";
+        case "CONCLUIDOS": return "Concluídos";
+        default: return "Todos";
+      }
+    } else {
+      switch (activeQueueTab) {
+        case "EM_ATENDIMENTO": return "Em atendimento";
+        case "SOLICITACOES": return "Solicitações";
+        case "CONCLUIDAS": return "Concluídas";
+        default: return "Todos";
+      }
+    }
+  }, [isProfessional, activeQueueTab]);
+
+  const activeQueueCount = useMemo(() => {
+    if (activeQueueTab === "ALL") return consultations.length;
+    if (isProfessional) {
+      return (queueCounts as Record<ProQueue, number>)[activeQueueTab as ProQueue] || 0;
+    }
+    return (queueCounts as Record<StudentQueue, number>)[activeQueueTab as StudentQueue] || 0;
+  }, [activeQueueTab, isProfessional, queueCounts, consultations.length]);
+
+  const queueOptions = useMemo(() => {
+    if (isProfessional) {
+      return [
+        { key: "PRECISO_RESPONDER", label: "Preciso responder", count: (queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER || 0 },
+        { key: "AGUARDANDO_ALUNO", label: "Aguardando aluno", count: (queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO || 0 },
+        { key: "SOLICITACOES_RECEBIDAS", label: "Solicitações", count: (queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS || 0 },
+        { key: "CONCLUIDOS", label: "Concluídos", count: (queueCounts as Record<ProQueue, number>).CONCLUIDOS || 0 },
+        { key: "ALL", label: "Todos os atendimentos", count: consultations.length },
+      ];
+    } else {
+      return [
+        { key: "EM_ATENDIMENTO", label: "Em atendimento", count: (queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO || 0 },
+        { key: "SOLICITACOES", label: "Solicitações", count: (queueCounts as Record<StudentQueue, number>).SOLICITACOES || 0 },
+        { key: "CONCLUIDAS", label: "Concluídas", count: (queueCounts as Record<StudentQueue, number>).CONCLUIDAS || 0 },
+        { key: "ALL", label: "Todos os atendimentos", count: consultations.length },
+      ];
+    }
+  }, [isProfessional, queueCounts, consultations.length]);
+
   const STATUS_CONFIG: Record<
     ChatConsultationStatus,
     { label: string; badgeClass: string }
@@ -763,382 +844,465 @@ export function TrevoChatWorkspace({
   const isCompleted = activeChat?.status === "COMPLETED" || Boolean(activeChat?.closedAt);
 
   return (
-    <div className="flex-1 w-full flex bg-[var(--surface-subtle)] overflow-hidden rounded-2xl border border-[var(--border-subtle)] min-h-[640px] max-h-[calc(100vh-140px)] shadow-xs">
-      {/* -------------------------------------------------------------------- */}
-      {/* LEFT PANE: Queues & Consultation List                                */}
-      {/* -------------------------------------------------------------------- */}
-      <div
-        className={`w-full md:w-80 lg:w-96 flex flex-col bg-[var(--surface)] border-r border-[var(--border-subtle)] shrink-0 ${
+    <div className="w-full flex flex-col gap-3 sm:gap-4">
+      {/* Compact Authoritative Header (Hidden on mobile when inside a conversation) */}
+      <header
+        className={`${
           mobileScreen === "CHAT" ? "hidden md:flex" : "flex"
-        }`}
+        } flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b border-[var(--border-subtle)]`}
       >
-        {/* Header & New Button */}
-        <div className="p-3.5 border-b border-[var(--border-subtle)] space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
-              <span>💬 Trevo Chat</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-bold">
-                {consultations.length}
-              </span>
-            </h2>
-
-            <button
-              type="button"
-              onClick={() => {
-                setIsNewChatModalOpen(true);
-                setProposalError(null);
-              }}
-              className="min-h-[36px] px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs active:scale-95"
-            >
-              <span>+ Novo Atendimento</span>
-            </button>
-          </div>
-
-          {/* Search Box */}
-          <div className="relative">
-            <input
-              type="text"
-              value={searchFilter}
-              onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Buscar por nome ou assunto..."
-              className="w-full pl-8 pr-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500"
-            />
-            <svg
-              className="w-4 h-4 absolute left-2.5 top-2.5 text-[var(--text-tertiary)]"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            href={`/consultoria/${consultancySlug}`}
+            className="min-h-[44px] min-w-[44px] px-2.5 py-1.5 -ml-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+            aria-label="Voltar ao painel da consultoria"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-          </div>
-
-          {/* Queues Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] scrollbar-none">
-            {isProfessional ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setActiveQueueTab("PRECISO_RESPONDER")}
-                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
-                    activeQueueTab === "PRECISO_RESPONDER"
-                      ? "bg-amber-600 text-white shadow-xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-                  }`}
-                >
-                  <span>Preciso responder</span>
-                  <span className="text-[10px] opacity-80">
-                    ({(queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER || 0})
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveQueueTab("AGUARDANDO_ALUNO")}
-                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
-                    activeQueueTab === "AGUARDANDO_ALUNO"
-                      ? "bg-blue-600 text-white shadow-xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-                  }`}
-                >
-                  <span>Aguardando aluno</span>
-                  <span className="text-[10px] opacity-80">
-                    ({(queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO || 0})
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveQueueTab("SOLICITACOES_RECEBIDAS")}
-                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
-                    activeQueueTab === "SOLICITACOES_RECEBIDAS"
-                      ? "bg-emerald-600 text-white shadow-xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-                  }`}
-                >
-                  <span>Solicitações</span>
-                  <span className="text-[10px] opacity-80">
-                    ({(queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS || 0})
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveQueueTab("CONCLUIDOS")}
-                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
-                    activeQueueTab === "CONCLUIDOS"
-                      ? "bg-zinc-700 text-white shadow-xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-                  }`}
-                >
-                  <span>Concluídos</span>
-                  <span className="text-[10px] opacity-80">
-                    ({(queueCounts as Record<ProQueue, number>).CONCLUIDOS || 0})
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveQueueTab("ALL")}
-                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors min-h-[32px] ${
-                    activeQueueTab === "ALL"
-                      ? "bg-emerald-800 text-white"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-                  }`}
-                >
-                  Todos ({consultations.length})
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setActiveQueueTab("EM_ATENDIMENTO")}
-                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
-                    activeQueueTab === "EM_ATENDIMENTO"
-                      ? "bg-emerald-600 text-white shadow-xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-                  }`}
-                >
-                  <span>Em atendimento</span>
-                  <span className="text-[10px] opacity-80">
-                    ({(queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO || 0})
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveQueueTab("SOLICITACOES")}
-                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
-                    activeQueueTab === "SOLICITACOES"
-                      ? "bg-amber-600 text-white shadow-xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-                  }`}
-                >
-                  <span>Solicitações</span>
-                  <span className="text-[10px] opacity-80">
-                    ({(queueCounts as Record<StudentQueue, number>).SOLICITACOES || 0})
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveQueueTab("CONCLUIDAS")}
-                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
-                    activeQueueTab === "CONCLUIDAS"
-                      ? "bg-zinc-700 text-white shadow-xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-                  }`}
-                >
-                  <span>Concluídas</span>
-                  <span className="text-[10px] opacity-80">
-                    ({(queueCounts as Record<StudentQueue, number>).CONCLUIDAS || 0})
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveQueueTab("ALL")}
-                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors min-h-[32px] ${
-                    activeQueueTab === "ALL"
-                      ? "bg-emerald-800 text-white"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-                  }`}
-                >
-                  Todos ({consultations.length})
-                </button>
-              </>
-            )}
-          </div>
+            <span>Voltar</span>
+          </Link>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+            Consultas
+          </h1>
         </div>
 
-        {/* List Items */}
-        <div className="flex-1 overflow-y-auto divide-y divide-[var(--border-subtle)]">
-          {filteredConsultations.length === 0 ? (
-            <div className="p-6 text-center text-xs text-[var(--text-tertiary)] space-y-2">
-              <p>Nenhum atendimento nesta fila.</p>
+        {/* Primary Action Button */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsNewChatModalOpen(true);
+            setProposalError(null);
+          }}
+          className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs active:scale-95"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          <span>{isProfessional ? "Novo atendimento" : "Solicitar consulta"}</span>
+        </button>
+      </header>
+
+      {/* Main Workspace Card */}
+      <div
+        className={`w-full bg-[var(--surface)] border border-[var(--border-subtle)] rounded-2xl overflow-hidden shadow-xs ${
+          mobileScreen === "CHAT"
+            ? "fixed inset-0 z-40 md:relative md:inset-auto md:z-auto md:flex md:h-[calc(100vh-170px)] md:min-h-[580px] rounded-none md:rounded-2xl border-none md:border"
+            : "flex flex-col md:flex-row md:h-[calc(100vh-170px)] md:min-h-[580px]"
+        }`}
+      >
+        {/* -------------------------------------------------------------------- */}
+        {/* LEFT PANE: Queues & Consultation List                                */}
+        {/* -------------------------------------------------------------------- */}
+        <div
+          className={`w-full md:w-80 lg:w-[350px] flex flex-col bg-[var(--surface)] md:border-r md:border-[var(--border-subtle)] shrink-0 ${
+            mobileScreen === "CHAT" ? "hidden md:flex" : "flex"
+          }`}
+        >
+          <div className="p-3.5 border-b border-[var(--border-subtle)] space-y-3">
+            {/* Search Box */}
+            <div className="relative w-full">
+              <input
+                type="text"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                placeholder="Buscar por nome ou assunto..."
+                className="w-full min-h-[44px] pl-9 pr-8 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+              <svg
+                className="w-4 h-4 absolute left-3 top-3.5 text-[var(--text-tertiary)] pointer-events-none"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              {searchFilter.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setSearchFilter("")}
+                  className="absolute right-2.5 top-3 p-1 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer"
+                  aria-label="Limpar busca"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Mobile Queue Selector Button */}
+            <div className="md:hidden">
               <button
                 type="button"
-                onClick={() => setIsNewChatModalOpen(true)}
-                className="text-emerald-600 hover:underline font-semibold cursor-pointer"
+                onClick={() => setIsMobileQueueModalOpen(true)}
+                className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)] flex items-center justify-between text-xs font-semibold text-[var(--text-primary)] cursor-pointer transition-colors"
               >
-                + Iniciar atendimento
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[11px] text-[var(--text-tertiary)] font-bold uppercase tracking-wider">Fila:</span>
+                  <span className="font-bold text-[var(--text-primary)] truncate">{activeQueueLabel}</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    {activeQueueCount}
+                  </span>
+                </div>
+                <svg className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
             </div>
-          ) : (
-            filteredConsultations.map((c) => {
-              const isSelected = c.publicId === selectedChatPublicId;
-              const displayName = isProfessional ? c.studentName : c.professionalName;
-              const unreadCount = isProfessional ? c.unreadCountProfessional : c.unreadCountStudent;
-              const statusCfg = STATUS_CONFIG[c.status] || STATUS_CONFIG.CONFIRMED;
-              const isVideo = c.modality === "VIDEO";
 
-              return (
-                <div
-                  key={c.publicId}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleSelectChat(c.publicId)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      handleSelectChat(c.publicId);
-                    }
-                  }}
-                  className={`w-full p-3.5 text-left flex items-start gap-3 transition-colors cursor-pointer ${
-                    isSelected
-                      ? "bg-emerald-500/10 border-l-4 border-l-emerald-600"
-                      : "hover:bg-[var(--surface-subtle)]"
-                  }`}
-                >
-                  {/* Avatar */}
-                  <div className={`w-10 h-10 rounded-full font-bold text-sm flex items-center justify-center shrink-0 shadow-xs ${
-                    isVideo ? "bg-purple-600 text-white" : "bg-emerald-600 text-white"
-                  }`}>
-                    {isVideo ? "📹" : displayName.charAt(0).toUpperCase()}
-                  </div>
+            {/* Desktop Queue Grid (No horizontal overflow!) */}
+            <div className="hidden md:block">
+              {isProfessional ? (
+                <div className="grid grid-cols-2 gap-1.5 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueue("PRECISO_RESPONDER")}
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                      activeQueueTab === "PRECISO_RESPONDER"
+                        ? "bg-amber-600 text-white shadow-xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                    }`}
+                  >
+                    <span className="truncate">Preciso responder</span>
+                    <span className="text-[10px] opacity-90 font-bold shrink-0">
+                      ({(queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER || 0})
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueue("AGUARDANDO_ALUNO")}
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                      activeQueueTab === "AGUARDANDO_ALUNO"
+                        ? "bg-blue-600 text-white shadow-xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                    }`}
+                  >
+                    <span className="truncate">Aguardando aluno</span>
+                    <span className="text-[10px] opacity-90 font-bold shrink-0">
+                      ({(queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO || 0})
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueue("SOLICITACOES_RECEBIDAS")}
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                      activeQueueTab === "SOLICITACOES_RECEBIDAS"
+                        ? "bg-emerald-600 text-white shadow-xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                    }`}
+                  >
+                    <span className="truncate">Solicitações</span>
+                    <span className="text-[10px] opacity-90 font-bold shrink-0">
+                      ({(queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS || 0})
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueue("CONCLUIDOS")}
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                      activeQueueTab === "CONCLUIDOS"
+                        ? "bg-zinc-700 text-white shadow-xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                    }`}
+                  >
+                    <span className="truncate">Concluídos</span>
+                    <span className="text-[10px] opacity-90 font-bold shrink-0">
+                      ({(queueCounts as Record<ProQueue, number>).CONCLUIDOS || 0})
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueue("ALL")}
+                    className={`col-span-2 min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                      activeQueueTab === "ALL"
+                        ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                    }`}
+                  >
+                    <span>Todos os atendimentos</span>
+                    <span className="text-[10px] opacity-90 font-bold">({consultations.length})</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-1.5 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueue("EM_ATENDIMENTO")}
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                      activeQueueTab === "EM_ATENDIMENTO"
+                        ? "bg-emerald-600 text-white shadow-xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                    }`}
+                  >
+                    <span className="truncate">Em atendimento</span>
+                    <span className="text-[10px] opacity-90 font-bold shrink-0">
+                      ({(queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO || 0})
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueue("SOLICITACOES")}
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                      activeQueueTab === "SOLICITACOES"
+                        ? "bg-amber-600 text-white shadow-xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                    }`}
+                  >
+                    <span className="truncate">Solicitações</span>
+                    <span className="text-[10px] opacity-90 font-bold shrink-0">
+                      ({(queueCounts as Record<StudentQueue, number>).SOLICITACOES || 0})
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueue("CONCLUIDAS")}
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                      activeQueueTab === "CONCLUIDAS"
+                        ? "bg-zinc-700 text-white shadow-xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                    }`}
+                  >
+                    <span className="truncate">Concluídas</span>
+                    <span className="text-[10px] opacity-90 font-bold shrink-0">
+                      ({(queueCounts as Record<StudentQueue, number>).CONCLUIDAS || 0})
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueue("ALL")}
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                      activeQueueTab === "ALL"
+                        ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                    }`}
+                  >
+                    <span>Todos</span>
+                    <span className="text-[10px] opacity-90 font-bold">({consultations.length})</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="text-xs font-bold text-[var(--text-primary)] truncate">
-                        {displayName}
-                      </span>
-                      {c.lastMessageAt && (
-                        <span className="text-[10px] text-[var(--text-tertiary)] shrink-0">
-                          {new Date(c.lastMessageAt).toLocaleDateString("pt-BR", {
-                            day: "2-digit",
-                            month: "2-digit",
-                          })}
-                        </span>
-                      )}
+          {/* List Items */}
+          <div className="flex-1 overflow-y-auto divide-y divide-[var(--border-subtle)]">
+            {filteredConsultations.length === 0 ? (
+              <div className="py-8 px-4 text-center space-y-2">
+                <div className="w-10 h-10 rounded-full bg-[var(--surface-subtle)] text-[var(--text-tertiary)] flex items-center justify-center mx-auto text-lg">
+                  💬
+                </div>
+                <p className="text-xs font-medium text-[var(--text-secondary)] leading-relaxed">
+                  {searchFilter.trim()
+                    ? `Nenhum atendimento encontrado para "${searchFilter}".`
+                    : isProfessional
+                    ? activeQueueTab === "PRECISO_RESPONDER"
+                      ? "Nenhum atendimento aguardando sua resposta."
+                      : activeQueueTab === "AGUARDANDO_ALUNO"
+                      ? "Nenhum atendimento aguardando resposta do aluno."
+                      : activeQueueTab === "SOLICITACOES_RECEBIDAS"
+                      ? "Nenhuma solicitação aguardando confirmação."
+                      : activeQueueTab === "CONCLUIDOS"
+                      ? "Nenhum atendimento concluído nesta fila."
+                      : "Nenhum atendimento cadastrado."
+                    : activeQueueTab === "EM_ATENDIMENTO"
+                    ? "Você não tem atendimentos em andamento nesta fila."
+                    : activeQueueTab === "SOLICITACOES"
+                    ? "Nenhuma solicitação aguardando confirmação."
+                    : activeQueueTab === "CONCLUIDAS"
+                    ? "Nenhum atendimento concluído nesta fila."
+                    : "Nenhum atendimento cadastrado."}
+                </p>
+                {searchFilter.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchFilter("")}
+                    className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:underline cursor-pointer"
+                  >
+                    Limpar busca
+                  </button>
+                ) : activeQueueTab !== "ALL" && consultations.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueue("ALL")}
+                    className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:underline cursor-pointer"
+                  >
+                    Ver todas as consultas ({consultations.length})
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              filteredConsultations.map((c) => {
+                const isSelected = c.publicId === selectedChatPublicId;
+                const displayName = isProfessional ? c.studentName : c.professionalName;
+                const unreadCount = isProfessional ? c.unreadCountProfessional : c.unreadCountStudent;
+                const statusCfg = STATUS_CONFIG[c.status] || STATUS_CONFIG.CONFIRMED;
+                const isVideo = c.modality === "VIDEO";
+
+                return (
+                  <div
+                    key={c.publicId}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleSelectChat(c.publicId)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleSelectChat(c.publicId);
+                      }
+                    }}
+                    className={`w-full p-3.5 text-left flex items-start gap-3 transition-colors cursor-pointer min-h-[64px] ${
+                      isSelected
+                        ? "bg-emerald-500/10 border-l-4 border-l-emerald-600 dark:bg-emerald-950/20 shadow-2xs"
+                        : "hover:bg-[var(--surface-subtle)]"
+                    }`}
+                  >
+                    {/* Avatar */}
+                    <div
+                      className={`w-10 h-10 rounded-full font-bold text-sm flex items-center justify-center shrink-0 shadow-xs ${
+                        isVideo ? "bg-purple-600 text-white" : "bg-emerald-600 text-white"
+                      }`}
+                    >
+                      {isVideo ? "📹" : displayName.charAt(0).toUpperCase()}
                     </div>
 
-                    <p className="text-xs text-[var(--text-secondary)] truncate mb-1.5 opacity-90">
-                      {isVideo
-                        ? `📹 Consulta em vídeo (${c.proposedStartFormatted || "Histórico"})`
-                        : c.lastMessagePreview ||
-                          (c.status === "PROPOSED" ? "Proposta de agendamento pendente" : "Nenhuma mensagem ainda")}
-                    </p>
-
-                    <div className="flex items-center justify-between gap-1 flex-wrap">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {isVideo ? (
-                          <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
-                            📹 Vídeo (Histórico)
-                          </span>
-                        ) : (
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${statusCfg.badgeClass}`}
-                          >
-                            {statusCfg.label}
-                          </span>
-                        )}
-
-                        {c.expectedResponseHours && !isVideo && (
-                          <span className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
-                            ⏱️ {c.expectedResponseHours}h
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-xs font-bold text-[var(--text-primary)] truncate">
+                          {displayName}
+                        </span>
+                        {c.lastMessageAt && (
+                          <span className="text-[10px] text-[var(--text-tertiary)] shrink-0">
+                            {new Date(c.lastMessageAt).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                            })}
                           </span>
                         )}
                       </div>
 
-                      {unreadCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 text-white shrink-0">
-                          {unreadCount}
-                        </span>
-                      )}
+                      <p className="text-xs text-[var(--text-secondary)] truncate mb-1.5 opacity-90">
+                        {isVideo
+                          ? `Consulta no formato anterior (${c.proposedStartFormatted || "Histórico"})`
+                          : c.lastMessagePreview ||
+                            (c.status === "PROPOSED" ? "Proposta de agendamento pendente" : "Nenhuma mensagem ainda")}
+                      </p>
+
+                      <div className="flex items-center justify-between gap-1 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {isVideo ? (
+                            <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
+                              📹 Formato Anterior
+                            </span>
+                          ) : (
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${statusCfg.badgeClass}`}
+                            >
+                              {statusCfg.label}
+                            </span>
+                          )}
+
+                          {c.expectedResponseHours && !isVideo && (
+                            <span className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
+                              ⏱️ {c.expectedResponseHours}h
+                            </span>
+                          )}
+                        </div>
+
+                        {unreadCount > 0 && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 text-white shrink-0">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* -------------------------------------------------------------------- */}
+        {/* RIGHT PANE: Active Chat Conversation, Historical Video or Guidance   */}
+        {/* -------------------------------------------------------------------- */}
+        <div
+          className={`flex-1 flex flex-col bg-[var(--surface)] min-w-0 overflow-hidden ${
+            mobileScreen === "LIST" ? "hidden md:flex" : "flex"
+          }`}
+        >
+          {activeChat ? (
+            activeChat.modality === "VIDEO" ? (
+              /* -------------------------------------------------------------- */
+              /* HISTORICAL VIDEO CONSULTATION VIEWER                           */
+              /* -------------------------------------------------------------- */
+              <div className="flex-1 flex flex-col overflow-y-auto">
+                <div className="p-3 sm:p-4 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 bg-[var(--surface)]">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <button
+                      type="button"
+                      onClick={handleBackToList}
+                      aria-label="Voltar para lista de atendimentos"
+                      className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] active:scale-95 cursor-pointer -ml-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+
+                    <div className="w-9 h-9 rounded-full bg-purple-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
+                      📹
+                    </div>
+
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                        {isProfessional ? activeChat.studentName : activeChat.professionalName}
+                      </h3>
+                      <p className="text-[11px] text-[var(--text-tertiary)] truncate">
+                        Consulta no formato anterior • Histórico preservado
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
+                    Histórico arquivado
+                  </span>
+                </div>
+
+                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-2xl shadow-xs">
+                    📹
+                  </div>
+                  <div>
+                    <h4 className="text-base font-bold text-[var(--text-primary)] mb-1">
+                      Consulta no formato anterior
+                    </h4>
+                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                      Esta consulta foi agendada no formato anterior e seus registros históricos foram preservados.
+                    </p>
+                  </div>
+
+                  <div className="w-full p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-left space-y-2.5 text-xs">
+                    <div className="flex justify-between py-1 border-b border-[var(--border-subtle)]">
+                      <span className="text-[var(--text-tertiary)]">Participante:</span>
+                      <strong className="text-[var(--text-primary)]">
+                        {isProfessional ? activeChat.studentName : activeChat.professionalName}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-[var(--border-subtle)]">
+                      <span className="text-[var(--text-tertiary)]">Data agendada:</span>
+                      <span className="text-[var(--text-primary)] font-semibold">
+                        {activeChat.proposedStartFormatted || "Data arquivada"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-[var(--text-tertiary)]">Situação registrada:</span>
+                      <span className="text-[var(--text-secondary)] font-semibold">
+                        {activeChat.status === "CANCELED" ? "Cancelada" : "Histórico arquivado"}
+                      </span>
                     </div>
                   </div>
                 </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* -------------------------------------------------------------------- */}
-      {/* MIDDLE PANE: Active Chat Conversation or Historical Video Viewer     */}
-      {/* -------------------------------------------------------------------- */}
-      <div
-        className={`flex-1 flex flex-col bg-[var(--surface)] min-w-0 overflow-hidden ${
-          mobileScreen === "LIST" ? "hidden md:flex" : "flex"
-        }`}
-      >
-        {activeChat ? (
-          activeChat.modality === "VIDEO" ? (
-            /* -------------------------------------------------------------- */
-            /* HISTORICAL VIDEO CONSULTATION VIEWER                           */
-            /* -------------------------------------------------------------- */
-            <div className="flex-1 flex flex-col overflow-y-auto">
-              <div className="p-3 sm:p-4 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 bg-[var(--surface)]">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  <button
-                    type="button"
-                    onClick={handleBackToList}
-                    aria-label="Voltar para lista de atendimentos"
-                    className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] active:scale-95 cursor-pointer -ml-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-
-                  <div className="w-9 h-9 rounded-full bg-purple-600 text-white font-bold text-sm flex items-center justify-center shrink-0">
-                    📹
-                  </div>
-
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
-                      {isProfessional ? activeChat.studentName : activeChat.professionalName}
-                    </h3>
-                    <p className="text-[11px] text-[var(--text-tertiary)] truncate">
-                      Consulta por Vídeo • Histórico Preservado
-                    </p>
-                  </div>
-                </div>
-
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
-                  📹 Vídeo Realizado
-                </span>
               </div>
-
-              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto space-y-4">
-                <div className="w-16 h-16 rounded-3xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-3xl">
-                  📹
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-[var(--text-primary)] mb-1">
-                    Consulta por Vídeo do Formato Anterior
-                  </h4>
-                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                    Esta consulta foi realizada no formato anterior e todos os seus registros de histórico, participantes e datas foram preservados.
-                  </p>
-                </div>
-
-                <div className="w-full p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-left space-y-2 text-xs">
-                  <div className="flex justify-between py-1 border-b border-[var(--border-subtle)]">
-                    <span className="text-[var(--text-tertiary)]">Participante:</span>
-                    <strong className="text-[var(--text-primary)]">{isProfessional ? activeChat.studentName : activeChat.professionalName}</strong>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-[var(--border-subtle)]">
-                    <span className="text-[var(--text-tertiary)]">Data de realização:</span>
-                    <span className="text-[var(--text-primary)] font-semibold">{activeChat.proposedStartFormatted || "Data arquivada"}</span>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <span className="text-[var(--text-tertiary)]">Status:</span>
-                    <span className="text-emerald-600 font-bold">Concluída / Histórico arquivado</span>
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed text-left">
-                  💬 <strong>Novo Trevo Chat:</strong> Todas as novas consultas agora acontecem de forma assíncrona, contínua e sem necessidade de chamadas de vídeo em tempo real, com prontuário clínico e inteligência artificial.
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsNewChatModalOpen(true);
-                    setProposalTopic(`Continuação de atendimento com ${isProfessional ? activeChat.studentName : activeChat.professionalName}`);
-                  }}
-                  className="min-h-[44px] px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs active:scale-95 cursor-pointer"
-                >
-                  + Iniciar Atendimento no Trevo Chat
-                </button>
-              </div>
-            </div>
-          ) : (
+            ) : (
             /* -------------------------------------------------------------- */
             /* ACTIVE TREVO CHAT CONVERSATION                                 */
             /* -------------------------------------------------------------- */
@@ -1412,15 +1576,15 @@ export function TrevoChatWorkspace({
             </>
           )
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-[var(--text-tertiary)]">
-            <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3 text-3xl">
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-[var(--text-tertiary)] max-w-sm mx-auto">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3 text-2xl shadow-xs">
               💬
             </div>
-            <h3 className="text-base font-bold text-[var(--text-primary)] mb-1">
-              Selecione um atendimento
+            <h3 className="text-sm font-bold text-[var(--text-primary)] mb-1">
+              Nenhum atendimento selecionado
             </h3>
-            <p className="text-xs max-w-sm">
-              Escolha uma conversa na fila ao lado ou inicie um novo atendimento assíncrono.
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Selecione uma conversa na lista ao lado para acompanhar as mensagens e o histórico clínico.
             </p>
           </div>
         )}
@@ -1442,6 +1606,7 @@ export function TrevoChatWorkspace({
           />
         </div>
       )}
+      </div>
 
       {/* -------------------------------------------------------------------- */}
       {/* MODAL 1: New Chat Appointment Proposal (Bilateral)                   */}
@@ -2058,6 +2223,72 @@ export function TrevoChatWorkspace({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------------- */}
+      {/* MODAL: Mobile Queue Filter Bottom Sheet                              */}
+      {/* -------------------------------------------------------------------- */}
+      {isMobileQueueModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in"
+          onClick={() => setIsMobileQueueModalOpen(false)}
+        >
+          <div
+            className="w-full sm:max-w-md bg-[var(--surface)] border border-[var(--border-subtle)] rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+              <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                Filtrar atendimentos
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsMobileQueueModalOpen(false)}
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center -mr-2 rounded-xl text-[var(--text-tertiary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+                aria-label="Fechar seletor de fila"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              {queueOptions.map((opt) => {
+                const isActive = activeQueueTab === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => {
+                      handleSelectQueue(opt.key);
+                      setIsMobileQueueModalOpen(false);
+                    }}
+                    className={`w-full min-h-[48px] px-4 py-3 rounded-2xl text-left flex items-center justify-between gap-3 transition-colors cursor-pointer ${
+                      isActive
+                        ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold"
+                        : "hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] font-semibold"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className={`w-2 h-2 rounded-full ${isActive ? "bg-emerald-600" : "bg-transparent"}`} />
+                      <span className="text-sm">{opt.label}</span>
+                    </div>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                        isActive
+                          ? "bg-emerald-600 text-white"
+                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+                      }`}
+                    >
+                      {opt.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,4 @@
 import React from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
@@ -137,32 +136,8 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
         themeVariant="dark-overview"
         showDashboardWallpaper={true}
       >
-        <div className="space-y-4 w-full max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[var(--border-subtle)]">
-            <div className="flex items-center gap-3">
-              <Link
-                href={`/consultoria/${slug}`}
-                className="p-2 -ml-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors inline-flex items-center gap-1.5 text-xs font-semibold"
-                aria-label="Voltar ao painel"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span>Voltar</span>
-              </Link>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--text-primary)]">
-                  Consultas
-                </h1>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Atendimentos assíncronos e acompanhamento contínuo no Trevo Chat.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Unified Trevo Chat Workspace (no tab toggling) */}
+        <div className="w-full max-w-7xl mx-auto">
+          {/* Unified Trevo Chat Workspace */}
           <TrevoChatWorkspace
             consultancySlug={slug}
             currentUserId={session.userId}
@@ -263,32 +238,8 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
         themeVariant="dark-overview"
         showDashboardWallpaper={true}
       >
-        <div className="space-y-4 w-full max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[var(--border-subtle)]">
-            <div className="flex items-center gap-3">
-              <Link
-                href={`/consultoria/${slug}`}
-                className="p-2 -ml-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors inline-flex items-center gap-1.5 text-xs font-semibold"
-                aria-label="Voltar ao painel"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span>Voltar</span>
-              </Link>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--text-primary)]">
-                  Consultas
-                </h1>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Fila de atendimento profissional assíncrono e gestão clínica.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Unified Trevo Chat Workspace (no tab toggling) */}
+        <div className="w-full max-w-7xl mx-auto">
+          {/* Unified Trevo Chat Workspace */}
           <TrevoChatWorkspace
             consultancySlug={slug}
             currentUserId={session.userId}

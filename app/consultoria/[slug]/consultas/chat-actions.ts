@@ -18,6 +18,12 @@ import {
   proposeChatConsultation,
   respondToChatProposal,
   cancelChatConsultation,
+  closeChatConsultation,
+  savePrivateNotes,
+  requestReturnConsultation,
+  generateAiConsultationSummary,
+  generateAiProntuarioNotes,
+  generateAiPendingQuestions,
   type ChatConsultationStatus,
   type ChatMessageType,
 } from "@/lib/consultancies/trevo-chat";
@@ -70,10 +76,37 @@ export async function sendChatMessageAction(
     const content = typeof contentRaw === "string" ? contentRaw.trim() : "";
 
     const rawMessageType = formData.get("messageType");
+    const VALID_MESSAGE_TYPES = [
+      "TEXT",
+      "IMAGE",
+      "AUDIO",
+      "VIDEO",
+      "DOCUMENT",
+      "FORM_REQUEST",
+      "PHOTO_REQUEST",
+      "DOCUMENT_REQUEST",
+      "CLINICAL_GUIDANCE",
+      "WORKOUT_CARD",
+      "MEAL_PLAN_CARD",
+      "CLOSURE_CARD",
+    ];
+
     let messageType: ChatMessageType =
-      typeof rawMessageType === "string" && ["TEXT", "IMAGE", "AUDIO", "VIDEO", "DOCUMENT"].includes(rawMessageType)
+      typeof rawMessageType === "string" && VALID_MESSAGE_TYPES.includes(rawMessageType)
         ? (rawMessageType as ChatMessageType)
         : "TEXT";
+
+    const clientMessageId = formData.get("clientMessageId") ? String(formData.get("clientMessageId")) : undefined;
+    const replyToMessageIdRaw = formData.get("replyToMessageId");
+    const replyToMessageId = replyToMessageIdRaw ? Number(replyToMessageIdRaw) : undefined;
+
+    const payloadJsonRaw = formData.get("payloadJson");
+    let payloadJson: Record<string, unknown> | undefined = undefined;
+    if (payloadJsonRaw && typeof payloadJsonRaw === "string") {
+      try {
+        payloadJson = JSON.parse(payloadJsonRaw);
+      } catch {}
+    }
 
     const audioDurationRaw = formData.get("audioDurationSeconds");
     const audioDurationSeconds = audioDurationRaw ? Number(audioDurationRaw) : undefined;
@@ -109,7 +142,7 @@ export async function sendChatMessageAction(
       attachmentMimeType = validation.mimeType || file.type || "application/octet-stream";
     }
 
-    if (!content && !attachmentUrl) {
+    if (!content && !attachmentUrl && !payloadJson) {
       return { ok: false, error: "A mensagem não pode ser vazia." };
     }
 
@@ -120,6 +153,9 @@ export async function sendChatMessageAction(
       senderRole,
       content: content || null,
       messageType,
+      clientMessageId,
+      replyToMessageId,
+      payloadJson,
       attachmentUrl,
       attachmentName,
       attachmentSizeBytes,
@@ -314,6 +350,9 @@ export async function proposeChatConsultationAction(
     referenceDate: string;
     referenceTime: string;
     title?: string;
+    expectedResponseHours?: number;
+    initialMessage?: string;
+    linkedPreviousConsultationId?: number;
   }
 ): Promise<ActionResult> {
   try {
@@ -363,6 +402,9 @@ export async function proposeChatConsultationAction(
       proposedByUserId: session.userId,
       proposedStartAt: proposedDate,
       title: params.title,
+      expectedResponseHours: params.expectedResponseHours || 24,
+      initialMessage: params.initialMessage,
+      linkedPreviousConsultationId: params.linkedPreviousConsultationId,
       consultancySlug,
     });
 
@@ -455,6 +497,225 @@ export async function cancelChatConsultationAction(
     return { ok: true };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Erro ao cancelar atendimento.";
+    return { ok: false, error: errorMsg };
+  }
+}
+
+/**
+ * Formally closes a chat consultation with summary, orientations, prescriptions,
+ * return prediction and professional private notes.
+ */
+export async function closeChatConsultationAction(
+  consultancySlug: string,
+  chatPublicId: string,
+  data: {
+    summary: string;
+    orientations?: string[];
+    prescriptions?: string[];
+    returnPredictionDays?: number | null;
+    privateNotes?: string | null;
+  }
+): Promise<ActionResult> {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return { ok: false, error: "Não autenticado." };
+
+    const context = await resolveConsultancyContext(session.userId, consultancySlug);
+    if (!context) return { ok: false, error: "Consultoria não encontrada." };
+
+    const isAuthorized =
+      context.roles.includes("PERSONAL") ||
+      context.roles.includes("NUTRITIONIST") ||
+      context.roles.includes("CONSULTANCY_ADMIN");
+
+    if (!isAuthorized) {
+      return { ok: false, error: "Apenas profissionais podem finalizar consultas." };
+    }
+
+    if (!data.summary || !data.summary.trim()) {
+      return { ok: false, error: "O resumo do encerramento é obrigatório." };
+    }
+
+    const closed = await closeChatConsultation({
+      consultancyId: context.consultancyId,
+      consultationPublicId: chatPublicId,
+      professionalUserId: session.userId,
+      summary: data.summary,
+      orientations: data.orientations,
+      prescriptions: data.prescriptions,
+      returnPredictionDays: data.returnPredictionDays,
+      privateNotes: data.privateNotes,
+      consultancySlug,
+    });
+
+    revalidatePath(`/consultoria/${consultancySlug}/consultas`);
+    return { ok: true, data: closed };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro ao finalizar consulta.";
+    return { ok: false, error: errorMsg };
+  }
+}
+
+/**
+ * Saves private notes for the professional. Private notes are strictly private and never leaked.
+ */
+export async function savePrivateNotesAction(
+  consultancySlug: string,
+  chatPublicId: string,
+  notes: string
+): Promise<ActionResult> {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return { ok: false, error: "Não autenticado." };
+
+    const context = await resolveConsultancyContext(session.userId, consultancySlug);
+    if (!context) return { ok: false, error: "Consultoria não encontrada." };
+
+    const isAuthorized =
+      context.roles.includes("PERSONAL") ||
+      context.roles.includes("NUTRITIONIST") ||
+      context.roles.includes("CONSULTANCY_ADMIN");
+
+    if (!isAuthorized) {
+      return { ok: false, error: "Apenas profissionais podem registrar notas privadas." };
+    }
+
+    await savePrivateNotes({
+      consultancyId: context.consultancyId,
+      consultationPublicId: chatPublicId,
+      professionalUserId: session.userId,
+      notes,
+    });
+
+    revalidatePath(`/consultoria/${consultancySlug}/consultas`);
+    return { ok: true };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro ao salvar notas privadas.";
+    return { ok: false, error: errorMsg };
+  }
+}
+
+/**
+ * Requests a return consultation linked to a previous consultation.
+ */
+export async function requestReturnConsultationAction(
+  consultancySlug: string,
+  previousChatPublicId: string,
+  params: {
+    referenceDate: string;
+    referenceTime: string;
+    title?: string;
+    expectedResponseHours?: number;
+  }
+): Promise<ActionResult> {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return { ok: false, error: "Não autenticado." };
+
+    const context = await resolveConsultancyContext(session.userId, consultancySlug);
+    if (!context) return { ok: false, error: "Consultoria não encontrada." };
+
+    const created = await requestReturnConsultation({
+      consultancyId: context.consultancyId,
+      previousConsultationPublicId: previousChatPublicId,
+      requestedByUserId: session.userId,
+      referenceDate: params.referenceDate,
+      referenceTime: params.referenceTime,
+      title: params.title,
+      expectedResponseHours: params.expectedResponseHours || 24,
+      consultancySlug,
+    });
+
+    revalidatePath(`/consultoria/${consultancySlug}/consultas`);
+    return { ok: true, data: created };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro ao agendar retorno.";
+    return { ok: false, error: errorMsg };
+  }
+}
+
+/**
+ * On-Demand AI Action: Generates summary of consultation messages.
+ * Only runs upon professional request.
+ */
+export async function generateAiSummaryAction(
+  consultancySlug: string,
+  chatPublicId: string
+): Promise<ActionResult> {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return { ok: false, error: "Não autenticado." };
+
+    const context = await resolveConsultancyContext(session.userId, consultancySlug);
+    if (!context) return { ok: false, error: "Consultoria não encontrada." };
+
+    const isAuthorized =
+      context.roles.includes("PERSONAL") ||
+      context.roles.includes("NUTRITIONIST") ||
+      context.roles.includes("CONSULTANCY_ADMIN");
+
+    if (!isAuthorized) {
+      return { ok: false, error: "Apenas profissionais podem solicitar resumo com IA." };
+    }
+
+    const summary = await generateAiConsultationSummary(context.consultancyId, chatPublicId);
+    return { ok: true, data: summary };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro ao gerar resumo com IA.";
+    return { ok: false, error: errorMsg };
+  }
+}
+
+/**
+ * On-Demand AI Action: Generates SOAP format clinical notes.
+ * Only runs upon professional request.
+ */
+export async function generateAiSoapAction(
+  consultancySlug: string,
+  chatPublicId: string
+): Promise<ActionResult> {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return { ok: false, error: "Não autenticado." };
+
+    const context = await resolveConsultancyContext(session.userId, consultancySlug);
+    if (!context) return { ok: false, error: "Consultoria não encontrada." };
+
+    const isAuthorized =
+      context.roles.includes("PERSONAL") ||
+      context.roles.includes("NUTRITIONIST") ||
+      context.roles.includes("CONSULTANCY_ADMIN");
+
+    if (!isAuthorized) {
+      return { ok: false, error: "Apenas profissionais podem gerar notas SOAP." };
+    }
+
+    const soap = await generateAiProntuarioNotes(context.consultancyId, chatPublicId);
+    return { ok: true, data: soap };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro ao estruturar SOAP.";
+    return { ok: false, error: errorMsg };
+  }
+}
+
+/**
+ * On-Demand AI Action: Detects unanswered questions in the conversation.
+ */
+export async function generateAiQuestionsAction(
+  consultancySlug: string,
+  chatPublicId: string
+): Promise<ActionResult> {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return { ok: false, error: "Não autenticado." };
+
+    const context = await resolveConsultancyContext(session.userId, consultancySlug);
+    if (!context) return { ok: false, error: "Consultoria não encontrada." };
+
+    const questions = await generateAiPendingQuestions(context.consultancyId, chatPublicId);
+    return { ok: true, data: questions };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro ao verificar perguntas pendentes.";
     return { ok: false, error: errorMsg };
   }
 }

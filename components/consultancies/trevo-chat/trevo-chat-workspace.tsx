@@ -1,19 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useMemo, useTransition } from "react";
 import type {
   ChatConsultationDto,
   ChatMessageDto,
   ChatConsultationStatus,
+  ChatMessageType,
 } from "@/lib/consultancies/trevo-chat";
-
-function isChatMessagingUnlocked(status: ChatConsultationStatus): boolean {
-  return (
-    status === "CONFIRMED" ||
-    status === "AWAITING_STUDENT" ||
-    status === "AWAITING_PROFESSIONAL"
-  );
-}
 import { ChatMessageList } from "./chat-message-list";
 import { ChatInputBar } from "./chat-input-bar";
 import { AIAnamnesisPanel } from "./ai-anamnesis-panel";
@@ -24,6 +17,8 @@ import {
   proposeChatConsultationAction,
   respondToChatProposalAction,
   cancelChatConsultationAction,
+  closeChatConsultationAction,
+  requestReturnConsultationAction,
 } from "@/app/consultoria/[slug]/consultas/chat-actions";
 
 export interface StudentCandidate {
@@ -31,6 +26,15 @@ export interface StudentCandidate {
   userPublicId: string;
   name: string;
   email: string;
+}
+
+export interface ProfessionalCandidate {
+  membershipId: number;
+  membershipPublicId: string;
+  userPublicId: string;
+  name: string;
+  email: string;
+  role: "PERSONAL" | "NUTRITIONIST";
 }
 
 interface TrevoChatWorkspaceProps {
@@ -41,6 +45,56 @@ interface TrevoChatWorkspaceProps {
   consultations: ChatConsultationDto[];
   initialActivePublicId?: string | null;
   activeStudents?: StudentCandidate[];
+  activeProfessionals?: ProfessionalCandidate[];
+}
+
+function isChatMessagingUnlocked(status: ChatConsultationStatus): boolean {
+  return (
+    status === "CONFIRMED" ||
+    status === "AWAITING_STUDENT" ||
+    status === "AWAITING_PROFESSIONAL"
+  );
+}
+
+// Queue definitions
+// Professional Queues: PRECISO_RESPONDER | AGUARDANDO_ALUNO | SOLICITACOES_RECEBIDAS | CONCLUIDOS | ALL
+// Student Queues: EM_ATENDIMENTO | SOLICITACOES | CONCLUIDAS | ALL
+export type ProQueue = "PRECISO_RESPONDER" | "AGUARDANDO_ALUNO" | "SOLICITACOES_RECEBIDAS" | "CONCLUIDOS" | "ALL";
+export type StudentQueue = "EM_ATENDIMENTO" | "SOLICITACOES" | "CONCLUIDAS" | "ALL";
+
+export function getStudentQueueKey(c: ChatConsultationDto): StudentQueue {
+  if (
+    c.status === "COMPLETED" ||
+    c.status === "DECLINED" ||
+    c.status === "CANCELED" ||
+    Boolean(c.closedAt) ||
+    c.modality === "VIDEO"
+  ) {
+    return "CONCLUIDAS";
+  }
+  if (c.status === "PROPOSED") {
+    return "SOLICITACOES";
+  }
+  return "EM_ATENDIMENTO";
+}
+
+export function getProQueueKey(c: ChatConsultationDto): ProQueue {
+  if (
+    c.status === "COMPLETED" ||
+    c.status === "DECLINED" ||
+    c.status === "CANCELED" ||
+    Boolean(c.closedAt) ||
+    c.modality === "VIDEO"
+  ) {
+    return "CONCLUIDOS";
+  }
+  if (c.status === "PROPOSED") {
+    return "SOLICITACOES_RECEBIDAS";
+  }
+  if (c.status === "AWAITING_PROFESSIONAL") {
+    return "PRECISO_RESPONDER";
+  }
+  return "AGUARDANDO_ALUNO";
 }
 
 export function TrevoChatWorkspace({
@@ -51,25 +105,72 @@ export function TrevoChatWorkspace({
   consultations: initialConsultations,
   initialActivePublicId,
   activeStudents = [],
+  activeProfessionals = [],
 }: TrevoChatWorkspaceProps) {
   const [, startTransition] = useTransition();
 
-  // Local consultations overrides (created / updated via actions)
+  // Local consultations state
   const [createdConsultations, setCreatedConsultations] = useState<ChatConsultationDto[]>([]);
   const [updatedConsultations, setUpdatedConsultations] = useState<Record<string, Partial<ChatConsultationDto>>>({});
 
   // Merge created and updated with initial props
-  const consultations = [
-    ...createdConsultations.filter(
-      (c) => !initialConsultations.some((ic) => ic.publicId === c.publicId)
-    ),
-    ...initialConsultations,
-  ].map((c) => ({
-    ...c,
-    ...(updatedConsultations[c.publicId] || {}),
-  }));
+  const consultations = useMemo(() => {
+    return [
+      ...createdConsultations.filter(
+        (c) => !initialConsultations.some((ic) => ic.publicId === c.publicId)
+      ),
+      ...initialConsultations,
+    ].map((c) => ({
+      ...c,
+      ...(updatedConsultations[c.publicId] || {}),
+    }));
+  }, [createdConsultations, initialConsultations, updatedConsultations]);
 
-  // Active consultation state
+  // Queue counts calculation
+  const queueCounts = useMemo(() => {
+    if (isProfessional) {
+      const counts: Record<ProQueue, number> = {
+        PRECISO_RESPONDER: 0,
+        AGUARDANDO_ALUNO: 0,
+        SOLICITACOES_RECEBIDAS: 0,
+        CONCLUIDOS: 0,
+        ALL: consultations.length,
+      };
+      consultations.forEach((c) => {
+        const key = getProQueueKey(c);
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      return counts;
+    } else {
+      const counts: Record<StudentQueue, number> = {
+        EM_ATENDIMENTO: 0,
+        SOLICITACOES: 0,
+        CONCLUIDAS: 0,
+        ALL: consultations.length,
+      };
+      consultations.forEach((c) => {
+        const key = getStudentQueueKey(c);
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      return counts;
+    }
+  }, [consultations, isProfessional]);
+
+  // Initial active queue tab
+  const [activeQueueTab, setActiveQueueTab] = useState<string>(() => {
+    if (isProfessional) {
+      if ((queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER > 0) return "PRECISO_RESPONDER";
+      if ((queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO > 0) return "AGUARDANDO_ALUNO";
+      if ((queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS > 0) return "SOLICITACOES_RECEBIDAS";
+      return "ALL";
+    } else {
+      if ((queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO > 0) return "EM_ATENDIMENTO";
+      if ((queueCounts as Record<StudentQueue, number>).SOLICITACOES > 0) return "SOLICITACOES";
+      return "ALL";
+    }
+  });
+
+  // Selected chat publicId
   const [selectedChatPublicId, setSelectedChatPublicId] = useState<string | null>(
     initialActivePublicId || (consultations.length > 0 ? consultations[0].publicId : null)
   );
@@ -79,36 +180,64 @@ export function TrevoChatWorkspace({
     initialActivePublicId ? "CHAT" : "LIST"
   );
 
-  // Mobile / Desktop AI drawer open state (starts strictly CLOSED on all devices)
+  // Right pane: AI Anamnesis & Private Notes (Starts CLOSED on all devices)
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
 
-  // New Proposal modal state
+  // Quoted reply state
+  const [replyingTo, setReplyingTo] = useState<{
+    id: number;
+    senderName: string;
+    content: string;
+  } | null>(null);
+
+  // Modals state
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
   const [selectedStudentForProposal, setSelectedStudentForProposal] = useState<StudentCandidate | null>(null);
+  const [selectedProfessionalForProposal, setSelectedProfessionalForProposal] = useState<ProfessionalCandidate | null>(null);
   const [proposalDate, setProposalDate] = useState("");
   const [proposalTime, setProposalTime] = useState("");
   const [proposalTopic, setProposalTopic] = useState("");
+  const [proposalExpectedHours, setProposalExpectedHours] = useState(24);
+  const [proposalInitialMessage, setProposalInitialMessage] = useState("");
   const [proposalError, setProposalError] = useState<string | null>(null);
   const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
   const [newChatSearch, setNewChatSearch] = useState("");
 
-  // Counter-proposal modal state
+  // Counter proposal modal
   const [isCounterModalOpen, setIsCounterModalOpen] = useState(false);
   const [counterDate, setCounterDate] = useState("");
   const [counterTime, setCounterTime] = useState("");
   const [counterError, setCounterError] = useState<string | null>(null);
   const [isSubmittingCounter, setIsSubmittingCounter] = useState(false);
 
-  // Decline modal state
+  // Decline modal
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [isSubmittingDecline, setIsSubmittingDecline] = useState(false);
 
-  // Search filter for conversation list
-  const [searchFilter, setSearchFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "PROPOSED" | "CONFIRMED" | "COMPLETED">("ALL");
+  // Closure modal ("Finalizar Consulta")
+  const [isClosureModalOpen, setIsClosureModalOpen] = useState(false);
+  const [closureSummary, setClosureSummary] = useState("");
+  const [closureOrientations, setClosureOrientations] = useState("");
+  const [closurePrescriptions, setClosurePrescriptions] = useState("");
+  const [closureReturnPredictionDays, setClosureReturnPredictionDays] = useState<number | null>(30);
+  const [closurePrivateNotes, setClosurePrivateNotes] = useState("");
+  const [closureError, setClosureError] = useState<string | null>(null);
+  const [isSubmittingClosure, setIsSubmittingClosure] = useState(false);
 
-  // Local messages state for active chat
+  // Return modal ("Solicitar Retorno")
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [returnDate, setReturnDate] = useState("");
+  const [returnTime, setReturnTime] = useState("");
+  const [returnTopic, setReturnTopic] = useState("Consulta de Retorno");
+  const [returnExpectedHours, setReturnExpectedHours] = useState(24);
+  const [returnError, setReturnError] = useState<string | null>(null);
+  const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
+
+  // Search filter
+  const [searchFilter, setSearchFilter] = useState("");
+
+  // Active chat messages
   const [messages, setMessages] = useState<ChatMessageDto[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(
     Boolean(initialActivePublicId || consultations.length > 0)
@@ -118,7 +247,7 @@ export function TrevoChatWorkspace({
   // Current active consultation object
   const activeChat = consultations.find((c) => c.publicId === selectedChatPublicId) || null;
 
-  // Listen to open schedule event from shared tabbed header
+  // Listen to open schedule event from shared tabs
   useEffect(() => {
     const handleOpenChatSchedule = () => {
       setIsNewChatModalOpen(true);
@@ -130,11 +259,12 @@ export function TrevoChatWorkspace({
     };
   }, []);
 
-  // Load messages whenever active chat changes
+  // Load messages when selected consultation changes
   useEffect(() => {
-    if (!selectedChatPublicId) {
-      return;
-    }
+    if (!selectedChatPublicId) return;
+
+    const current = consultations.find((c) => c.publicId === selectedChatPublicId);
+    if (current?.modality === "VIDEO") return;
 
     let isMounted = true;
 
@@ -150,39 +280,49 @@ export function TrevoChatWorkspace({
         if (isMounted) setIsLoadingMessages(false);
       });
 
-    // Mark as read
+    // Mark messages as read
     markChatReadAction(consultancySlug, selectedChatPublicId).catch(() => {});
 
     return () => {
       isMounted = false;
     };
-  }, [selectedChatPublicId, consultancySlug]);
+  }, [selectedChatPublicId, consultancySlug, consultations]);
 
-  // Handle select chat
   const handleSelectChat = (chatId: string) => {
-    setIsLoadingMessages(true);
-    setMessages([]);
     setSelectedChatPublicId(chatId);
+    setReplyingTo(null);
+    const target = consultations.find((c) => c.publicId === chatId);
+    if (target?.modality === "VIDEO") {
+      setMessages([]);
+      setIsLoadingMessages(false);
+    } else {
+      setMessages([]);
+      setIsLoadingMessages(true);
+    }
     setMobileScreen("CHAT");
   };
 
-  // Handle back to list on mobile
   const handleBackToList = () => {
     setMobileScreen("LIST");
   };
 
-  // Handle send message
+  // Send message handler with idempotency and reply integration
   const handleSendMessage = async (params: {
     content?: string;
     file?: File;
-    messageType?: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO" | "DOCUMENT";
+    messageType?: ChatMessageType;
     audioDurationSeconds?: number;
+    replyToMessageId?: number;
+    payloadJson?: Record<string, unknown>;
   }): Promise<boolean> => {
     if (!selectedChatPublicId) return false;
     setIsSending(true);
 
     try {
+      const clientMessageId = `cm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const formData = new FormData();
+      formData.append("clientMessageId", clientMessageId);
+
       if (params.content) formData.append("content", params.content);
       if (params.messageType) formData.append("messageType", params.messageType);
       if (params.audioDurationSeconds) {
@@ -192,9 +332,19 @@ export function TrevoChatWorkspace({
         formData.append("file", params.file);
       }
 
+      const replyId = params.replyToMessageId || replyingTo?.id;
+      if (replyId) {
+        formData.append("replyToMessageId", String(replyId));
+      }
+
+      if (params.payloadJson) {
+        formData.append("payloadJson", JSON.stringify(params.payloadJson));
+      }
+
       const res = await sendChatMessageAction(consultancySlug, selectedChatPublicId, formData);
       if (res.ok && res.data) {
         setMessages((prev) => [...prev, res.data as ChatMessageDto]);
+        setReplyingTo(null);
         setIsSending(false);
         return true;
       } else {
@@ -210,7 +360,7 @@ export function TrevoChatWorkspace({
     }
   };
 
-  // Status switcher (for completed status)
+  // Status switcher
   const handleStatusChange = (newStatus: ChatConsultationStatus) => {
     if (!selectedChatPublicId || !isProfessional) return;
     startTransition(async () => {
@@ -231,6 +381,10 @@ export function TrevoChatWorkspace({
       setProposalError("Selecione um aluno para agendar o atendimento.");
       return;
     }
+    if (!isProfessional && activeProfessionals.length > 1 && !selectedProfessionalForProposal) {
+      setProposalError("Selecione o profissional para o atendimento.");
+      return;
+    }
     if (!proposalDate || !proposalTime) {
       setProposalError("Informe a data e o horário de referência.");
       return;
@@ -239,11 +393,20 @@ export function TrevoChatWorkspace({
     setIsSubmittingProposal(true);
     try {
       const res = await proposeChatConsultationAction(consultancySlug, {
-        studentMembershipId: selectedStudentForProposal ? selectedStudentForProposal.membershipId : undefined,
-        professionalType: isProfessional ? professionalType : undefined,
+        studentMembershipId: isProfessional
+          ? selectedStudentForProposal?.membershipId
+          : undefined,
+        professionalMembershipId: !isProfessional
+          ? (selectedProfessionalForProposal?.membershipId || activeProfessionals[0]?.membershipId)
+          : undefined,
+        professionalType: isProfessional
+          ? professionalType
+          : (selectedProfessionalForProposal?.role || activeProfessionals[0]?.role || "PERSONAL"),
         referenceDate: proposalDate,
         referenceTime: proposalTime,
         title: proposalTopic.trim() || undefined,
+        expectedResponseHours: proposalExpectedHours,
+        initialMessage: proposalInitialMessage.trim() || undefined,
       });
 
       if (res.ok && res.data) {
@@ -252,12 +415,14 @@ export function TrevoChatWorkspace({
         setSelectedChatPublicId(chat.publicId);
         setIsNewChatModalOpen(false);
         setSelectedStudentForProposal(null);
+        setSelectedProfessionalForProposal(null);
         setProposalDate("");
         setProposalTime("");
         setProposalTopic("");
+        setProposalInitialMessage("");
         setMobileScreen("CHAT");
       } else {
-        setProposalError(res.error || "Erro ao enviar proposta de agendamento.");
+        setProposalError(res.error || "Erro ao propor agendamento.");
       }
     } catch {
       setProposalError("Erro na conexão ao enviar proposta.");
@@ -384,20 +549,135 @@ export function TrevoChatWorkspace({
     }
   };
 
-  // Filtered consultations
-  const filteredConsultations = consultations.filter((c) => {
-    if (statusFilter === "PROPOSED" && c.status !== "PROPOSED") return false;
-    if (statusFilter === "CONFIRMED" && c.status !== "CONFIRMED") return false;
-    if (statusFilter === "COMPLETED" && c.status !== "COMPLETED") return false;
+  // Submit formal closure ("Finalizar Consulta")
+  const handleSubmitClosure = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeChat) return;
+    setClosureError(null);
 
-    if (searchFilter.trim()) {
-      const targetName = isProfessional ? c.studentName : c.professionalName;
-      if (!targetName.toLowerCase().includes(searchFilter.toLowerCase().trim())) {
-        return false;
-      }
+    if (!closureSummary.trim()) {
+      setClosureError("Informe o resumo de encerramento da consulta.");
+      return;
     }
-    return true;
-  });
+
+    setIsSubmittingClosure(true);
+    try {
+      const orientationsList = closureOrientations
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const prescriptionsList = closurePrescriptions
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const res = await closeChatConsultationAction(consultancySlug, activeChat.publicId, {
+        summary: closureSummary.trim(),
+        orientations: orientationsList.length > 0 ? orientationsList : undefined,
+        prescriptions: prescriptionsList.length > 0 ? prescriptionsList : undefined,
+        returnPredictionDays: closureReturnPredictionDays,
+        privateNotes: closurePrivateNotes.trim() || undefined,
+      });
+
+      if (res.ok) {
+        setUpdatedConsultations((prev) => ({
+          ...prev,
+          [activeChat.publicId]: {
+            ...(prev[activeChat.publicId] || {}),
+            status: "COMPLETED",
+            closedAt: new Date().toISOString(),
+            closedByUserId: currentUserId,
+            privateNotes: closurePrivateNotes.trim() || null,
+          },
+        }));
+
+        // Refresh messages to show the closure card
+        const updatedMsgs = await fetch(
+          `/api/consultancies/${consultancySlug}/chat/messages?chat=${activeChat.publicId}`
+        ).then((r) => (r.ok ? r.json() : { messages: [] }));
+        setMessages(updatedMsgs.messages || []);
+
+        setIsClosureModalOpen(false);
+        setClosureSummary("");
+        setClosureOrientations("");
+        setClosurePrescriptions("");
+        setClosurePrivateNotes("");
+      } else {
+        setClosureError(res.error || "Erro ao finalizar consulta.");
+      }
+    } catch {
+      setClosureError("Erro na conexão ao finalizar consulta.");
+    } finally {
+      setIsSubmittingClosure(false);
+    }
+  };
+
+  // Submit return consultation request
+  const handleSubmitReturn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeChat) return;
+    setReturnError(null);
+
+    if (!returnDate || !returnTime) {
+      setReturnError("Informe a data e horário de referência do retorno.");
+      return;
+    }
+
+    setIsSubmittingReturn(true);
+    try {
+      const res = await requestReturnConsultationAction(consultancySlug, activeChat.publicId, {
+        referenceDate: returnDate,
+        referenceTime: returnTime,
+        title: returnTopic.trim() || undefined,
+        expectedResponseHours: returnExpectedHours,
+      });
+
+      if (res.ok && res.data) {
+        const newChat = res.data as ChatConsultationDto;
+        setCreatedConsultations((prev) => [newChat, ...prev.filter((c) => c.publicId !== newChat.publicId)]);
+        setSelectedChatPublicId(newChat.publicId);
+        setIsReturnModalOpen(false);
+        setReturnDate("");
+        setReturnTime("");
+        setReturnTopic("Consulta de Retorno");
+        setMobileScreen("CHAT");
+      } else {
+        setReturnError(res.error || "Erro ao agendar consulta de retorno.");
+      }
+    } catch {
+      setReturnError("Erro na conexão ao solicitar retorno.");
+    } finally {
+      setIsSubmittingReturn(false);
+    }
+  };
+
+  // Filter consultations by selected queue and search
+  const filteredConsultations = useMemo(() => {
+    return consultations.filter((c) => {
+      // Queue Filter
+      if (isProfessional) {
+        if (activeQueueTab !== "ALL" && getProQueueKey(c) !== activeQueueTab) {
+          return false;
+        }
+      } else {
+        if (activeQueueTab !== "ALL" && getStudentQueueKey(c) !== activeQueueTab) {
+          return false;
+        }
+      }
+
+      // Search Filter
+      if (searchFilter.trim()) {
+        const targetName = isProfessional ? c.studentName : c.professionalName;
+        const targetTopic = c.topic || c.title || "";
+        const query = searchFilter.toLowerCase().trim();
+        if (!targetName.toLowerCase().includes(query) && !targetTopic.toLowerCase().includes(query)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [consultations, activeQueueTab, searchFilter, isProfessional]);
 
   const STATUS_CONFIG: Record<
     ChatConsultationStatus,
@@ -408,7 +688,7 @@ export function TrevoChatWorkspace({
       badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
     },
     CONFIRMED: {
-      label: "Liberado",
+      label: "Em andamento",
       badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     AWAITING_STUDENT: {
@@ -435,39 +715,38 @@ export function TrevoChatWorkspace({
 
   const isProposer = activeChat?.proposedByUserId === currentUserId;
   const isMessagingUnlocked = activeChat ? isChatMessagingUnlocked(activeChat.status) : false;
+  const isCompleted = activeChat?.status === "COMPLETED" || Boolean(activeChat?.closedAt);
 
   return (
     <div className="flex-1 w-full flex bg-[var(--surface-subtle)] overflow-hidden rounded-2xl border border-[var(--border-subtle)] min-h-[640px] max-h-[calc(100vh-140px)] shadow-xs">
       {/* -------------------------------------------------------------------- */}
-      {/* LEFT PANE: Conversation List (Visible on desktop or mobile screen 'LIST') */}
+      {/* LEFT PANE: Queues & Consultation List                                */}
       {/* -------------------------------------------------------------------- */}
       <div
         className={`w-full md:w-80 lg:w-96 flex flex-col bg-[var(--surface)] border-r border-[var(--border-subtle)] shrink-0 ${
           mobileScreen === "CHAT" ? "hidden md:flex" : "flex"
         }`}
       >
-        {/* List Header */}
+        {/* Header & New Button */}
         <div className="p-3.5 border-b border-[var(--border-subtle)] space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
               <span>💬 Trevo Chat</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-semibold">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-bold">
                 {consultations.length}
               </span>
             </h2>
 
-            {isProfessional && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsNewChatModalOpen(true);
-                  setProposalError(null);
-                }}
-                className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
-              >
-                <span>+ Agendar</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setIsNewChatModalOpen(true);
+                setProposalError(null);
+              }}
+              className="min-h-[36px] px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs active:scale-95"
+            >
+              <span>+ Novo Atendimento</span>
+            </button>
           </div>
 
           {/* Search Box */}
@@ -476,11 +755,11 @@ export function TrevoChatWorkspace({
               type="text"
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Buscar por nome..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500"
+              placeholder="Buscar por nome ou assunto..."
+              className="w-full pl-8 pr-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500"
             />
             <svg
-              className="w-4 h-4 absolute left-2.5 top-2 text-[var(--text-tertiary)]"
+              className="w-4 h-4 absolute left-2.5 top-2.5 text-[var(--text-tertiary)]"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -489,52 +768,135 @@ export function TrevoChatWorkspace({
             </svg>
           </div>
 
-          {/* Status Filter Pills */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px]">
-            <button
-              type="button"
-              onClick={() => setStatusFilter("ALL")}
-              className={`px-2.5 py-1 rounded-full font-semibold cursor-pointer shrink-0 transition-colors ${
-                statusFilter === "ALL"
-                  ? "bg-emerald-600 text-white"
-                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-              }`}
-            >
-              Todos
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("PROPOSED")}
-              className={`px-2.5 py-1 rounded-full font-semibold cursor-pointer shrink-0 transition-colors ${
-                statusFilter === "PROPOSED"
-                  ? "bg-amber-600 text-white"
-                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-              }`}
-            >
-              Propostas
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("CONFIRMED")}
-              className={`px-2.5 py-1 rounded-full font-semibold cursor-pointer shrink-0 transition-colors ${
-                statusFilter === "CONFIRMED"
-                  ? "bg-emerald-600 text-white"
-                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-              }`}
-            >
-              Liberados
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("COMPLETED")}
-              className={`px-2.5 py-1 rounded-full font-semibold cursor-pointer shrink-0 transition-colors ${
-                statusFilter === "COMPLETED"
-                  ? "bg-zinc-600 text-white"
-                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
-              }`}
-            >
-              Concluídos
-            </button>
+          {/* Queues Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] scrollbar-none">
+            {isProfessional ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setActiveQueueTab("PRECISO_RESPONDER")}
+                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
+                    activeQueueTab === "PRECISO_RESPONDER"
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
+                  }`}
+                >
+                  <span>Preciso responder</span>
+                  <span className="text-[10px] opacity-80">
+                    ({(queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER || 0})
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveQueueTab("AGUARDANDO_ALUNO")}
+                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
+                    activeQueueTab === "AGUARDANDO_ALUNO"
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
+                  }`}
+                >
+                  <span>Aguardando aluno</span>
+                  <span className="text-[10px] opacity-80">
+                    ({(queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO || 0})
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveQueueTab("SOLICITACOES_RECEBIDAS")}
+                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
+                    activeQueueTab === "SOLICITACOES_RECEBIDAS"
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
+                  }`}
+                >
+                  <span>Solicitações</span>
+                  <span className="text-[10px] opacity-80">
+                    ({(queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS || 0})
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveQueueTab("CONCLUIDOS")}
+                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
+                    activeQueueTab === "CONCLUIDOS"
+                      ? "bg-zinc-700 text-white shadow-xs"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
+                  }`}
+                >
+                  <span>Concluídos</span>
+                  <span className="text-[10px] opacity-80">
+                    ({(queueCounts as Record<ProQueue, number>).CONCLUIDOS || 0})
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveQueueTab("ALL")}
+                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors min-h-[32px] ${
+                    activeQueueTab === "ALL"
+                      ? "bg-emerald-800 text-white"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
+                  }`}
+                >
+                  Todos ({consultations.length})
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setActiveQueueTab("EM_ATENDIMENTO")}
+                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
+                    activeQueueTab === "EM_ATENDIMENTO"
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
+                  }`}
+                >
+                  <span>Em atendimento</span>
+                  <span className="text-[10px] opacity-80">
+                    ({(queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO || 0})
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveQueueTab("SOLICITACOES")}
+                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
+                    activeQueueTab === "SOLICITACOES"
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
+                  }`}
+                >
+                  <span>Solicitações</span>
+                  <span className="text-[10px] opacity-80">
+                    ({(queueCounts as Record<StudentQueue, number>).SOLICITACOES || 0})
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveQueueTab("CONCLUIDAS")}
+                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1 min-h-[32px] ${
+                    activeQueueTab === "CONCLUIDAS"
+                      ? "bg-zinc-700 text-white shadow-xs"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
+                  }`}
+                >
+                  <span>Concluídas</span>
+                  <span className="text-[10px] opacity-80">
+                    ({(queueCounts as Record<StudentQueue, number>).CONCLUIDAS || 0})
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveQueueTab("ALL")}
+                  className={`px-2.5 py-1.5 rounded-xl font-bold cursor-pointer shrink-0 transition-colors min-h-[32px] ${
+                    activeQueueTab === "ALL"
+                      ? "bg-emerald-800 text-white"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)]"
+                  }`}
+                >
+                  Todos ({consultations.length})
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -542,16 +904,14 @@ export function TrevoChatWorkspace({
         <div className="flex-1 overflow-y-auto divide-y divide-[var(--border-subtle)]">
           {filteredConsultations.length === 0 ? (
             <div className="p-6 text-center text-xs text-[var(--text-tertiary)] space-y-2">
-              <p>Nenhum atendimento encontrado.</p>
-              {isProfessional && (
-                <button
-                  type="button"
-                  onClick={() => setIsNewChatModalOpen(true)}
-                  className="text-emerald-600 hover:underline font-semibold cursor-pointer"
-                >
-                  Agendar com um aluno
-                </button>
-              )}
+              <p>Nenhum atendimento nesta fila.</p>
+              <button
+                type="button"
+                onClick={() => setIsNewChatModalOpen(true)}
+                className="text-emerald-600 hover:underline font-semibold cursor-pointer"
+              >
+                + Iniciar atendimento
+              </button>
             </div>
           ) : (
             filteredConsultations.map((c) => {
@@ -559,6 +919,7 @@ export function TrevoChatWorkspace({
               const displayName = isProfessional ? c.studentName : c.professionalName;
               const unreadCount = isProfessional ? c.unreadCountProfessional : c.unreadCountStudent;
               const statusCfg = STATUS_CONFIG[c.status] || STATUS_CONFIG.CONFIRMED;
+              const isVideo = c.modality === "VIDEO";
 
               return (
                 <div
@@ -578,9 +939,11 @@ export function TrevoChatWorkspace({
                       : "hover:bg-[var(--surface-subtle)]"
                   }`}
                 >
-                  {/* Initials Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
-                    {displayName.charAt(0).toUpperCase()}
+                  {/* Avatar */}
+                  <div className={`w-10 h-10 rounded-full font-bold text-sm flex items-center justify-center shrink-0 shadow-xs ${
+                    isVideo ? "bg-purple-600 text-white" : "bg-emerald-600 text-white"
+                  }`}>
+                    {isVideo ? "📹" : displayName.charAt(0).toUpperCase()}
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -599,15 +962,32 @@ export function TrevoChatWorkspace({
                     </div>
 
                     <p className="text-xs text-[var(--text-secondary)] truncate mb-1.5 opacity-90">
-                      {c.lastMessagePreview || (c.status === "PROPOSED" ? "Proposta de agendamento pendente" : "Nenhuma mensagem ainda")}
+                      {isVideo
+                        ? `📹 Consulta em vídeo (${c.proposedStartFormatted || "Histórico"})`
+                        : c.lastMessagePreview ||
+                          (c.status === "PROPOSED" ? "Proposta de agendamento pendente" : "Nenhuma mensagem ainda")}
                     </p>
 
-                    <div className="flex items-center justify-between gap-1">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${statusCfg.badgeClass}`}
-                      >
-                        {statusCfg.label}
-                      </span>
+                    <div className="flex items-center justify-between gap-1 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {isVideo ? (
+                          <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
+                            📹 Vídeo (Histórico)
+                          </span>
+                        ) : (
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${statusCfg.badgeClass}`}
+                          >
+                            {statusCfg.label}
+                          </span>
+                        )}
+
+                        {c.expectedResponseHours && !isVideo && (
+                          <span className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
+                            ⏱️ {c.expectedResponseHours}h
+                          </span>
+                        )}
+                      </div>
 
                       {unreadCount > 0 && (
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 text-white shrink-0">
@@ -624,7 +1004,7 @@ export function TrevoChatWorkspace({
       </div>
 
       {/* -------------------------------------------------------------------- */}
-      {/* MIDDLE PANE: Active Chat Conversation */}
+      {/* MIDDLE PANE: Active Chat Conversation or Historical Video Viewer     */}
       {/* -------------------------------------------------------------------- */}
       <div
         className={`flex-1 flex flex-col bg-[var(--surface)] min-w-0 overflow-hidden ${
@@ -632,49 +1012,172 @@ export function TrevoChatWorkspace({
         }`}
       >
         {activeChat ? (
-          <>
-            {/* Conversation Header */}
-            <div className="p-3 sm:p-4 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 bg-[var(--surface)]">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                {/* Mobile Back Button: strict >= 44x44px tap target */}
-                <button
-                  type="button"
-                  onClick={handleBackToList}
-                  aria-label="Voltar para lista de atendimentos"
-                  className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] active:scale-95 cursor-pointer -ml-2"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
+          activeChat.modality === "VIDEO" ? (
+            /* -------------------------------------------------------------- */
+            /* HISTORICAL VIDEO CONSULTATION VIEWER                           */
+            /* -------------------------------------------------------------- */
+            <div className="flex-1 flex flex-col overflow-y-auto">
+              <div className="p-3 sm:p-4 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 bg-[var(--surface)]">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={handleBackToList}
+                    aria-label="Voltar para lista de atendimentos"
+                    className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] active:scale-95 cursor-pointer -ml-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
 
-                <div className="w-9 h-9 rounded-full bg-emerald-600 text-white font-bold text-sm flex items-center justify-center shrink-0">
-                  {(isProfessional ? activeChat.studentName : activeChat.professionalName)
-                    .charAt(0)
-                    .toUpperCase()}
+                  <div className="w-9 h-9 rounded-full bg-purple-600 text-white font-bold text-sm flex items-center justify-center shrink-0">
+                    📹
+                  </div>
+
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                      {isProfessional ? activeChat.studentName : activeChat.professionalName}
+                    </h3>
+                    <p className="text-[11px] text-[var(--text-tertiary)] truncate">
+                      Consulta por Vídeo • Histórico Preservado
+                    </p>
+                  </div>
                 </div>
 
-                <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
-                    {isProfessional ? activeChat.studentName : activeChat.professionalName}
-                  </h3>
-                  <p className="text-[11px] text-[var(--text-tertiary)] truncate">
-                    {isProfessional ? activeChat.studentEmail : activeChat.professionalType === "PERSONAL" ? "Personal Trainer" : "Nutricionista"}
-                  </p>
-                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
+                  📹 Vídeo Realizado
+                </span>
               </div>
 
-              {/* Status and Action Buttons */}
-              <div className="flex items-center gap-2 shrink-0">
-                {isProfessional ? (
-                  activeChat.status === "CONFIRMED" || activeChat.status === "COMPLETED" ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto space-y-4">
+                <div className="w-16 h-16 rounded-3xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-3xl">
+                  📹
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-[var(--text-primary)] mb-1">
+                    Consulta por Vídeo do Formato Anterior
+                  </h4>
+                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                    Esta consulta foi realizada no formato anterior e todos os seus registros de histórico, participantes e datas foram preservados.
+                  </p>
+                </div>
+
+                <div className="w-full p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-left space-y-2 text-xs">
+                  <div className="flex justify-between py-1 border-b border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-tertiary)]">Participante:</span>
+                    <strong className="text-[var(--text-primary)]">{isProfessional ? activeChat.studentName : activeChat.professionalName}</strong>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-tertiary)]">Data de realização:</span>
+                    <span className="text-[var(--text-primary)] font-semibold">{activeChat.proposedStartFormatted || "Data arquivada"}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-[var(--text-tertiary)]">Status:</span>
+                    <span className="text-emerald-600 font-bold">Concluída / Histórico arquivado</span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed text-left">
+                  💬 <strong>Novo Trevo Chat:</strong> Todas as novas consultas agora acontecem de forma assíncrona, contínua e sem necessidade de chamadas de vídeo em tempo real, com prontuário clínico e inteligência artificial.
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsNewChatModalOpen(true);
+                    setProposalTopic(`Continuação de atendimento com ${isProfessional ? activeChat.studentName : activeChat.professionalName}`);
+                  }}
+                  className="min-h-[44px] px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs active:scale-95 cursor-pointer"
+                >
+                  + Iniciar Atendimento no Trevo Chat
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* -------------------------------------------------------------- */
+            /* ACTIVE TREVO CHAT CONVERSATION                                 */
+            /* -------------------------------------------------------------- */
+            <>
+              {/* Header */}
+              <div className="p-3 sm:p-4 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 bg-[var(--surface)]">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={handleBackToList}
+                    aria-label="Voltar para lista de atendimentos"
+                    className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] active:scale-95 cursor-pointer -ml-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+
+                  <div className="w-9 h-9 rounded-full bg-emerald-600 text-white font-bold text-sm flex items-center justify-center shrink-0">
+                    {(isProfessional ? activeChat.studentName : activeChat.professionalName)
+                      .charAt(0)
+                      .toUpperCase()}
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                        {isProfessional ? activeChat.studentName : activeChat.professionalName}
+                      </h3>
+                      {activeChat.expectedResponseHours && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-semibold border border-emerald-500/20">
+                          ⏱️ Responde em até {activeChat.expectedResponseHours}h
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[var(--text-tertiary)] truncate">
+                      {isProfessional
+                        ? activeChat.studentEmail
+                        : activeChat.professionalType === "PERSONAL"
+                        ? "Personal Trainer"
+                        : "Nutricionista"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Actions & Status in Header */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Finalize Button for Professional */}
+                  {isProfessional && !isCompleted && isMessagingUnlocked && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsClosureModalOpen(true);
+                        setClosureError(null);
+                      }}
+                      className="min-h-[36px] px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs active:scale-95"
+                    >
+                      <span>✓ Finalizar Atendimento</span>
+                    </button>
+                  )}
+
+                  {/* Return Consultation Button when Completed */}
+                  {isCompleted && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsReturnModalOpen(true);
+                        setReturnError(null);
+                      }}
+                      className="min-h-[36px] px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs active:scale-95"
+                    >
+                      <span>🔄 Solicitar Retorno</span>
+                    </button>
+                  )}
+
+                  {/* Status Dropdown/Badge */}
+                  {isProfessional && (activeChat.status === "CONFIRMED" || activeChat.status === "COMPLETED") ? (
                     <select
                       value={activeChat.status}
                       onChange={(e) => handleStatusChange(e.target.value as ChatConsultationStatus)}
                       aria-label="Status do atendimento"
-                      className="text-xs px-2.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] font-semibold cursor-pointer focus:outline-none"
+                      className="text-xs px-2.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] font-semibold cursor-pointer focus:outline-none min-h-[36px]"
                     >
-                      <option value="CONFIRMED">Liberado / Em andamento</option>
+                      <option value="CONFIRMED">Em andamento</option>
                       <option value="COMPLETED">Concluído</option>
                     </select>
                   ) : (
@@ -685,207 +1188,186 @@ export function TrevoChatWorkspace({
                     >
                       {(STATUS_CONFIG[activeChat.status] || STATUS_CONFIG.CONFIRMED).label}
                     </span>
-                  )
-                ) : (
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                      (STATUS_CONFIG[activeChat.status] || STATUS_CONFIG.CONFIRMED).badgeClass
-                    }`}
-                  >
-                    {(STATUS_CONFIG[activeChat.status] || STATUS_CONFIG.CONFIRMED).label}
-                  </span>
-                )}
+                  )}
 
-                {/* AI Anamnesis Toggle Button (starts closed on all devices) */}
-                <button
-                  type="button"
-                  onClick={() => setIsAiDrawerOpen((prev) => !prev)}
-                  title="Abrir Anamnese IA"
-                  className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${
-                    isAiDrawerOpen
-                      ? "bg-purple-600 text-white shadow-xs"
-                      : "bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 border border-purple-500/20"
-                  }`}
-                >
-                  <span>🤖</span>
-                  <span className="hidden sm:inline">Anamnese IA</span>
-                </button>
-              </div>
-            </div>
-
-            {/* -------------------------------------------------------------- */}
-            {/* BILATERAL PROPOSAL / CONFIRMED BANNERS                         */}
-            {/* -------------------------------------------------------------- */}
-            {activeChat.status === "PROPOSED" && (
-              !isProposer ? (
-                /* Recipient banner: Accept, Suggest new time, Decline */
-                <div className="p-4 m-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                      📅
-                    </div>
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">
-                          Proposta de Agendamento Recebida
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300">
-                          Aguardando seu aceite
-                        </span>
-                      </div>
-                      <p className="text-xs text-[var(--text-secondary)]">
-                        Horário de referência: <strong>{activeChat.proposedStartFormatted || "A combinar"}</strong>
-                        {activeChat.topic && <span> • Foco: <em>{activeChat.topic}</em></span>}
-                      </p>
-                      <p className="text-[11px] text-[var(--text-tertiary)]">
-                        O horário é apenas uma referência na sua agenda. Após o aceite mútuo, a conversa é liberada e cada um responde quando puder.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-2 border-t border-amber-500/20 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => handleAcceptProposal(activeChat.publicId)}
-                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs active:scale-95"
-                    >
-                      Aceitar agendamento
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCounterModalOpen(true);
-                        setCounterError(null);
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-active)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-default)] cursor-pointer transition-colors"
-                    >
-                      Propor outro horário
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsDeclineModalOpen(true)}
-                      className="px-3 py-1.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold cursor-pointer transition-colors"
-                    >
-                      Recusar
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* Proposer banner: Awaiting counterpart confirmation */
-                <div className="p-4 m-3 rounded-2xl bg-blue-500/10 border border-blue-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                      ⏳
-                    </div>
-                    <div className="space-y-0.5 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">
-                          Proposta enviada
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-700 dark:text-blue-300">
-                          Aguardando confirmação do {isProfessional ? "aluno" : "profissional"}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[var(--text-secondary)]">
-                        Horário de referência: <strong>{activeChat.proposedStartFormatted || "A combinar"}</strong>
-                        {activeChat.topic && <span> • Foco: <em>{activeChat.topic}</em></span>}
-                      </p>
-                      <p className="text-[11px] text-[var(--text-tertiary)]">
-                        Assim que o participante confirmar, a troca de mensagens assíncronas será liberada.
-                      </p>
-                    </div>
-                  </div>
-
+                  {/* AI Anamnesis / Prontuário Drawer Toggle */}
                   <button
                     type="button"
-                    onClick={() => handleCancelProposal(activeChat.publicId)}
-                    className="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 self-end sm:self-auto cursor-pointer"
+                    onClick={() => setIsAiDrawerOpen((prev) => !prev)}
+                    title="Abrir Prontuário e IA"
+                    className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      isAiDrawerOpen
+                        ? "bg-purple-600 text-white shadow-xs"
+                        : "bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 border border-purple-500/20"
+                    }`}
                   >
-                    Cancelar proposta
+                    <span>🤖</span>
+                    <span className="hidden sm:inline">Prontuário & IA</span>
                   </button>
                 </div>
-              )
-            )}
+              </div>
 
-            {activeChat.status === "CONFIRMED" && (
-              <div className="px-4 py-2 bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[var(--text-secondary)]">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                  <span>
-                    Atendimento liberado
-                    {activeChat.proposedStartFormatted && (
-                      <> • Referência: <strong className="text-[var(--text-primary)]">{activeChat.proposedStartFormatted}</strong></>
-                    )}
-                    {activeChat.topic && (
-                      <span className="text-[var(--text-tertiary)]"> ({activeChat.topic})</span>
-                    )}
-                  </span>
+              {/* Bilateral Proposal Banners */}
+              {activeChat.status === "PROPOSED" && (
+                !isProposer ? (
+                  <div className="p-4 m-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                        📅
+                      </div>
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-[var(--text-primary)]">
+                            Proposta de Agendamento Recebida
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                            Aguardando seu aceite
+                          </span>
+                        </div>
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          Horário de referência: <strong>{activeChat.proposedStartFormatted || "A combinar"}</strong>
+                          {activeChat.topic && <span> • Foco: <em>{activeChat.topic}</em></span>}
+                        </p>
+                        <p className="text-[11px] text-[var(--text-tertiary)]">
+                          O horário é apenas uma referência para organização da agenda. A conversa é assíncrona e cada um responde quando puder.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-amber-500/20 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => handleAcceptProposal(activeChat.publicId)}
+                        className="min-h-[40px] px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs active:scale-95"
+                      >
+                        Aceitar agendamento
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCounterModalOpen(true);
+                          setCounterError(null);
+                        }}
+                        className="min-h-[40px] px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-active)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-default)] cursor-pointer transition-colors"
+                      >
+                        Propor outro horário
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsDeclineModalOpen(true)}
+                        className="min-h-[40px] px-3 py-1.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold cursor-pointer transition-colors"
+                      >
+                        Recusar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 m-3 rounded-2xl bg-blue-500/10 border border-blue-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                        ⏳
+                      </div>
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-[var(--text-primary)]">
+                            Proposta enviada
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-700 dark:text-blue-300">
+                            Aguardando confirmação do {isProfessional ? "aluno" : "profissional"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          Horário de referência: <strong>{activeChat.proposedStartFormatted || "A combinar"}</strong>
+                          {activeChat.topic && <span> • Foco: <em>{activeChat.topic}</em></span>}
+                        </p>
+                        <p className="text-[11px] text-[var(--text-tertiary)]">
+                          Assim que o agendamento for confirmado bilateralmente, o chat será liberado.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleCancelProposal(activeChat.publicId)}
+                      className="min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 self-end sm:self-auto cursor-pointer"
+                    >
+                      Cancelar proposta
+                    </button>
+                  </div>
+                )
+              )}
+
+              {activeChat.status === "DECLINED" && (
+                <div className="p-3.5 m-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400 space-y-1">
+                  <div className="font-bold">Agendamento recusado</div>
+                  {activeChat.declinedReason && <p>Motivo informado: {activeChat.declinedReason}</p>}
                 </div>
-                <span className="text-[11px] text-[var(--text-tertiary)]">
-                  Atendimento assíncrono • Responda quando puder
-                </span>
-              </div>
-            )}
+              )}
 
-            {activeChat.status === "DECLINED" && (
-              <div className="p-3 m-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400 space-y-1">
-                <div className="font-bold">Agendamento recusado</div>
-                {activeChat.declinedReason && <p>Motivo: {activeChat.declinedReason}</p>}
-              </div>
-            )}
+              {activeChat.status === "CANCELED" && (
+                <div className="p-3.5 m-3 rounded-2xl bg-zinc-500/10 border border-zinc-500/20 text-xs text-[var(--text-secondary)]">
+                  Agendamento cancelado.
+                </div>
+              )}
 
-            {activeChat.status === "CANCELED" && (
-              <div className="p-3 m-3 rounded-2xl bg-zinc-500/10 border border-zinc-500/20 text-xs text-[var(--text-secondary)]">
-                Agendamento cancelado.
-              </div>
-            )}
+              {/* Messages Body */}
+              {isLoadingMessages ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <span className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <ChatMessageList
+                  messages={messages}
+                  currentUserId={currentUserId}
+                  consultancySlug={consultancySlug}
+                  onReplyMessage={(msg) =>
+                    setReplyingTo({
+                      id: msg.id,
+                      senderName: msg.senderName,
+                      content: msg.content || (msg.messageType === "AUDIO" ? "Áudio" : "Anexo"),
+                    })
+                  }
+                  isProfessional={isProfessional}
+                />
+              )}
 
-            {/* Messages Body */}
-            {isLoadingMessages ? (
-              <div className="flex-1 flex items-center justify-center">
-                <span className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : (
-              <ChatMessageList
-                messages={messages}
-                currentUserId={currentUserId}
-                consultancySlug={consultancySlug}
+              {/* Chat Input Bar */}
+              <ChatInputBar
+                onSendMessage={handleSendMessage}
+                isSending={isSending}
+                disabled={!isMessagingUnlocked || (isCompleted && !isProfessional)}
+                disabledMessage={
+                  !isMessagingUnlocked
+                    ? "Aguardando confirmação bilateral do agendamento para liberar as mensagens."
+                    : isCompleted
+                    ? "Este atendimento foi concluído. Utilize o botão acima para solicitar retorno."
+                    : undefined
+                }
+                isProfessional={isProfessional}
+                replyingTo={replyingTo}
+                onCancelReply={() => setReplyingTo(null)}
               />
-            )}
-
-            {/* Input Bar */}
-            <ChatInputBar
-              onSendMessage={handleSendMessage}
-              isSending={isSending}
-              disabled={!isMessagingUnlocked || (activeChat.status === "COMPLETED" && !isProfessional)}
-              disabledMessage={
-                !isMessagingUnlocked
-                  ? "Aguardando confirmação do agendamento por ambos os participantes para liberar as mensagens."
-                  : activeChat.status === "COMPLETED"
-                  ? "Este atendimento foi concluído."
-                  : undefined
-              }
-            />
-          </>
+            </>
+          )
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-[var(--text-tertiary)]">
-            <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3">
+            <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3 text-3xl">
               💬
             </div>
             <h3 className="text-base font-bold text-[var(--text-primary)] mb-1">
               Selecione um atendimento
             </h3>
             <p className="text-xs max-w-sm">
-              Escolha uma conversa na lista ao lado ou agende um novo atendimento com referência de agenda.
+              Escolha uma conversa na fila ao lado ou inicie um novo atendimento assíncrono.
             </p>
           </div>
         )}
       </div>
 
       {/* -------------------------------------------------------------------- */}
-      {/* RIGHT PANE: AI Anamnesis Proposal (Starts CLOSED on ALL devices)       */}
+      {/* RIGHT PANE: AI Anamnesis, Private Notes & SOAP Panel                  */}
       {/* -------------------------------------------------------------------- */}
-      {activeChat && isAiDrawerOpen && (
+      {activeChat && isAiDrawerOpen && activeChat.modality !== "VIDEO" && (
         <div className="fixed inset-0 z-40 md:relative md:inset-auto md:w-80 lg:w-96 shrink-0 flex transition-all">
           <AIAnamnesisPanel
             proposal={activeChat.aiAnamnesisJson}
@@ -893,6 +1375,7 @@ export function TrevoChatWorkspace({
             consultancySlug={consultancySlug}
             aiStatus={activeChat.aiAnamnesisStatus}
             isProfessional={isProfessional}
+            initialPrivateNotes={activeChat.privateNotes}
             onClose={() => setIsAiDrawerOpen(false)}
           />
         </div>
@@ -911,16 +1394,16 @@ export function TrevoChatWorkspace({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-[var(--text-primary)]">
-                  Agendar Trevo Chat
+                  Novo Atendimento no Trevo Chat
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  Defina o aluno e uma referência de data/horário na agenda.
+                  Defina o participante, data de referência e expectativa de resposta.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsNewChatModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-black/10 text-[var(--text-secondary)] cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-black/10 text-[var(--text-secondary)] cursor-pointer"
               >
                 ✕
               </button>
@@ -933,8 +1416,8 @@ export function TrevoChatWorkspace({
             )}
 
             <form onSubmit={handleSubmitProposal} className="space-y-4">
-              {/* Student Picker (for Professional) */}
-              {isProfessional && (
+              {/* Participant Selection */}
+              {isProfessional ? (
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[var(--text-primary)]">
                     Aluno
@@ -997,7 +1480,28 @@ export function TrevoChatWorkspace({
                     </div>
                   )}
                 </div>
-              )}
+              ) : activeProfessionals.length > 1 ? (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[var(--text-primary)]">
+                    Profissional
+                  </label>
+                  <select
+                    value={selectedProfessionalForProposal?.membershipId || ""}
+                    onChange={(e) => {
+                      const found = activeProfessionals.find((p) => p.membershipId === Number(e.target.value));
+                      setSelectedProfessionalForProposal(found || null);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="">Selecione o profissional...</option>
+                    {activeProfessionals.map((p) => (
+                      <option key={p.membershipId} value={p.membershipId}>
+                        {p.name} ({p.role === "PERSONAL" ? "Personal Trainer" : "Nutricionista"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
 
               {/* Date & Time Inputs */}
               <div className="grid grid-cols-2 gap-3">
@@ -1027,36 +1531,73 @@ export function TrevoChatWorkspace({
                 </div>
               </div>
 
-              {/* Topic / Title */}
+              {/* Expected Response Time */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-[var(--text-primary)]">
-                  Foco da consulta (opcional)
+                  Expectativa de resposta
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[12, 24, 48].map((hours) => (
+                    <button
+                      key={hours}
+                      type="button"
+                      onClick={() => setProposalExpectedHours(hours)}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                        proposalExpectedHours === hours
+                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--surface-active)]"
+                      }`}
+                    >
+                      Até {hours}h
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Topic / Focus */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[var(--text-primary)]">
+                  Foco do atendimento (opcional)
                 </label>
                 <input
                   type="text"
                   value={proposalTopic}
                   onChange={(e) => setProposalTopic(e.target.value)}
-                  placeholder="Ex: Alinhamento de metas, dúvidas sobre treino..."
+                  placeholder="Ex: Alinhamento de metas, dúvidas sobre treino/dieta..."
                   className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
+              {/* Initial Message */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[var(--text-primary)]">
+                  Mensagem inicial (opcional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={proposalInitialMessage}
+                  onChange={(e) => setProposalInitialMessage(e.target.value)}
+                  placeholder="Envie uma mensagem inicial para contextualizar..."
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 resize-none"
+                />
+              </div>
+
               <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-tertiary)] leading-relaxed">
-                ℹ️ O horário registrado serve como referência na agenda. A conversa é assíncrona e será liberada assim que o agendamento for confirmado por ambos os participantes.
+                ℹ️ O agendamento entra na agenda de ambos e a troca de mensagens assíncronas é liberada após a confirmação mútua.
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => setIsNewChatModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingProposal}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs disabled:opacity-50"
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs disabled:opacity-50"
                 >
                   {isSubmittingProposal ? "Enviando..." : "Enviar proposta"}
                 </button>
@@ -1126,14 +1667,14 @@ export function TrevoChatWorkspace({
                 <button
                   type="button"
                   onClick={() => setIsCounterModalOpen(false)}
-                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
                 >
                   Voltar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingCounter}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50"
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50"
                 >
                   {isSubmittingCounter ? "Enviando..." : "Enviar sugestão"}
                 </button>
@@ -1184,16 +1725,274 @@ export function TrevoChatWorkspace({
                 <button
                   type="button"
                   onClick={() => setIsDeclineModalOpen(false)}
-                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
                 >
                   Voltar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingDecline}
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50"
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50"
                 >
                   {isSubmittingDecline ? "Recusando..." : "Confirmar recusa"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------------- */}
+      {/* MODAL 4: Closure Modal ("Finalizar Consulta")                         */}
+      {/* -------------------------------------------------------------------- */}
+      {isClosureModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+        >
+          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-3xl w-full max-w-lg p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+                  <span>✓ Finalizar Atendimento</span>
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  Conclusão clínica e entrega das orientações do ciclo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsClosureModalOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-black/10 text-[var(--text-secondary)] cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {closureError && (
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                {closureError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitClosure} className="space-y-4">
+              {/* Summary */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
+                  <span>Resumo do atendimento (obrigatório)</span>
+                  <span className="text-[10px] text-[var(--text-tertiary)]">Visível ao aluno</span>
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={closureSummary}
+                  onChange={(e) => setClosureSummary(e.target.value)}
+                  placeholder="Ex: Consulta realizada com alinhamento de protocolo de treino e ajustes na hidratação..."
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 resize-none"
+                />
+              </div>
+
+              {/* Orientations */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
+                  <span>Orientações clínicas (uma por linha)</span>
+                  <span className="text-[10px] text-[var(--text-tertiary)]">Visível ao aluno</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={closureOrientations}
+                  onChange={(e) => setClosureOrientations(e.target.value)}
+                  placeholder="Ex: Ingerir 3L de água ao dia&#10;Manter descanso de 72h entre treinos de perna"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 resize-none"
+                />
+              </div>
+
+              {/* Prescriptions */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
+                  <span>Prescrições / Ajustes (uma por linha)</span>
+                  <span className="text-[10px] text-[var(--text-tertiary)]">Visível ao aluno</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={closurePrescriptions}
+                  onChange={(e) => setClosurePrescriptions(e.target.value)}
+                  placeholder="Ex: Creatina 5g pós-treino&#10;Whey protein 30g com frutas"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 resize-none"
+                />
+              </div>
+
+              {/* Return Prediction */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-[var(--text-primary)]">
+                  Previsão de retorno recomendada
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[15, 30, 45, 60].map((days) => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => setClosureReturnPredictionDays(days)}
+                      className={`py-2 px-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                        closureReturnPredictionDays === days
+                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--surface-active)]"
+                      }`}
+                    >
+                      {days} dias
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Private Notes */}
+              <div className="space-y-1 pt-1 border-t border-[var(--border-subtle)]">
+                <label className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center justify-between">
+                  <span>🔒 Notas privadas do profissional</span>
+                  <span className="text-[10px] font-semibold">Exclusivo do prontuário (nunca exposto ao aluno)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={closurePrivateNotes}
+                  onChange={(e) => setClosurePrivateNotes(e.target.value)}
+                  placeholder="Anotações clínicas confidenciais, hipóteses diagnósticas ou pontos de atenção para o próximo retorno..."
+                  className="w-full px-3 py-2 rounded-xl bg-amber-500/5 border border-amber-500/25 text-xs text-[var(--text-primary)] focus:outline-none focus:border-amber-500 resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                <button
+                  type="button"
+                  onClick={() => setIsClosureModalOpen(false)}
+                  className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+                >
+                  Voltar ao chat
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingClosure}
+                  className="min-h-[44px] px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs disabled:opacity-50"
+                >
+                  {isSubmittingClosure ? "Finalizando..." : "Confirmar Encerramento"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------------- */}
+      {/* MODAL 5: Return Consultation Modal ("Solicitar Retorno")               */}
+      {/* -------------------------------------------------------------------- */}
+      {isReturnModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+        >
+          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+                  <span>🔄 Solicitar Consulta de Retorno</span>
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  Vinculada ao histórico do atendimento anterior.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReturnModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-black/10 text-[var(--text-secondary)] cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {returnError && (
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                {returnError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitReturn} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-[var(--text-primary)]">
+                    Data do retorno
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={returnDate}
+                    onChange={(e) => setReturnDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-[var(--text-primary)]">
+                    Horário de referência
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={returnTime}
+                    onChange={(e) => setReturnTime(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[var(--text-primary)]">
+                  Objetivo do retorno
+                </label>
+                <input
+                  type="text"
+                  value={returnTopic}
+                  onChange={(e) => setReturnTopic(e.target.value)}
+                  placeholder="Ex: Reavaliação de medidas, novos ajustes..."
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[var(--text-primary)]">
+                  Expectativa de resposta
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[12, 24, 48].map((hours) => (
+                    <button
+                      key={hours}
+                      type="button"
+                      onClick={() => setReturnExpectedHours(hours)}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                        returnExpectedHours === hours
+                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--surface-active)]"
+                      }`}
+                    >
+                      Até {hours}h
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                <button
+                  type="button"
+                  onClick={() => setIsReturnModalOpen(false)}
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingReturn}
+                  className="min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  {isSubmittingReturn ? "Enviando..." : "Confirmar retorno"}
                 </button>
               </div>
             </form>

@@ -32,7 +32,23 @@ export type ChatMessageType =
   | "IMAGE"
   | "AUDIO"
   | "VIDEO"
-  | "DOCUMENT";
+  | "DOCUMENT"
+  | "FORM_REQUEST"
+  | "PHOTO_REQUEST"
+  | "DOCUMENT_REQUEST"
+  | "CLINICAL_GUIDANCE"
+  | "WORKOUT_CARD"
+  | "MEAL_PLAN_CARD"
+  | "CLOSURE_CARD";
+
+export interface ClosureSummaryDto {
+  summary: string;
+  orientations?: string[];
+  prescriptions?: string[];
+  returnPredictionDays?: number | null;
+  closedByName?: string;
+  closedAtFormatted?: string;
+}
 
 export interface ChatConsultationDto {
   id: number;
@@ -48,6 +64,14 @@ export interface ChatConsultationDto {
   professionalType: "PERSONAL" | "NUTRITIONIST";
   title: string;
   status: ChatConsultationStatus;
+  expectedResponseHours?: number | null;
+  closedAt?: string | null;
+  closedByUserId?: number | null;
+  closureSummaryJson?: ClosureSummaryDto | null;
+  privateNotes?: string | null;
+  linkedPreviousConsultationId?: number | null;
+  modality?: "CHAT" | "VIDEO";
+  counterpartRole?: string;
   proposedByUserId: number | null;
   proposedStartAt: string | null;
   proposedStartFormatted?: string | null;
@@ -72,6 +96,7 @@ export interface ChatConsultationDto {
 export interface ChatMessageDto {
   id: number;
   publicId: string;
+  clientMessageId?: string | null;
   consultationId: number;
   consultationPublicId: string;
   senderUserId: number;
@@ -79,6 +104,13 @@ export interface ChatMessageDto {
   senderName: string;
   content: string | null;
   messageType: ChatMessageType;
+  payloadJson?: Record<string, unknown> | null;
+  replyToMessageId?: number | null;
+  replyToSnippet?: {
+    senderName: string;
+    content: string;
+    messageType: ChatMessageType;
+  } | null;
   attachmentUrl: string | null;
   attachmentName: string | null;
   attachmentSizeBytes: number | null;
@@ -86,6 +118,7 @@ export interface ChatMessageDto {
   audioDurationSeconds: number | null;
   readAt: string | null;
   createdAt: string;
+  deliveryStatus?: "sending" | "sent" | "read" | "error";
 }
 
 let _chatSchemaChecked = false;
@@ -156,6 +189,12 @@ export async function ensureChatTablesExist(): Promise<void> {
         { name: "declined_at", ddl: "ADD COLUMN declined_at DATETIME(3) NULL DEFAULT NULL" },
         { name: "canceled_at", ddl: "ADD COLUMN canceled_at DATETIME(3) NULL DEFAULT NULL" },
         { name: "confirmed_form_request_id", ddl: "ADD COLUMN confirmed_form_request_id BIGINT UNSIGNED NULL DEFAULT NULL" },
+        { name: "expected_response_hours", ddl: "ADD COLUMN expected_response_hours INT UNSIGNED NULL DEFAULT 24" },
+        { name: "closed_at", ddl: "ADD COLUMN closed_at DATETIME(3) NULL DEFAULT NULL" },
+        { name: "closed_by_user_id", ddl: "ADD COLUMN closed_by_user_id BIGINT UNSIGNED NULL DEFAULT NULL" },
+        { name: "closure_summary_json", ddl: "ADD COLUMN closure_summary_json JSON NULL DEFAULT NULL" },
+        { name: "private_notes", ddl: "ADD COLUMN private_notes TEXT NULL DEFAULT NULL" },
+        { name: "linked_previous_consultation_id", ddl: "ADD COLUMN linked_previous_consultation_id BIGINT UNSIGNED NULL DEFAULT NULL" },
       ];
 
       for (const col of columnsToAdd) {
@@ -171,7 +210,7 @@ export async function ensureChatTablesExist(): Promise<void> {
       // Check indexes on chat_consultations
       try {
         const [existingIndexes] = await pool.query<RowDataPacket[]>(
-          `SHOW INDEX FROM chat_consultations WHERE Key_name IN ('idx_chat_consultations_proposed', 'idx_chat_consultations_proposed_by')`
+          `SHOW INDEX FROM chat_consultations WHERE Key_name IN ('idx_chat_consultations_proposed', 'idx_chat_consultations_proposed_by', 'idx_chat_consultations_closed', 'idx_chat_consultations_linked')`
         );
         const indexSet = new Set(
           (existingIndexes as Array<{ Key_name: string }>).map((idx) => idx.Key_name)
@@ -191,6 +230,20 @@ export async function ensureChatTablesExist(): Promise<void> {
             );
           } catch {}
         }
+        if (!indexSet.has("idx_chat_consultations_closed")) {
+          try {
+            await pool.query(
+              `ALTER TABLE chat_consultations ADD KEY idx_chat_consultations_closed (consultancy_id, closed_at)`
+            );
+          } catch {}
+        }
+        if (!indexSet.has("idx_chat_consultations_linked")) {
+          try {
+            await pool.query(
+              `ALTER TABLE chat_consultations ADD KEY idx_chat_consultations_linked (linked_previous_consultation_id)`
+            );
+          } catch {}
+        }
       } catch {}
     } catch (inspectErr) {
       console.warn("[Trevo Chat] Error inspecting chat_consultations columns:", inspectErr);
@@ -200,10 +253,13 @@ export async function ensureChatTablesExist(): Promise<void> {
       CREATE TABLE IF NOT EXISTS \`chat_messages\` (
         \`id\` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
         \`public_id\` CHAR(36) NOT NULL,
+        \`client_message_id\` VARCHAR(64) NULL DEFAULT NULL,
         \`consultation_id\` BIGINT UNSIGNED NOT NULL,
+        \`reply_to_message_id\` BIGINT UNSIGNED NULL DEFAULT NULL,
         \`sender_user_id\` BIGINT UNSIGNED NOT NULL,
         \`sender_role\` VARCHAR(32) NOT NULL,
         \`content\` TEXT NULL DEFAULT NULL,
+        \`payload_json\` JSON NULL DEFAULT NULL,
         \`message_type\` VARCHAR(32) NOT NULL DEFAULT 'TEXT',
         \`attachment_url\` VARCHAR(1024) NULL DEFAULT NULL,
         \`attachment_name\` VARCHAR(255) NULL DEFAULT NULL,
@@ -217,17 +273,73 @@ export async function ensureChatTablesExist(): Promise<void> {
         UNIQUE KEY \`uq_chat_messages_public_id\` (\`public_id\`),
         KEY \`idx_chat_messages_consultation_created\` (\`consultation_id\`, \`created_at\`),
         KEY \`idx_chat_messages_sender\` (\`sender_user_id\`, \`created_at\`),
+        KEY \`idx_chat_messages_client_id\` (\`client_message_id\`),
+        KEY \`idx_chat_messages_reply_to\` (\`reply_to_message_id\`),
 
         CONSTRAINT \`fk_chat_messages_consultation\` FOREIGN KEY (\`consultation_id\`) REFERENCES \`chat_consultations\` (\`id\`) ON DELETE CASCADE ON UPDATE RESTRICT,
         CONSTRAINT \`fk_chat_messages_sender\` FOREIGN KEY (\`sender_user_id\`) REFERENCES \`users\` (\`id\`) ON DELETE RESTRICT ON UPDATE RESTRICT
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
+    // Check if migration 069 columns exist in chat_messages in case it was already created earlier
+    try {
+      const [existingMsgCols] = await pool.query<RowDataPacket[]>(
+        `SHOW COLUMNS FROM chat_messages`
+      );
+      const msgColSet = new Set(
+        (existingMsgCols as Array<{ Field: string }>).map((c) => c.Field.toLowerCase())
+      );
+
+      const msgColsToAdd: Array<{ name: string; ddl: string }> = [
+        { name: "client_message_id", ddl: "ADD COLUMN client_message_id VARCHAR(64) NULL DEFAULT NULL" },
+        { name: "reply_to_message_id", ddl: "ADD COLUMN reply_to_message_id BIGINT UNSIGNED NULL DEFAULT NULL" },
+        { name: "payload_json", ddl: "ADD COLUMN payload_json JSON NULL DEFAULT NULL" },
+      ];
+
+      for (const col of msgColsToAdd) {
+        if (!msgColSet.has(col.name.toLowerCase())) {
+          try {
+            await pool.query(`ALTER TABLE chat_messages ${col.ddl}`);
+          } catch (colErr) {
+            console.warn(`[Trevo Chat] Could not add column ${col.name} to chat_messages:`, colErr);
+          }
+        }
+      }
+
+      // Check indexes on chat_messages
+      try {
+        const [existingMsgIndexes] = await pool.query<RowDataPacket[]>(
+          `SHOW INDEX FROM chat_messages WHERE Key_name IN ('idx_chat_messages_client_id', 'idx_chat_messages_reply_to')`
+        );
+        const msgIndexSet = new Set(
+          (existingMsgIndexes as Array<{ Key_name: string }>).map((idx) => idx.Key_name)
+        );
+
+        if (!msgIndexSet.has("idx_chat_messages_client_id")) {
+          try {
+            await pool.query(
+              `ALTER TABLE chat_messages ADD KEY idx_chat_messages_client_id (client_message_id)`
+            );
+          } catch {}
+        }
+        if (!msgIndexSet.has("idx_chat_messages_reply_to")) {
+          try {
+            await pool.query(
+              `ALTER TABLE chat_messages ADD KEY idx_chat_messages_reply_to (reply_to_message_id)`
+            );
+          } catch {}
+        }
+      } catch {}
+    } catch (inspectMsgErr) {
+      console.warn("[Trevo Chat] Error inspecting chat_messages columns:", inspectMsgErr);
+    }
+
     try {
       await pool.query(
         `INSERT IGNORE INTO schema_migrations (migration, checksum) VALUES 
           ('051_trevo_chat_and_anamnesis.sql', 'runtime_bootstrapped'),
-          ('052_trevo_chat_bilateral_appointments.sql', 'runtime_bootstrapped');`
+          ('052_trevo_chat_bilateral_appointments.sql', 'runtime_bootstrapped'),
+          ('069_trevo_chat_consultation_evolution.sql', 'runtime_bootstrapped');`
       );
     } catch {}
 
@@ -291,6 +403,12 @@ export async function listChatConsultationsForProfessional(
       cc.professional_type,
       cc.title,
       cc.status,
+      cc.expected_response_hours,
+      cc.closed_at,
+      cc.closed_by_user_id,
+      cc.closure_summary_json,
+      cc.private_notes,
+      cc.linked_previous_consultation_id,
       cc.proposed_by_user_id,
       cc.proposed_start_at,
       cc.student_accepted_at,
@@ -317,12 +435,13 @@ export async function listChatConsultationsForProfessional(
     [consultancyId, professionalMembershipId]
   );
 
-    return (rows as RowDataPacket[]).map(mapRowToConsultationDto);
+    return (rows as RowDataPacket[]).map((r) => mapRowToConsultationDto(r, false));
   });
 }
 
 /**
  * Lists all active chat consultations for a student in a consultancy.
+ * Strictly sanitizes private notes so student never sees professional private notes.
  */
 export async function listChatConsultationsForStudent(
   consultancyId: number,
@@ -345,6 +464,12 @@ export async function listChatConsultationsForStudent(
       cc.professional_type,
       cc.title,
       cc.status,
+      cc.expected_response_hours,
+      cc.closed_at,
+      cc.closed_by_user_id,
+      cc.closure_summary_json,
+      cc.private_notes,
+      cc.linked_previous_consultation_id,
       cc.proposed_by_user_id,
       cc.proposed_start_at,
       cc.student_accepted_at,
@@ -371,7 +496,7 @@ export async function listChatConsultationsForStudent(
     [consultancyId, studentMembershipId]
   );
 
-    return (rows as RowDataPacket[]).map(mapRowToConsultationDto);
+    return (rows as RowDataPacket[]).map((r) => mapRowToConsultationDto(r, true));
   });
 }
 
@@ -380,7 +505,8 @@ export async function listChatConsultationsForStudent(
  */
 export async function getChatConsultationByPublicId(
   consultancyId: number,
-  chatPublicId: string
+  chatPublicId: string,
+  options?: { sanitizeForStudent?: boolean }
 ): Promise<ChatConsultationDto | null> {
   return executeWithAutoSchema(async () => {
     const pool = getDbPool();
@@ -399,6 +525,12 @@ export async function getChatConsultationByPublicId(
         cc.professional_type,
         cc.title,
         cc.status,
+        cc.expected_response_hours,
+        cc.closed_at,
+        cc.closed_by_user_id,
+        cc.closure_summary_json,
+        cc.private_notes,
+        cc.linked_previous_consultation_id,
         cc.proposed_by_user_id,
         cc.proposed_start_at,
         cc.student_accepted_at,
@@ -426,7 +558,7 @@ export async function getChatConsultationByPublicId(
     );
 
     if (!rows || rows.length === 0) return null;
-    return mapRowToConsultationDto(rows[0]);
+    return mapRowToConsultationDto(rows[0], Boolean(options?.sanitizeForStudent));
   });
 }
 
@@ -504,6 +636,9 @@ export async function proposeChatConsultation(params: {
   proposedByUserId: number;
   proposedStartAt: Date;
   title?: string;
+  expectedResponseHours?: number;
+  initialMessage?: string;
+  linkedPreviousConsultationId?: number;
   consultancySlug: string;
 }): Promise<ChatConsultationDto> {
   return executeWithAutoSchema(async () => {
@@ -534,8 +669,9 @@ export async function proposeChatConsultation(params: {
 
       const newPublicId = crypto.randomUUID();
       const title = params.title || `Consulta ${params.professionalType === "PERSONAL" ? "Treino" : "Nutrição"}`;
+      const expectedHours = params.expectedResponseHours || 24;
 
-      await connection.execute<ResultSetHeader>(
+      const [insertRes] = await connection.execute<ResultSetHeader>(
         `INSERT INTO chat_consultations (
           public_id,
           consultancy_id,
@@ -544,6 +680,8 @@ export async function proposeChatConsultation(params: {
           professional_type,
           title,
           status,
+          expected_response_hours,
+          linked_previous_consultation_id,
           proposed_by_user_id,
           proposed_start_at,
           student_accepted_at,
@@ -551,7 +689,7 @@ export async function proposeChatConsultation(params: {
           created_by_user_id,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 'PROPOSED', ?, ?, ?, ?, ?, NOW(3), NOW(3));`,
+        ) VALUES (?, ?, ?, ?, ?, ?, 'PROPOSED', ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3));`,
         [
           newPublicId,
           params.consultancyId,
@@ -559,6 +697,8 @@ export async function proposeChatConsultation(params: {
           params.professionalMembershipId,
           params.professionalType,
           title,
+          expectedHours,
+          params.linkedPreviousConsultationId || null,
           params.proposedByUserId,
           params.proposedStartAt,
           studentAcceptedAt,
@@ -566,6 +706,39 @@ export async function proposeChatConsultation(params: {
           params.proposedByUserId,
         ]
       );
+
+      // If proposer wrote an initial message, record it in the chat
+      if (params.initialMessage && params.initialMessage.trim()) {
+        const initialMsgPublicId = crypto.randomUUID();
+        const senderRole = isProposedByStudent ? "STUDENT" : params.professionalType;
+        await connection.execute(
+          `INSERT INTO chat_messages (
+            public_id,
+            consultation_id,
+            sender_user_id,
+            sender_role,
+            content,
+            message_type,
+            created_at
+          ) VALUES (?, ?, ?, ?, ?, 'TEXT', NOW(3));`,
+          [
+            initialMsgPublicId,
+            insertRes.insertId,
+            params.proposedByUserId,
+            senderRole,
+            params.initialMessage.trim(),
+          ]
+        );
+
+        await connection.execute(
+          `UPDATE chat_consultations
+           SET last_message_at = NOW(3),
+               last_message_preview = ?,
+               updated_at = NOW(3)
+           WHERE id = ?;`,
+          [params.initialMessage.trim().slice(0, 100), insertRes.insertId]
+        );
+      }
 
       let notif = null;
       try {
@@ -576,7 +749,7 @@ export async function proposeChatConsultation(params: {
           eventType: "CHAT_MESSAGE",
           title: "Nova proposta no Trevo Chat",
           body: "Você recebeu uma proposta de agendamento no Trevo Chat. Aceite para liberar o chat assíncrono.",
-          deepLink: `/consultoria/${params.consultancySlug}/consultas?tab=chat&c=${newPublicId}`,
+          deepLink: `/consultoria/${params.consultancySlug}/consultas?c=${newPublicId}`,
           dedupeKey: `chat_prop_${newPublicId}`,
           sourceType: "CHAT_MESSAGE",
           sourcePublicId: newPublicId,
@@ -818,6 +991,7 @@ export async function listChatMessages(
       `SELECT 
         cm.id,
         cm.public_id,
+        cm.client_message_id,
         cm.consultation_id,
         cc.public_id AS consultation_public_id,
         cm.sender_user_id,
@@ -825,16 +999,23 @@ export async function listChatMessages(
         u.full_name AS sender_name,
         cm.content,
         cm.message_type,
+        cm.payload_json,
+        cm.reply_to_message_id,
         cm.attachment_url,
         cm.attachment_name,
         cm.attachment_size_bytes,
         cm.attachment_mime_type,
         cm.audio_duration_seconds,
         cm.read_at,
-        cm.created_at
+        cm.created_at,
+        u_reply.full_name AS reply_sender_name,
+        cm_reply.content AS reply_content,
+        cm_reply.message_type AS reply_message_type
       FROM chat_messages cm
       INNER JOIN chat_consultations cc ON cc.id = cm.consultation_id
       INNER JOIN users u ON u.id = cm.sender_user_id
+      LEFT JOIN chat_messages cm_reply ON cm_reply.id = cm.reply_to_message_id
+      LEFT JOIN users u_reply ON u_reply.id = cm_reply.sender_user_id
       WHERE cm.consultation_id = ?
       ORDER BY cm.created_at ASC
       LIMIT ?;`,
@@ -855,6 +1036,9 @@ export async function sendChatMessage(params: {
   senderRole: string;
   content?: string | null;
   messageType?: ChatMessageType;
+  clientMessageId?: string | null;
+  replyToMessageId?: number | null;
+  payloadJson?: Record<string, unknown> | null;
   attachmentUrl?: string | null;
   attachmentName?: string | null;
   attachmentSizeBytes?: number | null;
@@ -897,6 +1081,48 @@ export async function sendChatMessage(params: {
     }
     const consultation = cRows[0];
 
+    // Idempotency: if clientMessageId already exists for this consultation, return existing
+    if (params.clientMessageId) {
+      const [existing] = await connection.execute<RowDataPacket[]>(
+        `SELECT 
+          cm.id,
+          cm.public_id,
+          cm.client_message_id,
+          cm.consultation_id,
+          cc.public_id AS consultation_public_id,
+          cm.sender_user_id,
+          cm.sender_role,
+          u.full_name AS sender_name,
+          cm.content,
+          cm.message_type,
+          cm.payload_json,
+          cm.reply_to_message_id,
+          cm.attachment_url,
+          cm.attachment_name,
+          cm.attachment_size_bytes,
+          cm.attachment_mime_type,
+          cm.audio_duration_seconds,
+          cm.read_at,
+          cm.created_at,
+          u_reply.full_name AS reply_sender_name,
+          cm_reply.content AS reply_content,
+          cm_reply.message_type AS reply_message_type
+        FROM chat_messages cm
+        INNER JOIN chat_consultations cc ON cc.id = cm.consultation_id
+        INNER JOIN users u ON u.id = cm.sender_user_id
+        LEFT JOIN chat_messages cm_reply ON cm_reply.id = cm.reply_to_message_id
+        LEFT JOIN users u_reply ON u_reply.id = cm_reply.sender_user_id
+        WHERE cm.consultation_id = ? AND cm.client_message_id = ?
+        LIMIT 1;`,
+        [consultation.id, params.clientMessageId]
+      );
+
+      if (existing && existing.length > 0) {
+        await connection.commit();
+        return mapRowToMessageDto(existing[0]);
+      }
+    }
+
     // Validate that bilateral acceptance has occurred before messages can be sent
     if (!isChatMessagingUnlocked(consultation.status as ChatConsultationStatus)) {
       throw new Error(
@@ -908,15 +1134,19 @@ export async function sendChatMessage(params: {
 
     const messageType = params.messageType || "TEXT";
     const msgPublicId = crypto.randomUUID();
+    const payloadStr = params.payloadJson ? JSON.stringify(params.payloadJson) : null;
 
     // 2. Insert message
     const [msgRes] = await connection.execute<ResultSetHeader>(
       `INSERT INTO chat_messages (
         public_id,
+        client_message_id,
         consultation_id,
+        reply_to_message_id,
         sender_user_id,
         sender_role,
         content,
+        payload_json,
         message_type,
         attachment_url,
         attachment_name,
@@ -924,13 +1154,16 @@ export async function sendChatMessage(params: {
         attachment_mime_type,
         audio_duration_seconds,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3));`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3));`,
       [
         msgPublicId,
+        params.clientMessageId || null,
         consultation.id,
+        params.replyToMessageId || null,
         params.senderUserId,
         params.senderRole,
         params.content?.trim() || null,
+        payloadStr,
         messageType,
         params.attachmentUrl || null,
         params.attachmentName || null,
@@ -943,7 +1176,21 @@ export async function sendChatMessage(params: {
 
     // 3. Build preview string
     let preview = "";
-    if (messageType === "TEXT") {
+    if (messageType === "FORM_REQUEST") {
+      preview = "📋 Solicitação de formulário";
+    } else if (messageType === "PHOTO_REQUEST") {
+      preview = "📸 Solicitação de fotos";
+    } else if (messageType === "DOCUMENT_REQUEST") {
+      preview = "📄 Solicitação de exames/documentos";
+    } else if (messageType === "CLINICAL_GUIDANCE") {
+      preview = "💡 Orientação clínica";
+    } else if (messageType === "WORKOUT_CARD") {
+      preview = "🏋️ Treino compartilhado";
+    } else if (messageType === "MEAL_PLAN_CARD") {
+      preview = "🥗 Plano alimentar compartilhado";
+    } else if (messageType === "CLOSURE_CARD") {
+      preview = "🏁 Consulta finalizada com resumo";
+    } else if (messageType === "TEXT") {
       preview = (params.content || "").slice(0, 100);
     } else if (messageType === "AUDIO") {
       const dur = params.audioDurationSeconds ? `${params.audioDurationSeconds}s` : "áudio";
@@ -996,7 +1243,7 @@ export async function sendChatMessage(params: {
         eventType: "CHAT_MESSAGE",
         title: "Trevo Chat",
         body: "Você recebeu uma nova mensagem no atendimento.",
-        deepLink: `/consultoria/${params.consultancySlug}/consultas?tab=chat&c=${params.consultationPublicId}`,
+        deepLink: `/consultoria/${params.consultancySlug}/consultas?c=${params.consultationPublicId}`,
         dedupeKey: `chat_msg_${msgPublicId}`,
         sourceType: "CHAT_MESSAGE",
         sourcePublicId: msgPublicId,
@@ -1019,6 +1266,7 @@ export async function sendChatMessage(params: {
       `SELECT 
         cm.id,
         cm.public_id,
+        cm.client_message_id,
         cm.consultation_id,
         cc.public_id AS consultation_public_id,
         cm.sender_user_id,
@@ -1026,16 +1274,23 @@ export async function sendChatMessage(params: {
         u.full_name AS sender_name,
         cm.content,
         cm.message_type,
+        cm.payload_json,
+        cm.reply_to_message_id,
         cm.attachment_url,
         cm.attachment_name,
         cm.attachment_size_bytes,
         cm.attachment_mime_type,
         cm.audio_duration_seconds,
         cm.read_at,
-        cm.created_at
+        cm.created_at,
+        u_reply.full_name AS reply_sender_name,
+        cm_reply.content AS reply_content,
+        cm_reply.message_type AS reply_message_type
       FROM chat_messages cm
       INNER JOIN chat_consultations cc ON cc.id = cm.consultation_id
       INNER JOIN users u ON u.id = cm.sender_user_id
+      LEFT JOIN chat_messages cm_reply ON cm_reply.id = cm.reply_to_message_id
+      LEFT JOIN users u_reply ON u_reply.id = cm_reply.sender_user_id
       WHERE cm.id = ?
       LIMIT 1;`,
       [messageId]
@@ -1258,11 +1513,417 @@ export async function updateChatConsultationStatus(
   return res.affectedRows > 0;
 }
 
+/**
+ * Closes a chat consultation formally with summary, orientations, prescriptions,
+ * return prediction, and pro private notes.
+ */
+export async function closeChatConsultation(params: {
+  consultancyId: number;
+  consultationPublicId: string;
+  professionalUserId: number;
+  summary: string;
+  orientations?: string[];
+  prescriptions?: string[];
+  returnPredictionDays?: number | null;
+  privateNotes?: string | null;
+  consultancySlug: string;
+}): Promise<ChatConsultationDto> {
+  return executeWithAutoSchema(async () => {
+    const pool = getDbPool();
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      const [cRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT 
+          cc.id,
+          cc.public_id,
+          cc.consultancy_id,
+          cc.status,
+          cc.student_membership_id,
+          cm_stud.user_id AS student_user_id,
+          u_stud.full_name AS student_name,
+          cc.professional_membership_id,
+          cm_prof.user_id AS professional_user_id,
+          u_prof.full_name AS professional_name,
+          cc.professional_type
+         FROM chat_consultations cc
+         INNER JOIN consultancy_members cm_stud ON cm_stud.id = cc.student_membership_id
+         INNER JOIN users u_stud ON u_stud.id = cm_stud.user_id
+         INNER JOIN consultancy_members cm_prof ON cm_prof.id = cc.professional_membership_id
+         INNER JOIN users u_prof ON u_prof.id = cm_prof.user_id
+         WHERE cc.consultancy_id = ? AND cc.public_id = ?
+         LIMIT 1 FOR UPDATE;`,
+        [params.consultancyId, params.consultationPublicId]
+      );
+
+      if (!cRows || cRows.length === 0) {
+        throw new Error("Consulta não encontrada.");
+      }
+      const c = cRows[0];
+
+      if (Number(params.professionalUserId) !== Number(c.professional_user_id)) {
+        throw new Error("Apenas o profissional responsável pode finalizar o atendimento.");
+      }
+
+      const closureSummary: ClosureSummaryDto = {
+        summary: params.summary.trim(),
+        orientations: params.orientations || [],
+        prescriptions: params.prescriptions || [],
+        returnPredictionDays: params.returnPredictionDays || null,
+        closedByName: c.professional_name,
+        closedAtFormatted: new Date().toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+
+      await connection.execute(
+        `UPDATE chat_consultations
+         SET status = 'COMPLETED',
+             closed_at = NOW(3),
+             closed_by_user_id = ?,
+             closure_summary_json = ?,
+             private_notes = ?,
+             updated_at = NOW(3)
+         WHERE id = ?;`,
+        [
+          params.professionalUserId,
+          JSON.stringify(closureSummary),
+          params.privateNotes?.trim() || null,
+          c.id,
+        ]
+      );
+
+      // Post closure message in chat transcript
+      const closureMsgPublicId = crypto.randomUUID();
+      await connection.execute(
+        `INSERT INTO chat_messages (
+          public_id,
+          consultation_id,
+          sender_user_id,
+          sender_role,
+          content,
+          payload_json,
+          message_type,
+          created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 'CLOSURE_CARD', NOW(3));`,
+        [
+          closureMsgPublicId,
+          c.id,
+          params.professionalUserId,
+          c.professional_type,
+          "Consulta concluída pelo profissional. Resumo, orientações e prescrições disponíveis.",
+          JSON.stringify(closureSummary),
+        ]
+      );
+
+      // In-app notification to student
+      try {
+        const notif = await createNotificationInTransaction(connection, {
+          userId: Number(c.student_user_id),
+          consultancyId: params.consultancyId,
+          priority: "NORMAL",
+          eventType: "CHAT_MESSAGE",
+          title: "Consulta Finalizada",
+          body: "Seu profissional finalizou a consulta e disponibilizou o resumo com as orientações.",
+          deepLink: `/consultoria/${params.consultancySlug}/consultas?c=${params.consultationPublicId}`,
+          dedupeKey: `chat_close_${c.id}_${Date.now()}`,
+          sourceType: "CHAT_MESSAGE",
+          sourcePublicId: params.consultationPublicId,
+        });
+        deliverNotificationAfterCommit(notif.id).catch(() => {});
+      } catch (notifErr) {
+        console.warn("[Trevo Chat] Aviso ao notificar encerramento:", notifErr);
+      }
+
+      await connection.commit();
+
+      const updated = await getChatConsultationByPublicId(params.consultancyId, params.consultationPublicId);
+      if (!updated) throw new Error("Erro ao carregar consulta finalizada.");
+      return updated;
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
+  });
+}
+
+/**
+ * Updates private notes for a professional on a chat consultation.
+ * Private notes are NEVER visible to the student.
+ */
+export async function savePrivateNotes(params: {
+  consultancyId: number;
+  consultationPublicId: string;
+  professionalUserId: number;
+  notes: string;
+}): Promise<{ ok: boolean }> {
+  return executeWithAutoSchema(async () => {
+    const pool = getDbPool();
+    const [cRows] = await pool.execute<RowDataPacket[]>(
+      `SELECT cc.id, cm_prof.user_id AS professional_user_id
+       FROM chat_consultations cc
+       INNER JOIN consultancy_members cm_prof ON cm_prof.id = cc.professional_membership_id
+       WHERE cc.consultancy_id = ? AND cc.public_id = ?
+       LIMIT 1;`,
+      [params.consultancyId, params.consultationPublicId]
+    );
+
+    if (!cRows || cRows.length === 0) {
+      throw new Error("Consulta não encontrada.");
+    }
+    const c = cRows[0];
+    if (Number(params.professionalUserId) !== Number(c.professional_user_id)) {
+      throw new Error("Apenas o profissional responsável pode editar as notas privadas.");
+    }
+
+    await pool.execute(
+      `UPDATE chat_consultations
+       SET private_notes = ?, updated_at = NOW(3)
+       WHERE id = ?;`,
+      [params.notes || null, c.id]
+    );
+
+    return { ok: true };
+  });
+}
+
+/**
+ * Creates a linked return proposal consultation referencing a previous consultation.
+ */
+export async function requestReturnConsultation(params: {
+  consultancyId: number;
+  previousConsultationPublicId: string;
+  requestedByUserId: number;
+  referenceDate: string;
+  referenceTime: string;
+  title?: string;
+  expectedResponseHours?: number;
+  consultancySlug: string;
+}): Promise<ChatConsultationDto> {
+  return executeWithAutoSchema(async () => {
+    const pool = getDbPool();
+    const [cRows] = await pool.execute<RowDataPacket[]>(
+      `SELECT 
+        cc.id,
+        cc.student_membership_id,
+        cc.professional_membership_id,
+        cc.professional_type,
+        cc.title
+       FROM chat_consultations cc
+       WHERE cc.consultancy_id = ? AND cc.public_id = ?
+       LIMIT 1;`,
+      [params.consultancyId, params.previousConsultationPublicId]
+    );
+
+    if (!cRows || cRows.length === 0) {
+      throw new Error("Consulta anterior não encontrada.");
+    }
+    const prev = cRows[0];
+    const proposedDate = new Date(`${params.referenceDate}T${params.referenceTime}:00`);
+    if (isNaN(proposedDate.getTime())) {
+      throw new Error("Data ou horário de referência inválido.");
+    }
+
+    const title = params.title || `Retorno: ${prev.title || "Consulta"}`;
+
+    return await proposeChatConsultation({
+      consultancyId: params.consultancyId,
+      studentMembershipId: Number(prev.student_membership_id),
+      professionalMembershipId: Number(prev.professional_membership_id),
+      professionalType: prev.professional_type,
+      proposedByUserId: params.requestedByUserId,
+      proposedStartAt: proposedDate,
+      title,
+      expectedResponseHours: params.expectedResponseHours || 24,
+      linkedPreviousConsultationId: Number(prev.id),
+      consultancySlug: params.consultancySlug,
+    });
+  });
+}
+
+/**
+ * On-Demand AI: Generates a concise summary of the consultation messages.
+ * Only executes when explicitly requested by the professional.
+ */
+export async function generateAiConsultationSummary(
+  consultancyId: number,
+  consultationPublicId: string
+): Promise<{ summary: string; topics: string[]; nextSteps: string[] }> {
+  const chat = await getChatConsultationByPublicId(consultancyId, consultationPublicId);
+  if (!chat) throw new Error("Consulta não encontrada.");
+
+  const messages = await listChatMessages(chat.id, 100);
+  const textMessages = messages
+    .filter((m) => m.content && m.content.trim())
+    .map((m) => `[${m.senderRole} - ${m.senderName}]: ${m.content}`);
+
+  if (textMessages.length === 0) {
+    return {
+      summary: "Ainda não há mensagens suficientes para gerar um resumo.",
+      topics: [],
+      nextSteps: [],
+    };
+  }
+
+  // Try OpenAI if configured
+  try {
+    const { getOpenAiClient, isOpenAiConfigured } = await import("../ai/openai-client");
+    if (isOpenAiConfigured()) {
+      const openai = getOpenAiClient();
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Você é o assistente de resumo clínico do Trevo One. Analise as mensagens da consulta assíncrona e responda estritamente em JSON no formato: { \"summary\": \"resumo em até 3 frases\", \"topics\": [\"tópico 1\", \"tópico 2\"], \"nextSteps\": [\"passo 1\", \"passo 2\"] }.",
+          },
+          {
+            role: "user",
+            content: textMessages.join("\n"),
+          },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+      });
+
+      const raw = completion.choices[0]?.message?.content;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          summary: parsed.summary || "Resumo gerado.",
+          topics: Array.isArray(parsed.topics) ? parsed.topics : [],
+          nextSteps: Array.isArray(parsed.nextSteps) ? parsed.nextSteps : [],
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[Trevo Chat AI] Falha ao chamar OpenAI para resumo, aplicando fallback determinístico:", err);
+  }
+
+  // Deterministic fallback
+  const recentTexts = textMessages.slice(-5).map((t) => t.replace(/^\[.*?\]:\s*/, ""));
+  return {
+    summary: `Atendimento em andamento com ${messages.length} mensagens trocadas. Principais assuntos abordados recentemente: ${recentTexts.slice(0, 2).join("; ")}.`,
+    topics: ["Acompanhamento da rotina", "Ajustes de prescrição e orientações"],
+    nextSteps: ["Confirmar respostas do aluno", "Revisar metas clínicas no próximo contato"],
+  };
+}
+
+/**
+ * On-Demand AI: Generates SOAP format clinical notes from the conversation.
+ * Strictly on-demand.
+ */
+export async function generateAiProntuarioNotes(
+  consultancyId: number,
+  consultationPublicId: string
+): Promise<{ subjective: string; objective: string; assessment: string; plan: string }> {
+  const chat = await getChatConsultationByPublicId(consultancyId, consultationPublicId);
+  if (!chat) throw new Error("Consulta não encontrada.");
+
+  const messages = await listChatMessages(chat.id, 100);
+  const textMessages = messages
+    .filter((m) => m.content && m.content.trim())
+    .map((m) => `[${m.senderRole} - ${m.senderName}]: ${m.content}`);
+
+  if (textMessages.length === 0) {
+    return {
+      subjective: "Sem relatos registrados pelo aluno até o momento.",
+      objective: "Dados objetivos não coletados.",
+      assessment: "Aguardando interação clínica.",
+      plan: "Aguardar retorno do paciente.",
+    };
+  }
+
+  try {
+    const { getOpenAiClient, isOpenAiConfigured } = await import("../ai/openai-client");
+    if (isOpenAiConfigured()) {
+      const openai = getOpenAiClient();
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Você é o assistente de prontuário do Trevo One. Estruture a conversa em formato SOAP (Subjetivo, Objetivo, Avaliação, Plano) e responda estritamente em JSON: { \"subjective\": \"...\", \"objective\": \"...\", \"assessment\": \"...\", \"plan\": \"...\" }.",
+          },
+          {
+            role: "user",
+            content: textMessages.join("\n"),
+          },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+      });
+
+      const raw = completion.choices[0]?.message?.content;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          subjective: parsed.subjective || "",
+          objective: parsed.objective || "",
+          assessment: parsed.assessment || "",
+          plan: parsed.plan || "",
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[Trevo Chat AI] Falha ao chamar OpenAI para SOAP:", err);
+  }
+
+  // Fallback
+  return {
+    subjective: `Aluno reportou mensagens de dúvidas e evolução no chat (${messages.length} mensagens).`,
+    objective: `Comunicação assíncrona realizada via Trevo Chat com anexos e orientações compartilhadas.`,
+    assessment: `Evolução regular dentro do planejamento proposto.`,
+    plan: `Manter conduta e monitorar adesão às orientações prescritas.`,
+  };
+}
+
+/**
+ * On-Demand AI: Detects unanswered questions in the conversation.
+ */
+export async function generateAiPendingQuestions(
+  consultancyId: number,
+  consultationPublicId: string
+): Promise<Array<{ question: string; askedBy: string; messagePublicId: string }>> {
+  const chat = await getChatConsultationByPublicId(consultancyId, consultationPublicId);
+  if (!chat) throw new Error("Consulta não encontrada.");
+
+  const messages = await listChatMessages(chat.id, 50);
+  const pending: Array<{ question: string; askedBy: string; messagePublicId: string }> = [];
+
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    if (msg.content && msg.content.includes("?")) {
+      // Check if subsequent message is from the other party
+      const subsequentFromOther = messages.slice(i + 1).some((m) => m.senderUserId !== msg.senderUserId);
+      if (!subsequentFromOther) {
+        pending.push({
+          question: msg.content.trim(),
+          askedBy: msg.senderName,
+          messagePublicId: msg.publicId,
+        });
+      }
+    }
+  }
+
+  return pending;
+}
+
 // ----------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------
 
-function mapRowToConsultationDto(row: RowDataPacket): ChatConsultationDto {
+function mapRowToConsultationDto(row: RowDataPacket, sanitizeForStudent = false): ChatConsultationDto {
   let parsedAi = null;
   if (row.ai_anamnesis_json) {
     try {
@@ -1271,6 +1932,17 @@ function mapRowToConsultationDto(row: RowDataPacket): ChatConsultationDto {
         : row.ai_anamnesis_json;
     } catch {
       parsedAi = null;
+    }
+  }
+
+  let parsedClosure: ClosureSummaryDto | null = null;
+  if (row.closure_summary_json) {
+    try {
+      parsedClosure = typeof row.closure_summary_json === "string"
+        ? JSON.parse(row.closure_summary_json)
+        : row.closure_summary_json;
+    } catch {
+      parsedClosure = null;
     }
   }
 
@@ -1288,6 +1960,14 @@ function mapRowToConsultationDto(row: RowDataPacket): ChatConsultationDto {
     professionalType: row.professional_type as "PERSONAL" | "NUTRITIONIST",
     title: String(row.title || "Consulta"),
     status: row.status as ChatConsultationStatus,
+    expectedResponseHours: row.expected_response_hours ? Number(row.expected_response_hours) : 24,
+    closedAt: row.closed_at ? new Date(row.closed_at).toISOString() : null,
+    closedByUserId: row.closed_by_user_id ? Number(row.closed_by_user_id) : null,
+    closureSummaryJson: parsedClosure,
+    privateNotes: sanitizeForStudent ? null : (row.private_notes ? String(row.private_notes) : null),
+    linkedPreviousConsultationId: row.linked_previous_consultation_id ? Number(row.linked_previous_consultation_id) : null,
+    modality: "CHAT",
+    counterpartRole: row.professional_type === "PERSONAL" ? "Personal Trainer" : "Nutricionista",
     proposedByUserId: row.proposed_by_user_id ? Number(row.proposed_by_user_id) : null,
     proposedStartAt: row.proposed_start_at ? new Date(row.proposed_start_at).toISOString() : null,
     proposedStartFormatted: row.proposed_start_at
@@ -1323,9 +2003,28 @@ function mapRowToConsultationDto(row: RowDataPacket): ChatConsultationDto {
 }
 
 function mapRowToMessageDto(row: RowDataPacket): ChatMessageDto {
+  let parsedPayload = null;
+  if (row.payload_json) {
+    try {
+      parsedPayload = typeof row.payload_json === "string" ? JSON.parse(row.payload_json) : row.payload_json;
+    } catch {
+      parsedPayload = null;
+    }
+  }
+
+  let replySnippet = null;
+  if (row.reply_sender_name || row.reply_content) {
+    replySnippet = {
+      senderName: String(row.reply_sender_name || "Usuário"),
+      content: String(row.reply_content || ""),
+      messageType: (row.reply_message_type || "TEXT") as ChatMessageType,
+    };
+  }
+
   return {
     id: Number(row.id),
     publicId: String(row.public_id),
+    clientMessageId: row.client_message_id ? String(row.client_message_id) : null,
     consultationId: Number(row.consultation_id),
     consultationPublicId: String(row.consultation_public_id || ""),
     senderUserId: Number(row.sender_user_id),
@@ -1333,6 +2032,9 @@ function mapRowToMessageDto(row: RowDataPacket): ChatMessageDto {
     senderName: String(row.sender_name || "Usuário"),
     content: row.content || null,
     messageType: (row.message_type || "TEXT") as ChatMessageType,
+    payloadJson: parsedPayload,
+    replyToMessageId: row.reply_to_message_id ? Number(row.reply_to_message_id) : null,
+    replyToSnippet: replySnippet,
     attachmentUrl: row.attachment_url || null,
     attachmentName: row.attachment_name || null,
     attachmentSizeBytes: row.attachment_size_bytes ? Number(row.attachment_size_bytes) : null,
@@ -1340,6 +2042,7 @@ function mapRowToMessageDto(row: RowDataPacket): ChatMessageDto {
     audioDurationSeconds: row.audio_duration_seconds ? Number(row.audio_duration_seconds) : null,
     readAt: row.read_at ? new Date(row.read_at).toISOString() : null,
     createdAt: new Date(row.created_at).toISOString(),
+    deliveryStatus: row.read_at ? "read" : "sent",
   };
 }
 
@@ -1389,3 +2092,53 @@ export async function listActiveStudentsForChat(
     return [];
   }
 }
+
+export interface ActiveProfessionalForChatDto {
+  membershipId: number;
+  membershipPublicId: string;
+  userPublicId: string;
+  name: string;
+  email: string;
+  role: "PERSONAL" | "NUTRITIONIST";
+}
+
+/**
+ * Lists active professionals (Personal / Nutritionist) in the consultancy for student chat scheduling.
+ */
+export async function listActiveProfessionalsForChat(
+  consultancyId: number
+): Promise<ActiveProfessionalForChatDto[]> {
+  try {
+    const pool = getDbPool();
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT cm.id AS membership_id,
+              cm.public_id AS membership_public_id,
+              u.public_id AS user_public_id,
+              COALESCE(u.full_name, 'Profissional') AS name,
+              COALESCE(u.email, '') AS email,
+              cmr.role AS role
+       FROM consultancy_members cm
+       JOIN users u ON u.id = cm.user_id
+       JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       WHERE cm.consultancy_id = ?
+         AND cm.status = 'ACTIVE'
+         AND u.status = 'ACTIVE'
+         AND cmr.role IN ('PERSONAL', 'NUTRITIONIST')
+       ORDER BY u.full_name ASC;`,
+      [consultancyId]
+    );
+
+    return (rows as RowDataPacket[]).map((r) => ({
+      membershipId: Number(r.membership_id),
+      membershipPublicId: String(r.membership_public_id),
+      userPublicId: String(r.user_public_id),
+      name: String(r.name || "Profissional"),
+      email: String(r.email || ""),
+      role: r.role === "NUTRITIONIST" ? "NUTRITIONIST" : "PERSONAL",
+    }));
+  } catch (err: unknown) {
+    console.warn("[Trevo Chat] Erro ao listar profissionais ativos para chat:", err);
+    return [];
+  }
+}
+

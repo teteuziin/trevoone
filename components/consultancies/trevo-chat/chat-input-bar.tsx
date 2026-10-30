@@ -322,19 +322,19 @@ export function ChatInputBar({
   };
 
   return (
-    <div className="p-2.5 sm:p-3.5 bg-[var(--surface)] border-t border-[var(--border-subtle)] pb-safe relative">
+    <div className="p-2.5 sm:p-3.5 bg-white dark:bg-[#121316] border-t border-[#E5E7EB] dark:border-[#22242A] pb-safe relative">
       {/* Quoted Message Preview Bar */}
       {replyingTo && (
-        <div className="mb-2 p-2 rounded-xl bg-[var(--surface-subtle)] border border-emerald-500/30 flex items-center justify-between gap-2 text-xs">
+        <div className="mb-2 p-2 rounded-xl bg-zinc-50 dark:bg-[#1A1C22] border border-emerald-500/30 flex items-center justify-between gap-2 text-xs">
           <div className="min-w-0 flex items-center gap-2">
-            <span className="text-emerald-600 font-bold">↩ Respondendo a {replyingTo.senderName}:</span>
-            <span className="truncate italic text-[var(--text-secondary)]">{replyingTo.content}</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold">↩ Respondendo a {replyingTo.senderName}:</span>
+            <span className="truncate italic text-zinc-600 dark:text-zinc-300">{replyingTo.content}</span>
           </div>
           {onCancelReply && (
             <button
               type="button"
               onClick={onCancelReply}
-              className="p-1 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer"
+              className="p-1 rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
             >
               ✕
             </button>
@@ -344,14 +344,14 @@ export function ChatInputBar({
 
       {/* File Attachment Preview */}
       {selectedFile && (
-        <div className="mb-2.5 p-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between gap-3 animate-in fade-in duration-100">
+        <div className="mb-2.5 p-2 rounded-xl bg-zinc-50 dark:bg-[#1A1C22] border border-[#E5E7EB] dark:border-[#2E313A] flex items-center justify-between gap-3 animate-in fade-in duration-100">
           <div className="flex items-center gap-2.5 min-w-0">
             {filePreviewUrl ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={filePreviewUrl}
                 alt="Preview"
-                className="w-10 h-10 object-cover rounded-lg shrink-0 border border-[var(--border-subtle)]"
+                className="w-10 h-10 object-cover rounded-lg shrink-0 border border-[#E5E7EB] dark:border-[#2E313A]"
               />
             ) : (
               <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
@@ -361,10 +361,10 @@ export function ChatInputBar({
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
+              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                 {selectedFile.name}
               </p>
-              <p className="text-[10px] text-[var(--text-tertiary)]">
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
                 {(selectedFile.size / 1024).toFixed(0)} KB
               </p>
             </div>
@@ -372,7 +372,7 @@ export function ChatInputBar({
           <button
             type="button"
             onClick={clearSelectedFile}
-            className="p-1.5 rounded-lg text-[var(--text-tertiary)] hover:text-rose-500 hover:bg-rose-500/10 cursor-pointer transition-colors"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 cursor-pointer transition-colors"
           >
             ✕
           </button>
@@ -449,7 +449,7 @@ export function ChatInputBar({
           type="button"
           disabled={disabled || isSending || isRecording}
           onClick={() => fileInputRef.current?.click()}
-          className="min-w-[44px] min-h-[44px] p-2.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-active)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer disabled:opacity-40 transition-colors flex items-center justify-center shrink-0"
+          className="min-w-[44px] min-h-[44px] p-2.5 rounded-xl bg-zinc-100 dark:bg-[#1A1C22] hover:bg-zinc-200/70 dark:hover:bg-[#252830] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2E313A] cursor-pointer disabled:opacity-40 transition-colors flex items-center justify-center shrink-0"
           title="Anexar foto, vídeo ou documento"
           aria-label="Anexar arquivo"
         >
@@ -465,23 +465,25 @@ export function ChatInputBar({
               type="button"
               disabled={disabled || isSending || isRecording}
               onClick={() => setIsActionsMenuOpen((prev) => !prev)}
-              className="min-w-[44px] min-h-[44px] px-2.5 py-2 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-active)] text-[var(--text-secondary)] hover:text-emerald-600 text-xs font-bold cursor-pointer disabled:opacity-40 transition-colors flex items-center gap-1 shrink-0"
+              className="min-w-[44px] min-h-[44px] px-2.5 py-2 rounded-xl bg-zinc-100 dark:bg-[#1A1C22] hover:bg-zinc-200/70 dark:hover:bg-[#252830] text-zinc-700 dark:text-zinc-300 hover:text-emerald-600 dark:hover:text-emerald-400 border border-[#E5E7EB] dark:border-[#2E313A] text-xs font-bold cursor-pointer disabled:opacity-40 transition-colors flex items-center gap-1 shrink-0"
               title="Solicitar conteúdos clínicos estruturados"
             >
               <span>+ Solicitar</span>
             </button>
 
             {isActionsMenuOpen && (
-              <div className="absolute bottom-12 left-0 w-64 bg-[var(--surface)] border border-[var(--border-subtle)] rounded-2xl shadow-xl p-1.5 z-40 space-y-1 animate-in fade-in duration-100">
+              <div className="absolute bottom-12 left-0 w-64 bg-white dark:bg-[#1A1C22] border border-[#E5E7EB] dark:border-[#2E313A] rounded-2xl shadow-xl p-1.5 z-40 space-y-1 animate-in fade-in duration-100">
                 <button
                   type="button"
                   onClick={() => {
                     setIsActionsMenuOpen(false);
                     setActiveStructuredModal("FORM");
                   }}
-                  className="w-full text-left p-2 rounded-xl hover:bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] flex items-center gap-2 cursor-pointer font-medium"
+                  className="w-full text-left p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-[#252830] text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-2 cursor-pointer font-medium"
                 >
-                  <span>📋</span>
+                  <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
                   <span>Solicitar Formulário / Anamnese</span>
                 </button>
                 <button
@@ -490,9 +492,12 @@ export function ChatInputBar({
                     setIsActionsMenuOpen(false);
                     setActiveStructuredModal("PHOTO");
                   }}
-                  className="w-full text-left p-2 rounded-xl hover:bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] flex items-center gap-2 cursor-pointer font-medium"
+                  className="w-full text-left p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-[#252830] text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-2 cursor-pointer font-medium"
                 >
-                  <span>📸</span>
+                  <svg className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
                   <span>Solicitar Fotos de Evolução</span>
                 </button>
                 <button
@@ -501,9 +506,11 @@ export function ChatInputBar({
                     setIsActionsMenuOpen(false);
                     setActiveStructuredModal("DOCUMENT");
                   }}
-                  className="w-full text-left p-2 rounded-xl hover:bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] flex items-center gap-2 cursor-pointer font-medium"
+                  className="w-full text-left p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-[#252830] text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-2 cursor-pointer font-medium"
                 >
-                  <span>📄</span>
+                  <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
                   <span>Solicitar Exames / Laudos</span>
                 </button>
                 <button
@@ -512,10 +519,12 @@ export function ChatInputBar({
                     setIsActionsMenuOpen(false);
                     setActiveStructuredModal("GUIDANCE");
                   }}
-                  className="w-full text-left p-2 rounded-xl hover:bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] flex items-center gap-2 cursor-pointer font-medium"
+                  className="w-full text-left p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-[#252830] text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-2 cursor-pointer font-medium"
                 >
-                  <span>💡</span>
-                  <span>Orientação Clínica Destacada</span>
+                  <svg className="w-4 h-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <span>Orientação Especializada</span>
                 </button>
                 <button
                   type="button"
@@ -523,9 +532,11 @@ export function ChatInputBar({
                     setIsActionsMenuOpen(false);
                     setActiveStructuredModal("WORKOUT");
                   }}
-                  className="w-full text-left p-2 rounded-xl hover:bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] flex items-center gap-2 cursor-pointer font-medium"
+                  className="w-full text-left p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-[#252830] text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-2 cursor-pointer font-medium"
                 >
-                  <span>🏋️</span>
+                  <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
+                  </svg>
                   <span>Compartilhar Ficha de Treino</span>
                 </button>
                 <button
@@ -534,9 +545,11 @@ export function ChatInputBar({
                     setIsActionsMenuOpen(false);
                     setActiveStructuredModal("MEAL_PLAN");
                   }}
-                  className="w-full text-left p-2 rounded-xl hover:bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] flex items-center gap-2 cursor-pointer font-medium"
+                  className="w-full text-left p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-[#252830] text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-2 cursor-pointer font-medium"
                 >
-                  <span>🥗</span>
+                  <svg className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                  </svg>
                   <span>Compartilhar Plano Alimentar</span>
                 </button>
               </div>
@@ -554,7 +567,7 @@ export function ChatInputBar({
             onKeyDown={handleKeyDown}
             placeholder={disabled ? "Atendimento bloqueado" : "Digite sua mensagem... (Shift+Enter pula linha)"}
             disabled={disabled || isSending || isRecording}
-            className="w-full py-2.5 px-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-sm sm:text-base text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500 resize-none max-h-32 transition-colors disabled:opacity-40 leading-relaxed"
+            className="w-full py-2.5 px-3.5 rounded-2xl bg-zinc-50 dark:bg-[#1A1C22] border border-[#E5E7EB] dark:border-[#2E313A] text-sm sm:text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 resize-none max-h-32 transition-colors disabled:opacity-40 leading-relaxed"
           />
         </div>
 
@@ -567,7 +580,7 @@ export function ChatInputBar({
             className={`min-w-[44px] min-h-[44px] p-2.5 rounded-xl cursor-pointer transition-all flex items-center justify-center shrink-0 ${
               isRecording
                 ? "bg-rose-600 text-white animate-pulse"
-                : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-active)] text-[var(--text-secondary)] hover:text-rose-500"
+                : "bg-zinc-100 dark:bg-[#1A1C22] hover:bg-zinc-200/70 dark:hover:bg-[#252830] text-zinc-600 dark:text-zinc-300 hover:text-rose-500 border border-[#E5E7EB] dark:border-[#2E313A]"
             }`}
             title="Gravar mensagem de voz"
             aria-label="Gravar áudio"

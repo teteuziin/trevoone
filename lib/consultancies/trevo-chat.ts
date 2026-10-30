@@ -58,9 +58,11 @@ export interface ChatConsultationDto {
   studentUserId: number;
   studentName: string;
   studentEmail: string;
+  studentUserPublicId?: string | null;
   professionalMembershipId: number;
   professionalUserId: number;
   professionalName: string;
+  professionalUserPublicId?: string | null;
   professionalType: "PERSONAL" | "NUTRITIONIST";
   title: string;
   status: ChatConsultationStatus;
@@ -395,10 +397,12 @@ export async function listChatConsultationsForProfessional(
       cc.consultancy_id,
       cc.student_membership_id,
       u_stud.id AS student_user_id,
+      u_stud.public_id AS student_user_public_id,
       u_stud.full_name AS student_name,
       u_stud.email AS student_email,
       cc.professional_membership_id,
       u_prof.id AS professional_user_id,
+      u_prof.public_id AS professional_user_public_id,
       u_prof.full_name AS professional_name,
       cc.professional_type,
       cc.title,
@@ -456,10 +460,12 @@ export async function listChatConsultationsForStudent(
       cc.consultancy_id,
       cc.student_membership_id,
       u_stud.id AS student_user_id,
+      u_stud.public_id AS student_user_public_id,
       u_stud.full_name AS student_name,
       u_stud.email AS student_email,
       cc.professional_membership_id,
       u_prof.id AS professional_user_id,
+      u_prof.public_id AS professional_user_public_id,
       u_prof.full_name AS professional_name,
       cc.professional_type,
       cc.title,
@@ -517,10 +523,12 @@ export async function getChatConsultationByPublicId(
         cc.consultancy_id,
         cc.student_membership_id,
         u_stud.id AS student_user_id,
+        u_stud.public_id AS student_user_public_id,
         u_stud.full_name AS student_name,
         u_stud.email AS student_email,
         cc.professional_membership_id,
         u_prof.id AS professional_user_id,
+        u_prof.public_id AS professional_user_public_id,
         u_prof.full_name AS professional_name,
         cc.professional_type,
         cc.title,
@@ -1983,9 +1991,11 @@ function mapRowToConsultationDto(row: RowDataPacket, sanitizeForStudent = false)
     studentUserId: Number(row.student_user_id),
     studentName: String(row.student_name || "Aluno"),
     studentEmail: String(row.student_email || ""),
+    studentUserPublicId: row.student_user_public_id ? String(row.student_user_public_id) : null,
     professionalMembershipId: Number(row.professional_membership_id),
     professionalUserId: Number(row.professional_user_id),
     professionalName: String(row.professional_name || "Profissional"),
+    professionalUserPublicId: row.professional_user_public_id ? String(row.professional_user_public_id) : null,
     professionalType: row.professional_type as "PERSONAL" | "NUTRITIONIST",
     title: String(row.title || "Consulta"),
     status: row.status as ChatConsultationStatus,

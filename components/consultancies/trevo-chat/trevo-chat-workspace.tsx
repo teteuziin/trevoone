@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useTransition, useCallback, useSyncExternalStore } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 
@@ -14,10 +14,10 @@ import type {
 import { ChatMessageList } from "./chat-message-list";
 import { ChatInputBar } from "./chat-input-bar";
 import { AIAnamnesisPanel } from "./ai-anamnesis-panel";
+import { UserAvatar } from "@/components/account/user-avatar";
 import {
   sendChatMessageAction,
   markChatReadAction,
-  updateChatStatusAction,
   proposeChatConsultationAction,
   respondToChatProposalAction,
   cancelChatConsultationAction,
@@ -111,8 +111,6 @@ export function TrevoChatWorkspace({
   activeStudents = [],
   activeProfessionals = [],
 }: TrevoChatWorkspaceProps) {
-  const [, startTransition] = useTransition();
-
   // Local consultations state
   const [createdConsultations, setCreatedConsultations] = useState<ChatConsultationDto[]>([]);
   const [updatedConsultations, setUpdatedConsultations] = useState<Record<string, Partial<ChatConsultationDto>>>({});
@@ -477,18 +475,6 @@ export function TrevoChatWorkspace({
       setIsSending(false);
       return false;
     }
-  };
-
-  // Status switcher
-  const handleStatusChange = (newStatus: ChatConsultationStatus) => {
-    if (!selectedChatPublicId || !isProfessional) return;
-    startTransition(async () => {
-      await updateChatStatusAction(consultancySlug, selectedChatPublicId, newStatus);
-      setUpdatedConsultations((prev) => ({
-        ...prev,
-        [selectedChatPublicId]: { ...(prev[selectedChatPublicId] || {}), status: newStatus },
-      }));
-    });
   };
 
   // Submit new proposal
@@ -924,7 +910,7 @@ export function TrevoChatWorkspace({
 
       {/* Main Workspace Card */}
       <div
-        className={`w-full bg-[var(--surface)] border border-[var(--border-subtle)] rounded-2xl overflow-hidden shadow-xs ${
+        className={`w-full bg-white dark:bg-[#121316] border border-[#E5E7EB] dark:border-[#22242A] rounded-2xl overflow-hidden shadow-xs ${
           mobileScreen === "CHAT"
             ? "fixed inset-0 z-40 md:relative md:inset-auto md:z-auto md:flex md:h-[calc(100vh-170px)] md:min-h-[580px] rounded-none md:rounded-2xl border-none md:border"
             : selectedChatPublicId
@@ -936,11 +922,11 @@ export function TrevoChatWorkspace({
         {/* LEFT PANE: Queues & Consultation List                                */}
         {/* -------------------------------------------------------------------- */}
         <div
-          className={`w-full md:w-80 lg:w-[350px] flex flex-col bg-[var(--surface)] md:border-r md:border-[var(--border-subtle)] shrink-0 ${
+          className={`w-full md:w-80 lg:w-[350px] flex flex-col bg-[#F9FAFB] dark:bg-[#16171B] md:border-r md:border-[#E5E7EB] md:dark:border-[#22242A] shrink-0 ${
             mobileScreen === "CHAT" ? "hidden md:flex" : "flex"
           }`}
         >
-          <div className="p-3.5 border-b border-[var(--border-subtle)] space-y-3">
+          <div className="p-3.5 border-b border-[#E5E7EB] dark:border-[#22242A] space-y-3">
             {/* Search Box */}
             <div className="relative w-full">
               <input
@@ -948,10 +934,10 @@ export function TrevoChatWorkspace({
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
                 placeholder="Buscar por nome ou assunto..."
-                className="w-full min-h-[44px] pl-9 pr-8 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                className="w-full min-h-[44px] pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-[#1A1C22] border border-[#E5E7EB] dark:border-[#2E313A] text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
               />
               <svg
-                className="w-4 h-4 absolute left-3 top-3.5 text-[var(--text-tertiary)] pointer-events-none"
+                className="w-4 h-4 absolute left-3 top-3.5 text-zinc-400 dark:text-zinc-500 pointer-events-none"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -962,7 +948,7 @@ export function TrevoChatWorkspace({
                 <button
                   type="button"
                   onClick={() => setSearchFilter("")}
-                  className="absolute right-2.5 top-3 p-1 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer"
+                  className="absolute right-2.5 top-3 p-1 rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
                   aria-label="Limpar busca"
                 >
                   ✕
@@ -1000,7 +986,7 @@ export function TrevoChatWorkspace({
                     className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "PRECISO_RESPONDER"
                         ? "bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-bold shadow-2xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
+                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
                     }`}
                   >
                     <span className="truncate">Preciso responder</span>
@@ -1008,7 +994,7 @@ export function TrevoChatWorkspace({
                       className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
                         activeQueueTab === "PRECISO_RESPONDER"
                           ? "bg-amber-500/25 text-amber-900 dark:text-amber-200"
-                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
                       {(queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER || 0}
@@ -1020,7 +1006,7 @@ export function TrevoChatWorkspace({
                     className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "AGUARDANDO_ALUNO"
                         ? "bg-blue-500/15 border border-blue-500/30 text-blue-800 dark:text-blue-300 font-bold shadow-2xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
+                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
                     }`}
                   >
                     <span className="truncate">Aguardando aluno</span>
@@ -1028,7 +1014,7 @@ export function TrevoChatWorkspace({
                       className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
                         activeQueueTab === "AGUARDANDO_ALUNO"
                           ? "bg-blue-500/25 text-blue-900 dark:text-blue-200"
-                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
                       {(queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO || 0}
@@ -1040,7 +1026,7 @@ export function TrevoChatWorkspace({
                     className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "SOLICITACOES_RECEBIDAS"
                         ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-bold shadow-2xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
+                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
                     }`}
                   >
                     <span className="truncate">Solicitações</span>
@@ -1048,7 +1034,7 @@ export function TrevoChatWorkspace({
                       className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
                         activeQueueTab === "SOLICITACOES_RECEBIDAS"
                           ? "bg-emerald-500/25 text-emerald-900 dark:text-emerald-200"
-                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
                       {(queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS || 0}
@@ -1060,7 +1046,7 @@ export function TrevoChatWorkspace({
                     className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "CONCLUIDOS"
                         ? "bg-zinc-500/15 border border-zinc-500/30 text-zinc-800 dark:text-zinc-200 font-bold shadow-2xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
+                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
                     }`}
                   >
                     <span className="truncate">Concluídos</span>
@@ -1068,7 +1054,7 @@ export function TrevoChatWorkspace({
                       className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
                         activeQueueTab === "CONCLUIDOS"
                           ? "bg-zinc-500/25 text-zinc-900 dark:text-zinc-200"
-                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
                       {(queueCounts as Record<ProQueue, number>).CONCLUIDOS || 0}
@@ -1080,7 +1066,7 @@ export function TrevoChatWorkspace({
                     className={`col-span-2 min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "ALL"
                         ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold shadow-2xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
+                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
                     }`}
                   >
                     <span>Todos os atendimentos</span>
@@ -1088,7 +1074,7 @@ export function TrevoChatWorkspace({
                       className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                         activeQueueTab === "ALL"
                           ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-200"
-                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
                       {consultations.length}
@@ -1103,7 +1089,7 @@ export function TrevoChatWorkspace({
                     className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "EM_ATENDIMENTO"
                         ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-bold shadow-2xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
+                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
                     }`}
                   >
                     <span className="truncate">Em atendimento</span>
@@ -1111,7 +1097,7 @@ export function TrevoChatWorkspace({
                       className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
                         activeQueueTab === "EM_ATENDIMENTO"
                           ? "bg-emerald-500/25 text-emerald-900 dark:text-emerald-200"
-                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
                       {(queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO || 0}
@@ -1123,7 +1109,7 @@ export function TrevoChatWorkspace({
                     className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "SOLICITACOES"
                         ? "bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-bold shadow-2xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
+                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
                     }`}
                   >
                     <span className="truncate">Solicitações</span>
@@ -1131,7 +1117,7 @@ export function TrevoChatWorkspace({
                       className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
                         activeQueueTab === "SOLICITACOES"
                           ? "bg-amber-500/25 text-amber-900 dark:text-amber-200"
-                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
                       {(queueCounts as Record<StudentQueue, number>).SOLICITACOES || 0}
@@ -1143,7 +1129,7 @@ export function TrevoChatWorkspace({
                     className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "CONCLUIDAS"
                         ? "bg-zinc-500/15 border border-zinc-500/30 text-zinc-800 dark:text-zinc-200 font-bold shadow-2xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
+                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
                     }`}
                   >
                     <span className="truncate">Concluídas</span>
@@ -1151,7 +1137,7 @@ export function TrevoChatWorkspace({
                       className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
                         activeQueueTab === "CONCLUIDAS"
                           ? "bg-zinc-500/25 text-zinc-900 dark:text-zinc-200"
-                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
                       {(queueCounts as Record<StudentQueue, number>).CONCLUIDAS || 0}
@@ -1163,7 +1149,7 @@ export function TrevoChatWorkspace({
                     className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "ALL"
                         ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold shadow-2xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
+                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
                     }`}
                   >
                     <span>Todos</span>
@@ -1171,7 +1157,7 @@ export function TrevoChatWorkspace({
                       className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                         activeQueueTab === "ALL"
                           ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-200"
-                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
                       {consultations.length}
@@ -1183,18 +1169,20 @@ export function TrevoChatWorkspace({
           </div>
 
           {/* List Items */}
-          <div className="flex-1 overflow-y-auto divide-y divide-[var(--border-subtle)]">
+          <div className="flex-1 overflow-y-auto divide-y divide-[#E5E7EB] dark:divide-[#22242A]">
             {filteredConsultations.length === 0 ? (
-              <div className="py-8 px-4 text-center space-y-2">
-                <div className="w-10 h-10 rounded-full bg-[var(--surface-subtle)] text-[var(--text-tertiary)] flex items-center justify-center mx-auto text-lg">
-                  💬
+              <div className="py-8 px-4 text-center space-y-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-zinc-100 dark:bg-[#1A1C22] text-zinc-400 dark:text-zinc-500 flex items-center justify-center mx-auto">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
                 </div>
-                <p className="text-xs font-medium text-[var(--text-secondary)] leading-relaxed">
+                <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300 leading-relaxed">
                   {searchFilter.trim()
                     ? `Nenhum atendimento encontrado para "${searchFilter}".`
                     : isProfessional
                     ? activeQueueTab === "PRECISO_RESPONDER"
-                      ? "Nenhum atendimento aguardando sua resposta."
+                      ? "Nenhum atendimento aguardando sua resposta no momento."
                       : activeQueueTab === "AGUARDANDO_ALUNO"
                       ? "Nenhum atendimento aguardando resposta do aluno."
                       : activeQueueTab === "SOLICITACOES_RECEBIDAS"
@@ -1232,6 +1220,7 @@ export function TrevoChatWorkspace({
               filteredConsultations.map((c) => {
                 const isSelected = c.publicId === selectedChatPublicId;
                 const displayName = isProfessional ? c.studentName : c.professionalName;
+                const counterpartUserPublicId = isProfessional ? c.studentUserPublicId : c.professionalUserPublicId;
                 const unreadCount = isProfessional ? c.unreadCountProfessional : c.unreadCountStudent;
                 const statusCfg = STATUS_CONFIG[c.status] || STATUS_CONFIG.CONFIRMED;
                 const isVideo = c.modality === "VIDEO";
@@ -1255,26 +1244,34 @@ export function TrevoChatWorkspace({
                     }}
                     className={`w-full p-3.5 text-left flex items-start gap-3 transition-colors cursor-pointer min-h-[64px] ${
                       isSelected
-                        ? "bg-emerald-500/10 border-l-4 border-l-emerald-600 dark:bg-emerald-950/20 shadow-2xs"
-                        : "hover:bg-[var(--surface-subtle)]"
+                        ? "bg-emerald-50/70 dark:bg-emerald-950/30 border-l-4 border-l-emerald-600 dark:border-l-emerald-500 shadow-2xs"
+                        : "hover:bg-zinc-100/70 dark:hover:bg-[#1C1E24]"
                     }`}
                   >
-                    {/* Avatar */}
-                    <div
-                      className={`w-10 h-10 rounded-full font-bold text-sm flex items-center justify-center shrink-0 shadow-xs ${
-                        isVideo ? "bg-purple-600 text-white" : "bg-emerald-600 text-white"
-                      }`}
-                    >
-                      {isVideo ? "📹" : displayName.charAt(0).toUpperCase()}
+                    {/* Participant Avatar */}
+                    <div className="relative shrink-0">
+                      <UserAvatar
+                        fullName={displayName}
+                        userPublicId={counterpartUserPublicId}
+                        size="md"
+                        circular={true}
+                      />
+                      {isVideo && (
+                        <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-purple-600 text-white flex items-center justify-center text-[9px] shadow-xs" title="Formato anterior">
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-xs font-bold text-[var(--text-primary)] truncate">
+                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">
                           {displayName}
                         </span>
                         {c.lastMessageAt && (
-                          <span className="text-[10px] text-[var(--text-tertiary)] shrink-0">
+                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400 shrink-0">
                             {new Date(c.lastMessageAt).toLocaleDateString("pt-BR", {
                               day: "2-digit",
                               month: "2-digit",
@@ -1283,18 +1280,31 @@ export function TrevoChatWorkspace({
                         )}
                       </div>
 
-                      <p className="text-xs text-[var(--text-secondary)] truncate mb-1.5 opacity-90">
+                      {c.topic && (
+                        <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 truncate mb-0.5">
+                          {c.topic}
+                        </p>
+                      )}
+
+                      <p className="text-xs text-zinc-600 dark:text-zinc-300 truncate mb-1.5 opacity-90">
                         {isVideo
                           ? `Consulta no formato anterior (${c.proposedStartFormatted || "Histórico"})`
                           : c.lastMessagePreview ||
-                            (c.status === "PROPOSED" ? "Proposta de agendamento pendente" : "Nenhuma mensagem ainda")}
+                            (c.status === "PROPOSED"
+                              ? "Proposta de agendamento pendente"
+                              : isItemFinished
+                              ? "Atendimento encerrado sem mensagens"
+                              : "Nenhuma mensagem ainda")}
                       </p>
 
                       <div className="flex items-center justify-between gap-1 flex-wrap">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {isVideo ? (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
-                              📹 Formato Anterior
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
+                              <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                              <span>Formato Anterior</span>
                             </span>
                           ) : (
                             <span
@@ -1305,8 +1315,12 @@ export function TrevoChatWorkspace({
                           )}
 
                           {c.expectedResponseHours && !isVideo && !isItemFinished && (
-                            <span className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
-                              ⏱️ até {c.expectedResponseHours}h
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-white dark:bg-[#1A1C22] text-zinc-500 dark:text-zinc-400 border border-[#E5E7EB] dark:border-[#2E313A]">
+                              <svg className="w-2.5 h-2.5 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <circle cx="12" cy="12" r="9" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" />
+                              </svg>
+                              <span>até {c.expectedResponseHours}h</span>
                             </span>
                           )}
                         </div>
@@ -1329,7 +1343,7 @@ export function TrevoChatWorkspace({
         {/* RIGHT PANE: Active Chat Conversation, Historical Video or Guidance   */}
         {/* -------------------------------------------------------------------- */}
         <div
-          className={`flex-1 flex flex-col bg-[var(--surface)] min-w-0 overflow-hidden ${
+          className={`flex-1 flex flex-col bg-white dark:bg-[#0E0F12] min-w-0 overflow-hidden ${
             mobileScreen === "LIST" ? "hidden md:flex" : "flex"
           }`}
         >
@@ -1339,67 +1353,75 @@ export function TrevoChatWorkspace({
               /* HISTORICAL VIDEO CONSULTATION VIEWER                           */
               /* -------------------------------------------------------------- */
               <div className="flex-1 flex flex-col overflow-y-auto">
-                <div className="p-3 sm:p-4 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 bg-[var(--surface)]">
+                <div className="p-3 sm:p-4 border-b border-[#E5E7EB] dark:border-[#22242A] flex items-center justify-between gap-3 bg-white dark:bg-[#121316]">
                   <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                     <button
                       type="button"
                       onClick={handleBackToList}
                       aria-label="Voltar para lista de atendimentos"
-                      className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] active:scale-95 cursor-pointer -ml-2"
+                      className="md:hidden min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-[#1A1C22] text-zinc-600 dark:text-zinc-300 active:scale-95 cursor-pointer -ml-1"
                     >
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
                       </svg>
                     </button>
 
-                    <div className="w-9 h-9 rounded-full bg-purple-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
-                      📹
-                    </div>
+                    <UserAvatar
+                      fullName={isProfessional ? activeChat.studentName : activeChat.professionalName}
+                      userPublicId={isProfessional ? activeChat.studentUserPublicId : activeChat.professionalUserPublicId}
+                      size="md"
+                      circular={true}
+                    />
 
                     <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
                         {isProfessional ? activeChat.studentName : activeChat.professionalName}
                       </h3>
-                      <p className="text-[11px] text-[var(--text-tertiary)] truncate">
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
                         Consulta no formato anterior • Histórico preservado
                       </p>
                     </div>
                   </div>
 
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
-                    Histórico arquivado
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span>Histórico arquivado</span>
                   </span>
                 </div>
 
                 <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto space-y-4">
                   <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-2xl shadow-xs">
-                    📹
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
                   </div>
                   <div>
-                    <h4 className="text-base font-bold text-[var(--text-primary)] mb-1">
+                    <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-1">
                       Consulta no formato anterior
                     </h4>
-                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                    <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
                       Esta consulta foi agendada no formato anterior e seus registros históricos foram preservados.
                     </p>
                   </div>
 
-                  <div className="w-full p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-left space-y-2.5 text-xs">
-                    <div className="flex justify-between py-1 border-b border-[var(--border-subtle)]">
-                      <span className="text-[var(--text-tertiary)]">Participante:</span>
-                      <strong className="text-[var(--text-primary)]">
+                  <div className="w-full p-4 rounded-2xl bg-zinc-50 dark:bg-[#16171B] border border-[#E5E7EB] dark:border-[#22242A] text-left space-y-2.5 text-xs">
+                    <div className="flex justify-between py-1 border-b border-[#E5E7EB] dark:border-[#22242A]">
+                      <span className="text-zinc-500 dark:text-zinc-400">Participante:</span>
+                      <strong className="text-zinc-900 dark:text-zinc-100">
                         {isProfessional ? activeChat.studentName : activeChat.professionalName}
                       </strong>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-[var(--border-subtle)]">
-                      <span className="text-[var(--text-tertiary)]">Data agendada:</span>
-                      <span className="text-[var(--text-primary)] font-semibold">
+                    <div className="flex justify-between py-1 border-b border-[#E5E7EB] dark:border-[#22242A]">
+                      <span className="text-zinc-500 dark:text-zinc-400">Data agendada:</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-semibold">
                         {activeChat.proposedStartFormatted || "Data arquivada"}
                       </span>
                     </div>
                     <div className="flex justify-between py-1">
-                      <span className="text-[var(--text-tertiary)]">Situação registrada:</span>
-                      <span className="text-[var(--text-secondary)] font-semibold">
+                      <span className="text-zinc-500 dark:text-zinc-400">Situação registrada:</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-semibold">
                         {activeChat.status === "CANCELED" ? "Cancelada" : "Histórico arquivado"}
                       </span>
                     </div>
@@ -1412,42 +1434,48 @@ export function TrevoChatWorkspace({
             /* -------------------------------------------------------------- */
             <>
               {/* Header */}
-              <div className="p-3 sm:p-4 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 bg-[var(--surface)]">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="p-3 sm:p-4 border-b border-[#E5E7EB] dark:border-[#22242A] flex items-center justify-between gap-3 bg-white dark:bg-[#121316]">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                   <button
                     type="button"
                     onClick={handleBackToList}
                     aria-label="Voltar para lista de atendimentos"
-                    className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] active:scale-95 cursor-pointer -ml-2"
+                    className="md:hidden min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-[#1A1C22] text-zinc-600 dark:text-zinc-300 active:scale-95 cursor-pointer -ml-1"
                   >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
 
-                  <div className="w-9 h-9 rounded-full bg-emerald-600 text-white font-bold text-sm flex items-center justify-center shrink-0">
-                    {(isProfessional ? activeChat.studentName : activeChat.professionalName)
-                      .charAt(0)
-                      .toUpperCase()}
-                  </div>
+                  <UserAvatar
+                    fullName={isProfessional ? activeChat.studentName : activeChat.professionalName}
+                    userPublicId={isProfessional ? activeChat.studentUserPublicId : activeChat.professionalUserPublicId}
+                    size="md"
+                    circular={true}
+                  />
 
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
                         {isProfessional ? activeChat.studentName : activeChat.professionalName}
                       </h3>
-                      {activeChat.expectedResponseHours && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-semibold border border-emerald-500/20">
-                          ⏱️ Responde em até {activeChat.expectedResponseHours}h
-                        </span>
-                      )}
+                      {!isCompleted &&
+                        activeChat.status !== "CANCELED" &&
+                        activeChat.status !== "DECLINED" &&
+                        activeChat.expectedResponseHours && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
+                            <svg className="w-3 h-3 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <circle cx="12" cy="12" r="9" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" />
+                            </svg>
+                            <span>Responde em até {activeChat.expectedResponseHours}h</span>
+                          </span>
+                        )}
                     </div>
-                    <p className="text-[11px] text-[var(--text-tertiary)] truncate">
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
                       {isProfessional
-                        ? activeChat.studentEmail
-                        : activeChat.professionalType === "PERSONAL"
-                        ? "Personal Trainer"
-                        : "Nutricionista"}
+                        ? activeChat.studentEmail || "Aluno vinculado"
+                        : activeChat.counterpartRole || (activeChat.professionalType === "PERSONAL" ? "Personal Trainer" : "Nutricionista")}
                     </p>
                   </div>
                 </div>
@@ -1462,9 +1490,13 @@ export function TrevoChatWorkspace({
                         setIsClosureModalOpen(true);
                         setClosureError(null);
                       }}
-                      className="min-h-[36px] px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs active:scale-95"
+                      className="min-h-[36px] px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs active:scale-95"
                     >
-                      <span>✓ Finalizar Atendimento</span>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="hidden sm:inline">Finalizar Atendimento</span>
+                      <span className="sm:hidden">Finalizar</span>
                     </button>
                   )}
 
@@ -1476,47 +1508,43 @@ export function TrevoChatWorkspace({
                         setIsReturnModalOpen(true);
                         setReturnError(null);
                       }}
-                      className="min-h-[36px] px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs active:scale-95"
+                      className="min-h-[36px] px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs active:scale-95"
                     >
-                      <span>🔄 Solicitar Retorno</span>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span className="hidden sm:inline">Solicitar Retorno</span>
+                      <span className="sm:hidden">Retorno</span>
                     </button>
                   )}
 
-                  {/* Status Dropdown/Badge */}
-                  {isProfessional && (activeChat.status === "CONFIRMED" || activeChat.status === "COMPLETED") ? (
-                    <select
-                      value={activeChat.status}
-                      onChange={(e) => handleStatusChange(e.target.value as ChatConsultationStatus)}
-                      aria-label="Status do atendimento"
-                      className="text-xs px-2.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] font-semibold cursor-pointer focus:outline-none min-h-[36px]"
-                    >
-                      <option value="CONFIRMED">Em andamento</option>
-                      <option value="COMPLETED">Concluído</option>
-                    </select>
-                  ) : (
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                        (STATUS_CONFIG[activeChat.status] || STATUS_CONFIG.CONFIRMED).badgeClass
-                      }`}
-                    >
-                      {(STATUS_CONFIG[activeChat.status] || STATUS_CONFIG.CONFIRMED).label}
-                    </span>
-                  )}
-
-                  {/* AI Anamnesis / Prontuário Drawer Toggle */}
-                  <button
-                    type="button"
-                    onClick={() => setIsAiDrawerOpen((prev) => !prev)}
-                    title="Abrir Prontuário e IA"
-                    className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${
-                      isAiDrawerOpen
-                        ? "bg-purple-600 text-white shadow-xs"
-                        : "bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 border border-purple-500/20"
+                  {/* Status Badge */}
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                      (STATUS_CONFIG[activeChat.status] || STATUS_CONFIG.CONFIRMED).badgeClass
                     }`}
                   >
-                    <span>🤖</span>
-                    <span className="hidden sm:inline">Prontuário & IA</span>
-                  </button>
+                    {(STATUS_CONFIG[activeChat.status] || STATUS_CONFIG.CONFIRMED).label}
+                  </span>
+
+                  {/* AI Anamnesis / Prontuário Drawer Toggle */}
+                  {isProfessional && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAiDrawerOpen((prev) => !prev)}
+                      title="Abrir Prontuário e IA"
+                      className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                        isAiDrawerOpen
+                          ? "bg-purple-600 text-white shadow-xs"
+                          : "bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 border border-purple-500/20"
+                      }`}
+                    >
+                      <svg className="w-4 h-4 text-purple-600 dark:text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="hidden sm:inline">Prontuário & IA</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1526,22 +1554,24 @@ export function TrevoChatWorkspace({
                   <div className="p-4 m-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-3">
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                        📅
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
                       </div>
                       <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-[var(--text-primary)]">
+                          <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
                             Proposta de Agendamento Recebida
                           </span>
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300">
                             Aguardando seu aceite
                           </span>
                         </div>
-                        <p className="text-xs text-[var(--text-secondary)]">
+                        <p className="text-xs text-zinc-600 dark:text-zinc-300">
                           Horário de referência: <strong>{activeChat.proposedStartFormatted || "A combinar"}</strong>
                           {activeChat.topic && <span> • Foco: <em>{activeChat.topic}</em></span>}
                         </p>
-                        <p className="text-[11px] text-[var(--text-tertiary)]">
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                           O horário é apenas uma referência para organização da agenda. A conversa é assíncrona e cada um responde quando puder.
                         </p>
                       </div>
@@ -1561,7 +1591,7 @@ export function TrevoChatWorkspace({
                           setIsCounterModalOpen(true);
                           setCounterError(null);
                         }}
-                        className="min-h-[40px] px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-active)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-default)] cursor-pointer transition-colors"
+                        className="min-h-[40px] px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-[#1A1C22] hover:bg-zinc-200/70 dark:hover:bg-[#252830] text-zinc-800 dark:text-zinc-200 text-xs font-semibold border border-[#E5E7EB] dark:border-[#2E313A] cursor-pointer transition-colors"
                       >
                         Propor outro horário
                       </button>
@@ -1578,22 +1608,25 @@ export function TrevoChatWorkspace({
                   <div className="p-4 m-3 rounded-2xl bg-blue-500/10 border border-blue-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                        ⏳
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <circle cx="12" cy="12" r="9" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" />
+                        </svg>
                       </div>
                       <div className="space-y-0.5 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-[var(--text-primary)]">
+                          <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
                             Proposta enviada
                           </span>
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-700 dark:text-blue-300">
                             Aguardando confirmação do {isProfessional ? "aluno" : "profissional"}
                           </span>
                         </div>
-                        <p className="text-xs text-[var(--text-secondary)]">
+                        <p className="text-xs text-zinc-600 dark:text-zinc-300">
                           Horário de referência: <strong>{activeChat.proposedStartFormatted || "A combinar"}</strong>
                           {activeChat.topic && <span> • Foco: <em>{activeChat.topic}</em></span>}
                         </p>
-                        <p className="text-[11px] text-[var(--text-tertiary)]">
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                           Assim que o agendamento for confirmado bilateralmente, o chat será liberado.
                         </p>
                       </div>
@@ -1641,6 +1674,9 @@ export function TrevoChatWorkspace({
                     })
                   }
                   isProfessional={isProfessional}
+                  professionalType={activeChat.professionalType || professionalType}
+                  consultationStatus={activeChat.status}
+                  closedAt={activeChat.closedAt}
                   hasMoreOlderMessages={hasMoreOlderMessages}
                   isLoadingOlderMessages={isLoadingOlderMessages}
                   onLoadOlderMessages={handleLoadOlderMessages}
@@ -1650,44 +1686,106 @@ export function TrevoChatWorkspace({
               {/* Non-blocking error notification if sending fails */}
               {sendErrorNotice && (
                 <div className="mx-4 my-2 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center justify-between gap-2 shadow-2xs">
-                  <span>⚠️ {sendErrorNotice} (seu rascunho de mensagem foi preservado)</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <svg className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span className="truncate">{sendErrorNotice} (seu rascunho de mensagem foi preservado)</span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setSendErrorNotice(null)}
-                    className="text-xs font-bold px-2 py-0.5 rounded hover:bg-rose-500/20 cursor-pointer"
+                    className="text-xs font-bold px-2 py-0.5 rounded hover:bg-rose-500/20 cursor-pointer shrink-0"
                   >
                     Fechar
                   </button>
                 </div>
               )}
 
-              {/* Chat Input Bar */}
-              <ChatInputBar
-                onSendMessage={handleSendMessage}
-                isSending={isSending}
-                disabled={!isMessagingUnlocked || (isCompleted && !isProfessional)}
-                disabledMessage={
-                  !isMessagingUnlocked
-                    ? "Aguardando confirmação bilateral do agendamento para liberar as mensagens."
-                    : isCompleted
-                    ? "Este atendimento foi concluído. Utilize o botão acima para solicitar retorno."
-                    : undefined
-                }
-                isProfessional={isProfessional}
-                replyingTo={replyingTo}
-                onCancelReply={() => setReplyingTo(null)}
-              />
+              {/* Bottom Conversation Area (Strictly coherent with consultation state) */}
+              {isCompleted ? (
+                <div className="p-3.5 sm:p-4 bg-zinc-50 dark:bg-[#16171B] border-t border-[#E5E7EB] dark:border-[#22242A] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-zinc-200/70 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-zinc-900 dark:text-zinc-100">
+                        Atendimento concluído{activeChat.closedAt ? ` em ${new Date(activeChat.closedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}` : ""}.
+                      </p>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                        O histórico de mensagens e orientações está preservado.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsReturnModalOpen(true);
+                      setReturnError(null);
+                    }}
+                    className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs active:scale-95 text-xs w-full sm:w-auto shrink-0"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>Solicitar Retorno</span>
+                  </button>
+                </div>
+              ) : activeChat.status === "CANCELED" ? (
+                <div className="p-3.5 sm:p-4 bg-zinc-50 dark:bg-[#16171B] border-t border-[#E5E7EB] dark:border-[#22242A] flex items-center gap-2.5 text-xs text-zinc-600 dark:text-zinc-400">
+                  <div className="w-8 h-8 rounded-xl bg-zinc-200/70 dark:bg-zinc-800 text-zinc-500 flex items-center justify-center shrink-0">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <p>Este atendimento foi cancelado. O histórico está preservado para consulta.</p>
+                </div>
+              ) : activeChat.status === "DECLINED" ? (
+                <div className="p-3.5 sm:p-4 bg-rose-500/10 border-t border-rose-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs text-rose-700 dark:text-rose-300">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-bold">Agendamento recusado.</p>
+                      {activeChat.declinedReason && <p className="text-[11px] opacity-90">Motivo: {activeChat.declinedReason}</p>}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Active Chat Input Bar */
+                <ChatInputBar
+                  onSendMessage={handleSendMessage}
+                  isSending={isSending}
+                  disabled={!isMessagingUnlocked}
+                  disabledMessage={
+                    !isMessagingUnlocked
+                      ? "Aguardando confirmação bilateral do agendamento para liberar as mensagens."
+                      : undefined
+                  }
+                  isProfessional={isProfessional}
+                  replyingTo={replyingTo}
+                  onCancelReply={() => setReplyingTo(null)}
+                />
+              )}
             </>
           )
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-10 text-center text-[var(--text-tertiary)] max-w-md mx-auto">
+          <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-10 text-center text-zinc-400 dark:text-zinc-500 max-w-md mx-auto">
             <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3.5 text-2xl shadow-xs">
-              💬
+              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
             </div>
-            <h3 className="text-base font-bold text-[var(--text-primary)] mb-1.5">
+            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-1.5">
               Nenhum atendimento selecionado
             </h3>
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-4 max-w-sm">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed mb-4 max-w-sm">
               Selecione uma conversa na lista ao lado para acompanhar as mensagens, registrar orientações e visualizar o histórico clínico.
             </p>
             <button
@@ -1841,14 +1939,17 @@ export function TrevoChatWorkspace({
                               }`}
                             >
                               <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
-                                  {student.name.charAt(0).toUpperCase()}
-                                </div>
+                                <UserAvatar
+                                  fullName={student.name}
+                                  userPublicId={student.userPublicId}
+                                  size="md"
+                                  circular={true}
+                                />
                                 <div className="min-w-0">
-                                  <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                                  <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
                                     {student.name}
                                   </p>
-                                  <p className="text-xs text-[var(--text-tertiary)] truncate">
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
                                     {student.email}
                                   </p>
                                 </div>
@@ -1887,14 +1988,17 @@ export function TrevoChatWorkspace({
                               }`}
                             >
                               <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-10 h-10 rounded-full bg-purple-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
-                                  {pro.name.charAt(0).toUpperCase()}
-                                </div>
+                                <UserAvatar
+                                  fullName={pro.name}
+                                  userPublicId={pro.userPublicId}
+                                  size="md"
+                                  circular={true}
+                                />
                                 <div className="min-w-0">
-                                  <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                                  <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
                                     {pro.name}
                                   </p>
-                                  <p className="text-xs text-[var(--text-tertiary)] truncate">
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
                                     {pro.role === "PERSONAL" ? "Personal Trainer" : "Nutricionista"} • {pro.email}
                                   </p>
                                 </div>
@@ -1982,24 +2086,32 @@ export function TrevoChatWorkspace({
                   )}
 
                   {/* Selected Participant Card */}
-                  <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between gap-3">
+                  <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-[#1A1C22] border border-[#E5E7EB] dark:border-[#2E313A] flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
-                        {(isProfessional
-                          ? selectedStudentForProposal?.name || "A"
-                          : selectedProfessionalForProposal?.name || activeProfessionals[0]?.name || "P"
-                        ).charAt(0).toUpperCase()}
-                      </div>
+                      <UserAvatar
+                        fullName={
+                          isProfessional
+                            ? selectedStudentForProposal?.name || "Aluno"
+                            : selectedProfessionalForProposal?.name || activeProfessionals[0]?.name || "Profissional"
+                        }
+                        userPublicId={
+                          isProfessional
+                            ? selectedStudentForProposal?.userPublicId
+                            : selectedProfessionalForProposal?.userPublicId || activeProfessionals[0]?.userPublicId
+                        }
+                        size="md"
+                        circular={true}
+                      />
                       <div className="min-w-0">
-                        <p className="text-xs text-[var(--text-tertiary)] font-bold uppercase tracking-wider">
+                        <p className="text-xs text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider">
                           {isProfessional ? "Aluno destinatário" : "Profissional destinatário"}
                         </p>
-                        <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                        <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
                           {isProfessional
                             ? selectedStudentForProposal?.name
                             : selectedProfessionalForProposal?.name || activeProfessionals[0]?.name}
                         </p>
-                        <p className="text-[11px] text-[var(--text-tertiary)] truncate">
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
                           {isProfessional
                             ? selectedStudentForProposal?.email
                             : (selectedProfessionalForProposal?.role || activeProfessionals[0]?.role) === "PERSONAL"
@@ -2024,41 +2136,51 @@ export function TrevoChatWorkspace({
 
                   {/* 1. Date & Time Inputs */}
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                      <span>📅 Quando iniciar (Marco de Referência)</span>
+                    <label className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                      <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>Quando iniciar (Marco de Referência)</span>
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <span className="text-[11px] text-[var(--text-tertiary)] font-medium">Data de referência</span>
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">Data de referência</span>
                         <input
                           type="date"
                           required
                           value={proposalDate}
                           min={new Date().toISOString().split("T")[0]}
                           onChange={(e) => setProposalDate(e.target.value)}
-                          className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                          className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-zinc-50 dark:bg-[#1A1C22] border border-[#E5E7EB] dark:border-[#2E313A] text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-emerald-500 transition-colors"
                         />
                       </div>
                       <div className="space-y-1">
-                        <span className="text-[11px] text-[var(--text-tertiary)] font-medium">Horário sugerido</span>
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">Horário sugerido</span>
                         <input
                           type="time"
                           required
                           value={proposalTime}
                           onChange={(e) => setProposalTime(e.target.value)}
-                          className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                          className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-zinc-50 dark:bg-[#1A1C22] border border-[#E5E7EB] dark:border-[#2E313A] text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-emerald-500 transition-colors"
                         />
                       </div>
                     </div>
-                    <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
-                      💡 Vocês não precisam estar conectados ao mesmo tempo. O horário serve como marco inicial do atendimento assíncrono.
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed flex items-start gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Vocês não precisam estar conectados ao mesmo tempo. O horário serve como marco inicial do atendimento assíncrono.</span>
                     </p>
                   </div>
 
                   {/* 2. Expected Response Time */}
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                      <span>⏱️ Expectativa de resposta</span>
+                    <label className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                      <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <circle cx="12" cy="12" r="9" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" />
+                      </svg>
+                      <span>Expectativa de resposta</span>
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       {[12, 24, 48].map((hours) => (
@@ -2069,7 +2191,7 @@ export function TrevoChatWorkspace({
                           className={`min-h-[42px] py-2 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
                             proposalExpectedHours === hours
                               ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                              : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--surface-active)]"
+                              : "bg-white/80 dark:bg-[#1A1C22] text-zinc-700 dark:text-zinc-300 border-[#E5E7EB] dark:border-[#2E313A] hover:bg-zinc-100 dark:hover:bg-[#252830]"
                           }`}
                         >
                           Até {hours}h
@@ -2422,7 +2544,12 @@ export function TrevoChatWorkspace({
                 {/* Private Notes */}
                 <div className="space-y-1 pt-2 border-t border-[var(--border-subtle)]">
                   <label className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center justify-between">
-                    <span>🔒 Notas privadas do profissional</span>
+                    <span className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <span>Notas privadas do profissional</span>
+                    </span>
                     <span className="text-[10px] font-semibold">Exclusivo do prontuário (nunca exposto ao aluno)</span>
                   </label>
                   <textarea
@@ -2476,7 +2603,10 @@ export function TrevoChatWorkspace({
             <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
               <div>
                 <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
-                  <span>🔄 Solicitar Consulta de Retorno</span>
+                  <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span>Solicitar Consulta de Retorno</span>
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                   Vinculada ao histórico do atendimento anterior.

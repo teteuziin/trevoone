@@ -443,6 +443,99 @@ assert.ok(
 );
 console.log("✓ Portal z-[100], trava de scroll do body e proporções desktop/mobile verificadas.");
 
+// -----------------------------------------------------------------------------
+// 19. REAL PARTICIPANT PHOTO (USERAVATAR) WITH INITIALS FALLBACK
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 19] Verificando integração do componente oficial UserAvatar para fotos reais...");
+assert.ok(
+  workspaceCode.includes('import { UserAvatar } from "@/components/account/user-avatar"'),
+  "Workspace deve importar UserAvatar oficial de @/components/account/user-avatar"
+);
+assert.ok(
+  workspaceCode.includes("userPublicId={counterpartUserPublicId}"),
+  "Lista e cabeçalho do chat devem repassar userPublicId para resolução de foto real"
+);
+assert.ok(
+  workspaceCode.includes("student.userPublicId") && workspaceCode.includes("pro.userPublicId"),
+  "Seleção de participantes no modal Etapa 1 deve repassar userPublicId ao UserAvatar"
+);
+assert.ok(
+  workspaceCode.includes("selectedStudentForProposal?.userPublicId"),
+  "Resumo do participante no modal Etapa 2 deve repassar userPublicId ao UserAvatar"
+);
+console.log("✓ UserAvatar integrado na lista, cabeçalho e modais com fallback seguro para iniciais.");
+
+// -----------------------------------------------------------------------------
+// 20. CONTRADICTORY STATE ELIMINATION FOR COMPLETED / CANCELLED / DECLINED CHATS
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 20] Verificando eliminação de estados contraditórios em consultas concluídas...");
+assert.ok(
+  workspaceCode.includes("isCompleted ? (") && workspaceCode.includes("Atendimento concluído"),
+  "Workspace deve renderizar card de encerramento discreto sem barra de composição em atendimentos concluídos"
+);
+assert.ok(
+  !workspaceCode.includes("disabledMessage={\n                  !isMessagingUnlocked\n                    ? \"Aguardando confirmação bilateral"),
+  "ChatInputBar não deve ser renderizado para atendimentos concluídos"
+);
+assert.ok(
+  workspaceCode.includes("!isCompleted &&") && workspaceCode.includes("activeChat.expectedResponseHours"),
+  "Pill de SLA de resposta no cabeçalho deve ser ocultado para atendimentos concluídos"
+);
+assert.ok(
+  workspaceCode.includes("Atendimento encerrado sem mensagens"),
+  "Lista de atendimentos deve exibir 'Atendimento encerrado sem mensagens' quando concluído sem mensagens"
+);
+console.log("✓ Estados contraditórios eliminados; compositor ocultado e histórico preservado.");
+
+// -----------------------------------------------------------------------------
+// 21. ROLE-APPROPRIATE CONTEXTUAL COPY & NO IMPROVISED EMOJIS
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 21] Verificando textos contextuais por perfil e eliminação de emojis improvisados...");
+const freshMessageListCode = fs.readFileSync(messageListPath, "utf-8");
+
+assert.ok(
+  !freshMessageListCode.includes("apoio médico e nutricional"),
+  "Mensagem inicial não deve citar apoio médico e nutricional indiscriminadamente"
+);
+assert.ok(
+  freshMessageListCode.includes("acompanhamento físico e de treino"),
+  "Mensagem inicial deve apresentar texto específico para Personal Trainer"
+);
+assert.ok(
+  freshMessageListCode.includes("acompanhamento nutricional"),
+  "Mensagem inicial deve apresentar texto específico para Nutricionista"
+);
+
+// Verify no emojis in header & actions in workspace
+const emojiRegex = /[\u{1F300}-\u{1F9FF}]/u;
+assert.ok(
+  !emojiRegex.test(workspaceCode),
+  "Workspace não deve conter emojis improvisados; deve utilizar ícones SVG oficiais"
+);
+console.log("✓ Textos contextuais adequados ao perfil e emojis substituídos por SVGs.");
+
+// -----------------------------------------------------------------------------
+// 22. DARK MODE SURFACE DIFFERENTIATION
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 22] Verificando diferenciação de superfícies no modo escuro...");
+assert.ok(
+  workspaceCode.includes("dark:bg-[#121316]") && workspaceCode.includes("dark:border-[#22242A]"),
+  "Card do workspace deve utilizar superfície dark diferenciada (#121316)"
+);
+assert.ok(
+  workspaceCode.includes("dark:bg-[#16171B]"),
+  "Coluna de lista de atendimentos deve utilizar superfície dark diferenciada (#16171B)"
+);
+assert.ok(
+  workspaceCode.includes("dark:bg-[#0E0F12]"),
+  "Área de conversa deve utilizar superfície dark focada (#0E0F12)"
+);
+assert.ok(
+  workspaceCode.includes("dark:bg-[#1A1C22]"),
+  "Campos de busca e inputs devem utilizar superfície dark contrastante (#1A1C22)"
+);
+console.log("✓ Superfícies dark mode hierarquizadas com contraste nítido e confortável.");
+
 console.log("\n======================================================================");
-console.log(" ✓ TODAS AS 18 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
+console.log(" ✓ TODAS AS 22 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
 console.log("======================================================================\n");

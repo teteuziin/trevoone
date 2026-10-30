@@ -104,7 +104,54 @@ export type ActionResult<T = unknown> = {
   data?: T;
   error?: string;
   code?: string;
+  pendingItems?: unknown[];
 };
+
+function sanitizeActionError<T = unknown>(
+  err: unknown,
+  fallbackMessage: string,
+  contextLabel: string = "NutritionAction"
+): ActionResult<T> {
+  if (err instanceof NutritionAuthorizationError) {
+    return {
+      success: false,
+      error: err.message,
+      code: err.code,
+      pendingItems: Array.isArray(err.pendingItems) ? err.pendingItems : undefined,
+    };
+  }
+
+  const rawMessage = err instanceof Error ? err.message : String(err || "");
+  const errRef = "ERR_" + crypto.randomUUID().slice(0, 8).toUpperCase();
+  console.error(`[${contextLabel}] [${errRef}]`, err);
+
+  const isDbOrInternal =
+    rawMessage.includes("Unknown column") ||
+    rawMessage.includes("ER_BAD_FIELD_ERROR") ||
+    rawMessage.includes("SELECT") ||
+    rawMessage.includes("INSERT") ||
+    rawMessage.includes("UPDATE") ||
+    rawMessage.includes("DELETE") ||
+    rawMessage.includes("FROM") ||
+    rawMessage.includes("SQLSTATE") ||
+    rawMessage.includes("ECONNREFUSED") ||
+    rawMessage.includes("ETIMEDOUT") ||
+    rawMessage.includes("ER_ACCESS_DENIED_ERROR");
+
+  if (isDbOrInternal) {
+    return {
+      success: false,
+      error: `${fallbackMessage} O rascunho do plano foi mantido intacto sem perda de dados. (Ref: ${errRef})`,
+      code: "INTERNAL_DATABASE_ERROR",
+    };
+  }
+
+  return {
+    success: false,
+    error: rawMessage ? `${rawMessage} (Ref: ${errRef})` : fallbackMessage,
+    code: "ACTION_FAILED",
+  };
+}
 
 // ============================================================================
 // PLAN CREATION & METADATA
@@ -835,11 +882,7 @@ export async function publishPlanVersionAction(
     revalidatePath(`/consultoria/${slug}/planos-v2/${planPublicId}`);
     return { success: true, data: res };
   } catch (err: unknown) {
-    if (err instanceof NutritionAuthorizationError) {
-      return { success: false, error: err.message, code: err.code };
-    }
-    const message = err instanceof Error ? err.message : "Erro ao publicar plano.";
-    return { success: false, error: message };
+    return sanitizeActionError(err, "Não foi possível concluir a publicação do plano.", "publishPlanVersionAction");
   }
 }
 
@@ -1398,11 +1441,7 @@ export async function publishPatientPlanUpdateAction(
     revalidatePath(`/consultoria/${slug}/nutricao`);
     return { success: true, data };
   } catch (err: unknown) {
-    if (err instanceof NutritionAuthorizationError) {
-      return { success: false, error: err.message, code: err.code };
-    }
-    const message = err instanceof Error ? err.message : "Erro ao publicar atualização do plano.";
-    return { success: false, error: message };
+    return sanitizeActionError(err, "Não foi possível concluir a publicação da atualização do plano.", "publishPatientPlanUpdateAction");
   }
 }
 
@@ -1418,8 +1457,7 @@ export async function discardPatientPlanDraftAction(
     revalidatePath(`/consultoria/${slug}/planos-v2`);
     return { success: true, data };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erro ao descartar alterações.";
-    return { success: false, error: message };
+    return sanitizeActionError(err, "Não foi possível descartar as alterações do rascunho.", "discardPatientPlanDraftAction");
   }
 }
 
@@ -1644,10 +1682,6 @@ export async function setItemReviewedWithoutNutritionAction(
     revalidatePath(`/consultoria/${slug}/planos-v2/${planPublicId}`);
     return { success: true, data };
   } catch (err: unknown) {
-    if (err instanceof NutritionAuthorizationError) {
-      return { success: false, error: err.message, code: err.code };
-    }
-    const message = err instanceof Error ? err.message : "Erro ao revisar alimento.";
-    return { success: false, error: message };
+    return sanitizeActionError(err, "Não foi possível atualizar a revisão do alimento.", "setItemReviewedWithoutNutritionAction");
   }
 }

@@ -3580,13 +3580,35 @@ export async function publishPlanVersion(
       throw new NutritionAuthorizationError("Acesso negado a este plano da consultoria.", "FORBIDDEN_TENANT_PLAN", 403);
     }
 
-    // 2. Lock target version and verify relationship
-    const [targetVersions] = await connection.query<RowDataPacket[]>(
-      `SELECT id, public_id, nutrition_plan_id, version_number, status, published_at, title, guidance_json
+    // 2. Lock target version and verify relationship (with defensive guidance_json fallback)
+    let targetVersions: RowDataPacket[];
+    let hasGuidanceJsonCol = true;
+    try {
+      const [rows] = await connection.query<RowDataPacket[]>(
+        `SELECT id, public_id, nutrition_plan_id, version_number, status, published_at, title, guidance_json
        FROM nutrition_v2_plan_versions
        WHERE public_id = ? AND nutrition_plan_id = ? AND deleted_at IS NULL FOR UPDATE`,
-      [versionPublicId, plan.id]
-    );
+        [versionPublicId, plan.id]
+      );
+      targetVersions = rows;
+    } catch (colErr: unknown) {
+      if (
+        colErr &&
+        typeof colErr === "object" &&
+        ("code" in colErr && ((colErr as { code?: string }).code === "ER_BAD_FIELD_ERROR" || (colErr as { errno?: number }).errno === 1054))
+      ) {
+        hasGuidanceJsonCol = false;
+        const [rows] = await connection.query<RowDataPacket[]>(
+          `SELECT id, public_id, nutrition_plan_id, version_number, status, published_at, title
+       FROM nutrition_v2_plan_versions
+       WHERE public_id = ? AND nutrition_plan_id = ? AND deleted_at IS NULL FOR UPDATE`,
+          [versionPublicId, plan.id]
+        );
+        targetVersions = rows;
+      } else {
+        throw colErr;
+      }
+    }
 
     if (targetVersions.length === 0) {
       throw new NutritionAuthorizationError("Versão não encontrada ou não pertence a este plano.", "VERSION_NOT_FOUND", 404);
@@ -3694,13 +3716,30 @@ export async function publishPlanVersion(
       updatedGuidanceJson = JSON.stringify(gj);
     }
 
-    if (updatedGuidanceJson) {
-      await connection.query(
-        `UPDATE nutrition_v2_plan_versions
+    if (updatedGuidanceJson && hasGuidanceJsonCol) {
+      try {
+        await connection.query(
+          `UPDATE nutrition_v2_plan_versions
          SET status = 'PUBLISHED', published_at = UTC_TIMESTAMP(3), guidance_json = ?, updated_at = UTC_TIMESTAMP(3)
          WHERE id = ?`,
-        [updatedGuidanceJson, target.id]
-      );
+          [updatedGuidanceJson, target.id]
+        );
+      } catch (upErr: unknown) {
+        if (
+          upErr &&
+          typeof upErr === "object" &&
+          ("code" in upErr && ((upErr as { code?: string }).code === "ER_BAD_FIELD_ERROR" || (upErr as { errno?: number }).errno === 1054))
+        ) {
+          await connection.query(
+            `UPDATE nutrition_v2_plan_versions
+             SET status = 'PUBLISHED', published_at = UTC_TIMESTAMP(3), updated_at = UTC_TIMESTAMP(3)
+             WHERE id = ?`,
+            [target.id]
+          );
+        } else {
+          throw upErr;
+        }
+      }
     } else {
       await connection.query(
         `UPDATE nutrition_v2_plan_versions
@@ -4842,13 +4881,36 @@ export async function setItemReviewedWithoutNutrition(
     connection = await getDbConnection();
     await connection.beginTransaction();
 
-    const [vRows] = await connection.query<RowDataPacket[]>(
-      `SELECT v.id, v.status, v.guidance_json, p.consultancy_id
+    let vRows: RowDataPacket[];
+    let hasGuidanceJson = true;
+    try {
+      const [rows] = await connection.query<RowDataPacket[]>(
+        `SELECT v.id, v.status, v.guidance_json, p.consultancy_id
        FROM nutrition_v2_plan_versions v
        INNER JOIN nutrition_v2_plans p ON p.id = v.nutrition_plan_id
        WHERE v.public_id = ? AND p.public_id = ? AND v.deleted_at IS NULL FOR UPDATE`,
-      [versionPublicId, planPublicId]
-    );
+        [versionPublicId, planPublicId]
+      );
+      vRows = rows;
+    } catch (colErr: unknown) {
+      if (
+        colErr &&
+        typeof colErr === "object" &&
+        ("code" in colErr && ((colErr as { code?: string }).code === "ER_BAD_FIELD_ERROR" || (colErr as { errno?: number }).errno === 1054))
+      ) {
+        hasGuidanceJson = false;
+        const [rows] = await connection.query<RowDataPacket[]>(
+          `SELECT v.id, v.status, p.consultancy_id
+       FROM nutrition_v2_plan_versions v
+       INNER JOIN nutrition_v2_plans p ON p.id = v.nutrition_plan_id
+       WHERE v.public_id = ? AND p.public_id = ? AND v.deleted_at IS NULL FOR UPDATE`,
+          [versionPublicId, planPublicId]
+        );
+        vRows = rows;
+      } else {
+        throw colErr;
+      }
+    }
 
     if (vRows.length === 0) {
       throw new NutritionAuthorizationError("Versão do plano não encontrada.", "VERSION_NOT_FOUND", 404);
@@ -4883,10 +4945,22 @@ export async function setItemReviewedWithoutNutrition(
       delete gj.reviewedWithoutNutrition[itemPublicId];
     }
 
-    await connection.query(
-      `UPDATE nutrition_v2_plan_versions SET guidance_json = ?, updated_at = UTC_TIMESTAMP(3) WHERE id = ?`,
-      [JSON.stringify(gj), versionRow.id]
-    );
+    if (hasGuidanceJson) {
+      try {
+        await connection.query(
+          `UPDATE nutrition_v2_plan_versions SET guidance_json = ?, updated_at = UTC_TIMESTAMP(3) WHERE id = ?`,
+          [JSON.stringify(gj), versionRow.id]
+        );
+      } catch (upErr: unknown) {
+        if (
+          !(upErr &&
+            typeof upErr === "object" &&
+            ("code" in upErr && ((upErr as { code?: string }).code === "ER_BAD_FIELD_ERROR" || (upErr as { errno?: number }).errno === 1054)))
+        ) {
+          throw upErr;
+        }
+      }
+    }
 
     await connection.commit();
     return { success: true, acknowledged, reviewedAt: acknowledged ? nowIso : undefined };

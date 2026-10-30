@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import type { ChatMessageType } from "@/lib/consultancies/trevo-chat";
+
+const emptySubscribe = () => () => {};
 
 interface ChatInputBarProps {
   onSendMessage: (params: {
@@ -33,6 +36,8 @@ export function ChatInputBar({
   replyingTo = null,
   onCancelReply,
 }: ChatInputBarProps) {
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+
   const [text, setText] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
@@ -595,14 +600,23 @@ export function ChatInputBar({
       </div>
 
       {/* Structured Card Composer Modal */}
-      {activeStructuredModal && (
+      {mounted && activeStructuredModal && createPortal(
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setActiveStructuredModal(null);
+              setStructuredInput("");
+            }
+          }}
         >
-          <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border-subtle)] rounded-3xl p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
+          <div
+            className="w-full sm:max-w-md bg-[var(--surface)] sm:border border-[var(--border-subtle)] rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4 max-h-[92dvh] sm:max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
               <h3 className="text-sm font-bold text-[var(--text-primary)]">
                 {activeStructuredModal === "FORM" && "Solicitar Formulário / Anamnese"}
                 {activeStructuredModal === "PHOTO" && "Solicitar Fotos de Evolução"}
@@ -636,7 +650,7 @@ export function ChatInputBar({
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)] pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
               <button
                 type="button"
                 onClick={() => {
@@ -657,7 +671,8 @@ export function ChatInputBar({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useTransition } from "react";
+import React, { useState, useEffect, useMemo, useTransition, useCallback, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+
+const emptySubscribe = () => () => {};
 import type {
   ChatConsultationDto,
   ChatMessageDto,
@@ -210,8 +213,12 @@ export function TrevoChatWorkspace({
     content: string;
   } | null>(null);
 
+  // SSR mount guard for createPortal
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+
   // Modals state
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
+  const [proposalStage, setProposalStage] = useState<"SELECT_PARTICIPANT" | "FILL_DETAILS">("SELECT_PARTICIPANT");
   const [selectedStudentForProposal, setSelectedStudentForProposal] = useState<StudentCandidate | null>(null);
   const [selectedProfessionalForProposal, setSelectedProfessionalForProposal] = useState<ProfessionalCandidate | null>(null);
   const [proposalDate, setProposalDate] = useState("");
@@ -222,6 +229,19 @@ export function TrevoChatWorkspace({
   const [proposalError, setProposalError] = useState<string | null>(null);
   const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
   const [newChatSearch, setNewChatSearch] = useState("");
+
+  const handleOpenNewChatModal = useCallback(() => {
+    setIsNewChatModalOpen(true);
+    setProposalError(null);
+    if (!isProfessional && activeProfessionals.length === 1) {
+      setSelectedProfessionalForProposal(activeProfessionals[0]);
+      setProposalStage("FILL_DETAILS");
+    } else if (isProfessional && selectedStudentForProposal) {
+      setProposalStage("FILL_DETAILS");
+    } else {
+      setProposalStage("SELECT_PARTICIPANT");
+    }
+  }, [isProfessional, activeProfessionals, selectedStudentForProposal]);
 
   // Counter proposal modal
   const [isCounterModalOpen, setIsCounterModalOpen] = useState(false);
@@ -270,17 +290,36 @@ export function TrevoChatWorkspace({
   // Current active consultation object
   const activeChat = consultations.find((c) => c.publicId === selectedChatPublicId) || null;
 
+  // Lock body scroll when any modal is open
+  const anyModalOpen =
+    isNewChatModalOpen ||
+    isCounterModalOpen ||
+    isDeclineModalOpen ||
+    isClosureModalOpen ||
+    isReturnModalOpen ||
+    isMobileQueueModalOpen;
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (anyModalOpen) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [anyModalOpen, mounted]);
+
   // Listen to open schedule event from shared tabs
   useEffect(() => {
     const handleOpenChatSchedule = () => {
-      setIsNewChatModalOpen(true);
-      setProposalError(null);
+      handleOpenNewChatModal();
     };
     window.addEventListener("trevo:open-chat-schedule", handleOpenChatSchedule);
     return () => {
       window.removeEventListener("trevo:open-chat-schedule", handleOpenChatSchedule);
     };
-  }, []);
+  }, [handleOpenNewChatModal]);
 
   // Load messages when selected consultation changes
   useEffect(() => {
@@ -459,10 +498,12 @@ export function TrevoChatWorkspace({
 
     if (isProfessional && !selectedStudentForProposal) {
       setProposalError("Selecione um aluno para agendar o atendimento.");
+      setProposalStage("SELECT_PARTICIPANT");
       return;
     }
     if (!isProfessional && activeProfessionals.length > 1 && !selectedProfessionalForProposal) {
       setProposalError("Selecione o profissional para o atendimento.");
+      setProposalStage("SELECT_PARTICIPANT");
       return;
     }
     if (!proposalDate || !proposalTime) {
@@ -500,6 +541,7 @@ export function TrevoChatWorkspace({
         setProposalTime("");
         setProposalTopic("");
         setProposalInitialMessage("");
+        setProposalStage("SELECT_PARTICIPANT");
         setMobileScreen("CHAT");
       } else {
         setProposalError(res.error || "Erro ao propor agendamento.");
@@ -870,10 +912,7 @@ export function TrevoChatWorkspace({
         {/* Primary Action Button */}
         <button
           type="button"
-          onClick={() => {
-            setIsNewChatModalOpen(true);
-            setProposalError(null);
-          }}
+          onClick={handleOpenNewChatModal}
           className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs active:scale-95"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -888,7 +927,9 @@ export function TrevoChatWorkspace({
         className={`w-full bg-[var(--surface)] border border-[var(--border-subtle)] rounded-2xl overflow-hidden shadow-xs ${
           mobileScreen === "CHAT"
             ? "fixed inset-0 z-40 md:relative md:inset-auto md:z-auto md:flex md:h-[calc(100vh-170px)] md:min-h-[580px] rounded-none md:rounded-2xl border-none md:border"
-            : "flex flex-col md:flex-row md:h-[calc(100vh-170px)] md:min-h-[580px]"
+            : selectedChatPublicId
+            ? "flex flex-col md:flex-row md:h-[calc(100vh-170px)] md:min-h-[580px]"
+            : "flex flex-col md:flex-row h-auto min-h-0 md:min-h-[420px]"
         }`}
       >
         {/* -------------------------------------------------------------------- */}
@@ -949,134 +990,192 @@ export function TrevoChatWorkspace({
               </button>
             </div>
 
-            {/* Desktop Queue Grid (No horizontal overflow!) */}
+            {/* Desktop Queue Tabs (Sleek, segmented appearance that doesn't compete with primary actions) */}
             <div className="hidden md:block">
               {isProfessional ? (
-                <div className="grid grid-cols-2 gap-1.5 text-xs font-bold">
+                <div className="grid grid-cols-2 gap-1.5 text-xs">
                   <button
                     type="button"
                     onClick={() => handleSelectQueue("PRECISO_RESPONDER")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "PRECISO_RESPONDER"
-                        ? "bg-amber-600 text-white shadow-xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                        ? "bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-bold shadow-2xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
                     }`}
                   >
                     <span className="truncate">Preciso responder</span>
-                    <span className="text-[10px] opacity-90 font-bold shrink-0">
-                      ({(queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER || 0})
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                        activeQueueTab === "PRECISO_RESPONDER"
+                          ? "bg-amber-500/25 text-amber-900 dark:text-amber-200"
+                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                      }`}
+                    >
+                      {(queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER || 0}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectQueue("AGUARDANDO_ALUNO")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "AGUARDANDO_ALUNO"
-                        ? "bg-blue-600 text-white shadow-xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                        ? "bg-blue-500/15 border border-blue-500/30 text-blue-800 dark:text-blue-300 font-bold shadow-2xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
                     }`}
                   >
                     <span className="truncate">Aguardando aluno</span>
-                    <span className="text-[10px] opacity-90 font-bold shrink-0">
-                      ({(queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO || 0})
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                        activeQueueTab === "AGUARDANDO_ALUNO"
+                          ? "bg-blue-500/25 text-blue-900 dark:text-blue-200"
+                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                      }`}
+                    >
+                      {(queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO || 0}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectQueue("SOLICITACOES_RECEBIDAS")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "SOLICITACOES_RECEBIDAS"
-                        ? "bg-emerald-600 text-white shadow-xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                        ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-bold shadow-2xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
                     }`}
                   >
                     <span className="truncate">Solicitações</span>
-                    <span className="text-[10px] opacity-90 font-bold shrink-0">
-                      ({(queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS || 0})
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                        activeQueueTab === "SOLICITACOES_RECEBIDAS"
+                          ? "bg-emerald-500/25 text-emerald-900 dark:text-emerald-200"
+                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                      }`}
+                    >
+                      {(queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS || 0}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectQueue("CONCLUIDOS")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "CONCLUIDOS"
-                        ? "bg-zinc-700 text-white shadow-xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                        ? "bg-zinc-500/15 border border-zinc-500/30 text-zinc-800 dark:text-zinc-200 font-bold shadow-2xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
                     }`}
                   >
                     <span className="truncate">Concluídos</span>
-                    <span className="text-[10px] opacity-90 font-bold shrink-0">
-                      ({(queueCounts as Record<ProQueue, number>).CONCLUIDOS || 0})
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                        activeQueueTab === "CONCLUIDOS"
+                          ? "bg-zinc-500/25 text-zinc-900 dark:text-zinc-200"
+                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                      }`}
+                    >
+                      {(queueCounts as Record<ProQueue, number>).CONCLUIDOS || 0}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectQueue("ALL")}
-                    className={`col-span-2 min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                    className={`col-span-2 min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "ALL"
-                        ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                        ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold shadow-2xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
                     }`}
                   >
                     <span>Todos os atendimentos</span>
-                    <span className="text-[10px] opacity-90 font-bold">({consultations.length})</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                        activeQueueTab === "ALL"
+                          ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-200"
+                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                      }`}
+                    >
+                      {consultations.length}
+                    </span>
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-1.5 text-xs font-bold">
+                <div className="grid grid-cols-2 gap-1.5 text-xs">
                   <button
                     type="button"
                     onClick={() => handleSelectQueue("EM_ATENDIMENTO")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "EM_ATENDIMENTO"
-                        ? "bg-emerald-600 text-white shadow-xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                        ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-bold shadow-2xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
                     }`}
                   >
                     <span className="truncate">Em atendimento</span>
-                    <span className="text-[10px] opacity-90 font-bold shrink-0">
-                      ({(queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO || 0})
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                        activeQueueTab === "EM_ATENDIMENTO"
+                          ? "bg-emerald-500/25 text-emerald-900 dark:text-emerald-200"
+                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                      }`}
+                    >
+                      {(queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO || 0}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectQueue("SOLICITACOES")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "SOLICITACOES"
-                        ? "bg-amber-600 text-white shadow-xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                        ? "bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-bold shadow-2xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
                     }`}
                   >
                     <span className="truncate">Solicitações</span>
-                    <span className="text-[10px] opacity-90 font-bold shrink-0">
-                      ({(queueCounts as Record<StudentQueue, number>).SOLICITACOES || 0})
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                        activeQueueTab === "SOLICITACOES"
+                          ? "bg-amber-500/25 text-amber-900 dark:text-amber-200"
+                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                      }`}
+                    >
+                      {(queueCounts as Record<StudentQueue, number>).SOLICITACOES || 0}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectQueue("CONCLUIDAS")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "CONCLUIDAS"
-                        ? "bg-zinc-700 text-white shadow-xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                        ? "bg-zinc-500/15 border border-zinc-500/30 text-zinc-800 dark:text-zinc-200 font-bold shadow-2xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
                     }`}
                   >
                     <span className="truncate">Concluídas</span>
-                    <span className="text-[10px] opacity-90 font-bold shrink-0">
-                      ({(queueCounts as Record<StudentQueue, number>).CONCLUIDAS || 0})
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                        activeQueueTab === "CONCLUIDAS"
+                          ? "bg-zinc-500/25 text-zinc-900 dark:text-zinc-200"
+                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                      }`}
+                    >
+                      {(queueCounts as Record<StudentQueue, number>).CONCLUIDAS || 0}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectQueue("ALL")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1 text-xs ${
+                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
                       activeQueueTab === "ALL"
-                        ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)]"
+                        ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold shadow-2xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] border border-transparent"
                     }`}
                   >
                     <span>Todos</span>
-                    <span className="text-[10px] opacity-90 font-bold">({consultations.length})</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                        activeQueueTab === "ALL"
+                          ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-200"
+                          : "bg-[var(--surface)] text-[var(--text-tertiary)]"
+                      }`}
+                    >
+                      {consultations.length}
+                    </span>
                   </button>
                 </div>
               )}
@@ -1136,6 +1235,11 @@ export function TrevoChatWorkspace({
                 const unreadCount = isProfessional ? c.unreadCountProfessional : c.unreadCountStudent;
                 const statusCfg = STATUS_CONFIG[c.status] || STATUS_CONFIG.CONFIRMED;
                 const isVideo = c.modality === "VIDEO";
+                const isItemFinished =
+                  c.status === "COMPLETED" ||
+                  c.status === "DECLINED" ||
+                  c.status === "CANCELED" ||
+                  Boolean(c.closedAt);
 
                 return (
                   <div
@@ -1200,9 +1304,9 @@ export function TrevoChatWorkspace({
                             </span>
                           )}
 
-                          {c.expectedResponseHours && !isVideo && (
+                          {c.expectedResponseHours && !isVideo && !isItemFinished && (
                             <span className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
-                              ⏱️ {c.expectedResponseHours}h
+                              ⏱️ até {c.expectedResponseHours}h
                             </span>
                           )}
                         </div>
@@ -1576,16 +1680,26 @@ export function TrevoChatWorkspace({
             </>
           )
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-[var(--text-tertiary)] max-w-sm mx-auto">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3 text-2xl shadow-xs">
+          <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-10 text-center text-[var(--text-tertiary)] max-w-md mx-auto">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3.5 text-2xl shadow-xs">
               💬
             </div>
-            <h3 className="text-sm font-bold text-[var(--text-primary)] mb-1">
+            <h3 className="text-base font-bold text-[var(--text-primary)] mb-1.5">
               Nenhum atendimento selecionado
             </h3>
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              Selecione uma conversa na lista ao lado para acompanhar as mensagens e o histórico clínico.
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-4 max-w-sm">
+              Selecione uma conversa na lista ao lado para acompanhar as mensagens, registrar orientações e visualizar o histórico clínico.
             </p>
+            <button
+              type="button"
+              onClick={handleOpenNewChatModal}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs active:scale-95"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>{isProfessional ? "Iniciar novo atendimento" : "Solicitar consulta"}</span>
+            </button>
           </div>
         )}
       </div>
@@ -1609,249 +1723,458 @@ export function TrevoChatWorkspace({
       </div>
 
       {/* -------------------------------------------------------------------- */}
-      {/* MODAL 1: New Chat Appointment Proposal (Bilateral)                   */}
+      {/* MODAL 1: New Chat Appointment Proposal (Two-Stage Bilateral Flow)   */}
       {/* -------------------------------------------------------------------- */}
-      {isNewChatModalOpen && (
+      {mounted && isNewChatModalOpen && createPortal(
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsNewChatModalOpen(false);
+          }}
         >
-          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">
-                  Novo Atendimento no Trevo Chat
-                </h3>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  Defina o participante, data de referência e expectativa de resposta.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsNewChatModalOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-black/10 text-[var(--text-secondary)] cursor-pointer"
-              >
-                ✕
-              </button>
+          <div
+            className="w-full sm:max-w-xl bg-[var(--surface)] sm:border border-[var(--border-subtle)] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Mobile Drag Indicator */}
+            <div className="pt-2.5 pb-1 flex justify-center sm:hidden shrink-0">
+              <div className="w-10 h-1 rounded-full bg-[var(--border-strong)]" />
             </div>
 
-            {proposalError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
-                {proposalError}
-              </div>
-            )}
+            {/* STAGE 1: Participant Selection */}
+            {proposalStage === "SELECT_PARTICIPANT" ? (
+              <>
+                {/* Header Stage 1 */}
+                <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between shrink-0">
+                  <div>
+                    <h3 className="text-base font-bold text-[var(--text-primary)]">
+                      {isProfessional ? "Com quem será o atendimento?" : "Solicitar Consulta"}
+                    </h3>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                      {isProfessional
+                        ? "Selecione o aluno destinatário para definir os detalhes da proposta."
+                        : "Selecione o profissional para iniciar o acompanhamento."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewChatModalOpen(false)}
+                    aria-label="Fechar"
+                    className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-[var(--text-tertiary)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
 
-            <form onSubmit={handleSubmitProposal} className="space-y-4">
-              {/* Participant Selection */}
-              {isProfessional ? (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[var(--text-primary)]">
-                    Aluno
-                  </label>
-                  {selectedStudentForProposal ? (
-                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-[var(--text-primary)] truncate">
-                          {selectedStudentForProposal.name}
-                        </p>
-                        <p className="text-[11px] text-[var(--text-tertiary)] truncate">
-                          {selectedStudentForProposal.email}
-                        </p>
-                      </div>
+                {/* Body Stage 1 */}
+                <div className="p-5 flex-1 overflow-y-auto space-y-3.5 overscroll-contain">
+                  {proposalError && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                      {proposalError}
+                    </div>
+                  )}
+
+                  {/* Search Input */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={newChatSearch}
+                      onChange={(e) => setNewChatSearch(e.target.value)}
+                      placeholder={
+                        isProfessional
+                          ? "Buscar aluno por nome ou e-mail..."
+                          : "Buscar profissional por nome ou especialidade..."
+                      }
+                      className="w-full min-h-[44px] pl-10 pr-8 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                    />
+                    <svg
+                      className="w-4 h-4 absolute left-3.5 top-3.5 text-[var(--text-tertiary)] pointer-events-none"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                    {newChatSearch.trim() && (
                       <button
                         type="button"
-                        onClick={() => setSelectedStudentForProposal(null)}
-                        className="text-xs text-rose-600 font-semibold cursor-pointer hover:underline"
+                        onClick={() => setNewChatSearch("")}
+                        className="absolute right-2.5 top-2.5 p-1 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer"
+                        aria-label="Limpar filtro"
                       >
-                        Trocar
+                        ✕
                       </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        value={newChatSearch}
-                        onChange={(e) => setNewChatSearch(e.target.value)}
-                        placeholder="Filtrar aluno por nome ou e-mail..."
-                        className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
-                      />
-                      <div className="max-h-40 overflow-y-auto divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl">
-                        {activeStudents
-                          .filter(
-                            (s) =>
-                              s.name.toLowerCase().includes(newChatSearch.toLowerCase().trim()) ||
-                              s.email.toLowerCase().includes(newChatSearch.toLowerCase().trim())
-                          )
-                          .map((student) => (
+                    )}
+                  </div>
+
+                  {/* Candidates List */}
+                  <div className="space-y-1.5">
+                    {isProfessional ? (
+                      activeStudents
+                        .filter(
+                          (s) =>
+                            s.name.toLowerCase().includes(newChatSearch.toLowerCase().trim()) ||
+                            s.email.toLowerCase().includes(newChatSearch.toLowerCase().trim())
+                        )
+                        .map((student) => {
+                          const isCurrentlySelected = selectedStudentForProposal?.membershipId === student.membershipId;
+                          return (
                             <button
                               key={student.membershipId}
                               type="button"
-                              onClick={() => setSelectedStudentForProposal(student)}
-                              className="w-full py-2 px-3 text-left hover:bg-[var(--surface-subtle)] flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                              onClick={() => {
+                                setSelectedStudentForProposal(student);
+                                setProposalError(null);
+                                setProposalStage("FILL_DETAILS");
+                              }}
+                              className={`w-full min-h-[56px] p-3 rounded-2xl flex items-center justify-between gap-3 text-left transition-all cursor-pointer border ${
+                                isCurrentlySelected
+                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200 shadow-2xs"
+                                  : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-active)] border-transparent hover:border-[var(--border-subtle)]"
+                              }`}
                             >
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-[var(--text-primary)] truncate">
-                                  {student.name}
-                                </p>
-                                <p className="text-[10px] text-[var(--text-tertiary)] truncate">
-                                  {student.email}
-                                </p>
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
+                                  {student.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                                    {student.name}
+                                  </p>
+                                  <p className="text-xs text-[var(--text-tertiary)] truncate">
+                                    {student.email}
+                                  </p>
+                                </div>
                               </div>
-                              <span className="text-xs text-emerald-600 font-bold shrink-0">
-                                Selecionar
-                              </span>
+                              <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-bold shrink-0">
+                                <span className="hidden sm:inline">Avançar</span>
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </div>
                             </button>
-                          ))}
+                          );
+                        })
+                    ) : (
+                      activeProfessionals
+                        .filter(
+                          (p) =>
+                            p.name.toLowerCase().includes(newChatSearch.toLowerCase().trim()) ||
+                            p.email.toLowerCase().includes(newChatSearch.toLowerCase().trim())
+                        )
+                        .map((pro) => {
+                          const isCurrentlySelected = selectedProfessionalForProposal?.membershipId === pro.membershipId;
+                          return (
+                            <button
+                              key={pro.membershipId}
+                              type="button"
+                              onClick={() => {
+                                setSelectedProfessionalForProposal(pro);
+                                setProposalError(null);
+                                setProposalStage("FILL_DETAILS");
+                              }}
+                              className={`w-full min-h-[56px] p-3 rounded-2xl flex items-center justify-between gap-3 text-left transition-all cursor-pointer border ${
+                                isCurrentlySelected
+                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200 shadow-2xs"
+                                  : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-active)] border-transparent hover:border-[var(--border-subtle)]"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-full bg-purple-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
+                                  {pro.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                                    {pro.name}
+                                  </p>
+                                  <p className="text-xs text-[var(--text-tertiary)] truncate">
+                                    {pro.role === "PERSONAL" ? "Personal Trainer" : "Nutricionista"} • {pro.email}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-bold shrink-0">
+                                <span className="hidden sm:inline">Avançar</span>
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </div>
+                            </button>
+                          );
+                        })
+                    )}
+
+                    {((isProfessional && activeStudents.length === 0) ||
+                      (!isProfessional && activeProfessionals.length === 0)) && (
+                      <div className="py-8 text-center text-xs text-[var(--text-tertiary)]">
+                        {isProfessional
+                          ? "Nenhum aluno ativo vinculado à consultoria."
+                          : "Nenhum profissional disponível no momento."}
                       </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer Stage 1 */}
+                <div className="px-5 py-4 border-t border-[var(--border-subtle)] flex items-center justify-end shrink-0 bg-[var(--surface)] pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsNewChatModalOpen(false)}
+                    className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* STAGE 2: Proposal Details */
+              <form onSubmit={handleSubmitProposal} className="flex flex-col flex-1 overflow-hidden min-h-0">
+                {/* Header Stage 2 */}
+                <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {(isProfessional || activeProfessionals.length > 1) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProposalStage("SELECT_PARTICIPANT");
+                          setProposalError(null);
+                        }}
+                        className="min-h-[36px] px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors inline-flex items-center gap-1 cursor-pointer shrink-0"
+                        title="Voltar e trocar participante"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        <span className="hidden sm:inline">Trocar</span>
+                      </button>
+                    )}
+                    <div>
+                      <h3 className="text-base font-bold text-[var(--text-primary)] truncate">
+                        Detalhes do Atendimento
+                      </h3>
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        Defina o marco de início e expectativa de resposta.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewChatModalOpen(false)}
+                    aria-label="Fechar"
+                    className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-[var(--text-tertiary)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Body Stage 2 */}
+                <div className="p-5 flex-1 overflow-y-auto space-y-4 overscroll-contain">
+                  {proposalError && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                      {proposalError}
                     </div>
                   )}
+
+                  {/* Selected Participant Card */}
+                  <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
+                        {(isProfessional
+                          ? selectedStudentForProposal?.name || "A"
+                          : selectedProfessionalForProposal?.name || activeProfessionals[0]?.name || "P"
+                        ).charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs text-[var(--text-tertiary)] font-bold uppercase tracking-wider">
+                          {isProfessional ? "Aluno destinatário" : "Profissional destinatário"}
+                        </p>
+                        <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                          {isProfessional
+                            ? selectedStudentForProposal?.name
+                            : selectedProfessionalForProposal?.name || activeProfessionals[0]?.name}
+                        </p>
+                        <p className="text-[11px] text-[var(--text-tertiary)] truncate">
+                          {isProfessional
+                            ? selectedStudentForProposal?.email
+                            : (selectedProfessionalForProposal?.role || activeProfessionals[0]?.role) === "PERSONAL"
+                            ? "Personal Trainer"
+                            : "Nutricionista"}
+                        </p>
+                      </div>
+                    </div>
+                    {(isProfessional || activeProfessionals.length > 1) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProposalStage("SELECT_PARTICIPANT");
+                          setProposalError(null);
+                        }}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer shrink-0"
+                      >
+                        Trocar
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 1. Date & Time Inputs */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                      <span>📅 Quando iniciar (Marco de Referência)</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <span className="text-[11px] text-[var(--text-tertiary)] font-medium">Data de referência</span>
+                        <input
+                          type="date"
+                          required
+                          value={proposalDate}
+                          min={new Date().toISOString().split("T")[0]}
+                          onChange={(e) => setProposalDate(e.target.value)}
+                          className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[11px] text-[var(--text-tertiary)] font-medium">Horário sugerido</span>
+                        <input
+                          type="time"
+                          required
+                          value={proposalTime}
+                          onChange={(e) => setProposalTime(e.target.value)}
+                          className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
+                      💡 Vocês não precisam estar conectados ao mesmo tempo. O horário serve como marco inicial do atendimento assíncrono.
+                    </p>
+                  </div>
+
+                  {/* 2. Expected Response Time */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                      <span>⏱️ Expectativa de resposta</span>
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[12, 24, 48].map((hours) => (
+                        <button
+                          key={hours}
+                          type="button"
+                          onClick={() => setProposalExpectedHours(hours)}
+                          className={`min-h-[42px] py-2 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                            proposalExpectedHours === hours
+                              ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                              : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--surface-active)]"
+                          }`}
+                        >
+                          Até {hours}h
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
+                      Prazo máximo esperado para resposta a cada mensagem enviada.
+                    </p>
+                  </div>
+
+                  {/* 3. Focus / Topic */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-[var(--text-primary)]">
+                      Foco do atendimento (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={proposalTopic}
+                      onChange={(e) => setProposalTopic(e.target.value)}
+                      placeholder="Ex: Alinhamento de metas, dúvidas sobre treino/dieta..."
+                      className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                    />
+                  </div>
+
+                  {/* 4. Initial Message */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-[var(--text-primary)]">
+                      Mensagem inicial (opcional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={proposalInitialMessage}
+                      onChange={(e) => setProposalInitialMessage(e.target.value)}
+                      placeholder="Envie uma mensagem inicial para contextualizar o atendimento..."
+                      className="w-full min-h-[110px] p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-emerald-500 resize-none transition-colors leading-relaxed"
+                    />
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-tertiary)] leading-relaxed">
+                    ℹ️ O agendamento entra na lista de ambos. O canal de mensagens assíncronas é liberado após a confirmação mútua.
+                  </div>
                 </div>
-              ) : activeProfessionals.length > 1 ? (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[var(--text-primary)]">
-                    Profissional
-                  </label>
-                  <select
-                    value={selectedProfessionalForProposal?.membershipId || ""}
-                    onChange={(e) => {
-                      const found = activeProfessionals.find((p) => p.membershipId === Number(e.target.value));
-                      setSelectedProfessionalForProposal(found || null);
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+
+                {/* Footer Stage 2 */}
+                <div className="px-5 py-4 border-t border-[var(--border-subtle)] flex items-center justify-end gap-3 shrink-0 bg-[var(--surface)] pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsNewChatModalOpen(false)}
+                    className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer transition-colors"
                   >
-                    <option value="">Selecione o profissional...</option>
-                    {activeProfessionals.map((p) => (
-                      <option key={p.membershipId} value={p.membershipId}>
-                        {p.name} ({p.role === "PERSONAL" ? "Personal Trainer" : "Nutricionista"})
-                      </option>
-                    ))}
-                  </select>
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingProposal || !proposalDate || !proposalTime}
+                    className="min-h-[44px] px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isSubmittingProposal ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Enviando proposta...</span>
+                      </>
+                    ) : (
+                      <span>Enviar proposta</span>
+                    )}
+                  </button>
                 </div>
-              ) : null}
-
-              {/* Date & Time Inputs */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-[var(--text-primary)]">
-                    Data de referência
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={proposalDate}
-                    onChange={(e) => setProposalDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-[var(--text-primary)]">
-                    Horário de referência
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={proposalTime}
-                    onChange={(e) => setProposalTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              {/* Expected Response Time */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[var(--text-primary)]">
-                  Expectativa de resposta
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[12, 24, 48].map((hours) => (
-                    <button
-                      key={hours}
-                      type="button"
-                      onClick={() => setProposalExpectedHours(hours)}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-                        proposalExpectedHours === hours
-                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--surface-active)]"
-                      }`}
-                    >
-                      Até {hours}h
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Topic / Focus */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[var(--text-primary)]">
-                  Foco do atendimento (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={proposalTopic}
-                  onChange={(e) => setProposalTopic(e.target.value)}
-                  placeholder="Ex: Alinhamento de metas, dúvidas sobre treino/dieta..."
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              {/* Initial Message */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[var(--text-primary)]">
-                  Mensagem inicial (opcional)
-                </label>
-                <textarea
-                  rows={2}
-                  value={proposalInitialMessage}
-                  onChange={(e) => setProposalInitialMessage(e.target.value)}
-                  placeholder="Envie uma mensagem inicial para contextualizar..."
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 resize-none"
-                />
-              </div>
-
-              <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-tertiary)] leading-relaxed">
-                ℹ️ O agendamento entra na agenda de ambos e a troca de mensagens assíncronas é liberada após a confirmação mútua.
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => setIsNewChatModalOpen(false)}
-                  className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingProposal}
-                  className="min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs disabled:opacity-50"
-                >
-                  {isSubmittingProposal ? "Enviando..." : "Enviar proposta"}
-                </button>
-              </div>
-            </form>
+              </form>
+            )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* -------------------------------------------------------------------- */}
       {/* MODAL 2: Counter Proposal Modal (Suggest new time)                   */}
       {/* -------------------------------------------------------------------- */}
-      {isCounterModalOpen && (
+      {mounted && isCounterModalOpen && createPortal(
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsCounterModalOpen(false);
+          }}
         >
-          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-[var(--text-primary)]">
-                Propor Outro Horário
-              </h3>
+          <div
+            className="w-full sm:max-w-md bg-[var(--surface)] sm:border border-[var(--border-subtle)] rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92dvh] sm:max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  Propor Outro Horário
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  Sugira uma nova data ou horário para o início do atendimento.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsCounterModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-black/10 text-[var(--text-secondary)] cursor-pointer"
+                className="p-1.5 rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] cursor-pointer"
+                aria-label="Fechar"
               >
                 ✕
               </button>
@@ -1872,8 +2195,9 @@ export function TrevoChatWorkspace({
                   type="date"
                   required
                   value={counterDate}
+                  min={new Date().toISOString().split("T")[0]}
                   onChange={(e) => setCounterDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                  className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -1886,49 +2210,62 @@ export function TrevoChatWorkspace({
                   required
                   value={counterTime}
                   onChange={(e) => setCounterTime(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                  className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-subtle)] pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
                 <button
                   type="button"
                   onClick={() => setIsCounterModalOpen(false)}
-                  className="min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
                 >
                   Voltar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingCounter}
-                  className="min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50"
+                  className="min-h-[44px] px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {isSubmittingCounter ? "Enviando..." : "Enviar sugestão"}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* -------------------------------------------------------------------- */}
       {/* MODAL 3: Decline Proposal Modal                                      */}
       {/* -------------------------------------------------------------------- */}
-      {isDeclineModalOpen && (
+      {mounted && isDeclineModalOpen && createPortal(
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsDeclineModalOpen(false);
+          }}
         >
-          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-[var(--text-primary)]">
-                Recusar Agendamento
-              </h3>
+          <div
+            className="w-full sm:max-w-md bg-[var(--surface)] sm:border border-[var(--border-subtle)] rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92dvh] sm:max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  Recusar Agendamento
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  Informe o participante sobre a impossibilidade do atendimento.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsDeclineModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-black/10 text-[var(--text-secondary)] cursor-pointer"
+                className="p-1.5 rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] cursor-pointer"
+                aria-label="Fechar"
               >
                 ✕
               </button>
@@ -1943,43 +2280,50 @@ export function TrevoChatWorkspace({
                   rows={3}
                   value={declineReason}
                   onChange={(e) => setDeclineReason(e.target.value)}
-                  placeholder="Informe o motivo da recusa..."
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-rose-500 resize-none"
+                  placeholder="Informe o motivo da recusa para orientar o participante..."
+                  className="w-full min-h-[90px] p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-rose-500 resize-none leading-relaxed"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-subtle)] pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
                 <button
                   type="button"
                   onClick={() => setIsDeclineModalOpen(false)}
-                  className="min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
                 >
                   Voltar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingDecline}
-                  className="min-h-[44px] px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50"
+                  className="min-h-[44px] px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {isSubmittingDecline ? "Recusando..." : "Confirmar recusa"}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* -------------------------------------------------------------------- */}
       {/* MODAL 4: Closure Modal ("Finalizar Consulta")                         */}
       {/* -------------------------------------------------------------------- */}
-      {isClosureModalOpen && (
+      {mounted && isClosureModalOpen && createPortal(
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsClosureModalOpen(false);
+          }}
         >
-          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-3xl w-full max-w-lg p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
+          <div
+            className="w-full sm:max-w-xl bg-[var(--surface)] sm:border border-[var(--border-subtle)] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between shrink-0">
               <div>
                 <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
                   <span>✓ Finalizar Atendimento</span>
@@ -1991,104 +2335,107 @@ export function TrevoChatWorkspace({
               <button
                 type="button"
                 onClick={() => setIsClosureModalOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-black/10 text-[var(--text-secondary)] cursor-pointer"
+                className="p-1.5 rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] cursor-pointer"
+                aria-label="Fechar"
               >
                 ✕
               </button>
             </div>
 
-            {closureError && (
-              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
-                {closureError}
-              </div>
-            )}
+            <form onSubmit={handleSubmitClosure} className="flex flex-col flex-1 overflow-hidden min-h-0">
+              <div className="p-5 flex-1 overflow-y-auto space-y-4 overscroll-contain">
+                {closureError && (
+                  <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                    {closureError}
+                  </div>
+                )}
 
-            <form onSubmit={handleSubmitClosure} className="space-y-4">
-              {/* Summary */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
-                  <span>Resumo do atendimento (obrigatório)</span>
-                  <span className="text-[10px] text-[var(--text-tertiary)]">Visível ao aluno</span>
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  value={closureSummary}
-                  onChange={(e) => setClosureSummary(e.target.value)}
-                  placeholder="Ex: Consulta realizada com alinhamento de protocolo de treino e ajustes na hidratação..."
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 resize-none"
-                />
-              </div>
+                {/* Summary */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
+                    <span>Resumo do atendimento (obrigatório)</span>
+                    <span className="text-[10px] text-[var(--text-tertiary)]">Visível ao aluno</span>
+                  </label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={closureSummary}
+                    onChange={(e) => setClosureSummary(e.target.value)}
+                    placeholder="Ex: Consulta realizada com alinhamento de protocolo de treino e ajustes na hidratação..."
+                    className="w-full min-h-[80px] p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 resize-none leading-relaxed"
+                  />
+                </div>
 
-              {/* Orientations */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
-                  <span>Orientações clínicas (uma por linha)</span>
-                  <span className="text-[10px] text-[var(--text-tertiary)]">Visível ao aluno</span>
-                </label>
-                <textarea
-                  rows={2}
-                  value={closureOrientations}
-                  onChange={(e) => setClosureOrientations(e.target.value)}
-                  placeholder="Ex: Ingerir 3L de água ao dia&#10;Manter descanso de 72h entre treinos de perna"
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 resize-none"
-                />
-              </div>
+                {/* Orientations */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
+                    <span>Orientações clínicas (uma por linha)</span>
+                    <span className="text-[10px] text-[var(--text-tertiary)]">Visível ao aluno</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={closureOrientations}
+                    onChange={(e) => setClosureOrientations(e.target.value)}
+                    placeholder="Ex: Ingerir 3L de água ao dia&#10;Manter descanso de 72h entre treinos de perna"
+                    className="w-full min-h-[64px] p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 resize-none leading-relaxed"
+                  />
+                </div>
 
-              {/* Prescriptions */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
-                  <span>Prescrições / Ajustes (uma por linha)</span>
-                  <span className="text-[10px] text-[var(--text-tertiary)]">Visível ao aluno</span>
-                </label>
-                <textarea
-                  rows={2}
-                  value={closurePrescriptions}
-                  onChange={(e) => setClosurePrescriptions(e.target.value)}
-                  placeholder="Ex: Creatina 5g pós-treino&#10;Whey protein 30g com frutas"
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 resize-none"
-                />
-              </div>
+                {/* Prescriptions */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
+                    <span>Prescrições / Ajustes (uma por linha)</span>
+                    <span className="text-[10px] text-[var(--text-tertiary)]">Visível ao aluno</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={closurePrescriptions}
+                    onChange={(e) => setClosurePrescriptions(e.target.value)}
+                    placeholder="Ex: Creatina 5g pós-treino&#10;Whey protein 30g com frutas"
+                    className="w-full min-h-[64px] p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 resize-none leading-relaxed"
+                  />
+                </div>
 
-              {/* Return Prediction */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[var(--text-primary)]">
-                  Previsão de retorno recomendada
-                </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[15, 30, 45, 60].map((days) => (
-                    <button
-                      key={days}
-                      type="button"
-                      onClick={() => setClosureReturnPredictionDays(days)}
-                      className={`py-2 px-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-                        closureReturnPredictionDays === days
-                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--surface-active)]"
-                      }`}
-                    >
-                      {days} dias
-                    </button>
-                  ))}
+                {/* Return Prediction */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[var(--text-primary)]">
+                    Previsão de retorno recomendada
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[15, 30, 45, 60].map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => setClosureReturnPredictionDays(days)}
+                        className={`min-h-[40px] py-2 px-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                          closureReturnPredictionDays === days
+                            ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                            : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--surface-active)]"
+                        }`}
+                      >
+                        {days} dias
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Private Notes */}
+                <div className="space-y-1 pt-2 border-t border-[var(--border-subtle)]">
+                  <label className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center justify-between">
+                    <span>🔒 Notas privadas do profissional</span>
+                    <span className="text-[10px] font-semibold">Exclusivo do prontuário (nunca exposto ao aluno)</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={closurePrivateNotes}
+                    onChange={(e) => setClosurePrivateNotes(e.target.value)}
+                    placeholder="Anotações clínicas confidenciais, hipóteses diagnósticas ou pontos de atenção para o próximo retorno..."
+                    className="w-full min-h-[70px] p-3 rounded-xl bg-amber-500/5 border border-amber-500/25 text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-amber-500 resize-none leading-relaxed"
+                  />
                 </div>
               </div>
 
-              {/* Private Notes */}
-              <div className="space-y-1 pt-1 border-t border-[var(--border-subtle)]">
-                <label className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center justify-between">
-                  <span>🔒 Notas privadas do profissional</span>
-                  <span className="text-[10px] font-semibold">Exclusivo do prontuário (nunca exposto ao aluno)</span>
-                </label>
-                <textarea
-                  rows={2}
-                  value={closurePrivateNotes}
-                  onChange={(e) => setClosurePrivateNotes(e.target.value)}
-                  placeholder="Anotações clínicas confidenciais, hipóteses diagnósticas ou pontos de atenção para o próximo retorno..."
-                  className="w-full px-3 py-2 rounded-xl bg-amber-500/5 border border-amber-500/25 text-xs text-[var(--text-primary)] focus:outline-none focus:border-amber-500 resize-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+              <div className="px-5 py-4 border-t border-[var(--border-subtle)] flex items-center justify-end gap-3 shrink-0 bg-[var(--surface)] pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-4">
                 <button
                   type="button"
                   onClick={() => setIsClosureModalOpen(false)}
@@ -2099,27 +2446,34 @@ export function TrevoChatWorkspace({
                 <button
                   type="submit"
                   disabled={isSubmittingClosure}
-                  className="min-h-[44px] px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs disabled:opacity-50"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {isSubmittingClosure ? "Finalizando..." : "Confirmar Encerramento"}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* -------------------------------------------------------------------- */}
       {/* MODAL 5: Return Consultation Modal ("Solicitar Retorno")               */}
       {/* -------------------------------------------------------------------- */}
-      {isReturnModalOpen && (
+      {mounted && isReturnModalOpen && createPortal(
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsReturnModalOpen(false);
+          }}
         >
-          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
+          <div
+            className="w-full sm:max-w-md bg-[var(--surface)] sm:border border-[var(--border-subtle)] rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92dvh] sm:max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
               <div>
                 <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
                   <span>🔄 Solicitar Consulta de Retorno</span>
@@ -2131,7 +2485,8 @@ export function TrevoChatWorkspace({
               <button
                 type="button"
                 onClick={() => setIsReturnModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-black/10 text-[var(--text-secondary)] cursor-pointer"
+                className="p-1.5 rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)] cursor-pointer"
+                aria-label="Fechar"
               >
                 ✕
               </button>
@@ -2153,8 +2508,9 @@ export function TrevoChatWorkspace({
                     type="date"
                     required
                     value={returnDate}
+                    min={new Date().toISOString().split("T")[0]}
                     onChange={(e) => setReturnDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                    className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
                   />
                 </div>
                 <div className="space-y-1">
@@ -2166,7 +2522,7 @@ export function TrevoChatWorkspace({
                     required
                     value={returnTime}
                     onChange={(e) => setReturnTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                    className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -2180,7 +2536,7 @@ export function TrevoChatWorkspace({
                   value={returnTopic}
                   onChange={(e) => setReturnTopic(e.target.value)}
                   placeholder="Ex: Reavaliação de medidas, novos ajustes..."
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                  className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -2194,7 +2550,7 @@ export function TrevoChatWorkspace({
                       key={hours}
                       type="button"
                       onClick={() => setReturnExpectedHours(hours)}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                      className={`min-h-[40px] py-2 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
                         returnExpectedHours === hours
                           ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
                           : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--surface-active)]"
@@ -2206,39 +2562,40 @@ export function TrevoChatWorkspace({
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-subtle)] pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
                 <button
                   type="button"
                   onClick={() => setIsReturnModalOpen(false)}
-                  className="min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingReturn}
-                  className="min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {isSubmittingReturn ? "Enviando..." : "Confirmar retorno"}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* -------------------------------------------------------------------- */}
-      {/* MODAL: Mobile Queue Filter Bottom Sheet                              */}
+      {/* MODAL 6: Mobile Queue Filter Bottom Sheet                             */}
       {/* -------------------------------------------------------------------- */}
-      {isMobileQueueModalOpen && (
+      {mounted && isMobileQueueModalOpen && createPortal(
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in"
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
           onClick={() => setIsMobileQueueModalOpen(false)}
         >
           <div
-            className="w-full sm:max-w-md bg-[var(--surface)] border border-[var(--border-subtle)] rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
+            className="w-full sm:max-w-md bg-[var(--surface)] border border-[var(--border-subtle)] rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
@@ -2255,7 +2612,7 @@ export function TrevoChatWorkspace({
               </button>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
               {queueOptions.map((opt) => {
                 const isActive = activeQueueTab === opt.key;
                 return (
@@ -2268,8 +2625,8 @@ export function TrevoChatWorkspace({
                     }}
                     className={`w-full min-h-[48px] px-4 py-3 rounded-2xl text-left flex items-center justify-between gap-3 transition-colors cursor-pointer ${
                       isActive
-                        ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold"
-                        : "hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] font-semibold"
+                        ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold shadow-2xs"
+                        : "hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] font-semibold border border-transparent"
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -2290,7 +2647,8 @@ export function TrevoChatWorkspace({
               })}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

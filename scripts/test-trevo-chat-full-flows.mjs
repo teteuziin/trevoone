@@ -387,6 +387,62 @@ assert.ok(
 );
 console.log("✓ Redesign visual, cabeçalho e revalidação estrita de seleção verificados.");
 
+// -----------------------------------------------------------------------------
+// 17. TWO-STAGE PROPOSAL FLOW & CANDIDATE SELECTION
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 17] Verificando fluxo em duas etapas para Novo Atendimento...");
+assert.ok(
+  workspaceCode.includes('proposalStage === "SELECT_PARTICIPANT"'),
+  "Modal deve conter Etapa 1 explícita para seleção de participante"
+);
+assert.ok(
+  workspaceCode.includes("Com quem será o atendimento?") || workspaceCode.includes("Solicitar Consulta"),
+  "Etapa 1 deve apresentar título claro e focado na escolha do destinatário"
+);
+assert.ok(
+  workspaceCode.includes("setProposalStage(\"FILL_DETAILS\")"),
+  "Ao selecionar um participante na Etapa 1, deve avançar diretamente para a Etapa 2"
+);
+assert.ok(
+  workspaceCode.includes("Trocar") && workspaceCode.includes("setProposalStage(\"SELECT_PARTICIPANT\")"),
+  "Etapa 2 deve conter card compacto com participante e botão 'Trocar' para voltar à Etapa 1"
+);
+assert.ok(
+  workspaceCode.includes("Vocês não precisam estar conectados ao mesmo tempo"),
+  "Etapa 2 deve esclarecer que o atendimento é assíncrono e não exige conexão simultânea"
+);
+assert.ok(
+  workspaceCode.includes("min-h-[110px]"),
+  "Etapa 2 deve oferecer área de texto confortável para a mensagem inicial (~110-120px)"
+);
+console.log("✓ Fluxo em duas etapas, seleção fluida de candidatos e hierarquia de proposta verificados.");
+
+// -----------------------------------------------------------------------------
+// 18. PORTAL ARCHITECTURE, STACKING ISOLATION & DESKTOP NATURAL HEIGHT
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 18] Verificando arquitetura de portal, isolamento de z-index e proporções de tela...");
+assert.ok(
+  workspaceCode.includes("createPortal(") && workspaceCode.includes("document.body"),
+  "Modais devem ser renderizados via createPortal no document.body para evitar armadilhas de stacking context"
+);
+assert.ok(
+  workspaceCode.includes("z-[100]"),
+  "Modais portais devem utilizar z-[100] para sobrepor com segurança a barra de navegação inferior mobile (z-30)"
+);
+assert.ok(
+  workspaceCode.includes("document.body.style.overflow = \"hidden\""),
+  "Workspace deve travar o scroll do body enquanto qualquer modal estiver aberto"
+);
+assert.ok(
+  workspaceCode.includes("md:min-h-[420px]"),
+  "Workspace no desktop deve usar altura natural e proporcional quando nenhuma conversa estiver selecionada"
+);
+assert.ok(
+  workspaceCode.includes("!isItemFinished"),
+  "Pill de SLA (24h) deve ser omitido para consultas concluídas, recusadas ou canceladas"
+);
+console.log("✓ Portal z-[100], trava de scroll do body e proporções desktop/mobile verificadas.");
+
 console.log("\n======================================================================");
-console.log(" ✓ TODAS AS 16 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
+console.log(" ✓ TODAS AS 18 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
 console.log("======================================================================\n");

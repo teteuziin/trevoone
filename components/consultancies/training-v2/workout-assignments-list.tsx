@@ -101,13 +101,14 @@ export function WorkoutAssignmentsList({
         return;
       }
 
-      const updatedTitle = editedCustomTitle.trim() || editTitleItem.workoutTitle;
+      const cleanTrimmed = editedCustomTitle.trim();
+      const updatedTitle = cleanTrimmed || `Treino de ${editTitleItem.studentName}`;
       setItems((prev) =>
         prev.map((it) =>
           it.assignmentPublicId === editTitleItem.assignmentPublicId
             ? {
                 ...it,
-                customTitle: editedCustomTitle.trim() || null,
+                customTitle: cleanTrimmed || null,
                 workoutTitle: updatedTitle,
               }
             : it
@@ -316,6 +317,11 @@ export function WorkoutAssignmentsList({
                   <p className="text-xs font-bold text-[var(--text-primary)] truncate">
                     {item.workoutTitle}
                   </p>
+                  {item.baseWorkoutTitle && item.baseWorkoutTitle !== item.workoutTitle && (
+                    <p className="text-[11px] font-normal text-[var(--text-tertiary)] truncate">
+                      Modelo base: {item.baseWorkoutTitle}
+                    </p>
+                  )}
                   <p className="text-xs text-[var(--text-secondary)] font-medium">
                     Prescrito: <strong className="text-[var(--text-primary)]">Versão {item.assignedVersionNumber}</strong>
                     {item.currentPublishedVersionNumber && (
@@ -338,7 +344,7 @@ export function WorkoutAssignmentsList({
                       type="button"
                       onClick={() => {
                         setEditTitleItem(item);
-                        setEditedCustomTitle(item.customTitle || item.workoutTitle);
+                        setEditedCustomTitle(item.customTitle || "");
                       }}
                       disabled={isPending}
                       className="px-3 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-all flex items-center gap-1.5 min-h-[36px] depth-interactive"
@@ -503,7 +509,7 @@ export function WorkoutAssignmentsList({
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[44px]"
               />
               <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
-                Este nome será exibido com destaque no dashboard e na tela de treinos do aluno.
+                Deixe em branco para restaurar automaticamente o nome padrão &quot;Treino de {editTitleItem.studentName}&quot;.
               </p>
             </div>
 
@@ -521,7 +527,7 @@ export function WorkoutAssignmentsList({
                 variant="primary"
                 size="sm"
                 onClick={handleSaveCustomTitle}
-                disabled={isPending || !editedCustomTitle.trim()}
+                disabled={isPending}
                 className="font-bold min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 shadow-sm"
               >
                 {isPending ? "Salvando..." : "Salvar Nome"}

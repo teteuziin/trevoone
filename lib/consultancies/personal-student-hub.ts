@@ -1,6 +1,8 @@
 import { getDbConnection } from "@/lib/db/mysql";
 import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { COMPLETE_ANAMNESIS_FORM_V1, PHYSICAL_ASSESSMENT_FORM_V1 } from "./intake-schemas";
+import { resolveWorkoutAssignmentTitle } from "../training-v2/title-resolver";
+import { isMissingColumnError } from "../training-v2/schema-resilience";
 
 export function formatDateYmd(val: unknown): string {
   if (!val) return "";
@@ -856,36 +858,78 @@ export async function getPersonalStudentDetail(params: {
     const photos = Array.from(photosMap.values());
 
     // 6. Fetch Prescribed Workouts
-    const [workoutRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        wa.public_id AS assignment_public_id,
-        wa.status AS assignment_status,
-        wa.starts_on,
-        wa.ends_on,
-        wa.notes_for_student,
-        wa.created_at AS assigned_at,
-        w.public_id AS workout_public_id,
-        COALESCE(wv.title, w.title) AS workout_title,
-        COALESCE(wv.subtitle, w.subtitle) AS workout_subtitle,
-        COALESCE(wv.objective, w.objective) AS workout_objective,
-        COALESCE(wv.difficulty_level, w.difficulty_level) AS difficulty_level,
-        wv.public_id AS version_public_id,
-        wv.version_number
-       FROM workout_assignments wa
-       INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
-       INNER JOIN workouts w ON w.id = wv.workout_id
-       WHERE wa.consultancy_id = ?
-         AND wa.student_membership_id = ?
-         AND wa.deleted_at IS NULL
-       ORDER BY wa.status = 'ACTIVE' DESC, wa.created_at DESC;`,
-      [consultancyId, membershipId]
-    );
+    let workoutRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          wa.public_id AS assignment_public_id,
+          wa.status AS assignment_status,
+          wa.starts_on,
+          wa.ends_on,
+          wa.notes_for_student,
+          wa.custom_title,
+          wa.created_at AS assigned_at,
+          w.public_id AS workout_public_id,
+          COALESCE(wv.title, w.title) AS base_workout_title,
+          COALESCE(NULLIF(TRIM(wa.custom_title), ''), wv.title, w.title) AS workout_title,
+          COALESCE(wv.subtitle, w.subtitle) AS workout_subtitle,
+          COALESCE(wv.objective, w.objective) AS workout_objective,
+          COALESCE(wv.difficulty_level, w.difficulty_level) AS difficulty_level,
+          wv.public_id AS version_public_id,
+          wv.version_number
+         FROM workout_assignments wa
+         INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+         INNER JOIN workouts w ON w.id = wv.workout_id
+         WHERE wa.consultancy_id = ?
+           AND wa.student_membership_id = ?
+           AND wa.deleted_at IS NULL
+         ORDER BY wa.status = 'ACTIVE' DESC, wa.created_at DESC;`,
+        [consultancyId, membershipId]
+      );
+      workoutRows = rows;
+    } catch (err: unknown) {
+      if (isMissingColumnError(err, ["custom_title"])) {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+            wa.public_id AS assignment_public_id,
+            wa.status AS assignment_status,
+            wa.starts_on,
+            wa.ends_on,
+            wa.notes_for_student,
+            NULL AS custom_title,
+            wa.created_at AS assigned_at,
+            w.public_id AS workout_public_id,
+            COALESCE(wv.title, w.title) AS base_workout_title,
+            COALESCE(wv.title, w.title) AS workout_title,
+            COALESCE(wv.subtitle, w.subtitle) AS workout_subtitle,
+            COALESCE(wv.objective, w.objective) AS workout_objective,
+            COALESCE(wv.difficulty_level, w.difficulty_level) AS difficulty_level,
+            wv.public_id AS version_public_id,
+            wv.version_number
+           FROM workout_assignments wa
+           INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+           INNER JOIN workouts w ON w.id = wv.workout_id
+           WHERE wa.consultancy_id = ?
+             AND wa.student_membership_id = ?
+             AND wa.deleted_at IS NULL
+           ORDER BY wa.status = 'ACTIVE' DESC, wa.created_at DESC;`,
+          [consultancyId, membershipId]
+        );
+        workoutRows = rows;
+      } else {
+        throw err;
+      }
+    }
 
     const workouts: StudentWorkoutItem[] = (workoutRows || []).map((r) => ({
       assignmentPublicId: String(r.assignment_public_id),
       workoutPublicId: String(r.workout_public_id),
       versionPublicId: String(r.version_public_id),
-      title: String(r.workout_title),
+      title: resolveWorkoutAssignmentTitle({
+        customTitle: r.custom_title,
+        studentName: student.name,
+        baseTitle: r.base_workout_title || r.workout_title,
+      }),
       subtitle: r.workout_subtitle ? String(r.workout_subtitle) : null,
       objective: r.workout_objective ? String(r.workout_objective) : null,
       difficultyLevel: String(r.difficulty_level || "INTERMEDIATE"),
@@ -907,6 +951,8 @@ export async function getPersonalStudentDetail(params: {
           wes.completed_at,
           wes.student_completion_state,
           wes.student_feedback_notes,
+          wa.custom_title,
+          COALESCE(wv.title, w.title) AS base_workout_title,
           COALESCE(NULLIF(TRIM(wa.custom_title), ''), wv.title, w.title) AS workout_title,
           (
             SELECT COUNT(*)
@@ -936,6 +982,8 @@ export async function getPersonalStudentDetail(params: {
           wes.completed_at,
           NULL AS student_completion_state,
           NULL AS student_feedback_notes,
+          NULL AS custom_title,
+          COALESCE(wv.title, w.title) AS base_workout_title,
           COALESCE(wv.title, w.title) AS workout_title,
           (
             SELECT COUNT(*)
@@ -997,7 +1045,11 @@ export async function getPersonalStudentDetail(params: {
       const subs = sessionSubstitutionsMap.get(pubId);
       return {
         publicId: pubId,
-        workoutTitle: String(r.workout_title),
+        workoutTitle: resolveWorkoutAssignmentTitle({
+          customTitle: r.custom_title,
+          studentName: student.name,
+          baseTitle: r.base_workout_title || r.workout_title,
+        }),
         startedAt: new Date(r.started_at).toISOString(),
         completedAt: new Date(r.completed_at).toISOString(),
         completedSetsCount: Number(r.completed_sets_count || 0),

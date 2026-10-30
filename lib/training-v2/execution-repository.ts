@@ -17,6 +17,7 @@ import {
   deliverNotificationAfterCommit,
 } from "@/services/notification-service";
 import { isMissingColumnError, isMissingTableError } from "./schema-resilience";
+import { resolveWorkoutAssignmentTitle } from "./title-resolver";
 export class TrainingSessionConflictError extends Error {
   public readonly code = "ACTIVE_SESSION_CONFLICT";
   public readonly statusCode = 409;
@@ -1875,9 +1876,11 @@ export async function completeWorkoutExecution(
       const [relRows] = await connection.execute<RowDataPacket[]>(
         `SELECT
           wa.assigned_by_user_id,
-          u.name AS student_name,
+          COALESCE(u.full_name, u.name) AS student_name,
           cm.public_id AS student_membership_public_id,
           c.slug AS consultancy_slug,
+          wa.custom_title,
+          wv.title AS base_workout_title,
           COALESCE(NULLIF(TRIM(wa.custom_title), ''), wv.title) AS workout_title
          FROM workout_assignments wa
          JOIN consultancy_members cm ON cm.id = wa.student_membership_id
@@ -1891,6 +1894,11 @@ export async function completeWorkoutExecution(
 
       if (Array.isArray(relRows) && relRows.length > 0 && relRows[0].assigned_by_user_id) {
         const rel = relRows[0];
+        const workoutTitle = resolveWorkoutAssignmentTitle({
+          customTitle: rel.custom_title,
+          studentName: rel.student_name,
+          baseTitle: rel.base_workout_title || rel.workout_title,
+        });
         const feedbackSnippet = studentFeedbackNotes
           ? ` • Observação: "${studentFeedbackNotes.slice(0, 75)}${studentFeedbackNotes.length > 75 ? "..." : ""}"`
           : "";
@@ -1898,7 +1906,7 @@ export async function completeWorkoutExecution(
           userId: Number(rel.assigned_by_user_id),
           consultancyId: Number(s.consultancy_id),
           title: "Treino Concluído pelo Aluno",
-          body: `${rel.student_name || "Seu aluno"} concluiu o treino "${rel.workout_title || "Prescrição"}".${feedbackSnippet}`,
+          body: `${rel.student_name || "Seu aluno"} concluiu o treino "${workoutTitle}".${feedbackSnippet}`,
           eventType: "WORKOUT_COMPLETED",
           priority: "NORMAL",
           deepLink: `/consultoria/${rel.consultancy_slug}/progresso/alunos/${rel.student_membership_public_id}`,

@@ -2318,7 +2318,13 @@ export async function assignTemplateToStudent(
     const newWorkoutPublicId = crypto.randomUUID();
     const newVersionPublicId = crypto.randomUUID();
     const assignmentPublicId = crypto.randomUUID();
-    const newTitle = options?.customTitle?.trim() || templateVer.title;
+    const cleanCustom = options?.customTitle?.trim() || "";
+    const baseTitle = String(templateVer.title || "").trim();
+    const isExplicitCustom = Boolean(cleanCustom && cleanCustom.toLowerCase() !== baseTitle.toLowerCase());
+    const studentName = String(student.full_name || "").trim();
+    const autoTitle = studentName ? `Treino de ${studentName}` : baseTitle;
+    const newTitle = isExplicitCustom ? cleanCustom : autoTitle;
+    const assignmentCustomTitle = isExplicitCustom ? cleanCustom : null;
 
     // 4. Insert NEW normal workout root (is_template = false)
     const [wRes] = await connection.execute<ResultSetHeader>(
@@ -2368,22 +2374,46 @@ export async function assignTemplateToStudent(
     const endsOn = options?.endsOn?.trim() || null;
     const notesForStudent = options?.notesForStudent?.trim() || null;
 
-    await connection.execute<ResultSetHeader>(
-      `INSERT INTO workout_assignments (
-        public_id, consultancy_id, student_membership_id, workout_version_id,
-        assigned_by_membership_id, starts_on, ends_on, status, notes_for_student
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?);`,
-      [
-        assignmentPublicId,
-        ctx.consultancyId!,
-        student.id,
-        newVersionId,
-        ctx.membershipId!,
-        startsOn,
-        endsOn,
-        notesForStudent,
-      ]
-    );
+    try {
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO workout_assignments (
+          public_id, consultancy_id, student_membership_id, workout_version_id,
+          assigned_by_membership_id, starts_on, ends_on, status, notes_for_student, custom_title
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?);`,
+        [
+          assignmentPublicId,
+          ctx.consultancyId!,
+          student.id,
+          newVersionId,
+          ctx.membershipId!,
+          startsOn,
+          endsOn,
+          notesForStudent,
+          assignmentCustomTitle,
+        ]
+      );
+    } catch (insErr: unknown) {
+      if (isMissingColumnError(insErr, ["custom_title"])) {
+        await connection.execute<ResultSetHeader>(
+          `INSERT INTO workout_assignments (
+            public_id, consultancy_id, student_membership_id, workout_version_id,
+            assigned_by_membership_id, starts_on, ends_on, status, notes_for_student
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?);`,
+          [
+            assignmentPublicId,
+            ctx.consultancyId!,
+            student.id,
+            newVersionId,
+            ctx.membershipId!,
+            startsOn,
+            endsOn,
+            notesForStudent,
+          ]
+        );
+      } else {
+        throw insErr;
+      }
+    }
 
     // 8. Record audit activity
     await recordConsultancyActivity({

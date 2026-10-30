@@ -90,7 +90,7 @@ export function TemplateAssignModal({
     return null;
   });
   const [preview, setPreview] = useState<TemplatePreviewDto | null>(null);
-  const [customTitle, setCustomTitle] = useState(templateTitle);
+  const [customTitle, setCustomTitle] = useState("");
   const [startsOn, setStartsOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [endsOn, setEndsOn] = useState("");
   const [notesForStudent, setNotesForStudent] = useState("");
@@ -147,6 +147,12 @@ export function TemplateAssignModal({
     }
 
     setErrorMessage(null);
+    const cleanCustom = customTitle.trim();
+    const isExplicitCustom =
+      Boolean(cleanCustom) &&
+      cleanCustom.toLowerCase() !== templateTitle.trim().toLowerCase() &&
+      cleanCustom.toLowerCase() !== `treino de ${selectedStudent.name}`.trim().toLowerCase();
+
     startTransition(async () => {
       const res = await assignTemplateToStudentAction(
         slug,
@@ -156,7 +162,7 @@ export function TemplateAssignModal({
           startsOn,
           endsOn: endsOn || null,
           notesForStudent: notesForStudent.trim() || null,
-          customTitle: customTitle.trim() || undefined,
+          customTitle: isExplicitCustom ? cleanCustom : undefined,
         }
       );
 
@@ -406,14 +412,18 @@ export function TemplateAssignModal({
                 <div className="space-y-3 pt-1">
                   <div className="space-y-1">
                     <label className="block text-xs font-bold text-[var(--text-primary)]">
-                      Nome do treino do aluno
+                      Nome da ficha do aluno (opcional)
                     </label>
                     <input
                       type="text"
                       value={customTitle}
                       onChange={(e) => setCustomTitle(e.target.value)}
+                      placeholder={selectedStudent ? `Treino de ${selectedStudent.name}` : "Nome da ficha (opcional)"}
                       className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] text-[var(--text-primary)] min-h-[44px]"
                     />
+                    <p className="text-[11px] text-[var(--text-tertiary)]">
+                      Deixe em branco para usar automaticamente &quot;Treino de {selectedStudent?.name || "Nome do Aluno"}&quot;.
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

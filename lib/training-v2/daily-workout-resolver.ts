@@ -3,6 +3,7 @@ import { getDbConnection } from "../db/mysql";
 import { assertStudentContext, type TrainingAccessContext } from "./access";
 import { getConsultancyLocalDate, isValidIanaTimezone } from "../consultancies/timezone";
 import { isMissingColumnError } from "./schema-resilience";
+import { resolveWorkoutAssignmentTitle } from "./title-resolver";
 
 export type DailyWorkoutDecisionStatus =
   | "IN_PROGRESS"        // Prioridade A: Sessão atualmente em andamento
@@ -215,11 +216,16 @@ export async function resolveStudentDailyWorkout(
            wes.started_at,
            wa.public_id AS assignment_public_id,
            wa.status AS assignment_status,
+           wa.custom_title,
+           wv.title AS base_workout_title,
+           u.full_name AS student_name,
            COALESCE(NULLIF(TRIM(wa.custom_title), ''), wv.title) AS routine_title,
            wv.version_number
          FROM workout_execution_sessions wes
          INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
          INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+         LEFT JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+         LEFT JOIN users u ON u.id = cm.user_id
          WHERE wes.consultancy_id = ?
            AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
            AND wes.status = 'IN_PROGRESS'
@@ -243,11 +249,16 @@ export async function resolveStudentDailyWorkout(
                wes.started_at,
                wa.public_id AS assignment_public_id,
                wa.status AS assignment_status,
+               NULL AS custom_title,
+               wv.title AS base_workout_title,
+               u.full_name AS student_name,
                wv.title AS routine_title,
                wv.version_number
              FROM workout_execution_sessions wes
              INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
              INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+             LEFT JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+             LEFT JOIN users u ON u.id = cm.user_id
              WHERE wes.consultancy_id = ?
                AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
                AND wes.status = 'IN_PROGRESS'
@@ -270,11 +281,16 @@ export async function resolveStudentDailyWorkout(
                  wes.started_at,
                  wa.public_id AS assignment_public_id,
                  wa.status AS assignment_status,
+                 NULL AS custom_title,
+                 wv.title AS base_workout_title,
+                 u.full_name AS student_name,
                  wv.title AS routine_title,
                  wv.version_number
                FROM workout_execution_sessions wes
                INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
                INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+               LEFT JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+               LEFT JOIN users u ON u.id = cm.user_id
                WHERE wes.consultancy_id = ?
                  AND (wes.student_membership_id = ? OR wes.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
                  AND wes.status = 'IN_PROGRESS'
@@ -296,6 +312,11 @@ export async function resolveStudentDailyWorkout(
 
     if (inProgressRows && inProgressRows.length > 0) {
       const activeSession = inProgressRows[0];
+      const activeSessionRoutineTitle = resolveWorkoutAssignmentTitle({
+        customTitle: activeSession.custom_title,
+        studentName: activeSession.student_name,
+        baseTitle: activeSession.base_workout_title || activeSession.routine_title,
+      });
 
       // Busca qual bloco está sendo executado nesta sessão
       let activeBlock: { id: number; public_id: string; title: string; sort_order: number } | null = null;
@@ -546,7 +567,7 @@ export async function resolveStudentDailyWorkout(
           status: "IN_PROGRESS",
           headlineTitle: "Meu Treino",
           divisionTitle,
-          routineTitle: String(activeSession.routine_title),
+          routineTitle: activeSessionRoutineTitle,
           versionNumber: Number(activeSession.version_number),
           assignmentPublicId: String(activeSession.assignment_public_id),
           activeSessionPublicId: String(activeSession.session_public_id),
@@ -590,7 +611,7 @@ export async function resolveStudentDailyWorkout(
           status: "SCHEDULED_TODAY",
           headlineTitle: "Treino de Hoje",
           divisionTitle: String(scheduledTodayBlock.title || "Treino de hoje"),
-          routineTitle: String(activeSession.routine_title),
+          routineTitle: activeSessionRoutineTitle,
           versionNumber: Number(activeSession.version_number),
           assignmentPublicId: String(activeSession.assignment_public_id),
           activeSessionPublicId: String(activeSession.session_public_id),
@@ -624,7 +645,7 @@ export async function resolveStudentDailyWorkout(
           status: "REST_DAY",
           headlineTitle: "Meu Treino",
           divisionTitle: "Dia de descanso",
-          routineTitle: String(activeSession.routine_title),
+          routineTitle: activeSessionRoutineTitle,
           versionNumber: Number(activeSession.version_number),
           assignmentPublicId: String(activeSession.assignment_public_id),
           activeSessionPublicId: String(activeSession.session_public_id),
@@ -655,7 +676,7 @@ export async function resolveStudentDailyWorkout(
           status: "AVAILABLE",
           headlineTitle: "Meu Treino",
           divisionTitle: defaultBlock?.title ? String(defaultBlock.title) : "Ficha de treino",
-          routineTitle: String(activeSession.routine_title),
+          routineTitle: activeSessionRoutineTitle,
           versionNumber: Number(activeSession.version_number),
           assignmentPublicId: String(activeSession.assignment_public_id),
           activeSessionPublicId: String(activeSession.session_public_id),
@@ -699,6 +720,9 @@ export async function resolveStudentDailyWorkout(
            DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
            wv.id AS version_id,
            wv.public_id AS version_public_id,
+           wa.custom_title,
+           wv.title AS base_workout_title,
+           u.full_name AS student_name,
            COALESCE(NULLIF(TRIM(wa.custom_title), ''), wv.title) AS routine_title,
            wv.subtitle,
            wv.version_number,
@@ -707,6 +731,8 @@ export async function resolveStudentDailyWorkout(
          FROM workout_assignments wa
          INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
          INNER JOIN workouts w ON w.id = wv.workout_id
+         LEFT JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+         LEFT JOIN users u ON u.id = cm.user_id
          WHERE wa.consultancy_id = ?
            AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
            AND wa.status = 'ACTIVE'
@@ -729,6 +755,9 @@ export async function resolveStudentDailyWorkout(
                DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
                wv.id AS version_id,
                wv.public_id AS version_public_id,
+               NULL AS custom_title,
+               wv.title AS base_workout_title,
+               u.full_name AS student_name,
                wv.title AS routine_title,
                wv.subtitle,
                wv.version_number,
@@ -737,6 +766,8 @@ export async function resolveStudentDailyWorkout(
              FROM workout_assignments wa
              INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
              INNER JOIN workouts w ON w.id = wv.workout_id
+             LEFT JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+             LEFT JOIN users u ON u.id = cm.user_id
              WHERE wa.consultancy_id = ?
                AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
                AND wa.status = 'ACTIVE'
@@ -758,6 +789,9 @@ export async function resolveStudentDailyWorkout(
                  DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
                  wv.id AS version_id,
                  wv.public_id AS version_public_id,
+                 NULL AS custom_title,
+                 wv.title AS base_workout_title,
+                 u.full_name AS student_name,
                  wv.title AS routine_title,
                  wv.subtitle,
                  wv.version_number,
@@ -766,6 +800,8 @@ export async function resolveStudentDailyWorkout(
                FROM workout_assignments wa
                INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
                INNER JOIN workouts w ON w.id = wv.workout_id
+               LEFT JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+               LEFT JOIN users u ON u.id = cm.user_id
                WHERE wa.consultancy_id = ?
                  AND wa.student_membership_id = ?
                  AND wa.status = 'ACTIVE'
@@ -797,6 +833,9 @@ export async function resolveStudentDailyWorkout(
              DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
              wv.id AS version_id,
              wv.public_id AS version_public_id,
+             NULL AS custom_title,
+             wv.title AS base_workout_title,
+             u.full_name AS student_name,
              wv.title AS routine_title,
              wv.subtitle,
              wv.version_number,
@@ -805,6 +844,8 @@ export async function resolveStudentDailyWorkout(
            FROM workout_assignments wa
            INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
            INNER JOIN workouts w ON w.id = wv.workout_id
+           LEFT JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+           LEFT JOIN users u ON u.id = cm.user_id
            WHERE wa.consultancy_id = ?
              AND wa.student_membership_id = ?
              AND wa.status = 'ACTIVE'
@@ -842,6 +883,11 @@ export async function resolveStudentDailyWorkout(
     }
 
     const currentAssign = assignRows[0];
+    const currentAssignRoutineTitle = resolveWorkoutAssignmentTitle({
+      customTitle: currentAssign.custom_title,
+      studentName: currentAssign.student_name,
+      baseTitle: currentAssign.base_workout_title || currentAssign.routine_title,
+    });
 
     // 4. Carrega os blocos da versão
     let blockRows: RowDataPacket[] = [];
@@ -874,8 +920,8 @@ export async function resolveStudentDailyWorkout(
       return {
         status: "CHOOSE_WORKOUT",
         headlineTitle: "Ficha em elaboração",
-        divisionTitle: String(currentAssign.routine_title),
-        routineTitle: String(currentAssign.routine_title),
+        divisionTitle: currentAssignRoutineTitle,
+        routineTitle: currentAssignRoutineTitle,
         versionNumber: Number(currentAssign.version_number),
         assignmentPublicId: String(currentAssign.assignment_public_id),
         actionHref: `/consultoria/${consultancySlug}/treinos/${currentAssign.assignment_public_id}`,
@@ -1027,7 +1073,7 @@ export async function resolveStudentDailyWorkout(
             status: "COMPLETED_TODAY",
             headlineTitle: "Treino de hoje (concluído)",
             divisionTitle: scheduledBlockToday.title || `Divisão ${String.fromCharCode(65 + blockIdx)}`,
-            routineTitle: String(currentAssign.routine_title),
+            routineTitle: currentAssignRoutineTitle,
             versionNumber: Number(currentAssign.version_number),
             assignmentPublicId: String(currentAssign.assignment_public_id),
             targetBlockPublicId: scheduledBlockToday.publicId,
@@ -1054,7 +1100,7 @@ export async function resolveStudentDailyWorkout(
           status: "SCHEDULED_TODAY",
           headlineTitle: "Treino de hoje",
           divisionTitle: scheduledBlockToday.title || `Divisão ${String.fromCharCode(65 + blockIdx)}`,
-          routineTitle: String(currentAssign.routine_title),
+          routineTitle: currentAssignRoutineTitle,
           versionNumber: Number(currentAssign.version_number),
           assignmentPublicId: String(currentAssign.assignment_public_id),
           targetBlockPublicId: scheduledBlockToday.publicId,
@@ -1082,7 +1128,7 @@ export async function resolveStudentDailyWorkout(
         status: "REST_DAY",
         headlineTitle: "Dia de descanso",
         divisionTitle: "Recuperação muscular",
-        routineTitle: String(currentAssign.routine_title),
+        routineTitle: currentAssignRoutineTitle,
         versionNumber: Number(currentAssign.version_number),
         assignmentPublicId: String(currentAssign.assignment_public_id),
         targetBlockPublicId: availableDivisions[0]?.publicId || null,
@@ -1146,7 +1192,7 @@ export async function resolveStudentDailyWorkout(
       status: isCompletedToday ? "SEQUENCE_COMPLETED" : "NEXT_IN_SEQUENCE",
       headlineTitle: isCompletedToday ? "Próximo treino (já treinou hoje)" : "Próximo treino",
       divisionTitle,
-      routineTitle: String(currentAssign.routine_title),
+      routineTitle: currentAssignRoutineTitle,
       versionNumber: Number(currentAssign.version_number),
       assignmentPublicId: String(currentAssign.assignment_public_id),
       targetBlockPublicId: targetBlock.publicId,
@@ -1189,11 +1235,16 @@ export async function resolveStudentDailyWorkout(
         const [rows] = await fallbackConnection.execute<RowDataPacket[]>(
           `SELECT
              wa.public_id AS assignment_public_id,
+             wa.custom_title,
+             wv.title AS base_workout_title,
+             u.full_name AS student_name,
              wv.title AS routine_title,
              wv.version_number,
              wv.estimated_duration_minutes
            FROM workout_assignments wa
            INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+           LEFT JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+           LEFT JOIN users u ON u.id = cm.user_id
            WHERE wa.consultancy_id = ?
              AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
              AND wa.status = 'ACTIVE'
@@ -1207,6 +1258,9 @@ export async function resolveStudentDailyWorkout(
         const [rows] = await fallbackConnection.execute<RowDataPacket[]>(
           `SELECT
              wa.public_id AS assignment_public_id,
+             NULL AS custom_title,
+             wv.title AS base_workout_title,
+             NULL AS student_name,
              wv.title AS routine_title,
              wv.version_number,
              wv.estimated_duration_minutes
@@ -1225,11 +1279,16 @@ export async function resolveStudentDailyWorkout(
 
       if (fallbackAssignRows && fallbackAssignRows.length > 0) {
         const fAssign = fallbackAssignRows[0];
+        const fAssignRoutineTitle = resolveWorkoutAssignmentTitle({
+          customTitle: fAssign.custom_title,
+          studentName: fAssign.student_name,
+          baseTitle: fAssign.base_workout_title || fAssign.routine_title,
+        });
         return {
           status: "AVAILABLE",
           headlineTitle: "Treino de hoje",
-          divisionTitle: String(fAssign.routine_title || "Ficha de treino"),
-          routineTitle: String(fAssign.routine_title || "Ficha de treino"),
+          divisionTitle: fAssignRoutineTitle,
+          routineTitle: fAssignRoutineTitle,
           versionNumber: Number(fAssign.version_number || 1),
           assignmentPublicId: String(fAssign.assignment_public_id),
           targetBlockPublicId: null,

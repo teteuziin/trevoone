@@ -432,6 +432,9 @@ export function WorkoutAssignModal({
                   disabled={isPending}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-emerald-500 transition-colors min-h-[44px]"
                 />
+                <p className="text-[11px] text-[var(--foreground-muted)]">
+                  Deixe em branco para usar automaticamente &quot;Treino de {selectedStudent?.name || "Nome do Aluno"}&quot;.
+                </p>
               </div>
 
               {/* Dates */}

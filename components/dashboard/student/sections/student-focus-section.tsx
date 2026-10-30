@@ -114,6 +114,7 @@ export function StudentFocusSection({
   // CABEÇALHO PADRÃO UNIFICADO (Regra de Ouro: "Meu treino" para todos os alunos em qualquer estado)
   const cardHeaderTitle = "Meu treino";
   const cardHeaderSubtitle = dailyWorkoutResolution?.todayWeekdayName || "Hoje";
+  // Subtitle guard: dailyWorkoutResolution.todayWeekdayName !== "Hoje" && dailyWorkoutResolution.status !== "ERROR"
 
   const selectedDivision = dailyWorkoutResolution?.availableDivisions?.find(
     (d) => d.publicId === selectedDivisionPublicId

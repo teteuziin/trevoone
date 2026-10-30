@@ -25,6 +25,7 @@ import type {
   WorkoutAssignmentStatus,
 } from "./types";
 import { isMissingColumnError } from "./schema-resilience";
+import { resolveWorkoutAssignmentTitle } from "./title-resolver";
 
 export type CreateAssignmentInput = {
   workoutPublicId?: string;
@@ -57,6 +58,7 @@ export type ProfessionalAssignmentListItem = {
   studentEmail: string;
   workoutPublicId: string;
   workoutTitle: string;
+  baseWorkoutTitle?: string;
   customTitle?: string | null;
   assignedVersionPublicId: string;
   assignedVersionNumber: number;
@@ -287,7 +289,11 @@ export async function createAssignment(
 
     // 4. Insert assignment
     const assignmentPublicId = crypto.randomUUID();
-    const customTitle = input.customTitle?.trim() || null;
+    const cleanCustom = input.customTitle?.trim() || null;
+    const baseTitle = String(v.title || "").trim();
+    // Only persist customTitle if it is an explicit personal customization that does NOT just copy the base model title
+    const isExplicitCustom = Boolean(cleanCustom && cleanCustom.toLowerCase() !== baseTitle.toLowerCase());
+    const customTitle = isExplicitCustom ? cleanCustom : null;
     try {
       await connection.execute<ResultSetHeader>(
         `INSERT INTO workout_assignments (
@@ -564,6 +570,7 @@ export async function listAssignmentsForProfessional(
            u.full_name AS student_name,
            u.email AS student_email,
            w.public_id AS workout_public_id,
+           w.title AS base_workout_title,
            COALESCE(NULLIF(TRIM(wa.custom_title), ''), w.title) AS workout_title,
            wa.custom_title,
            wv.public_id AS assigned_version_public_id,
@@ -606,6 +613,7 @@ export async function listAssignmentsForProfessional(
              u.full_name AS student_name,
              u.email AS student_email,
              w.public_id AS workout_public_id,
+             w.title AS base_workout_title,
              w.title AS workout_title,
              NULL AS custom_title,
              wv.public_id AS assigned_version_public_id,
@@ -648,6 +656,12 @@ export async function listAssignmentsForProfessional(
       const assignedVer = Number(r.assigned_version_number);
       const curPubVer = r.current_published_version_number != null ? Number(r.current_published_version_number) : null;
       const hasNewer = curPubVer != null && curPubVer > assignedVer;
+      const baseTitle = String(r.base_workout_title || r.workout_title);
+      const resolvedTitle = resolveWorkoutAssignmentTitle({
+        customTitle: r.custom_title,
+        studentName: r.student_name,
+        baseTitle,
+      });
 
       return {
         assignmentPublicId: String(r.assignment_public_id),
@@ -655,7 +669,8 @@ export async function listAssignmentsForProfessional(
         studentName: String(r.student_name),
         studentEmail: String(r.student_email),
         workoutPublicId: String(r.workout_public_id),
-        workoutTitle: String(r.workout_title),
+        workoutTitle: resolvedTitle,
+        baseWorkoutTitle: baseTitle,
         customTitle: r.custom_title ? String(r.custom_title) : null,
         assignedVersionPublicId: String(r.assigned_version_public_id),
         assignedVersionNumber: assignedVer,
@@ -695,6 +710,9 @@ export async function listStudentWorkoutCards(
       const [r] = await connection.execute<RowDataPacket[]>(
         `SELECT
            wa.public_id AS assignment_public_id,
+           wa.custom_title,
+           wv.title AS base_workout_title,
+           u.full_name AS student_name,
            COALESCE(NULLIF(TRIM(wa.custom_title), ''), wv.title) AS workout_title,
            wv.subtitle,
            wv.objective,
@@ -712,6 +730,8 @@ export async function listStudentWorkoutCards(
          FROM workout_assignments wa
          INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
          INNER JOIN workouts w ON w.id = wv.workout_id
+         LEFT JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+         LEFT JOIN users u ON u.id = cm.user_id
          WHERE wa.consultancy_id = ?
            AND wa.student_membership_id = ?
            AND wa.status = 'ACTIVE'
@@ -727,6 +747,9 @@ export async function listStudentWorkoutCards(
         const [r] = await connection.execute<RowDataPacket[]>(
           `SELECT
              wa.public_id AS assignment_public_id,
+             NULL AS custom_title,
+             wv.title AS base_workout_title,
+             u.full_name AS student_name,
              wv.title AS workout_title,
              wv.subtitle,
              wv.objective,
@@ -744,6 +767,8 @@ export async function listStudentWorkoutCards(
            FROM workout_assignments wa
            INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
            INNER JOIN workouts w ON w.id = wv.workout_id
+           LEFT JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+           LEFT JOIN users u ON u.id = cm.user_id
            WHERE wa.consultancy_id = ?
              AND wa.student_membership_id = ?
              AND wa.status = 'ACTIVE'
@@ -761,7 +786,11 @@ export async function listStudentWorkoutCards(
 
     return rows.map((r) => ({
       assignmentPublicId: String(r.assignment_public_id),
-      workoutTitle: String(r.workout_title),
+      workoutTitle: resolveWorkoutAssignmentTitle({
+        customTitle: r.custom_title,
+        studentName: r.student_name,
+        baseTitle: r.base_workout_title || r.workout_title,
+      }),
       subtitle: r.subtitle ? String(r.subtitle) : null,
       objective: r.objective ? String(r.objective) : null,
       versionNumber: Number(r.version_number),
@@ -916,6 +945,8 @@ export async function getStudentWorkoutViewDetailed(
         wa.consultancy_id,
         c.name AS consultancy_name,
         wa.student_membership_id,
+        wa.custom_title,
+        u_student.full_name AS student_name,
         DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
         DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
         wa.notes_for_student,
@@ -923,6 +954,7 @@ export async function getStudentWorkoutViewDetailed(
         wv.public_id AS workout_version_public_id,
         wv.version_number,
         wv.title,
+        wv.title AS base_workout_title,
         wv.subtitle,
         wv.objective,
         wv.estimated_duration_minutes,
@@ -932,6 +964,8 @@ export async function getStudentWorkoutViewDetailed(
       INNER JOIN consultancies c ON c.id = wa.consultancy_id
       INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
       INNER JOIN workouts w ON w.id = wv.workout_id
+      LEFT JOIN consultancy_members cm_student ON cm_student.id = wa.student_membership_id
+      LEFT JOIN users u_student ON u_student.id = cm_student.user_id
       WHERE wa.public_id = ? AND wa.deleted_at IS NULL AND w.deleted_at IS NULL
       LIMIT 1;`,
       [cleanId]
@@ -949,6 +983,8 @@ export async function getStudentWorkoutViewDetailed(
           wa.consultancy_id,
           c.name AS consultancy_name,
           wa.student_membership_id,
+          wa.custom_title,
+          u_student.full_name AS student_name,
           DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
           DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
           wa.notes_for_student,
@@ -956,6 +992,7 @@ export async function getStudentWorkoutViewDetailed(
           wv.public_id AS workout_version_public_id,
           wv.version_number,
           wv.title,
+          wv.title AS base_workout_title,
           wv.subtitle,
           wv.objective,
           wv.estimated_duration_minutes,
@@ -966,6 +1003,8 @@ export async function getStudentWorkoutViewDetailed(
         INNER JOIN consultancies c ON c.id = wa.consultancy_id
         INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
         INNER JOIN workouts w ON w.id = wv.workout_id
+        LEFT JOIN consultancy_members cm_student ON cm_student.id = wa.student_membership_id
+        LEFT JOIN users u_student ON u_student.id = cm_student.user_id
         WHERE wes.public_id = ? AND wa.deleted_at IS NULL AND w.deleted_at IS NULL
         LIMIT 1;`,
         [cleanId]
@@ -982,6 +1021,8 @@ export async function getStudentWorkoutViewDetailed(
             wa.consultancy_id,
             c.name AS consultancy_name,
             wa.student_membership_id,
+            wa.custom_title,
+            u_student.full_name AS student_name,
             DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
             DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
             wa.notes_for_student,
@@ -989,6 +1030,7 @@ export async function getStudentWorkoutViewDetailed(
             wv.public_id AS workout_version_public_id,
             wv.version_number,
             wv.title,
+            wv.title AS base_workout_title,
             wv.subtitle,
             wv.objective,
             wv.estimated_duration_minutes,
@@ -998,6 +1040,8 @@ export async function getStudentWorkoutViewDetailed(
           INNER JOIN workout_versions wv ON wv.workout_id = w.id
           INNER JOIN workout_assignments wa ON wa.workout_version_id = wv.id
           INNER JOIN consultancies c ON c.id = wa.consultancy_id
+          LEFT JOIN consultancy_members cm_student ON cm_student.id = wa.student_membership_id
+          LEFT JOIN users u_student ON u_student.id = cm_student.user_id
           WHERE w.public_id = ? AND wa.consultancy_id = ?
             AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
             AND wa.deleted_at IS NULL AND w.deleted_at IS NULL
@@ -1017,6 +1061,8 @@ export async function getStudentWorkoutViewDetailed(
               wa.consultancy_id,
               c.name AS consultancy_name,
               wa.student_membership_id,
+              wa.custom_title,
+              u_student.full_name AS student_name,
               DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
               DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on,
               wa.notes_for_student,
@@ -1024,6 +1070,7 @@ export async function getStudentWorkoutViewDetailed(
               wv.public_id AS workout_version_public_id,
               wv.version_number,
               wv.title,
+              wv.title AS base_workout_title,
               wv.subtitle,
               wv.objective,
               wv.estimated_duration_minutes,
@@ -1033,6 +1080,8 @@ export async function getStudentWorkoutViewDetailed(
             INNER JOIN workout_assignments wa ON wa.workout_version_id = wv.id
             INNER JOIN consultancies c ON c.id = wa.consultancy_id
             INNER JOIN workouts w ON w.id = wv.workout_id
+            LEFT JOIN consultancy_members cm_student ON cm_student.id = wa.student_membership_id
+            LEFT JOIN users u_student ON u_student.id = cm_student.user_id
             WHERE wv.public_id = ? AND wa.consultancy_id = ?
               AND (wa.student_membership_id = ? OR wa.student_membership_id IN (SELECT id FROM consultancy_members WHERE user_id = ? AND consultancy_id = ?))
               AND wa.deleted_at IS NULL AND w.deleted_at IS NULL
@@ -1224,7 +1273,11 @@ export async function getStudentWorkoutViewDetailed(
       startsOn: formatDateYmd(a.starts_on),
       endsOn: a.ends_on ? formatDateYmd(a.ends_on) : null,
       versionNumber: activeSession ? Number(activeSession.session_version_number) : Number(a.version_number),
-      title: activeSession ? String(activeSession.session_title) : String(a.title),
+      title: resolveWorkoutAssignmentTitle({
+        customTitle: a.custom_title,
+        studentName: a.student_name,
+        baseTitle: a.base_workout_title || a.title,
+      }),
       subtitle: a.subtitle ? String(a.subtitle) : null,
       objective: a.objective ? String(a.objective) : null,
       estimatedDurationMinutes: a.estimated_duration_minutes != null ? Number(a.estimated_duration_minutes) : null,
@@ -1465,8 +1518,36 @@ export async function updateAssignmentScheduleOrNotes(
       values.push(input.notesForStudent?.trim() || null);
     }
     if (input.customTitle !== undefined) {
+      let cleanCustom = input.customTitle?.trim() || null;
+      if (cleanCustom) {
+        // Query base workout title to avoid storing identical title or default auto title as custom
+        try {
+          const [wRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT wv.title AS base_title, u.full_name AS student_name
+             FROM workout_assignments wa
+             INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+             LEFT JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+             LEFT JOIN users u ON u.id = cm.user_id
+             WHERE wa.public_id = ? AND wa.consultancy_id = ?
+             LIMIT 1;`,
+            [assignmentPublicId, ctx.consultancyId!]
+          );
+          if (Array.isArray(wRows) && wRows.length > 0) {
+            const baseTitle = String(wRows[0].base_title || "").trim();
+            const autoTitle = wRows[0].student_name ? `Treino de ${wRows[0].student_name}`.trim() : "";
+            if (
+              cleanCustom.toLowerCase() === baseTitle.toLowerCase() ||
+              (autoTitle && cleanCustom.toLowerCase() === autoTitle.toLowerCase())
+            ) {
+              cleanCustom = null;
+            }
+          }
+        } catch {
+          // If query fails, keep cleanCustom as provided
+        }
+      }
       updates.push("custom_title = ?");
-      values.push(input.customTitle?.trim() || null);
+      values.push(cleanCustom);
     }
 
     if (updates.length === 0) return true;

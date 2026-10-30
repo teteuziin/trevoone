@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
-import { getDbPool } from "../db/mysql";
+import { getDbPool, getDbConnection } from "../db/mysql";
 import {
   createNotificationInTransaction,
   deliverNotificationAfterCommit,
@@ -364,6 +364,28 @@ export async function ensureChatTablesExist(): Promise<void> {
       `);
     } catch (visErr) {
       console.warn("[Trevo Chat] consultation_user_visibility ensure error:", visErr);
+    }
+
+    // Ensure trevo_chat_intro_views table exists (Migration 071)
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS trevo_chat_intro_views (
+          id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+          consultancy_id BIGINT UNSIGNED NOT NULL,
+          user_id BIGINT UNSIGNED NOT NULL,
+          audience_role VARCHAR(32) NOT NULL,
+          status VARCHAR(20) NOT NULL,
+          completed_at DATETIME(3) NULL DEFAULT NULL,
+          dismissed_at DATETIME(3) NULL DEFAULT NULL,
+          created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (id),
+          UNIQUE KEY uq_user_intro_role (consultancy_id, user_id, audience_role),
+          KEY idx_intro_lookup (consultancy_id, user_id, audience_role, status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+    } catch (introErr) {
+      console.warn("[Trevo Chat] trevo_chat_intro_views ensure error:", introErr);
     }
 
     _chatSchemaChecked = true;
@@ -2314,6 +2336,80 @@ export async function restoreConsultationForUser(
          AND target_type = ?
          AND target_public_id = ?;`,
       [consultancyId, userId, targetType, targetPublicId]
+    );
+    return true;
+  });
+}
+
+export interface IntroViewStatus {
+  hasSeen: boolean;
+  status?: "COMPLETED" | "DISMISSED";
+  completedAt?: string | null;
+  dismissedAt?: string | null;
+}
+
+/**
+ * Checks whether the user has already completed or dismissed the welcome intro for this consultancy and audience role.
+ */
+export async function getIntroViewStatus(
+  consultancyId: number,
+  userId: number,
+  audienceRole: "STUDENT" | "PROFESSIONAL"
+): Promise<IntroViewStatus> {
+  return executeWithAutoSchema(async () => {
+    const pool = await getDbConnection();
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT status, completed_at, dismissed_at
+       FROM trevo_chat_intro_views
+       WHERE consultancy_id = ? AND user_id = ? AND audience_role = ?
+       LIMIT 1;`,
+      [consultancyId, userId, audienceRole]
+    );
+
+    if (!rows || rows.length === 0) {
+      return { hasSeen: false };
+    }
+
+    const row = rows[0];
+    return {
+      hasSeen: true,
+      status: row.status as "COMPLETED" | "DISMISSED",
+      completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : null,
+      dismissedAt: row.dismissed_at ? new Date(row.dismissed_at).toISOString() : null,
+    };
+  });
+}
+
+/**
+ * Persists the user's completion or dismissal of the welcome introduction on the server.
+ */
+export async function saveIntroView(
+  consultancyId: number,
+  userId: number,
+  audienceRole: "STUDENT" | "PROFESSIONAL",
+  status: "COMPLETED" | "DISMISSED"
+): Promise<boolean> {
+  return executeWithAutoSchema(async () => {
+    const pool = await getDbConnection();
+    const isCompleted = status === "COMPLETED";
+
+    await pool.execute(
+      `INSERT INTO trevo_chat_intro_views (
+         consultancy_id, user_id, audience_role, status, completed_at, dismissed_at, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, NOW(3), NOW(3))
+       ON DUPLICATE KEY UPDATE
+         status = CASE WHEN status = 'COMPLETED' THEN 'COMPLETED' ELSE VALUES(status) END,
+         completed_at = CASE WHEN VALUES(status) = 'COMPLETED' THEN COALESCE(completed_at, VALUES(completed_at)) ELSE completed_at END,
+         dismissed_at = CASE WHEN VALUES(status) = 'DISMISSED' THEN COALESCE(dismissed_at, VALUES(dismissed_at)) ELSE dismissed_at END,
+         updated_at = NOW(3);`,
+      [
+        consultancyId,
+        userId,
+        audienceRole,
+        status,
+        isCompleted ? new Date() : null,
+        !isCompleted ? new Date() : null,
+      ]
     );
     return true;
   });

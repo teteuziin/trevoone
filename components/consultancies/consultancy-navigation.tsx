@@ -493,6 +493,27 @@ export function ConsultancyNavigation({
     return false;
   }
 
+  const handleNavClick = useCallback(
+    (item: { href?: string | null; id?: string }) => {
+      try {
+        const isConsultasNav = Boolean(
+          item.href?.endsWith("/consultas") ||
+          item.id === "student-consultas" ||
+          item.id === "atendimento-consultas"
+        );
+        if (isConsultasNav) {
+          sessionStorage.setItem(
+            "trevo_chat_nav_intent",
+            JSON.stringify({ slug: consultancySlug, ts: Date.now() })
+          );
+        } else {
+          sessionStorage.removeItem("trevo_chat_nav_intent");
+        }
+      } catch {}
+    },
+    [consultancySlug]
+  );
+
   const [prevPathname, setPrevPathname] = useState(pathname);
 
   // Close menus during render when pathname changes
@@ -830,6 +851,7 @@ export function ConsultancyNavigation({
                       key={item.id}
                       href={item.href}
                       prefetch={false}
+                      onClick={() => handleNavClick(item)}
                       aria-current={active ? "page" : undefined}
                       className={`flex items-center justify-between px-3 py-2 text-[13px] min-h-[44px] rounded-xl border transition-all depth-interactive ${
                         active
@@ -1217,6 +1239,7 @@ export function ConsultancyNavigation({
                   key={item.id}
                   href={item.href}
                   prefetch={false}
+                  onClick={() => handleNavClick(item)}
                   aria-current={active ? "page" : undefined}
                   className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                     active
@@ -1406,7 +1429,10 @@ export function ConsultancyNavigation({
                           key={item.id}
                           href={item.href}
                           prefetch={false}
-                          onClick={() => setMobileMenuOpen(false)}
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            handleNavClick(item);
+                          }}
                           aria-current={active ? "page" : undefined}
                           className={`flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[52px] depth-interactive ${
                             active
@@ -1478,7 +1504,10 @@ export function ConsultancyNavigation({
                           key={item.id}
                           href={item.href}
                           prefetch={false}
-                          onClick={() => setMobileMenuOpen(false)}
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            handleNavClick(item);
+                          }}
                           aria-current={active ? "page" : undefined}
                           className={`flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[52px] depth-interactive ${
                             active
@@ -1550,7 +1579,10 @@ export function ConsultancyNavigation({
                           key={item.id}
                           href={item.href}
                           prefetch={false}
-                          onClick={() => setMobileMenuOpen(false)}
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            handleNavClick(item);
+                          }}
                           aria-current={active ? "page" : undefined}
                           className={`flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[52px] depth-interactive ${
                             active
@@ -1622,7 +1654,10 @@ export function ConsultancyNavigation({
                           key={item.id}
                           href={item.href}
                           prefetch={false}
-                          onClick={() => setMobileMenuOpen(false)}
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            handleNavClick(item);
+                          }}
                           aria-current={active ? "page" : undefined}
                           className={`flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[52px] depth-interactive ${
                             active

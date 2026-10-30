@@ -676,6 +676,125 @@ assert.ok(
 );
 console.log("✓ Todos os contratos visuais, acessibilidade e mensagens aprovados.");
 
+// -----------------------------------------------------------------------------
+// 28. MIGRATION 071 & SCHEMA FOR TREVO CHAT WELCOME INTRO
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 28] Verificando Migration 071 e schema de trevo_chat_intro_views...");
+const migration071Path = path.resolve("database/migrations/071_trevo_chat_welcome_intro.sql");
+assert.ok(fs.existsSync(migration071Path), "Arquivo da migration 071 deve existir");
+const migration071Sql = fs.readFileSync(migration071Path, "utf-8");
+assert.ok(
+  migration071Sql.includes("CREATE TABLE IF NOT EXISTS `trevo_chat_intro_views`"),
+  "Migration 071 deve criar tabela trevo_chat_intro_views"
+);
+assert.ok(
+  migration071Sql.includes("`audience_role` VARCHAR(32) NOT NULL"),
+  "Migration 071 deve tipar audience_role como VARCHAR(32) NOT NULL"
+);
+assert.ok(
+  migration071Sql.includes("`status` VARCHAR(20) NOT NULL"),
+  "Migration 071 deve tipar status como VARCHAR(20) NOT NULL"
+);
+assert.ok(
+  migration071Sql.includes("UNIQUE KEY `uq_user_intro_role`"),
+  "Migration 071 deve conter chave única uq_user_intro_role (consultancy_id, user_id, audience_role)"
+);
+assert.ok(
+  trevoChatCode.includes("CREATE TABLE IF NOT EXISTS trevo_chat_intro_views"),
+  "ensureChatTablesExist em trevo-chat.ts deve incluir trevo_chat_intro_views para resiliência de schema"
+);
+console.log("✓ Migration 071 e auto-schema de introdução validados com sucesso.");
+
+// -----------------------------------------------------------------------------
+// 29. DOMAIN PERSISTENCE & SERVER ACTIONS FOR INTRO VIEWS
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 29] Verificando persistência no backend e ações do servidor para introdução...");
+assert.ok(
+  trevoChatCode.includes("export async function getIntroViewStatus"),
+  "trevo-chat.ts deve exportar getIntroViewStatus"
+);
+assert.ok(
+  trevoChatCode.includes("export async function saveIntroView"),
+  "trevo-chat.ts deve exportar saveIntroView"
+);
+assert.ok(
+  trevoChatCode.includes("status = CASE WHEN status = 'COMPLETED' THEN 'COMPLETED' ELSE VALUES(status) END"),
+  "saveIntroView deve preservar status COMPLETED mesmo se o usuário fechar apresentação reaberta manualmente"
+);
+assert.ok(
+  chatActionsCode.includes("export async function saveIntroViewAction"),
+  "chat-actions.ts deve exportar saveIntroViewAction"
+);
+assert.ok(
+  chatActionsCode.includes("audienceRole !== \"STUDENT\" && audienceRole !== \"PROFESSIONAL\""),
+  "saveIntroViewAction deve validar audienceRole rigorosamente"
+);
+console.log("✓ Persistência de preferências de introdução validada no servidor.");
+
+// -----------------------------------------------------------------------------
+// 30. UI CONTRACTS: NAVIGATION INTENT, SLIDES CONTENT, A11Y & REOPEN HELP
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 30] Verificando contratos de interface, navegação e slides do Trevo Chat Welcome...");
+const navCode = fs.readFileSync(path.resolve("components/consultancies/consultancy-navigation.tsx"), "utf-8");
+assert.ok(
+  navCode.includes("trevo_chat_nav_intent"),
+  "Navegação deve registrar intenção de clique para Consultas (trevo_chat_nav_intent)"
+);
+assert.ok(
+  navCode.includes("sessionStorage.removeItem(\"trevo_chat_nav_intent\")"),
+  "Navegação deve descartar sinal transitório ao clicar em outros itens"
+);
+
+const modalPath = path.resolve("components/consultancies/trevo-chat/trevo-chat-welcome-modal.tsx");
+assert.ok(fs.existsSync(modalPath), "Componente TrevoChatWelcomeModal deve existir");
+const modalCode = fs.readFileSync(modalPath, "utf-8");
+
+// Validar 5 slides do aluno
+assert.ok(modalCode.includes("Bem-vindo ao Trevo Chat"), "Slide 1 Aluno: título obrigatório");
+assert.ok(modalCode.includes("Um espaço para conversar com seu profissional, tirar dúvidas e acompanhar suas orientações dentro do Trevo One."), "Slide 1 Aluno: texto obrigatório");
+assert.ok(modalCode.includes("Converse do seu jeito"), "Slide 2 Aluno: título obrigatório");
+assert.ok(modalCode.includes("Escreva ou envie um áudio para contar suas dificuldades, compartilhar conquistas e explicar o que você precisa."), "Slide 2 Aluno: texto obrigatório");
+assert.ok(modalCode.includes("Mostre para explicar melhor"), "Slide 3 Aluno: título obrigatório");
+assert.ok(modalCode.includes("Compartilhe fotos, vídeos e documentos que ajudem seu profissional a entender sua dúvida."), "Slide 3 Aluno: texto obrigatório");
+assert.ok(modalCode.includes("Acompanhamento que cabe na sua rotina"), "Slide 4 Aluno: título obrigatório");
+assert.ok(modalCode.includes("Vocês não precisam estar conectados ao mesmo tempo. Envie sua mensagem quando puder e acompanhe a resposta dentro do prazo combinado."), "Slide 4 Aluno: texto obrigatório");
+assert.ok(modalCode.includes("Suas orientações ficam por aqui"), "Slide 5 Aluno: título obrigatório");
+assert.ok(modalCode.includes("Consulte o histórico das conversas e solicite um novo atendimento ou retorno quando precisar."), "Slide 5 Aluno: texto obrigatório");
+
+// Validar 5 slides do profissional
+assert.ok(modalCode.includes("Centralize suas conversas e acompanhe seus alunos em um espaço organizado dentro do Trevo One."), "Slide 1 Profissional: texto obrigatório");
+assert.ok(modalCode.includes("Entenda melhor cada necessidade"), "Slide 2 Profissional: título obrigatório");
+assert.ok(modalCode.includes("Troque mensagens, áudios, fotos, vídeos e documentos para orientar seus alunos com mais contexto."), "Slide 2 Profissional: texto obrigatório");
+assert.ok(modalCode.includes("Saiba o que precisa da sua atenção"), "Slide 3 Profissional: título obrigatório");
+assert.ok(modalCode.includes("Organize seus atendimentos entre respostas pendentes, solicitações e conversas concluídas."), "Slide 3 Profissional: texto obrigatório");
+assert.ok(modalCode.includes("Atenda no ritmo combinado"), "Slide 4 Profissional: título obrigatório");
+assert.ok(modalCode.includes("Defina a expectativa de resposta do atendimento e converse sem exigir que vocês estejam conectados ao mesmo tempo."), "Slide 4 Profissional: texto obrigatório");
+assert.ok(modalCode.includes("Dê continuidade ao acompanhamento"), "Slide 5 Profissional: título obrigatório");
+assert.ok(modalCode.includes("Consulte o histórico, registre o encerramento e acompanhe os retornos de cada atendimento."), "Slide 5 Profissional: texto obrigatório");
+
+// Botão final
+assert.ok(modalCode.includes("Conhecer o Trevo Chat"), "Botão do slide final deve ser 'Conhecer o Trevo Chat'");
+assert.ok(modalCode.includes("Pular introdução"), "Controle 'Pular introdução' obrigatório");
+assert.ok(modalCode.includes("de {slides.length}"), "Indicador de progresso 'de {slides.length}' obrigatório");
+assert.ok(modalCode.includes("onTouchStart") && modalCode.includes("onTouchEnd"), "Suporte a touch swipe em mobile");
+assert.ok(modalCode.includes("aria-modal=\"true\""), "Acessibilidade: diálogo com aria-modal");
+
+// Validar consumo e descarte imediato no TrevoChatWorkspace
+const workspaceCodeFinal = fs.readFileSync(path.resolve("components/consultancies/trevo-chat/trevo-chat-workspace.tsx"), "utf-8");
+assert.ok(
+  workspaceCodeFinal.includes("sessionStorage.removeItem(\"trevo_chat_nav_intent\")"),
+  "TrevoChatWorkspace deve descartar sinal imediatamente para impedir abertura em recarregamento ou F5"
+);
+assert.ok(
+  workspaceCodeFinal.includes("searchParams.has(\"c\") || searchParams.has(\"chat\")"),
+  "TrevoChatWorkspace não deve abrir apresentação em deep-links diretos ou notificações"
+);
+assert.ok(
+  workspaceCodeFinal.includes("Ver introdução novamente"),
+  "TrevoChatWorkspace deve oferecer acesso claro para 'Ver introdução novamente'"
+);
+console.log("✓ Todos os contratos visuais, de navegação e de slides aprovados.");
+
 console.log("\n======================================================================");
-console.log(" ✓ TODAS AS 27 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
+console.log(" ✓ TODAS AS 30 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
 console.log("======================================================================\n");

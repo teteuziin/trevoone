@@ -15,6 +15,7 @@ import { ChatMessageList } from "./chat-message-list";
 import { ChatInputBar } from "./chat-input-bar";
 import { AIAnamnesisPanel } from "./ai-anamnesis-panel";
 import { UserAvatar } from "@/components/account/user-avatar";
+import { TrevoChatWelcomeModal } from "./trevo-chat-welcome-modal";
 import {
   sendChatMessageAction,
   markChatReadAction,
@@ -25,6 +26,7 @@ import {
   requestReturnConsultationAction,
   hideConsultationAction,
   restoreConsultationAction,
+  saveIntroViewAction,
 } from "@/app/consultoria/[slug]/consultas/chat-actions";
 
 export interface StudentCandidate {
@@ -47,6 +49,8 @@ interface TrevoChatWorkspaceProps {
   consultancySlug: string;
   currentUserId: number;
   isProfessional: boolean;
+  audienceRole?: "STUDENT" | "PROFESSIONAL";
+  hasSeenIntro?: boolean;
   professionalType?: "PERSONAL" | "NUTRITIONIST";
   consultations: ChatConsultationDto[];
   initialActivePublicId?: string | null;
@@ -107,11 +111,13 @@ function ConversationOptionsMenu({
   consultation,
   onOpenExcludeModal,
   onRestore,
+  onOpenIntro,
   placement = "list",
 }: {
   consultation: ChatConsultationDto;
   onOpenExcludeModal: (c: ChatConsultationDto) => void;
   onRestore: (c: ChatConsultationDto) => void;
+  onOpenIntro?: () => void;
   placement?: "list" | "header";
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -190,6 +196,22 @@ function ConversationOptionsMenu({
               <span>Restaurar na minha lista</span>
             </button>
           )}
+
+          {onOpenIntro && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onOpenIntro();
+              }}
+              className="w-full min-h-[44px] px-3.5 py-2.5 text-left text-xs font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-[#252830] flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl mx-0.5 border-t border-[#E5E7EB] dark:border-[#2E313A] mt-1 pt-2"
+            >
+              <svg className="w-4 h-4 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+              </svg>
+              <span>Ver introdução novamente</span>
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -200,6 +222,8 @@ export function TrevoChatWorkspace({
   consultancySlug,
   currentUserId,
   isProfessional,
+  audienceRole,
+  hasSeenIntro = false,
   professionalType = "PERSONAL",
   consultations: initialConsultations,
   initialActivePublicId,
@@ -466,6 +490,70 @@ export function TrevoChatWorkspace({
     handleRestoreConsultation(target);
   };
 
+  // Welcome Intro Modal State
+  const [isIntroOpen, setIsIntroOpen] = useState(false);
+  const [introSeenLocally, setIntroSeenLocally] = useState<boolean>(Boolean(hasSeenIntro));
+  const introHelpButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  // Auto-open Welcome Intro ONLY on genuine navigation intent
+  useEffect(() => {
+    if (introSeenLocally) return;
+
+    if (typeof window === "undefined") return;
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.has("c") || searchParams.has("chat")) {
+      try {
+        sessionStorage.removeItem("trevo_chat_nav_intent");
+      } catch {}
+      return;
+    }
+
+    try {
+      const rawIntent = sessionStorage.getItem("trevo_chat_nav_intent");
+      // MUST consume and discard immediately so reload (F5) or back won't re-trigger
+      sessionStorage.removeItem("trevo_chat_nav_intent");
+
+      if (rawIntent) {
+        const parsed = JSON.parse(rawIntent);
+        const isFresh = Date.now() - (parsed.ts || 0) < 15000;
+        const matchesSlug = !parsed.slug || parsed.slug === consultancySlug;
+        if (isFresh && matchesSlug) {
+          setTimeout(() => {
+            setIsIntroOpen(true);
+          }, 0);
+        }
+      }
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  }, [consultancySlug, introSeenLocally]);
+
+  const handleOpenIntroManually = useCallback(() => {
+    setIsIntroOpen(true);
+  }, []);
+
+  const effectiveAudienceRole = audienceRole || (isProfessional ? "PROFESSIONAL" : "STUDENT");
+
+  const handleCompleteIntro = useCallback(async () => {
+    setIntroSeenLocally(true);
+    setIsIntroOpen(false);
+    try {
+      await saveIntroViewAction(consultancySlug, effectiveAudienceRole, "COMPLETED");
+    } catch (err) {
+      console.error("[TrevoChatWorkspace] Failed to persist intro completion:", err);
+    }
+  }, [effectiveAudienceRole, consultancySlug]);
+
+  const handleDismissIntro = useCallback(async () => {
+    setIntroSeenLocally(true);
+    setIsIntroOpen(false);
+    try {
+      await saveIntroViewAction(consultancySlug, effectiveAudienceRole, "DISMISSED");
+    } catch (err) {
+      console.error("[TrevoChatWorkspace] Failed to persist intro dismissal:", err);
+    }
+  }, [effectiveAudienceRole, consultancySlug]);
+
   // Search filter
   const [searchFilter, setSearchFilter] = useState("");
 
@@ -484,6 +572,7 @@ export function TrevoChatWorkspace({
 
   // Lock body scroll when any modal is open
   const anyModalOpen =
+    isIntroOpen ||
     isNewChatModalOpen ||
     isCounterModalOpen ||
     isDeclineModalOpen ||
@@ -1109,17 +1198,35 @@ export function TrevoChatWorkspace({
           </h1>
         </div>
 
-        {/* Primary Action Button */}
-        <button
-          type="button"
-          onClick={handleOpenNewChatModal}
-          className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs active:scale-95"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          <span>{isProfessional ? "Novo atendimento" : "Solicitar consulta"}</span>
-        </button>
+        {/* Header Actions */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* Help button for Intro */}
+          <button
+            ref={introHelpButtonRef}
+            type="button"
+            onClick={handleOpenIntroManually}
+            aria-label="Ver introdução novamente"
+            title="Ver introdução novamente"
+            className="min-h-[44px] min-w-[44px] px-3.5 py-2.5 rounded-xl border border-[#E5E7EB] dark:border-[#2A2D37] bg-white/80 dark:bg-[#1A1C22] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-600 dark:text-zinc-300 transition-colors inline-flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 shrink-0"
+          >
+            <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+            </svg>
+            <span className="hidden sm:inline">Ver introdução</span>
+          </button>
+
+          {/* Primary Action Button */}
+          <button
+            type="button"
+            onClick={handleOpenNewChatModal}
+            className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs active:scale-95"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>{isProfessional ? "Novo atendimento" : "Solicitar consulta"}</span>
+          </button>
+        </div>
       </header>
 
       {/* Main Workspace Card */}
@@ -1517,14 +1624,23 @@ export function TrevoChatWorkspace({
                         <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">
                           {displayName}
                         </span>
-                        {c.lastMessageAt && (
-                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400 shrink-0">
-                            {new Date(c.lastMessageAt).toLocaleDateString("pt-BR", {
-                              day: "2-digit",
-                              month: "2-digit",
-                            })}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {c.lastMessageAt && (
+                            <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                              {new Date(c.lastMessageAt).toLocaleDateString("pt-BR", {
+                                day: "2-digit",
+                                month: "2-digit",
+                              })}
+                            </span>
+                          )}
+                          <ConversationOptionsMenu
+                            consultation={c}
+                            onOpenExcludeModal={handleOpenExcludeModal}
+                            onRestore={handleRestoreConsultation}
+                            onOpenIntro={handleOpenIntroManually}
+                            placement="list"
+                          />
+                        </div>
                       </div>
 
                       {c.topic && (
@@ -1638,10 +1754,23 @@ export function TrevoChatWorkspace({
                       <span>Histórico arquivado</span>
                     </span>
 
+                    <button
+                      type="button"
+                      onClick={handleOpenIntroManually}
+                      title="Ver introdução novamente"
+                      aria-label="Ver introdução novamente"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-[#1A1C22] text-zinc-500 dark:text-zinc-400 active:scale-95 transition-colors cursor-pointer"
+                    >
+                      <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                      </svg>
+                    </button>
+
                     <ConversationOptionsMenu
                       consultation={activeChat}
                       onOpenExcludeModal={handleOpenExcludeModal}
                       onRestore={handleRestoreConsultation}
+                      onOpenIntro={handleOpenIntroManually}
                       placement="header"
                     />
                   </div>
@@ -1821,11 +1950,25 @@ export function TrevoChatWorkspace({
                     </button>
                   )}
 
+                  {/* Help Intro Button */}
+                  <button
+                    type="button"
+                    onClick={handleOpenIntroManually}
+                    title="Ver introdução novamente"
+                    aria-label="Ver introdução novamente"
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-[#1A1C22] text-zinc-500 dark:text-zinc-400 active:scale-95 transition-colors cursor-pointer"
+                  >
+                    <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                    </svg>
+                  </button>
+
                   {/* Options Menu */}
                   <ConversationOptionsMenu
                     consultation={activeChat}
                     onOpenExcludeModal={handleOpenExcludeModal}
                     onRestore={handleRestoreConsultation}
+                    onOpenIntro={handleOpenIntroManually}
                     placement="header"
                   />
                 </div>
@@ -3203,6 +3346,17 @@ export function TrevoChatWorkspace({
         </div>,
         document.body
       )}
+      {/* -------------------------------------------------------------------- */}
+      {/* WELCOME INTRO MODAL                                                  */}
+      {/* -------------------------------------------------------------------- */}
+      <TrevoChatWelcomeModal
+        isOpen={isIntroOpen}
+        onClose={() => setIsIntroOpen(false)}
+        audienceRole={effectiveAudienceRole}
+        onComplete={handleCompleteIntro}
+        onDismiss={handleDismissIntro}
+        triggerRef={introHelpButtonRef}
+      />
     </div>
   );
 }

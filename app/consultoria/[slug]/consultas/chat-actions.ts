@@ -28,6 +28,7 @@ import {
   generateAiPendingQuestions,
   hideConsultationFromUser,
   restoreConsultationForUser,
+  saveIntroView,
   type ChatConsultationStatus,
   type ChatMessageType,
 } from "@/lib/consultancies/trevo-chat";
@@ -868,6 +869,43 @@ export async function restoreConsultationAction(
     return { ok: true };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Erro ao restaurar conversa na lista.";
+    return { ok: false, error: errorMsg };
+  }
+}
+
+/**
+ * Persists that the user has completed or dismissed the welcome intro for this consultancy and audience role.
+ */
+export async function saveIntroViewAction(
+  consultancySlug: string,
+  audienceRole: "STUDENT" | "PROFESSIONAL",
+  status: "COMPLETED" | "DISMISSED"
+): Promise<ActionResult> {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return { ok: false, error: "Não autenticado." };
+
+    const context = await resolveConsultancyContext(session.userId, consultancySlug);
+    if (!context) return { ok: false, error: "Consultoria não encontrada." };
+
+    if (status !== "COMPLETED" && status !== "DISMISSED") {
+      return { ok: false, error: "Status de introdução inválido." };
+    }
+
+    if (audienceRole !== "STUDENT" && audienceRole !== "PROFESSIONAL") {
+      return { ok: false, error: "Papel de audiência inválido." };
+    }
+
+    await saveIntroView(
+      context.consultancyId,
+      session.userId,
+      audienceRole,
+      status
+    );
+
+    return { ok: true };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro ao registrar introdução.";
     return { ok: false, error: errorMsg };
   }
 }

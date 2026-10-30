@@ -14,6 +14,7 @@ import {
   listActiveStudentsForChat,
   listActiveProfessionalsForChat,
   getUserHiddenConsultationKeys,
+  getIntroViewStatus,
   type ChatConsultationDto,
   type ActiveStudentForChatDto,
   type ActiveProfessionalForChatDto,
@@ -59,6 +60,14 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
     let chatConsultations: ChatConsultationDto[] = [];
     let activeProfessionals: ActiveProfessionalForChatDto[] = [];
     let hiddenKeys = new Set<string>();
+    let hasSeenIntro = false;
+
+    try {
+      const introStatus = await getIntroViewStatus(context.consultancyId, session.userId, "STUDENT");
+      hasSeenIntro = introStatus.hasSeen;
+    } catch (err: unknown) {
+      console.warn("[Trevo Chat] Falha ao carregar status de introdução do aluno:", err);
+    }
 
     try {
       hiddenKeys = await getUserHiddenConsultationKeys(context.consultancyId, session.userId);
@@ -158,6 +167,8 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
             consultancySlug={slug}
             currentUserId={session.userId}
             isProfessional={false}
+            audienceRole="STUDENT"
+            hasSeenIntro={hasSeenIntro}
             consultations={allConsultations}
             initialActivePublicId={initialChatPublicId}
             activeProfessionals={activeProfessionals}
@@ -174,6 +185,14 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
     let chatConsultations: ChatConsultationDto[] = [];
     let activeChatStudents: ActiveStudentForChatDto[] = [];
     let hiddenKeys = new Set<string>();
+    let hasSeenIntro = false;
+
+    try {
+      const introStatus = await getIntroViewStatus(context.consultancyId, session.userId, "PROFESSIONAL");
+      hasSeenIntro = introStatus.hasSeen;
+    } catch (err: unknown) {
+      console.warn("[Trevo Chat] Falha ao carregar status de introdução do profissional:", err);
+    }
 
     try {
       hiddenKeys = await getUserHiddenConsultationKeys(context.consultancyId, session.userId);
@@ -274,6 +293,8 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
             consultancySlug={slug}
             currentUserId={session.userId}
             isProfessional={true}
+            audienceRole="PROFESSIONAL"
+            hasSeenIntro={hasSeenIntro}
             professionalType={professionalType}
             consultations={allConsultations}
             initialActivePublicId={initialChatPublicId}

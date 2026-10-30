@@ -23,6 +23,8 @@ import {
   cancelChatConsultationAction,
   closeChatConsultationAction,
   requestReturnConsultationAction,
+  hideConsultationAction,
+  restoreConsultationAction,
 } from "@/app/consultoria/[slug]/consultas/chat-actions";
 
 export interface StudentCandidate {
@@ -63,8 +65,8 @@ function isChatMessagingUnlocked(status: ChatConsultationStatus): boolean {
 // Queue definitions
 // Professional Queues: PRECISO_RESPONDER | AGUARDANDO_ALUNO | SOLICITACOES_RECEBIDAS | CONCLUIDOS | ALL
 // Student Queues: EM_ATENDIMENTO | SOLICITACOES | CONCLUIDAS | ALL
-export type ProQueue = "PRECISO_RESPONDER" | "AGUARDANDO_ALUNO" | "SOLICITACOES_RECEBIDAS" | "CONCLUIDOS" | "ALL";
-export type StudentQueue = "EM_ATENDIMENTO" | "SOLICITACOES" | "CONCLUIDAS" | "ALL";
+export type ProQueue = "PRECISO_RESPONDER" | "AGUARDANDO_ALUNO" | "SOLICITACOES_RECEBIDAS" | "CONCLUIDOS" | "ALL" | "REMOVIDAS";
+export type StudentQueue = "EM_ATENDIMENTO" | "SOLICITACOES" | "CONCLUIDAS" | "ALL" | "REMOVIDAS";
 
 export function getStudentQueueKey(c: ChatConsultationDto): StudentQueue {
   if (
@@ -101,6 +103,99 @@ export function getProQueueKey(c: ChatConsultationDto): ProQueue {
   return "AGUARDANDO_ALUNO";
 }
 
+function ConversationOptionsMenu({
+  consultation,
+  onOpenExcludeModal,
+  onRestore,
+  placement = "list",
+}: {
+  consultation: ChatConsultationDto;
+  onOpenExcludeModal: (c: ChatConsultationDto) => void;
+  onRestore: (c: ChatConsultationDto) => void;
+  placement?: "list" | "header";
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const isRemoved = Boolean(consultation.isRemovedFromMyList);
+
+  return (
+    <div ref={menuRef} className="relative shrink-0">
+      <button
+        type="button"
+        aria-label="Opções da conversa"
+        title="Opções da conversa"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen((prev) => !prev);
+        }}
+        className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-[#1A1C22] text-zinc-500 dark:text-zinc-400 active:scale-95 transition-colors cursor-pointer"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 6.75a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 6.75a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div
+          className={`absolute z-30 w-52 py-1 bg-white dark:bg-[#16171B] border border-[#E5E7EB] dark:border-[#2E313A] rounded-2xl shadow-xl animate-in fade-in zoom-in-95 duration-100 ${
+            placement === "header" ? "right-0 top-full mt-1" : "right-0 top-full mt-1"
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {!isRemoved ? (
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onOpenExcludeModal(consultation);
+              }}
+              className="w-full min-h-[44px] px-3.5 py-2.5 text-left text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl mx-0.5"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
+              <span>Excluir da minha lista</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onRestore(consultation);
+              }}
+              className="w-full min-h-[44px] px-3.5 py-2.5 text-left text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl mx-0.5"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              <span>Restaurar na minha lista</span>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TrevoChatWorkspace({
   consultancySlug,
   currentUserId,
@@ -130,15 +225,19 @@ export function TrevoChatWorkspace({
 
   // Queue counts calculation
   const queueCounts = useMemo(() => {
+    const removedCount = consultations.filter((c) => Boolean(c.isRemovedFromMyList)).length;
+
     if (isProfessional) {
       const counts: Record<ProQueue, number> = {
         PRECISO_RESPONDER: 0,
         AGUARDANDO_ALUNO: 0,
         SOLICITACOES_RECEBIDAS: 0,
         CONCLUIDOS: 0,
-        ALL: consultations.length,
+        ALL: consultations.filter((c) => !c.isRemovedFromMyList).length,
+        REMOVIDAS: removedCount,
       };
       consultations.forEach((c) => {
+        if (c.isRemovedFromMyList) return;
         const key = getProQueueKey(c);
         counts[key] = (counts[key] || 0) + 1;
       });
@@ -148,9 +247,11 @@ export function TrevoChatWorkspace({
         EM_ATENDIMENTO: 0,
         SOLICITACOES: 0,
         CONCLUIDAS: 0,
-        ALL: consultations.length,
+        ALL: consultations.filter((c) => !c.isRemovedFromMyList).length,
+        REMOVIDAS: removedCount,
       };
       consultations.forEach((c) => {
+        if (c.isRemovedFromMyList) return;
         const key = getStudentQueueKey(c);
         counts[key] = (counts[key] || 0) + 1;
       });
@@ -183,6 +284,7 @@ export function TrevoChatWorkspace({
       : ((queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO > 0 ? "EM_ATENDIMENTO" : (queueCounts as Record<StudentQueue, number>).SOLICITACOES > 0 ? "SOLICITACOES" : "CONCLUIDAS");
 
     const match = consultations.find((c) => {
+      if (c.isRemovedFromMyList) return false;
       if (c.modality === "VIDEO") return false; // Never auto-select historical video
       if (isProfessional) {
         return initialQueue === "ALL" || getProQueueKey(c) === initialQueue;
@@ -272,6 +374,98 @@ export function TrevoChatWorkspace({
   const [returnError, setReturnError] = useState<string | null>(null);
   const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
 
+  // Exclude consultation states
+  const [consultationToExclude, setConsultationToExclude] = useState<ChatConsultationDto | null>(null);
+  const [isExcluding, setIsExcluding] = useState(false);
+  const [excludeError, setExcludeError] = useState<string | null>(null);
+  const [undoToast, setUndoToast] = useState<{
+    consultation: ChatConsultationDto;
+    timeoutId: ReturnType<typeof setTimeout>;
+  } | null>(null);
+
+  const handleOpenExcludeModal = useCallback((c: ChatConsultationDto) => {
+    setConsultationToExclude(c);
+    setExcludeError(null);
+  }, []);
+
+  const handleConfirmExclude = async () => {
+    if (!consultationToExclude) return;
+    const target = consultationToExclude;
+    const targetType = target.modality === "VIDEO" ? "LEGACY_VIDEO" : "CHAT";
+
+    setIsExcluding(true);
+    setExcludeError(null);
+
+    // Optimistic update
+    setUpdatedConsultations((prev) => ({
+      ...prev,
+      [target.publicId]: { ...(prev[target.publicId] || {}), isRemovedFromMyList: true },
+    }));
+
+    if (selectedChatPublicId === target.publicId) {
+      setSelectedChatPublicId(null);
+      setMobileScreen("LIST");
+    }
+
+    try {
+      const res = await hideConsultationAction(consultancySlug, targetType, target.publicId);
+      if (!res.ok) {
+        throw new Error(res.error || "Falha ao excluir conversa da lista.");
+      }
+
+      setConsultationToExclude(null);
+      setIsExcluding(false);
+
+      if (undoToast?.timeoutId) clearTimeout(undoToast.timeoutId);
+      const timer = setTimeout(() => {
+        setUndoToast(null);
+      }, 7000);
+      setUndoToast({ consultation: target, timeoutId: timer });
+    } catch (err: unknown) {
+      setUpdatedConsultations((prev) => ({
+        ...prev,
+        [target.publicId]: { ...(prev[target.publicId] || {}), isRemovedFromMyList: false },
+      }));
+      setIsExcluding(false);
+      setExcludeError(err instanceof Error ? err.message : "Erro ao excluir conversa.");
+    }
+  };
+
+  const handleRestoreConsultation = async (target: ChatConsultationDto) => {
+    const targetType = target.modality === "VIDEO" ? "LEGACY_VIDEO" : "CHAT";
+
+    setUpdatedConsultations((prev) => ({
+      ...prev,
+      [target.publicId]: { ...(prev[target.publicId] || {}), isRemovedFromMyList: false },
+    }));
+
+    if (undoToast?.consultation.publicId === target.publicId) {
+      if (undoToast.timeoutId) clearTimeout(undoToast.timeoutId);
+      setUndoToast(null);
+    }
+
+    try {
+      const res = await restoreConsultationAction(consultancySlug, targetType, target.publicId);
+      if (!res.ok) {
+        throw new Error(res.error || "Falha ao restaurar conversa na lista.");
+      }
+    } catch (err: unknown) {
+      setUpdatedConsultations((prev) => ({
+        ...prev,
+        [target.publicId]: { ...(prev[target.publicId] || {}), isRemovedFromMyList: true },
+      }));
+      alert(err instanceof Error ? err.message : "Erro ao restaurar conversa.");
+    }
+  };
+
+  const handleUndoExclude = () => {
+    if (!undoToast) return;
+    const target = undoToast.consultation;
+    if (undoToast.timeoutId) clearTimeout(undoToast.timeoutId);
+    setUndoToast(null);
+    handleRestoreConsultation(target);
+  };
+
   // Search filter
   const [searchFilter, setSearchFilter] = useState("");
 
@@ -295,7 +489,8 @@ export function TrevoChatWorkspace({
     isDeclineModalOpen ||
     isClosureModalOpen ||
     isReturnModalOpen ||
-    isMobileQueueModalOpen;
+    isMobileQueueModalOpen ||
+    Boolean(consultationToExclude);
 
   useEffect(() => {
     if (!mounted) return;
@@ -762,14 +957,23 @@ export function TrevoChatWorkspace({
   // Filter consultations by selected queue and search
   const filteredConsultations = useMemo(() => {
     return consultations.filter((c) => {
-      // Queue Filter
-      if (isProfessional) {
-        if (activeQueueTab !== "ALL" && getProQueueKey(c) !== activeQueueTab) {
-          return false;
-        }
+      // Excluded from my list rule:
+      if (activeQueueTab === "REMOVIDAS") {
+        if (!c.isRemovedFromMyList) return false;
       } else {
-        if (activeQueueTab !== "ALL" && getStudentQueueKey(c) !== activeQueueTab) {
-          return false;
+        if (c.isRemovedFromMyList) return false;
+      }
+
+      // Queue Filter
+      if (activeQueueTab !== "REMOVIDAS") {
+        if (isProfessional) {
+          if (activeQueueTab !== "ALL" && getProQueueKey(c) !== activeQueueTab) {
+            return false;
+          }
+        } else {
+          if (activeQueueTab !== "ALL" && getStudentQueueKey(c) !== activeQueueTab) {
+            return false;
+          }
         }
       }
 
@@ -788,6 +992,7 @@ export function TrevoChatWorkspace({
   }, [consultations, activeQueueTab, searchFilter, isProfessional]);
 
   const activeQueueLabel = useMemo(() => {
+    if (activeQueueTab === "REMOVIDAS") return "Conversas removidas";
     if (isProfessional) {
       switch (activeQueueTab) {
         case "PRECISO_RESPONDER": return "Preciso responder";
@@ -807,31 +1012,40 @@ export function TrevoChatWorkspace({
   }, [isProfessional, activeQueueTab]);
 
   const activeQueueCount = useMemo(() => {
-    if (activeQueueTab === "ALL") return consultations.length;
+    if (activeQueueTab === "ALL") return queueCounts.ALL;
+    if (activeQueueTab === "REMOVIDAS") return queueCounts.REMOVIDAS;
     if (isProfessional) {
       return (queueCounts as Record<ProQueue, number>)[activeQueueTab as ProQueue] || 0;
     }
     return (queueCounts as Record<StudentQueue, number>)[activeQueueTab as StudentQueue] || 0;
-  }, [activeQueueTab, isProfessional, queueCounts, consultations.length]);
+  }, [activeQueueTab, isProfessional, queueCounts]);
 
   const queueOptions = useMemo(() => {
-    if (isProfessional) {
-      return [
-        { key: "PRECISO_RESPONDER", label: "Preciso responder", count: (queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER || 0 },
-        { key: "AGUARDANDO_ALUNO", label: "Aguardando aluno", count: (queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO || 0 },
-        { key: "SOLICITACOES_RECEBIDAS", label: "Solicitações", count: (queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS || 0 },
-        { key: "CONCLUIDOS", label: "Concluídos", count: (queueCounts as Record<ProQueue, number>).CONCLUIDOS || 0 },
-        { key: "ALL", label: "Todos os atendimentos", count: consultations.length },
-      ];
-    } else {
-      return [
-        { key: "EM_ATENDIMENTO", label: "Em atendimento", count: (queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO || 0 },
-        { key: "SOLICITACOES", label: "Solicitações", count: (queueCounts as Record<StudentQueue, number>).SOLICITACOES || 0 },
-        { key: "CONCLUIDAS", label: "Concluídas", count: (queueCounts as Record<StudentQueue, number>).CONCLUIDAS || 0 },
-        { key: "ALL", label: "Todos os atendimentos", count: consultations.length },
-      ];
+    const list = isProfessional
+      ? [
+          { key: "PRECISO_RESPONDER", label: "Preciso responder", count: (queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER || 0 },
+          { key: "AGUARDANDO_ALUNO", label: "Aguardando aluno", count: (queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO || 0 },
+          { key: "SOLICITACOES_RECEBIDAS", label: "Solicitações", count: (queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS || 0 },
+          { key: "CONCLUIDOS", label: "Concluídos", count: (queueCounts as Record<ProQueue, number>).CONCLUIDOS || 0 },
+          { key: "ALL", label: "Todos os atendimentos", count: queueCounts.ALL },
+        ]
+      : [
+          { key: "EM_ATENDIMENTO", label: "Em atendimento", count: (queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO || 0 },
+          { key: "SOLICITACOES", label: "Solicitações", count: (queueCounts as Record<StudentQueue, number>).SOLICITACOES || 0 },
+          { key: "CONCLUIDAS", label: "Concluídas", count: (queueCounts as Record<StudentQueue, number>).CONCLUIDAS || 0 },
+          { key: "ALL", label: "Todos os atendimentos", count: queueCounts.ALL },
+        ];
+
+    if (queueCounts.REMOVIDAS > 0 || activeQueueTab === "REMOVIDAS") {
+      list.push({
+        key: "REMOVIDAS",
+        label: "Conversas removidas",
+        count: queueCounts.REMOVIDAS || 0,
+      });
     }
-  }, [isProfessional, queueCounts, consultations.length]);
+
+    return list;
+  }, [isProfessional, queueCounts, activeQueueTab]);
 
   const STATUS_CONFIG: Record<
     ChatConsultationStatus,
@@ -1077,7 +1291,7 @@ export function TrevoChatWorkspace({
                           : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
-                      {consultations.length}
+                      {queueCounts.ALL}
                     </span>
                   </button>
                 </div>
@@ -1160,7 +1374,38 @@ export function TrevoChatWorkspace({
                           : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
-                      {consultations.length}
+                      {queueCounts.ALL}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {/* Secondary filter: Conversas removidas */}
+              {(queueCounts.REMOVIDAS > 0 || activeQueueTab === "REMOVIDAS") && (
+                <div className="pt-2 mt-2 border-t border-[#E5E7EB] dark:border-[#22242A]">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQueue("REMOVIDAS")}
+                    className={`w-full min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
+                      activeQueueTab === "REMOVIDAS"
+                        ? "bg-rose-500/15 border border-rose-500/30 text-rose-800 dark:text-rose-300 font-bold shadow-2xs"
+                        : "bg-white/60 dark:bg-[#1A1C22] text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-[#1F2128] hover:text-zinc-900 dark:hover:text-zinc-200 border border-dashed border-[#D1D5DB] dark:border-[#2E313A]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <svg className="w-3.5 h-3.5 shrink-0 text-rose-600 dark:text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                      </svg>
+                      <span className="truncate">Conversas removidas</span>
+                    </div>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                        activeQueueTab === "REMOVIDAS"
+                          ? "bg-rose-500/25 text-rose-900 dark:text-rose-200"
+                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
+                      }`}
+                    >
+                      {queueCounts.REMOVIDAS}
                     </span>
                   </button>
                 </div>
@@ -1180,6 +1425,8 @@ export function TrevoChatWorkspace({
                 <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300 leading-relaxed">
                   {searchFilter.trim()
                     ? `Nenhum atendimento encontrado para "${searchFilter}".`
+                    : activeQueueTab === "REMOVIDAS"
+                    ? "Nenhuma conversa removida. As conversas que você excluir da sua lista ficarão disponíveis aqui para restauração."
                     : isProfessional
                     ? activeQueueTab === "PRECISO_RESPONDER"
                       ? "Nenhum atendimento aguardando sua resposta no momento."
@@ -1383,13 +1630,41 @@ export function TrevoChatWorkspace({
                     </div>
                   </div>
 
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    <span>Histórico arquivado</span>
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <span>Histórico arquivado</span>
+                    </span>
+
+                    <ConversationOptionsMenu
+                      consultation={activeChat}
+                      onOpenExcludeModal={handleOpenExcludeModal}
+                      onRestore={handleRestoreConsultation}
+                      placement="header"
+                    />
+                  </div>
                 </div>
+
+                {/* Removed from my list banner */}
+                {activeChat.isRemovedFromMyList && (
+                  <div className="p-3 bg-rose-500/10 border-b border-rose-500/20 flex items-center justify-between gap-3 text-xs text-rose-900 dark:text-rose-200">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <svg className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="truncate">Esta consulta está removida da sua lista pessoal.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRestoreConsultation(activeChat)}
+                      className="shrink-0 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      Restaurar na minha lista
+                    </button>
+                  </div>
+                )}
 
                 <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto space-y-4">
                   <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-2xl shadow-xs">
@@ -1545,8 +1820,35 @@ export function TrevoChatWorkspace({
                       <span className="hidden sm:inline">Prontuário & IA</span>
                     </button>
                   )}
+
+                  {/* Options Menu */}
+                  <ConversationOptionsMenu
+                    consultation={activeChat}
+                    onOpenExcludeModal={handleOpenExcludeModal}
+                    onRestore={handleRestoreConsultation}
+                    placement="header"
+                  />
                 </div>
               </div>
+
+              {/* Removed from my list banner */}
+              {activeChat.isRemovedFromMyList && (
+                <div className="p-3 bg-rose-500/10 border-b border-rose-500/20 flex items-center justify-between gap-3 text-xs text-rose-900 dark:text-rose-200">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <svg className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="truncate">Esta conversa está removida da sua lista pessoal.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRestoreConsultation(activeChat)}
+                    className="shrink-0 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Restaurar na minha lista
+                  </button>
+                </div>
+              )}
 
               {/* Bilateral Proposal Banners */}
               {activeChat.status === "PROPOSED" && (
@@ -2776,6 +3078,127 @@ export function TrevoChatWorkspace({
                 );
               })}
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* -------------------------------------------------------------------- */}
+      {/* MODAL 7: Exclude Consultation Confirmation                           */}
+      {/* -------------------------------------------------------------------- */}
+      {mounted && Boolean(consultationToExclude) && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exclude-modal-title"
+          className="fixed inset-0 z-[105] bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
+          onClick={() => {
+            if (!isExcluding) {
+              setConsultationToExclude(null);
+              setExcludeError(null);
+            }
+          }}
+        >
+          <div
+            className="w-full sm:max-w-md bg-[var(--surface)] border border-[var(--border-subtle)] rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 id="exclude-modal-title" className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                  Excluir esta conversa da sua lista?
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] mt-1.5 leading-relaxed">
+                  Ela deixará de aparecer para você. O histórico continuará disponível para o outro participante. Você poderá restaurá-la em <strong>Conversas removidas</strong>.
+                </p>
+              </div>
+            </div>
+
+            {consultationToExclude &&
+              consultationToExclude.modality !== "VIDEO" &&
+              consultationToExclude.status !== "COMPLETED" &&
+              consultationToExclude.status !== "CANCELED" &&
+              consultationToExclude.status !== "DECLINED" &&
+              !consultationToExclude.closedAt && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 font-medium leading-relaxed">
+                  Isso não encerra nem cancela o atendimento.
+                </div>
+              )}
+
+            {excludeError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400">
+                {excludeError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-subtle)] pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
+              <button
+                type="button"
+                disabled={isExcluding}
+                onClick={() => {
+                  setConsultationToExclude(null);
+                  setExcludeError(null);
+                }}
+                className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isExcluding}
+                onClick={handleConfirmExclude}
+                className="min-h-[44px] px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-xs"
+              >
+                {isExcluding ? "Excluindo..." : "Excluir da minha lista"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* -------------------------------------------------------------------- */}
+      {/* UNDO TOAST: Conversa removida da sua lista                           */}
+      {/* -------------------------------------------------------------------- */}
+      {mounted && undoToast && createPortal(
+        <div
+          role="status"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[110] max-w-sm w-[calc(100%-2rem)] bg-zinc-900 dark:bg-[#1E2026] text-white border border-zinc-700 dark:border-[#343842] rounded-2xl p-3.5 shadow-2xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="text-xs font-medium text-zinc-200 truncate">
+              Conversa removida da sua lista.
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleUndoExclude}
+              className="min-h-[36px] px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors cursor-pointer active:scale-95 shadow-xs"
+            >
+              Desfazer
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (undoToast.timeoutId) clearTimeout(undoToast.timeoutId);
+                setUndoToast(null);
+              }}
+              aria-label="Fechar notificação"
+              className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-xl text-zinc-400 hover:text-white cursor-pointer"
+            >
+              ✕
+            </button>
           </div>
         </div>,
         document.body

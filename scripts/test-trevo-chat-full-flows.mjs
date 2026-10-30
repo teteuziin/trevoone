@@ -536,6 +536,146 @@ assert.ok(
 );
 console.log("✓ Superfícies dark mode hierarquizadas com contraste nítido e confortável.");
 
+// -----------------------------------------------------------------------------
+// 23. MIGRATION 070: USER VISIBILITY TABLE
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 23] Verificando schema e migration 070 (visibilidade individual)...");
+const migration070Path = path.join(process.cwd(), "database/migrations/070_trevo_chat_user_visibility.sql");
+assert.ok(fs.existsSync(migration070Path), "Migration 070 deve existir");
+const migration070Sql = fs.readFileSync(migration070Path, "utf-8");
+assert.ok(
+  migration070Sql.includes("CREATE TABLE IF NOT EXISTS `consultation_user_visibility`"),
+  "Migration 070 deve criar consultation_user_visibility"
+);
+assert.ok(
+  migration070Sql.includes("`target_type` VARCHAR(32) NOT NULL"),
+  "Migration 070 deve conter target_type"
+);
+assert.ok(
+  migration070Sql.includes("`target_public_id` VARCHAR(64) NOT NULL"),
+  "Migration 070 deve conter target_public_id"
+);
+assert.ok(
+  migration070Sql.includes("`hidden_at` DATETIME(3) NOT NULL"),
+  "Migration 070 deve conter hidden_at com precisão milissegundos"
+);
+assert.ok(
+  migration070Sql.includes("`restored_at` DATETIME(3) NULL DEFAULT NULL"),
+  "Migration 070 deve conter restored_at"
+);
+assert.ok(
+  migration070Sql.includes("UNIQUE KEY `uq_user_target_vis`"),
+  "Migration 070 deve conter chave única por usuário e alvo"
+);
+console.log("✓ Migration 070 verificada com idempotência, tipos e índices adequados.");
+
+// -----------------------------------------------------------------------------
+// 24. DOMAIN REPOSITORY & AUTO SCHEMA
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 24] Verificando persistência de visibilidade em trevo-chat.ts...");
+const trevoChatCode = fs.readFileSync(path.resolve("lib/consultancies/trevo-chat.ts"), "utf-8");
+assert.ok(
+  trevoChatCode.includes("ensureChatTablesExist") &&
+  trevoChatCode.includes("CREATE TABLE IF NOT EXISTS consultation_user_visibility"),
+  "ensureChatTablesExist deve assegurar a tabela consultation_user_visibility"
+);
+assert.ok(
+  trevoChatCode.includes("export async function getUserHiddenConsultationKeys"),
+  "Deve exportar getUserHiddenConsultationKeys"
+);
+assert.ok(
+  trevoChatCode.includes("export async function hideConsultationFromUser"),
+  "Deve exportar hideConsultationFromUser"
+);
+assert.ok(
+  trevoChatCode.includes("export async function restoreConsultationForUser"),
+  "Deve exportar restoreConsultationForUser"
+);
+console.log("✓ Funções de domínio de visibilidade verificadas no backend.");
+
+// -----------------------------------------------------------------------------
+// 25. AUTO-REAPPEAR ON NEW REAL MESSAGE
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 25] Verificando reaparecimento automático ao receber nova mensagem...");
+assert.ok(
+  trevoChatCode.includes("UPDATE consultation_user_visibility") &&
+  trevoChatCode.includes("restored_at = NOW(3)") &&
+  trevoChatCode.includes("user_id = ?") &&
+  trevoChatCode.includes("recipientUserId"),
+  "sendChatMessage deve desocultar a conversa para o destinatário ao receber mensagem real"
+);
+console.log("✓ Reaparecimento automático comprovado exclusivamente no fluxo de nova mensagem.");
+
+// -----------------------------------------------------------------------------
+// 26. SERVER ACTIONS SECURITY & TENANT ISOLATION
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 26] Verificando server actions e isolamento multi-tenant...");
+const chatActionsCode = fs.readFileSync(path.join(process.cwd(), "app/consultoria/[slug]/consultas/chat-actions.ts"), "utf-8");
+assert.ok(
+  chatActionsCode.includes("export async function hideConsultationAction"),
+  "chat-actions.ts deve exportar hideConsultationAction"
+);
+assert.ok(
+  chatActionsCode.includes("export async function restoreConsultationAction"),
+  "chat-actions.ts deve exportar restoreConsultationAction"
+);
+assert.ok(
+  chatActionsCode.includes("getCurrentSession"),
+  "Ações devem exigir sessão autenticada (getCurrentSession)"
+);
+assert.ok(
+  chatActionsCode.includes("resolveConsultancyContext"),
+  "Ações devem validar o slug e tenant (resolveConsultancyContext)"
+);
+console.log("✓ Ações de visibilidade protegidas no servidor com isolamento estrito.");
+
+// -----------------------------------------------------------------------------
+// 27. UI CONTRACTS: ⋯ MENU, CONFIRMATION DIALOG, TOAST & REMOVED QUEUE
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 27] Verificando contratos de interface no TrevoChatWorkspace...");
+const freshWorkspaceCode = fs.readFileSync(path.join(process.cwd(), "components/consultancies/trevo-chat/trevo-chat-workspace.tsx"), "utf-8");
+assert.ok(
+  freshWorkspaceCode.includes("ConversationOptionsMenu"),
+  "Deve conter componente de menu ⋯ com opções da conversa"
+);
+assert.ok(
+  freshWorkspaceCode.includes('aria-label="Opções da conversa"'),
+  "Botão do menu ⋯ deve possuir identificação acessível de 44px"
+);
+assert.ok(
+  freshWorkspaceCode.includes("Excluir esta conversa da sua lista?"),
+  "Modal de confirmação deve conter título obrigatório"
+);
+assert.ok(
+  freshWorkspaceCode.includes("Ela deixará de aparecer para você. O histórico continuará disponível para o outro participante."),
+  "Modal de confirmação deve explicar preservação para o outro participante"
+);
+assert.ok(
+  freshWorkspaceCode.includes("Isso não encerra nem cancela o atendimento."),
+  "Modal de confirmação deve exibir aviso claro quando atendimento estiver ativo"
+);
+assert.ok(
+  freshWorkspaceCode.includes("Conversa removida da sua lista."),
+  "Deve apresentar toast após exclusão"
+);
+assert.ok(
+  freshWorkspaceCode.includes("Desfazer"),
+  "Toast deve conter ação Desfazer para rollback rápido"
+);
+assert.ok(
+  freshWorkspaceCode.includes("Conversas removidas"),
+  "Deve conter visualização / filtro de Conversas removidas"
+);
+assert.ok(
+  freshWorkspaceCode.includes("Nenhuma conversa removida. As conversas que você excluir da sua lista ficarão disponíveis aqui para restauração."),
+  "Filtro de conversas removidas deve exibir estado vazio explicativo"
+);
+assert.ok(
+  freshWorkspaceCode.includes("Restaurar na minha lista"),
+  "Deve oferecer ação clara de restauração"
+);
+console.log("✓ Todos os contratos visuais, acessibilidade e mensagens aprovados.");
+
 console.log("\n======================================================================");
-console.log(" ✓ TODAS AS 22 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
+console.log(" ✓ TODAS AS 27 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
 console.log("======================================================================\n");

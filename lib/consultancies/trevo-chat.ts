@@ -91,6 +91,7 @@ export interface ChatConsultationDto {
   aiAnamnesisJson: ExtractedAnamnesisProposal | null;
   aiAnamnesisStatus: "PENDING" | "EXTRACTED" | "CONFIRMED";
   confirmedFormRequestId: number | null;
+  isRemovedFromMyList?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -338,6 +339,31 @@ export async function ensureChatTablesExist(): Promise<void> {
       } catch {}
     } catch (inspectMsgErr) {
       console.warn("[Trevo Chat] Error inspecting chat_messages columns:", inspectMsgErr);
+    }
+
+    // Ensure consultation_user_visibility table exists (Migration 070)
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS consultation_user_visibility (
+          id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+          consultancy_id BIGINT UNSIGNED NOT NULL,
+          user_id BIGINT UNSIGNED NOT NULL,
+          membership_id BIGINT UNSIGNED NOT NULL,
+          target_type VARCHAR(32) NOT NULL,
+          target_public_id VARCHAR(64) NOT NULL,
+          hidden_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          restored_at DATETIME(3) NULL DEFAULT NULL,
+          created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (id),
+          UNIQUE KEY uq_user_target_vis (consultancy_id, user_id, target_type, target_public_id),
+          KEY idx_vis_user (consultancy_id, user_id, target_type, restored_at),
+          KEY idx_vis_target (consultancy_id, target_type, target_public_id),
+          KEY idx_vis_membership (consultancy_id, membership_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+    } catch (visErr) {
+      console.warn("[Trevo Chat] consultation_user_visibility ensure error:", visErr);
     }
 
     _chatSchemaChecked = true;
@@ -1261,6 +1287,25 @@ export async function sendChatMessage(params: {
       );
     }
 
+    // 4b. Auto-unhide conversation for recipient if previously excluded from their list
+    // (Requirement: When a new real message arrives in an active chat that was removed for a recipient,
+    // make the conversation reappear for the recipient!)
+    try {
+      await connection.execute(
+        `UPDATE consultation_user_visibility
+         SET restored_at = NOW(3),
+             updated_at = NOW(3)
+         WHERE consultancy_id = ?
+           AND target_type = 'CHAT'
+           AND target_public_id = ?
+           AND user_id = ?
+           AND restored_at IS NULL;`,
+        [params.consultancyId, params.consultationPublicId, recipientUserId]
+      );
+    } catch (unhideErr) {
+      console.warn("[Trevo Chat] Aviso ao restaurar visibilidade automática para destinatário:", unhideErr);
+    }
+
     // 5. In-app notification with strict privacy (LGPD: no health details on lock-screen)
     let createdNotification = null;
     try {
@@ -2180,4 +2225,98 @@ export async function listActiveProfessionalsForChat(
     return [];
   }
 }
+
+/**
+ * Retrieves the set of hidden consultation keys (e.g. "CHAT:<publicId>" or "LEGACY_VIDEO:<publicId>")
+ * for a specific user in a consultancy.
+ */
+export async function getUserHiddenConsultationKeys(
+  consultancyId: number,
+  userId: number
+): Promise<Set<string>> {
+  return executeWithAutoSchema(async () => {
+    const pool = await getDbConnection();
+    try {
+      const [rows] = await pool.query<RowDataPacket[]>(
+        `SELECT target_type, target_public_id
+         FROM consultation_user_visibility
+         WHERE consultancy_id = ?
+           AND user_id = ?
+           AND restored_at IS NULL;`,
+        [consultancyId, userId]
+      );
+      const keys = new Set<string>();
+      for (const row of rows as Array<{ target_type: string; target_public_id: string }>) {
+        keys.add(`${row.target_type}:${row.target_public_id}`);
+        keys.add(row.target_public_id);
+      }
+      return keys;
+    } catch (err: unknown) {
+      console.warn("[Trevo Chat] Erro ao carregar visibilidade de conversas (fallback vazio):", err);
+      return new Set<string>();
+    }
+  });
+}
+
+/**
+ * Marks a consultation as hidden (excluded from list) for the authenticated user.
+ * Preserves the consultation, messages, and access for the other participant.
+ */
+export async function hideConsultationFromUser(
+  consultancyId: number,
+  userId: number,
+  membershipId: number,
+  targetType: "CHAT" | "LEGACY_VIDEO",
+  targetPublicId: string
+): Promise<boolean> {
+  return executeWithAutoSchema(async () => {
+    const pool = await getDbConnection();
+    await pool.execute(
+      `INSERT INTO consultation_user_visibility (
+        consultancy_id,
+        user_id,
+        membership_id,
+        target_type,
+        target_public_id,
+        hidden_at,
+        restored_at,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, NOW(3), NULL, NOW(3), NOW(3))
+      ON DUPLICATE KEY UPDATE
+        hidden_at = NOW(3),
+        restored_at = NULL,
+        membership_id = VALUES(membership_id),
+        updated_at = NOW(3);`,
+      [consultancyId, userId, membershipId, targetType, targetPublicId]
+    );
+    return true;
+  });
+}
+
+/**
+ * Restores a previously hidden consultation to the user's visible list.
+ */
+export async function restoreConsultationForUser(
+  consultancyId: number,
+  userId: number,
+  targetType: "CHAT" | "LEGACY_VIDEO",
+  targetPublicId: string
+): Promise<boolean> {
+  return executeWithAutoSchema(async () => {
+    const pool = await getDbConnection();
+    await pool.execute(
+      `UPDATE consultation_user_visibility
+       SET restored_at = NOW(3),
+           updated_at = NOW(3)
+       WHERE consultancy_id = ?
+         AND user_id = ?
+         AND target_type = ?
+         AND target_public_id = ?;`,
+      [consultancyId, userId, targetType, targetPublicId]
+    );
+    return true;
+  });
+}
+
 

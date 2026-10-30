@@ -13,6 +13,7 @@ import {
   listChatConsultationsForProfessional,
   listActiveStudentsForChat,
   listActiveProfessionalsForChat,
+  getUserHiddenConsultationKeys,
   type ChatConsultationDto,
   type ActiveStudentForChatDto,
   type ActiveProfessionalForChatDto,
@@ -57,11 +58,23 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
   if (isStudent) {
     let chatConsultations: ChatConsultationDto[] = [];
     let activeProfessionals: ActiveProfessionalForChatDto[] = [];
+    let hiddenKeys = new Set<string>();
+
     try {
-      chatConsultations = await listChatConsultationsForStudent(
+      hiddenKeys = await getUserHiddenConsultationKeys(context.consultancyId, session.userId);
+    } catch (err: unknown) {
+      console.warn("[Trevo Chat] Falha ao carregar visibilidade de conversas do aluno:", err);
+    }
+
+    try {
+      const rawChats = await listChatConsultationsForStudent(
         context.consultancyId,
         context.membershipId
       );
+      chatConsultations = rawChats.map((c) => ({
+        ...c,
+        isRemovedFromMyList: hiddenKeys.has(`CHAT:${c.publicId}`) || hiddenKeys.has(c.publicId),
+      }));
     } catch (err: unknown) {
       console.error("[Trevo Chat] Falha ao carregar conversas do aluno:", err);
     }
@@ -115,6 +128,7 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
         aiAnamnesisJson: null,
         aiAnamnesisStatus: "PENDING",
         confirmedFormRequestId: null,
+        isRemovedFromMyList: hiddenKeys.has(`LEGACY_VIDEO:${h.publicId}`) || hiddenKeys.has(h.publicId),
         createdAt: new Date(h.scheduledStartAt).toISOString(),
         updatedAt: new Date(h.scheduledEndAt).toISOString(),
       }));
@@ -159,12 +173,23 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
 
     let chatConsultations: ChatConsultationDto[] = [];
     let activeChatStudents: ActiveStudentForChatDto[] = [];
+    let hiddenKeys = new Set<string>();
 
     try {
-      chatConsultations = await listChatConsultationsForProfessional(
+      hiddenKeys = await getUserHiddenConsultationKeys(context.consultancyId, session.userId);
+    } catch (err: unknown) {
+      console.warn("[Trevo Chat] Falha ao carregar visibilidade de conversas do profissional:", err);
+    }
+
+    try {
+      const rawChats = await listChatConsultationsForProfessional(
         context.consultancyId,
         context.membershipId
       );
+      chatConsultations = rawChats.map((c) => ({
+        ...c,
+        isRemovedFromMyList: hiddenKeys.has(`CHAT:${c.publicId}`) || hiddenKeys.has(c.publicId),
+      }));
     } catch (err: unknown) {
       console.error("[Trevo Chat] Falha ao carregar conversas do profissional:", err);
     }
@@ -219,6 +244,7 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
         aiAnamnesisJson: null,
         aiAnamnesisStatus: "PENDING",
         confirmedFormRequestId: null,
+        isRemovedFromMyList: hiddenKeys.has(`LEGACY_VIDEO:${h.publicId}`) || hiddenKeys.has(h.publicId),
         createdAt: new Date(h.scheduledStartAt).toISOString(),
         updatedAt: new Date(h.scheduledEndAt).toISOString(),
       }));

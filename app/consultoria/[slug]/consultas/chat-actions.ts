@@ -4,6 +4,8 @@ import crypto from "node:crypto";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { revalidatePath } from "next/cache";
+import type { RowDataPacket } from "mysql2/promise";
+import { getDbPool } from "@/lib/db/mysql";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
@@ -24,6 +26,8 @@ import {
   generateAiConsultationSummary,
   generateAiProntuarioNotes,
   generateAiPendingQuestions,
+  hideConsultationFromUser,
+  restoreConsultationForUser,
   type ChatConsultationStatus,
   type ChatMessageType,
 } from "@/lib/consultancies/trevo-chat";
@@ -719,3 +723,152 @@ export async function generateAiQuestionsAction(
     return { ok: false, error: errorMsg };
   }
 }
+
+/**
+ * Excludes a consultation from the user's personal list ("Excluir da minha lista").
+ * Preserves the consultation, messages, and access for the counterpart.
+ */
+export async function hideConsultationAction(
+  consultancySlug: string,
+  targetType: "CHAT" | "LEGACY_VIDEO",
+  targetPublicId: string
+): Promise<ActionResult> {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return { ok: false, error: "Não autenticado." };
+
+    const context = await resolveConsultancyContext(session.userId, consultancySlug);
+    if (!context) return { ok: false, error: "Consultoria não encontrada." };
+
+    // Validate ownership/participation in the consultation
+    const pool = getDbPool();
+    if (targetType === "CHAT") {
+      const [rows] = await pool.query<RowDataPacket[]>(
+        `SELECT student_membership_id, professional_membership_id
+         FROM chat_consultations
+         WHERE public_id = ? AND consultancy_id = ?
+         LIMIT 1;`,
+        [targetPublicId, context.consultancyId]
+      );
+      if (!rows || rows.length === 0) {
+        return { ok: false, error: "Atendimento não encontrado." };
+      }
+      const chatRow = rows[0] as { student_membership_id: number; professional_membership_id: number };
+      const isParticipant =
+        Number(context.membershipId) === Number(chatRow.student_membership_id) ||
+        Number(context.membershipId) === Number(chatRow.professional_membership_id) ||
+        context.roles.includes("CONSULTANCY_ADMIN");
+
+      if (!isParticipant) {
+        return { ok: false, error: "Acesso não autorizado para esta conversa." };
+      }
+    } else {
+      const [rows] = await pool.query<RowDataPacket[]>(
+        `SELECT student_membership_id, professional_membership_id
+         FROM consultations
+         WHERE public_id = ? AND consultancy_id = ?
+         LIMIT 1;`,
+        [targetPublicId, context.consultancyId]
+      );
+      if (!rows || rows.length === 0) {
+        return { ok: false, error: "Consulta anterior não encontrada." };
+      }
+      const consRow = rows[0] as { student_membership_id: number; professional_membership_id: number };
+      const isParticipant =
+        Number(context.membershipId) === Number(consRow.student_membership_id) ||
+        Number(context.membershipId) === Number(consRow.professional_membership_id) ||
+        context.roles.includes("CONSULTANCY_ADMIN");
+
+      if (!isParticipant) {
+        return { ok: false, error: "Acesso não autorizado para esta consulta." };
+      }
+    }
+
+    await hideConsultationFromUser(
+      context.consultancyId,
+      session.userId,
+      context.membershipId,
+      targetType,
+      targetPublicId
+    );
+
+    revalidatePath(`/consultoria/${consultancySlug}/consultas`);
+    return { ok: true };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro ao excluir conversa da lista.";
+    return { ok: false, error: errorMsg };
+  }
+}
+
+/**
+ * Restores an excluded consultation back to the user's personal list.
+ */
+export async function restoreConsultationAction(
+  consultancySlug: string,
+  targetType: "CHAT" | "LEGACY_VIDEO",
+  targetPublicId: string
+): Promise<ActionResult> {
+  try {
+    const session = await getCurrentSession();
+    if (!session) return { ok: false, error: "Não autenticado." };
+
+    const context = await resolveConsultancyContext(session.userId, consultancySlug);
+    if (!context) return { ok: false, error: "Consultoria não encontrada." };
+
+    // Validate ownership/participation in the consultation
+    const pool = getDbPool();
+    if (targetType === "CHAT") {
+      const [rows] = await pool.query<RowDataPacket[]>(
+        `SELECT student_membership_id, professional_membership_id
+         FROM chat_consultations
+         WHERE public_id = ? AND consultancy_id = ?
+         LIMIT 1;`,
+        [targetPublicId, context.consultancyId]
+      );
+      if (rows && rows.length > 0) {
+        const chatRow = rows[0] as { student_membership_id: number; professional_membership_id: number };
+        const isParticipant =
+          Number(context.membershipId) === Number(chatRow.student_membership_id) ||
+          Number(context.membershipId) === Number(chatRow.professional_membership_id) ||
+          context.roles.includes("CONSULTANCY_ADMIN");
+
+        if (!isParticipant) {
+          return { ok: false, error: "Acesso não autorizado para esta conversa." };
+        }
+      }
+    } else {
+      const [rows] = await pool.query<RowDataPacket[]>(
+        `SELECT student_membership_id, professional_membership_id
+         FROM consultations
+         WHERE public_id = ? AND consultancy_id = ?
+         LIMIT 1;`,
+        [targetPublicId, context.consultancyId]
+      );
+      if (rows && rows.length > 0) {
+        const consRow = rows[0] as { student_membership_id: number; professional_membership_id: number };
+        const isParticipant =
+          Number(context.membershipId) === Number(consRow.student_membership_id) ||
+          Number(context.membershipId) === Number(consRow.professional_membership_id) ||
+          context.roles.includes("CONSULTANCY_ADMIN");
+
+        if (!isParticipant) {
+          return { ok: false, error: "Acesso não autorizado para esta consulta." };
+        }
+      }
+    }
+
+    await restoreConsultationForUser(
+      context.consultancyId,
+      session.userId,
+      targetType,
+      targetPublicId
+    );
+
+    revalidatePath(`/consultoria/${consultancySlug}/consultas`);
+    return { ok: true };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro ao restaurar conversa na lista.";
+    return { ok: false, error: errorMsg };
+  }
+}
+

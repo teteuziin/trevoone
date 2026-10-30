@@ -11,6 +11,9 @@ interface ChatMessageListProps {
   consultancySlug: string;
   onReplyMessage?: (msg: ChatMessageDto) => void;
   isProfessional?: boolean;
+  hasMoreOlderMessages?: boolean;
+  isLoadingOlderMessages?: boolean;
+  onLoadOlderMessages?: () => void;
 }
 
 export function ChatMessageList({
@@ -18,6 +21,9 @@ export function ChatMessageList({
   currentUserId,
   consultancySlug,
   onReplyMessage,
+  hasMoreOlderMessages = false,
+  isLoadingOlderMessages = false,
+  onLoadOlderMessages,
 }: ChatMessageListProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -87,6 +93,26 @@ export function ChatMessageList({
       onScroll={handleScroll}
       className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4"
     >
+      {hasMoreOlderMessages && (
+        <div className="text-center py-1">
+          <button
+            type="button"
+            disabled={isLoadingOlderMessages}
+            onClick={onLoadOlderMessages}
+            className="px-3 py-1.5 rounded-full bg-[var(--surface-subtle)] hover:bg-[var(--surface-active)] text-xs text-[var(--text-secondary)] font-semibold border border-[var(--border-subtle)] cursor-pointer transition-colors disabled:opacity-50 inline-flex items-center gap-1 shadow-2xs"
+          >
+            {isLoadingOlderMessages ? (
+              <>
+                <span className="w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                <span>Carregando anteriores...</span>
+              </>
+            ) : (
+              <span>↑ Carregar mensagens anteriores</span>
+            )}
+          </button>
+        </div>
+      )}
+
       {messages.length === 0 ? (
         <div className="h-full flex flex-col items-center justify-center text-center p-6 text-[var(--text-tertiary)]">
           <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3 shadow-xs">
@@ -241,7 +267,11 @@ export function ChatMessageList({
                         {String(msg.payloadJson?.title || "Por favor, responda ao questionário clínico anexado.")}
                       </p>
                       <Link
-                        href={`/consultoria/${consultancySlug}/formularios`}
+                        href={
+                          msg.payloadJson?.formRequestPublicId
+                            ? `/consultoria/${consultancySlug}/formularios/${msg.payloadJson.formRequestPublicId}`
+                            : `/consultoria/${consultancySlug}/formularios`
+                        }
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 transition-colors shadow-xs"
                       >
                         <span>Preencher Formulário</span>
@@ -259,10 +289,10 @@ export function ChatMessageList({
                         <span>📸 Solicitação de Fotos de Evolução</span>
                       </div>
                       <p className="text-[11px] opacity-90">
-                        {String(msg.payloadJson?.instructions || "Envie suas fotos de evolução (frente, costas e perfil) para avaliação do profissional.")}
+                        {String(msg.payloadJson?.instructions || "Envie suas fotos de evolução (frente, costas e perfil) para acompanhamento.")}
                       </p>
                       <Link
-                        href={`/consultoria/${consultancySlug}/avaliacoes`}
+                        href={`/consultoria/${consultancySlug}/progresso`}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold text-xs hover:bg-blue-500 transition-colors shadow-xs"
                       >
                         <span>Enviar Fotos</span>
@@ -311,7 +341,11 @@ export function ChatMessageList({
                         {String(msg.payloadJson?.workoutTitle || "Ficha de treino atualizada")}
                       </p>
                       <Link
-                        href={`/consultoria/${consultancySlug}/treinos`}
+                        href={
+                          msg.payloadJson?.assignmentPublicId
+                            ? `/consultoria/${consultancySlug}/treinos/${msg.payloadJson.assignmentPublicId}`
+                            : `/consultoria/${consultancySlug}/treinos`
+                        }
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 transition-colors shadow-xs"
                       >
                         <span>Abrir Meu Treino</span>
@@ -332,7 +366,11 @@ export function ChatMessageList({
                         {String(msg.payloadJson?.planTitle || "Plano nutricional atualizado")}
                       </p>
                       <Link
-                        href={`/consultoria/${consultancySlug}/nutricao`}
+                        href={
+                          msg.payloadJson?.planPublicId
+                            ? `/consultoria/${consultancySlug}/planos-v2/${msg.payloadJson.planPublicId}`
+                            : `/consultoria/${consultancySlug}/nutricao`
+                        }
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 transition-colors shadow-xs"
                       >
                         <span>Abrir Meu Plano</span>

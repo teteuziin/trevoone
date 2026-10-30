@@ -240,9 +240,12 @@ export function TrevoChatWorkspace({
   // Active chat messages
   const [messages, setMessages] = useState<ChatMessageDto[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(
-    Boolean(initialActivePublicId || consultations.length > 0)
+    Boolean(initialActivePublicId || (consultations.length > 0 && consultations[0].modality !== "VIDEO"))
   );
   const [isSending, setIsSending] = useState(false);
+  const [hasMoreOlderMessages, setHasMoreOlderMessages] = useState(false);
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  const [sendErrorNotice, setSendErrorNotice] = useState<string | null>(null);
 
   // Current active consultation object
   const activeChat = consultations.find((c) => c.publicId === selectedChatPublicId) || null;
@@ -268,11 +271,13 @@ export function TrevoChatWorkspace({
 
     let isMounted = true;
 
-    fetch(`/api/consultancies/${consultancySlug}/chat/messages?chat=${selectedChatPublicId}`)
+    fetch(`/api/consultancies/${consultancySlug}/chat/messages?chat=${selectedChatPublicId}&limit=50`)
       .then((res) => (res.ok ? res.json() : { messages: [] }))
       .then((data) => {
         if (isMounted) {
-          setMessages(data.messages || []);
+          const msgs: ChatMessageDto[] = data.messages || [];
+          setMessages(msgs);
+          setHasMoreOlderMessages(msgs.length >= 50);
           setIsLoadingMessages(false);
         }
       })
@@ -280,13 +285,51 @@ export function TrevoChatWorkspace({
         if (isMounted) setIsLoadingMessages(false);
       });
 
-    // Mark messages as read
-    markChatReadAction(consultancySlug, selectedChatPublicId).catch(() => {});
+    // Mark messages as read and synchronize unread counters immediately in local state
+    markChatReadAction(consultancySlug, selectedChatPublicId)
+      .then((res) => {
+        if (res.ok && isMounted) {
+          setUpdatedConsultations((prev) => ({
+            ...prev,
+            [selectedChatPublicId]: {
+              ...(prev[selectedChatPublicId] || {}),
+              unreadCountProfessional: isProfessional ? 0 : (prev[selectedChatPublicId]?.unreadCountProfessional || 0),
+              unreadCountStudent: !isProfessional ? 0 : (prev[selectedChatPublicId]?.unreadCountStudent || 0),
+            },
+          }));
+        }
+      })
+      .catch(() => {});
 
     return () => {
       isMounted = false;
     };
-  }, [selectedChatPublicId, consultancySlug, consultations]);
+  }, [selectedChatPublicId, consultancySlug, consultations, isProfessional]);
+
+  // Load older messages (pagination backwards)
+  const handleLoadOlderMessages = async () => {
+    if (!selectedChatPublicId || messages.length === 0 || isLoadingOlderMessages) return;
+    setIsLoadingOlderMessages(true);
+    const oldestId = messages[0].id;
+
+    try {
+      const res = await fetch(
+        `/api/consultancies/${consultancySlug}/chat/messages?chat=${selectedChatPublicId}&limit=50&beforeId=${oldestId}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const older: ChatMessageDto[] = data.messages || [];
+        if (older.length > 0) {
+          setMessages((prev) => [...older, ...prev]);
+        }
+        setHasMoreOlderMessages(older.length >= 50);
+      }
+    } catch {
+      // Non-blocking
+    } finally {
+      setIsLoadingOlderMessages(false);
+    }
+  };
 
   const handleSelectChat = (chatId: string) => {
     setSelectedChatPublicId(chatId);
@@ -317,6 +360,7 @@ export function TrevoChatWorkspace({
   }): Promise<boolean> => {
     if (!selectedChatPublicId) return false;
     setIsSending(true);
+    setSendErrorNotice(null);
 
     try {
       const clientMessageId = `cm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -345,16 +389,17 @@ export function TrevoChatWorkspace({
       if (res.ok && res.data) {
         setMessages((prev) => [...prev, res.data as ChatMessageDto]);
         setReplyingTo(null);
+        setSendErrorNotice(null);
         setIsSending(false);
         return true;
       } else {
-        alert(res.error || "Erro ao enviar mensagem.");
+        setSendErrorNotice(res.error || "Erro ao enviar mensagem.");
         setIsSending(false);
         return false;
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro inesperado ao enviar mensagem.";
-      alert(msg);
+      setSendErrorNotice(msg);
       setIsSending(false);
       return false;
     }
@@ -1328,7 +1373,24 @@ export function TrevoChatWorkspace({
                     })
                   }
                   isProfessional={isProfessional}
+                  hasMoreOlderMessages={hasMoreOlderMessages}
+                  isLoadingOlderMessages={isLoadingOlderMessages}
+                  onLoadOlderMessages={handleLoadOlderMessages}
                 />
+              )}
+
+              {/* Non-blocking error notification if sending fails */}
+              {sendErrorNotice && (
+                <div className="mx-4 my-2 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center justify-between gap-2 shadow-2xs">
+                  <span>⚠️ {sendErrorNotice} (seu rascunho de mensagem foi preservado)</span>
+                  <button
+                    type="button"
+                    onClick={() => setSendErrorNotice(null)}
+                    className="text-xs font-bold px-2 py-0.5 rounded hover:bg-rose-500/20 cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                </div>
               )}
 
               {/* Chat Input Bar */}

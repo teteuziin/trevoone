@@ -223,6 +223,80 @@ async function runVerification() {
     console.log(`  - Coluna workout_execution_sets.is_skipped: ${isSetSkipPresent ? "PRESENTE" : "AUSENTE"}`);
     console.log(`  - Registro em schema_migrations: ${is066InSchema ? "PRESENTE" : "AUSENTE"}`);
 
+    // 069: trevo_chat_consultation_evolution (chat_consultations & chat_messages)
+    console.log("\n--- 3. OBJETOS DO ESQUEMA DE TREVO CHAT (MIGRATION 069) ---");
+    const [chatConsCols] = await conn.query(
+      `SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'chat_consultations'
+         AND COLUMN_NAME IN (
+           'expected_response_hours',
+           'closed_at',
+           'closed_by_user_id',
+           'closure_summary_json',
+           'private_notes',
+           'linked_previous_consultation_id'
+         );`,
+      [database]
+    );
+    console.log(`[069] chat_consultations (colunas estendidas): ${chatConsCols.length}/6 colunas detectadas`);
+    for (const c of chatConsCols) {
+      console.log(`      - ${c.COLUMN_NAME} (${c.DATA_TYPE}, nullable: ${c.IS_NULLABLE})`);
+    }
+
+    const [chatMsgCols] = await conn.query(
+      `SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'chat_messages'
+         AND COLUMN_NAME IN ('client_message_id', 'reply_to_message_id', 'payload_json');`,
+      [database]
+    );
+    console.log(`[069] chat_messages (colunas estendidas): ${chatMsgCols.length}/3 colunas detectadas`);
+    for (const c of chatMsgCols) {
+      console.log(`      - ${c.COLUMN_NAME} (${c.DATA_TYPE}, nullable: ${c.IS_NULLABLE})`);
+    }
+
+    const [chatConsIndexes] = await conn.query(
+      `SELECT DISTINCT INDEX_NAME
+       FROM INFORMATION_SCHEMA.STATISTICS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'chat_consultations'
+         AND INDEX_NAME IN ('idx_chat_consultations_closed', 'idx_chat_consultations_linked');`,
+      [database]
+    );
+    console.log(`[069] chat_consultations (índices): ${chatConsIndexes.length}/2 índices detectados`);
+
+    const [chatMsgIndexes] = await conn.query(
+      `SELECT DISTINCT INDEX_NAME
+       FROM INFORMATION_SCHEMA.STATISTICS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'chat_messages'
+         AND INDEX_NAME IN ('idx_chat_messages_client_id', 'idx_chat_messages_reply_to');`,
+      [database]
+    );
+    console.log(`[069] chat_messages (índices): ${chatMsgIndexes.length}/2 índices detectados`);
+
+    // Avaliação do status da Migration 069
+    const is069InSchema = Array.isArray(schemaRows) && schemaRows.some((r) => (r.migration || r.name || "").includes("069"));
+    const isChatConsColsComplete = chatConsCols.length === 6;
+    const isChatMsgColsComplete = chatMsgCols.length === 3;
+    const isChatConsIndexesComplete = chatConsIndexes.length === 2;
+    const isChatMsgIndexesComplete = chatMsgIndexes.length === 2;
+
+    let status069 = "NÃO APLICADA";
+    if (is069InSchema && isChatConsColsComplete && isChatMsgColsComplete && isChatConsIndexesComplete && isChatMsgIndexesComplete) {
+      status069 = "APLICADA E VERIFICADA (INTEGRAL)";
+    } else if (isChatConsColsComplete || isChatMsgColsComplete || is069InSchema) {
+      status069 = "PARCIALMENTE APLICADA (DIVERGÊNCIA)";
+    }
+
+    console.log("\n--------------------------------------------------------------------------------");
+    console.log(`STATUS DA MIGRATION 069: ${status069}`);
+    console.log("--------------------------------------------------------------------------------");
+    console.log(`  - Colunas chat_consultations (6): ${isChatConsColsComplete ? "PRESENTE (6/6)" : `${chatConsCols.length}/6`}`);
+    console.log(`  - Colunas chat_messages (3): ${isChatMsgColsComplete ? "PRESENTE (3/3)" : `${chatMsgCols.length}/3`}`);
+    console.log(`  - Índices chat_consultations (2): ${isChatConsIndexesComplete ? "PRESENTE (2/2)" : `${chatConsIndexes.length}/2`}`);
+    console.log(`  - Índices chat_messages (2): ${isChatMsgIndexesComplete ? "PRESENTE (2/2)" : `${chatMsgIndexes.length}/2`}`);
+    console.log(`  - Registro em schema_migrations: ${is069InSchema ? "PRESENTE" : "AUSENTE"}`);
+
     console.log("\n================================================================================");
     console.log("STATUS DAS MIGRATIONS: VERIFICAÇÃO CONCLUÍDA NO AMBIENTE AUTORIZADO");
     console.log("================================================================================\n");

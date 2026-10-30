@@ -246,6 +246,113 @@ assert.ok(workspaceCode.includes("Aguardando aluno"), "Workspace deve exibir fil
 assert.ok(workspaceCode.includes("Em atendimento"), "Workspace deve exibir fila 'Em atendimento'");
 console.log("✓ Workspace Trevo Chat completo, responsivo e em total conformidade.");
 
+// -----------------------------------------------------------------------------
+// 10. CONCURRENCY & DEDUPLICATION WITH CLIENT_MESSAGE_ID
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 10] Verificando concorrência e deduplicação estrita de mensagens...");
+assert.ok(
+  trevoChatLib.includes("_chatSchemaCheckPromise"),
+  "trevo-chat.ts deve usar promessa singleton _chatSchemaCheckPromise para evitar DDL concorrente a cada mensagem"
+);
+assert.ok(
+  !trevoChatLib.includes("runtime_bootstrapped"),
+  "trevo-chat.ts NÃO deve injetar checksums arbitrários ou artificiais em schema_migrations"
+);
+assert.ok(
+  trevoChatLib.includes("WHERE cm.consultation_id = ? AND cm.client_message_id = ?"),
+  "sendChatMessage deve buscar mensagem duplicada filtrada pelo consultation_id e client_message_id"
+);
+console.log("✓ Concorrência protegida com singleton e deduplicação idempotente verificada.");
+
+// -----------------------------------------------------------------------------
+// 11. TENANCY ISOLATION ON QUOTED REPLIES
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 11] Verificando isolamento de tenancy em respostas citadas (reply_to_message_id)...");
+assert.ok(
+  trevoChatLib.includes("SELECT id FROM chat_messages WHERE id = ? AND consultation_id = ?"),
+  "sendChatMessage deve validar estritamente que a mensagem citada pertence à mesma consulta e consultoria"
+);
+console.log("✓ Mensagens citadas validadas estritamente contra cross-consultation e cross-tenant spoofing.");
+
+// -----------------------------------------------------------------------------
+// 12. BACKWARDS PAGINATION & HISTORICAL CHAT ORDERING
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 12] Verificando paginação retroativa (histórico) e ordenação cronológica...");
+const apiMessagesRoutePath = path.resolve("app/api/consultancies/[slug]/chat/messages/route.ts");
+const apiMessagesRouteCode = fs.readFileSync(apiMessagesRoutePath, "utf-8");
+
+assert.ok(
+  apiMessagesRouteCode.includes("searchParams.get(\"beforeId\")"),
+  "API de mensagens deve aceitar parâmetro beforeId para paginação retroativa"
+);
+assert.ok(
+  apiMessagesRouteCode.includes("searchParams.get(\"limit\")"),
+  "API de mensagens deve aceitar parâmetro limit para controle de paginação"
+);
+assert.ok(
+  trevoChatLib.includes("ORDER BY cm.id DESC") && trevoChatLib.includes(".reverse()"),
+  "listChatMessages deve buscar as mais recentes via DESC e inverter para exibição cronológica estrita"
+);
+assert.ok(
+  messageListCode.includes("Carregar mensagens anteriores"),
+  "chat-message-list deve conter botão de carregar mensagens anteriores"
+);
+console.log("✓ Paginação retroativa e ordenação cronológica estrita verificadas.");
+
+// -----------------------------------------------------------------------------
+// 13. ETHICAL DETERMINISTIC AI FALLBACK (ZERO MEDICAL FABRICATION)
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 13] Verificando ética e ausência de fabricação clínica nos fallbacks determinísticos...");
+assert.ok(
+  trevoChatLib.includes("Pendente de avaliação clínica do profissional responsável"),
+  "Fallback determinístico de SOAP NÃO deve inventar avaliações clínicas fictícias"
+);
+assert.ok(
+  trevoChatLib.includes("Análise por IA indisponível"),
+  "Fallback determinístico deve informar explicitamente a indisponibilidade do assistente"
+);
+console.log("✓ Fallback determinístico ético: zero diagnósticos ou conclusões fabricadas.");
+
+// -----------------------------------------------------------------------------
+// 14. DEEP-LINKING AND DEAD LINK REMOVAL
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 14] Verificando deep-links oficiais de formulários, treinos e nutrição...");
+assert.ok(
+  !messageListCode.includes("/consultoria/${consultancySlug}/avaliacoes"),
+  "chat-message-list NÃO deve conter rota inexistente /avaliacoes (deve apontar para /progresso)"
+);
+assert.ok(
+  messageListCode.includes("/consultoria/${consultancySlug}/progresso"),
+  "chat-message-list deve apontar fotos de evolução para /consultoria/${consultancySlug}/progresso"
+);
+assert.ok(
+  messageListCode.includes("/consultoria/${consultancySlug}/formularios/${msg.payloadJson.formRequestPublicId}"),
+  "chat-message-list deve abrir diretamente o questionário pelo ID público do formulário"
+);
+assert.ok(
+  messageListCode.includes("/consultoria/${consultancySlug}/treinos/${msg.payloadJson.assignmentPublicId}"),
+  "chat-message-list deve abrir diretamente a prescrição pelo ID público do treino"
+);
+assert.ok(
+  messageListCode.includes("/consultoria/${consultancySlug}/planos-v2/${msg.payloadJson.planPublicId}"),
+  "chat-message-list deve abrir diretamente o plano alimentar oficial pelo ID público"
+);
+console.log("✓ Todos os deep-links canônicos verificados e links mortos eliminados.");
+
+// -----------------------------------------------------------------------------
+// 15. DRAFT PRESERVATION & UNREAD COUNTER SYNCHRONIZATION
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 15] Verificando preservação de rascunho em falha e sincronização de não-lidas...");
+assert.ok(
+  workspaceCode.includes("setSendErrorNotice"),
+  "Workspace deve utilizar banner de aviso não-bloqueante para falha de envio"
+);
+assert.ok(
+  workspaceCode.includes("unreadCountProfessional: isProfessional ? 0"),
+  "Workspace deve zerar contadores de não lidas imediatamente em memória ao visualizar"
+);
+console.log("✓ Rascunhos preservados e contadores sincronizados em tempo real.");
+
 console.log("\n======================================================================");
-console.log(" ✓ TODAS AS VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
+console.log(" ✓ TODAS AS 15 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
 console.log("======================================================================\n");

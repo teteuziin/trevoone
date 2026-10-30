@@ -122,11 +122,15 @@ export interface ChatMessageDto {
 }
 
 let _chatSchemaChecked = false;
+let _chatSchemaCheckPromise: Promise<void> | null = null;
 
 export async function ensureChatTablesExist(): Promise<void> {
   if (_chatSchemaChecked) return;
-  const pool = getDbPool();
-  try {
+  if (_chatSchemaCheckPromise) return _chatSchemaCheckPromise;
+
+  _chatSchemaCheckPromise = (async () => {
+    const pool = getDbPool();
+    try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS \`chat_consultations\` (
         \`id\` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -334,19 +338,15 @@ export async function ensureChatTablesExist(): Promise<void> {
       console.warn("[Trevo Chat] Error inspecting chat_messages columns:", inspectMsgErr);
     }
 
-    try {
-      await pool.query(
-        `INSERT IGNORE INTO schema_migrations (migration, checksum) VALUES 
-          ('051_trevo_chat_and_anamnesis.sql', 'runtime_bootstrapped'),
-          ('052_trevo_chat_bilateral_appointments.sql', 'runtime_bootstrapped'),
-          ('069_trevo_chat_consultation_evolution.sql', 'runtime_bootstrapped');`
-      );
-    } catch {}
-
     _chatSchemaChecked = true;
   } catch (schemaErr) {
     console.warn("[Trevo Chat] ensureChatTablesExist warning:", schemaErr);
+  } finally {
+    _chatSchemaCheckPromise = null;
   }
+  })();
+
+  return _chatSchemaCheckPromise;
 }
 
 async function executeWithAutoSchema<T>(fn: () => Promise<T>): Promise<T> {
@@ -980,15 +980,17 @@ export async function cancelChatConsultation(params: {
 
 /**
  * Lists messages in a consultation ordered chronologically.
+ * Supports pagination backwards via beforeId and limit.
  */
 export async function listChatMessages(
   consultationId: number,
-  limit: number = 100
+  limit: number = 50,
+  beforeId?: number
 ): Promise<ChatMessageDto[]> {
   return executeWithAutoSchema(async () => {
     const pool = getDbPool();
-    const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT 
+    const queryLimit = Math.min(Math.max(limit, 1), 100);
+    const sql = `SELECT 
         cm.id,
         cm.public_id,
         cm.client_message_id,
@@ -1016,13 +1018,19 @@ export async function listChatMessages(
       INNER JOIN users u ON u.id = cm.sender_user_id
       LEFT JOIN chat_messages cm_reply ON cm_reply.id = cm.reply_to_message_id
       LEFT JOIN users u_reply ON u_reply.id = cm_reply.sender_user_id
-      WHERE cm.consultation_id = ?
-      ORDER BY cm.created_at ASC
-      LIMIT ?;`,
-      [consultationId, limit]
-    );
+      WHERE cm.consultation_id = ? ${beforeId ? "AND cm.id < ?" : ""}
+      ORDER BY cm.id DESC
+      LIMIT ?;`;
 
-    return (rows as RowDataPacket[]).map(mapRowToMessageDto);
+    const params = beforeId
+      ? [consultationId, beforeId, queryLimit]
+      : [consultationId, queryLimit];
+
+    const [rows] = await pool.execute<RowDataPacket[]>(sql, params);
+
+    const dtos = (rows as RowDataPacket[]).map(mapRowToMessageDto);
+    // Reverse to return in chronological order ASC
+    return dtos.reverse();
   });
 }
 
@@ -1136,6 +1144,18 @@ export async function sendChatMessage(params: {
     const msgPublicId = crypto.randomUUID();
     const payloadStr = params.payloadJson ? JSON.stringify(params.payloadJson) : null;
 
+    // Validate that reply_to_message_id strictly belongs to THIS consultation (tenancy/consultation isolation)
+    let validatedReplyToId: number | null = null;
+    if (params.replyToMessageId) {
+      const [replyRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id FROM chat_messages WHERE id = ? AND consultation_id = ? LIMIT 1;`,
+        [params.replyToMessageId, consultation.id]
+      );
+      if (replyRows && replyRows.length > 0) {
+        validatedReplyToId = Number(replyRows[0].id);
+      }
+    }
+
     // 2. Insert message
     const [msgRes] = await connection.execute<ResultSetHeader>(
       `INSERT INTO chat_messages (
@@ -1159,7 +1179,7 @@ export async function sendChatMessage(params: {
         msgPublicId,
         params.clientMessageId || null,
         consultation.id,
-        params.replyToMessageId || null,
+        validatedReplyToId,
         params.senderUserId,
         params.senderRole,
         params.content?.trim() || null,
@@ -1879,12 +1899,21 @@ export async function generateAiProntuarioNotes(
     console.warn("[Trevo Chat AI] Falha ao chamar OpenAI para SOAP:", err);
   }
 
-  // Fallback
+  // Deterministic Fallback: Never invent diagnoses, conclusions or clinical evaluations
+  const studentMsgs = messages
+    .filter((m) => m.senderRole === "STUDENT" && m.content)
+    .map((m) => m.content!.trim());
+  const hasAttachments = messages.some((m) => m.attachmentUrl);
+
   return {
-    subjective: `Aluno reportou mensagens de dúvidas e evolução no chat (${messages.length} mensagens).`,
-    objective: `Comunicação assíncrona realizada via Trevo Chat com anexos e orientações compartilhadas.`,
-    assessment: `Evolução regular dentro do planejamento proposto.`,
-    plan: `Manter conduta e monitorar adesão às orientações prescritas.`,
+    subjective: studentMsgs.length > 0
+      ? `Relatos textuais do aluno no chat: ${studentMsgs.slice(-3).join(" | ")}`
+      : "Nenhum relato textual do aluno registrado nesta consulta.",
+    objective: hasAttachments
+      ? `Dados objetivos compartilhados no chat (${messages.filter((m) => m.attachmentUrl).length} mídias/anexos).`
+      : "Nenhum anexo clínico objetivo compartilhado até o momento.",
+    assessment: "Análise por IA indisponível. Pendente de avaliação clínica do profissional responsável.",
+    plan: "Definir conduta e orientações clínicas no fechamento do ciclo de atendimento.",
   };
 }
 

@@ -47,6 +47,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
   }
 
-  const messages = await listChatMessages(chat.id, 100);
+  const rawLimit = Number(searchParams.get("limit") || 50);
+  const limit = Math.min(Math.max(rawLimit, 1), 100);
+  const rawBeforeId = searchParams.get("beforeId");
+  const beforeId = rawBeforeId && !isNaN(Number(rawBeforeId)) ? Number(rawBeforeId) : undefined;
+
+  const messages = await listChatMessages(chat.id, limit, beforeId);
   return NextResponse.json({ messages });
 }

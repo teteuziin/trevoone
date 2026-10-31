@@ -785,13 +785,17 @@ export async function hideConsultationAction(
       }
     }
 
-    await hideConsultationFromUser(
+    const ok = await hideConsultationFromUser(
       context.consultancyId,
       session.userId,
       context.membershipId,
       targetType,
       targetPublicId
     );
+
+    if (!ok) {
+      return { ok: false, error: "Não foi possível excluir a conversa da lista no banco de dados." };
+    }
 
     revalidatePath(`/consultoria/${consultancySlug}/consultas`);
     return { ok: true };
@@ -858,12 +862,16 @@ export async function restoreConsultationAction(
       }
     }
 
-    await restoreConsultationForUser(
+    const ok = await restoreConsultationForUser(
       context.consultancyId,
       session.userId,
       targetType,
       targetPublicId
     );
+
+    if (!ok) {
+      return { ok: false, error: "Não foi possível restaurar a conversa na lista no banco de dados." };
+    }
 
     revalidatePath(`/consultoria/${consultancySlug}/consultas`);
     return { ok: true };
@@ -896,12 +904,16 @@ export async function saveIntroViewAction(
       return { ok: false, error: "Papel de audiência inválido." };
     }
 
-    await saveIntroView(
+    const ok = await saveIntroView(
       context.consultancyId,
       session.userId,
       audienceRole,
       status
     );
+
+    if (!ok) {
+      return { ok: false, error: "Não foi possível registrar a introdução no banco de dados." };
+    }
 
     return { ok: true };
   } catch (err: unknown) {

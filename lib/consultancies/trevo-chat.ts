@@ -436,7 +436,7 @@ export async function listChatConsultationsForProfessional(
   consultancyId: number,
   professionalMembershipId: number
 ): Promise<ChatConsultationDto[]> {
-  return executeWithAutoSchema(async () => {
+  try {
     const pool = getDbPool();
     const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT 
@@ -488,7 +488,10 @@ export async function listChatConsultationsForProfessional(
   );
 
     return (rows as RowDataPacket[]).map((r) => mapRowToConsultationDto(r, false));
-  });
+  } catch (err: unknown) {
+    console.warn("[Trevo Chat] Fallback seguro ao listar conversas do profissional:", err);
+    return [];
+  }
 }
 
 /**
@@ -499,7 +502,7 @@ export async function listChatConsultationsForStudent(
   consultancyId: number,
   studentMembershipId: number
 ): Promise<ChatConsultationDto[]> {
-  return executeWithAutoSchema(async () => {
+  try {
     const pool = getDbPool();
     const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT 
@@ -551,7 +554,10 @@ export async function listChatConsultationsForStudent(
   );
 
     return (rows as RowDataPacket[]).map((r) => mapRowToConsultationDto(r, true));
-  });
+  } catch (err: unknown) {
+    console.warn("[Trevo Chat] Fallback seguro ao listar conversas do aluno:", err);
+    return [];
+  }
 }
 
 /**

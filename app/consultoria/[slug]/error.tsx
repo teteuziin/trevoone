@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 interface ConsultancyErrorProps {
-  error: Error & { digest?: string };
+  error: Error & { digest?: string; correlationId?: string; failedStep?: string };
   reset: () => void;
 }
 
@@ -13,11 +13,16 @@ export default function ConsultancyError({
   error,
   reset,
 }: ConsultancyErrorProps) {
+  const refCode = error.digest || error.correlationId || null;
+
   useEffect(() => {
-    // Development-only safe trace (does not expose in production UI)
-    if (process.env.NODE_ENV === "development") {
-      console.error("[Trevo One Error Boundary]", error);
-    }
+    // Sanitized client diagnostic log for troubleshooting
+    console.error("[Trevo One Error Boundary]", {
+      digest: error.digest,
+      correlationId: error.correlationId,
+      step: error.failedStep,
+      message: error.message ? error.message.slice(0, 150) : undefined,
+    });
   }, [error]);
 
   return (
@@ -53,6 +58,11 @@ export default function ConsultancyError({
           <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
             Ocorreu uma instabilidade temporária ao carregar as informações da sua consultoria. Você pode tentar novamente.
           </p>
+          {refCode && (
+            <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1 select-all" title="Código de referência para suporte">
+              Ref: {refCode}
+            </p>
+          )}
         </div>
 
         {/* Action Controls */}

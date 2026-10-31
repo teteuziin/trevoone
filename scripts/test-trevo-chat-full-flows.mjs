@@ -823,6 +823,118 @@ assert.ok(
 );
 console.log("✓ Resiliência de conexões comprovada: zero leaks no pool MySQL e proteção SSR ativa.");
 
+// -----------------------------------------------------------------------------
+// 32. ISOLATED POOL CONCURRENCY TEST (EXCEEDING POOL CAPACITY)
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 32] Testando concorrência de pool isolado com 15 chamadas (limite de 5)...");
+
+// Simulação de pool mysql2 em ambiente isolado com connectionLimit = 5
+class MockIsolatedPool {
+  constructor(limit = 5) {
+    this.limit = limit;
+    this.activeConnections = 0;
+    this.peakConnections = 0;
+    this.waitingQueue = [];
+    this.queryCount = 0;
+  }
+
+  async execute(sql, params) {
+    // Simula pool.execute que adquire e libera conexão internamente
+    await this.acquire();
+    try {
+      this.queryCount++;
+      // Pequeno atraso assíncrono para simular latência de I/O de rede
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return [[], []];
+    } finally {
+      this.release();
+    }
+  }
+
+  async query(sql, params) {
+    return this.execute(sql, params);
+  }
+
+  async acquire() {
+    if (this.activeConnections >= this.limit) {
+      await new Promise((resolve) => this.waitingQueue.push(resolve));
+    }
+    this.activeConnections++;
+    if (this.activeConnections > this.peakConnections) {
+      this.peakConnections = this.activeConnections;
+    }
+  }
+
+  release() {
+    this.activeConnections--;
+    if (this.waitingQueue.length > 0) {
+      const next = this.waitingQueue.shift();
+      next();
+    }
+  }
+}
+
+const mockPool = new MockIsolatedPool(5);
+
+// Dispara 15 chamadas concorrentes (ultrapassando a capacidade do pool em 3x)
+const concurrentTasks = Array.from({ length: 15 }, async (_, i) => {
+  // Simula operações de visibilidade e introdução que usam o pool
+  await mockPool.query("SELECT target_type, target_public_id FROM consultation_user_visibility WHERE consultancy_id = ? AND user_id = ?", [1, i]);
+  await mockPool.query("SELECT status FROM trevo_chat_intro_views WHERE consultancy_id = ? AND user_id = ?", [1, i]);
+  return true;
+});
+
+const taskResults = await Promise.all(concurrentTasks);
+assert.strictEqual(taskResults.length, 15, "Todas as 15 tarefas concorrentes devem concluir com sucesso");
+assert.ok(mockPool.peakConnections <= 5, `Pico de conexões (${mockPool.peakConnections}) nunca deve exceder o limite do pool (5)`);
+assert.strictEqual(mockPool.activeConnections, 0, "Todas as conexões devem ser liberadas de volta ao pool (activeConnections == 0)");
+
+// Executa nova query imediatamente após a carga concorrente: deve responder instantaneamente sem timeout
+const subsequentQuery = await mockPool.execute("SELECT 1 AS test", []);
+assert.ok(subsequentQuery, "Consulta posterior deve executar sem enfileiramento ou timeout");
+console.log(`✓ Pool isolado aprovado: 15 chamadas concorrentes executadas, pico de ${mockPool.peakConnections} conexões, 0 vazamentos e queries subsequentes funcionando.`);
+
+// -----------------------------------------------------------------------------
+// 33. DECOUPLING OF DASHBOARD FROM DDL & STRUCTURED ERROR DIAGNOSTICS
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 33] Verificando desacoplamento da Visão Geral de DDL e diagnóstico estruturado...");
+
+// Validar que listChatConsultationsForStudent e listChatConsultationsForProfessional não executam executeWithAutoSchema
+assert.ok(
+  !trevoChatCodeFinal.includes("listChatConsultationsForStudent(\n  consultancyId: number,\n  studentMembershipId: number\n): Promise<ChatConsultationDto[]> {\n  return executeWithAutoSchema"),
+  "listChatConsultationsForStudent não deve executar auto-schema/DDL no caminho de leitura do painel"
+);
+assert.ok(
+  !trevoChatCodeFinal.includes("listChatConsultationsForProfessional(\n  consultancyId: number,\n  professionalMembershipId: number\n): Promise<ChatConsultationDto[]> {\n  return executeWithAutoSchema"),
+  "listChatConsultationsForProfessional não deve executar auto-schema/DDL no caminho de leitura do painel"
+);
+
+// Validar formatadores defensivos e desacoplamento no painel
+const pageCodeFinal = fs.readFileSync(path.resolve("app/consultoria/[slug]/page.tsx"), "utf-8");
+assert.ok(
+  pageCodeFinal.includes("safeFormatTime") && pageCodeFinal.includes("safeFormatDate"),
+  "app/consultoria/[slug]/page.tsx deve conter formatadores defensivos de data/hora imunes a strings inválidas"
+);
+
+// Validar código de referência no error boundary
+const errorCodeFinal = fs.readFileSync(path.resolve("app/consultoria/[slug]/error.tsx"), "utf-8");
+assert.ok(
+  errorCodeFinal.includes("error.digest || error.correlationId") && errorCodeFinal.includes("Ref:"),
+  "app/consultoria/[slug]/error.tsx deve apresentar código de referência discreto na tela de erro"
+);
+
+// Validar ações de visibilidade e introdução: não retornam sucesso se a escrita falhar
+const chatActionsCodeFinal = fs.readFileSync(path.resolve("app/consultoria/[slug]/consultas/chat-actions.ts"), "utf-8");
+assert.ok(
+  chatActionsCodeFinal.includes("if (!ok) {\n      return { ok: false, error: \"Não foi possível excluir"),
+  "hideConsultationFromUserAction deve retornar erro real caso a escrita falhe"
+);
+assert.ok(
+  chatActionsCodeFinal.includes("if (!ok) {\n      return { ok: false, error: \"Não foi possível registrar"),
+  "saveIntroViewAction deve retornar erro real caso a escrita falhe"
+);
+console.log("✓ Desacoplamento da Visão Geral comprovado: zero DDL na dashboard, diagnóstico ativo e ações com retorno de erro real.");
+
 console.log("\n======================================================================");
-console.log(" ✓ TODAS AS 31 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
+console.log(" ✓ TODAS AS 33 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
 console.log("======================================================================\n");

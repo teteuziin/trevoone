@@ -17,7 +17,9 @@ export interface AdminExecutiveHeaderProps {
   eyebrow?: string;
   title: string;
   description?: string;
+  subtitle?: string;
   badge?: React.ReactNode;
+  badgeVariant?: string;
   backHref?: string;
   backLabel?: string;
   primaryAction?: AdminHeaderAction;
@@ -31,6 +33,7 @@ export function AdminExecutiveHeader({
   eyebrow = "Administração · Painel Executivo",
   title,
   description,
+  subtitle,
   badge,
   backHref,
   backLabel = "Voltar à visão geral",
@@ -40,6 +43,7 @@ export function AdminExecutiveHeader({
   children,
   className = "",
 }: AdminExecutiveHeaderProps) {
+  const effectiveDescription = description || subtitle;
   return (
     <div
       className={`p-5 sm:p-6 rounded-2xl bg-[#151619] border border-[#303238] shadow-sm text-white ${className}`.trim()}
@@ -81,9 +85,9 @@ export function AdminExecutiveHeader({
             {title}
           </h1>
 
-          {description && (
+          {effectiveDescription && (
             <p className="text-xs sm:text-sm text-[#8E95A2] font-sans leading-relaxed max-w-3xl">
-              {description}
+              {effectiveDescription}
             </p>
           )}
         </div>

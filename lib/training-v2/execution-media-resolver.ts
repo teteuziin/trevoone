@@ -90,7 +90,7 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
     if (!pubId) return null;
 
     const mime = (m.mediaAsset?.mimeType || "").toLowerCase();
-    const isGif = mime === "image/gif" || mime.includes("gif") || m.role === "EXECUTION_GIF" || m.role === "ALTERNATE_GIF";
+    const isGif = mime === "image/gif" || mime.includes("gif") || (m.role as string) === "EXECUTION_GIF" || (m.role as string) === "ALTERNATE_GIF";
     const isVid = !isGif && (m.mediaAsset?.mediaType === "VIDEO" || mime === "video/mp4" || mime.startsWith("video/"));
     const url = `/api/training-v2/media/${pubId}${consultancySuffix}`;
 

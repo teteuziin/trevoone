@@ -536,7 +536,7 @@ export function StudentFocusSection({
                           <button
                             type="button"
                             disabled={isStartingTraining}
-                            onClick={() => handleStartTraining(selectedDivision?.publicId)}
+                            onClick={() => handleStartTraining(selectedDivisionPublicId || dailyWorkoutResolution?.targetBlockPublicId)}
                             className="w-full sm:w-auto px-6 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none disabled:opacity-60"
                           >
                             {isStartingTraining ? (
@@ -780,7 +780,7 @@ export function StudentFocusSection({
                       <button
                         type="button"
                         disabled={isStartingTraining}
-                        onClick={() => handleStartTraining(selectedDivision?.publicId)}
+                        onClick={() => handleStartTraining(selectedDivisionPublicId || dailyWorkoutResolution?.targetBlockPublicId)}
                         className="w-full sm:w-auto px-6 min-h-[48px] rounded-xl font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none disabled:opacity-60"
                       >
                         {isStartingTraining ? (

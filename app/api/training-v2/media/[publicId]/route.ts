@@ -186,7 +186,7 @@ async function handleMediaRequest(request: Request, paramsPromise: Promise<{ pub
         if (found) break;
       }
 
-      if (!found) {
+      if (!found || !fileStats) {
         console.error("[TRAINING_V2] MEDIA_FILE_MISSING", publicId);
         return new Response(
           JSON.stringify({

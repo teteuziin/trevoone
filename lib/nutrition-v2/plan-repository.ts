@@ -4930,19 +4930,21 @@ export async function setItemReviewedWithoutNutrition(
     if (!gj || typeof gj !== "object") {
       gj = { schemaVersion: 1, recommendations: [], supplements: [], phytotherapeutics: [] };
     }
-    if (!gj.reviewedWithoutNutrition || typeof gj.reviewedWithoutNutrition !== "object") {
-      gj.reviewedWithoutNutrition = {};
+    const recordGj = gj as Record<string, unknown>;
+    if (!recordGj.reviewedWithoutNutrition || typeof recordGj.reviewedWithoutNutrition !== "object") {
+      recordGj.reviewedWithoutNutrition = {};
     }
+    const reviewedMap = recordGj.reviewedWithoutNutrition as Record<string, unknown>;
 
     const nowIso = new Date().toISOString();
     if (acknowledged) {
-      gj.reviewedWithoutNutrition[itemPublicId] = {
+      reviewedMap[itemPublicId] = {
         reviewedAt: nowIso,
         reviewedByMembershipId: ctx.membershipId,
         reviewedByName: "Profissional",
       };
     } else {
-      delete gj.reviewedWithoutNutrition[itemPublicId];
+      delete reviewedMap[itemPublicId];
     }
 
     if (hasGuidanceJson) {

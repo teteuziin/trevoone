@@ -114,6 +114,75 @@ export default async function ProfessionalStudentProgressDetailPage({
       }
       studentMemberId = Number(mRows[0].id);
       canonicalMembershipPublicId = String(mRows[0].public_id);
+
+      // Authorization & Team Responsibility Gate:
+      // - Consultancy Admin: Global access to all students in current tenancy.
+      // - Personal Trainer:
+      //   1. Can access any student under their direct responsibility:
+      //      (active workout assignment, active training plan, active nutrition assignment, consultation, or chat).
+      //   2. Can access unassigned students in the consultancy (no active workout assignment with any coach)
+      //      to allow reviewing intake/anamnesis and prescribing their first routine.
+      //   3. CANNOT access students who are actively assigned to ANOTHER coach in the consultancy,
+      //      protecting clinical data, evaluations, and team responsibility boundaries.
+      if (isPersonal && !isConsultancyAdmin) {
+        const [relRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT 1 FROM (
+             -- Active workout assignment (V2)
+             SELECT 1 FROM workout_assignments
+             WHERE consultancy_id = ? AND student_membership_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
+             UNION
+             -- Active training plan (V1)
+             SELECT 1 FROM training_plans
+             WHERE consultancy_id = ? AND student_membership_id = ? AND created_by_user_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
+             UNION
+             -- Active nutrition assignment (V2)
+             SELECT 1 FROM nutrition_v2_assignments
+             WHERE consultancy_id = ? AND student_membership_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
+             UNION
+             -- Scheduled or in-progress consultation
+             SELECT 1 FROM consultations
+             WHERE consultancy_id = ? AND student_membership_id = ? AND professional_membership_id = ? AND status IN ('SCHEDULED', 'IN_PROGRESS')
+             UNION
+             -- Active Trevo Chat consultation
+             SELECT 1 FROM chat_consultations
+             WHERE consultancy_id = ? AND (
+               (initiator_membership_id = ? AND recipient_membership_id = ?) OR
+               (initiator_membership_id = ? AND recipient_membership_id = ?)
+             )
+           ) rel LIMIT 1;`,
+          [
+            context.consultancyId, studentMemberId, context.membershipId,
+            context.consultancyId, studentMemberId, session.userId,
+            context.consultancyId, studentMemberId, context.membershipId,
+            context.consultancyId, studentMemberId, context.membershipId,
+            context.consultancyId, context.membershipId, studentMemberId, studentMemberId, context.membershipId,
+          ]
+        );
+
+        const hasDirectRelationship = Array.isArray(relRows) && relRows.length > 0;
+
+        if (!hasDirectRelationship) {
+          // Check if the student is actively assigned to another coach in this consultancy
+          const [assignedToOtherRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT 1 FROM workout_assignments
+             WHERE consultancy_id = ?
+               AND student_membership_id = ?
+               AND assigned_by_membership_id != ?
+               AND status = 'ACTIVE'
+               AND deleted_at IS NULL
+             LIMIT 1;`,
+            [context.consultancyId, studentMemberId, context.membershipId]
+          );
+
+          const isAssignedToOtherCoach = Array.isArray(assignedToOtherRows) && assignedToOtherRows.length > 0;
+
+          if (isAssignedToOtherCoach) {
+            // Student is under the active responsibility of another coach in the consultancy.
+            // Access to student card and clinical data is forbidden for coaches without relationship.
+            notFound();
+          }
+        }
+      }
     } finally {
       connection.release();
     }

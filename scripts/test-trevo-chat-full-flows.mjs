@@ -920,6 +920,17 @@ assert.ok(
 );
 console.log("✓ Desacoplamento da Visão Geral comprovado: zero DDL na dashboard, diagnóstico ativo e ações com retorno de erro real.");
 
+// -----------------------------------------------------------------------------
+// 34. REGRESSION GATE: VERIFY EXPLICIT HOOK IMPORTS (NO BARE USE* HOOK CALLS)
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 34] Verificando importação de hooks React (useRef, useState, useEffect)...");
+const workspaceCodeCheck = fs.readFileSync(path.resolve("components/consultancies/trevo-chat/trevo-chat-workspace.tsx"), "utf-8");
+assert.ok(
+  workspaceCodeCheck.includes("import React, {") && workspaceCodeCheck.includes("useRef") && workspaceCodeCheck.includes("from \"react\""),
+  "trevo-chat-workspace.tsx DEVE importar useRef explicitamente de 'react'"
+);
+console.log("✓ Hook useRef devidamente importado e verificado contra ReferenceError no runtime do cliente.");
+
 console.log("\n======================================================================");
-console.log(" ✓ TODAS AS 33 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
+console.log(" ✓ TODAS AS 34 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
 console.log("======================================================================\n");

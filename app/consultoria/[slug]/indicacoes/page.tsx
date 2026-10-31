@@ -3,9 +3,15 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
-import { getReferrerDashboardData, getAdminReferralsData } from "@/lib/referrals/service";
-import { ReferrerStudentView } from "@/components/referrals/referrer-student-view";
+import { getAdminReferralsData, getMemberPayoutProfile } from "@/lib/referrals/service";
+import {
+  listConsultancyParticipantsForPromotion,
+  listCampaignLinksForAdmin,
+  listMarketingMaterials,
+  getParticipantPromotionalDashboard,
+} from "@/lib/referrals/campaigns";
 import { AdminReferralsView } from "@/components/referrals/admin-referrals-view";
+import { PromotionalHubView } from "@/components/referrals/promotional-hub-view";
 import { AdminExecutiveHeader } from "@/components/admin/admin-executive-header";
 import { AdminPageContainer } from "@/components/admin/admin-page-container";
 
@@ -33,16 +39,34 @@ export default async function IndicacoesPage({ params }: PageProps) {
   const effectiveMode = viewModeState.effectiveMode;
 
   const isAdmin = effectiveMode === "ADMIN" && context.roles.includes("CONSULTANCY_ADMIN");
-  const isReferrer = context.roles.includes("STUDENT") || context.roles.includes("INFLUENCER");
+  const isEligibleParticipant = context.roles.includes("STUDENT") || context.roles.includes("INFLUENCER");
 
   let adminData = null;
-  let referrerData = null;
+  let eligibleParticipants = null;
+  let campaignLinks = null;
+  let materials = null;
+
+  let participantDashboard = null;
+  let pixProfile = null;
 
   if (isAdmin) {
-    adminData = await getAdminReferralsData(context.consultancyId);
-  }
-  if (isReferrer) {
-    referrerData = await getReferrerDashboardData(context.consultancyId, context.membershipId);
+    const [adminRes, participantsRes, linksRes, materialsRes] = await Promise.all([
+      getAdminReferralsData(context.consultancyId),
+      listConsultancyParticipantsForPromotion(context.consultancyId),
+      listCampaignLinksForAdmin(context.consultancyId),
+      listMarketingMaterials(context.consultancyId),
+    ]);
+    adminData = adminRes;
+    eligibleParticipants = participantsRes;
+    campaignLinks = linksRes;
+    materials = materialsRes;
+  } else if (isEligibleParticipant) {
+    const [dashboardRes, pixRes] = await Promise.all([
+      getParticipantPromotionalDashboard(context.consultancyId, context.membershipId),
+      getMemberPayoutProfile(context.consultancyId, context.membershipId),
+    ]);
+    participantDashboard = dashboardRes;
+    pixProfile = pixRes;
   }
 
   return (
@@ -64,24 +88,12 @@ export default async function IndicacoesPage({ params }: PageProps) {
         {isAdmin ? (
           <AdminExecutiveHeader
             eyebrow="● ADMINISTRAÇÃO · CRESCIMENTO"
-            title="Indicações e comissões"
-            subtitle="Acompanhe indicadores, conversões, aprove comissões e liquide pagamentos PIX com segurança."
+            title="Indicações, Afiliados & Links Individuais"
+            subtitle="Gerencie links manuais por parceiro, disponibilize artes oficiais de divulgação e liquide comissões via PIX."
             backHref={`/consultoria/${slug}`}
             backLabel="Voltar ao Painel"
           />
-        ) : (
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
-              Parceria & Recompensas
-            </span>
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-              Minhas Indicações
-            </h1>
-            <p className="text-xs text-zinc-500 dark:text-[#8E95A2] mt-1">
-              Compartilhe seu link exclusivo, veja amigos convertidos e gerencie seu recebimento PIX.
-            </p>
-          </div>
-        )}
+        ) : null}
 
         {isAdmin && adminData ? (
           <AdminReferralsView
@@ -90,23 +102,25 @@ export default async function IndicacoesPage({ params }: PageProps) {
             kpis={adminData.kpis}
             referrers={adminData.referrers}
             commissions={adminData.commissions}
+            eligibleParticipants={eligibleParticipants || []}
+            campaignLinks={campaignLinks || []}
+            materials={materials || []}
           />
-        ) : referrerData ? (
-          <ReferrerStudentView
+        ) : participantDashboard ? (
+          <PromotionalHubView
             consultancySlug={slug}
-            code={referrerData.code}
-            referralUrl={referrerData.referralUrl}
-            registrationsCount={referrerData.registrationsCount}
-            conversionsCount={referrerData.conversionsCount}
-            pendingAmount={referrerData.pendingAmount}
-            approvedAmount={referrerData.approvedAmount}
-            paidAmount={referrerData.paidAmount}
-            pixProfile={referrerData.pixProfile}
-            commissions={referrerData.commissions}
+            isEnrolled={participantDashboard.isEnrolled}
+            participantName={participantDashboard.participantName || session.fullName}
+            defaultCode={participantDashboard.defaultCode}
+            links={participantDashboard.links}
+            materials={participantDashboard.materials}
+            results={participantDashboard.results}
+            commissions={participantDashboard.commissions}
+            pixProfile={pixProfile}
           />
         ) : (
           <div className="p-8 text-center text-xs text-zinc-500 dark:text-[#8E95A2] bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl shadow-sm">
-            Você não possui perfil elegível para o programa de indicações nesta consultoria.
+            Você não possui perfil elegível para o programa de divulgação nesta consultoria.
           </div>
         )}
       </AdminPageContainer>

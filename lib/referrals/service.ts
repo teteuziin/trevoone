@@ -3,6 +3,7 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDbConnection } from "@/lib/db/mysql";
 import { recordConsultancyActivity } from "@/lib/consultancies/activity-log";
 import { encryptPixKey, decryptPixKey } from "@/lib/security/encryption";
+import { createNotificationInTransaction } from "@/services/notification-service";
 
 export type PixKeyType = "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "RANDOM_KEY";
 export type CommissionType = "FIXED_AMOUNT" | "PERCENTAGE";
@@ -530,6 +531,35 @@ export async function bindReferralAttributionToUser(
       [userId, tokenHash]
     );
 
+    if (result.affectedRows > 0) {
+      try {
+        const [refRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT ra.consultancy_id, cm.user_id AS referrer_user_id, c.slug AS consultancy_slug
+           FROM referral_attributions ra
+           JOIN consultancy_members cm ON cm.id = ra.referrer_member_id
+           JOIN consultancies c ON c.id = ra.consultancy_id
+           WHERE ra.visitor_token_hash = ?
+           LIMIT 1;`,
+          [tokenHash]
+        );
+        if (Array.isArray(refRows) && refRows.length > 0) {
+          const rRow = refRows[0];
+          await createNotificationInTransaction(connection, {
+            userId: Number(rRow.referrer_user_id),
+            consultancyId: Number(rRow.consultancy_id),
+            priority: "NORMAL",
+            eventType: "REFERRAL_IDENTIFIED",
+            title: "Nova indicação identificada",
+            body: "Você recebeu uma nova indicação pelo seu link.",
+            deepLink: `/consultoria/${rRow.consultancy_slug}/indicacoes`,
+            dedupeKey: `ref_registered_${userId}_${rRow.consultancy_id}`,
+          });
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+
     return { success: true, boundCount: result.affectedRows };
   } finally {
     connection.release();
@@ -669,49 +699,86 @@ export async function recordReferralConversion(
       );
     }
 
+    // 7. Check if attribution came from a specific promotional campaign link
+    let commTypeToUse = settings.commissionType;
+    let commValueToUse = settings.commissionValue;
+    let commAmountCentsToUse = settings.commissionAmountCents;
+    let commRateBpToUse = settings.commissionRateBasisPoints;
+    let campaignLinkIdToRecord: number | null = null;
+
+    if (attributionRow.campaign_link_id) {
+      const [campRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, commission_type, commission_amount_cents, commission_rate_basis_points
+         FROM promotional_campaign_links
+         WHERE id = ? AND consultancy_id = ?
+         LIMIT 1;`,
+        [attributionRow.campaign_link_id, consultancyId]
+      );
+      if (Array.isArray(campRows) && campRows.length > 0) {
+        const cLink = campRows[0];
+        campaignLinkIdToRecord = Number(cLink.id);
+        if (cLink.commission_type === "FIXED" && cLink.commission_amount_cents != null) {
+          commTypeToUse = "FIXED_AMOUNT";
+          commAmountCentsToUse = BigInt(cLink.commission_amount_cents);
+          commValueToUse = Number(commAmountCentsToUse) / 100;
+        } else if (cLink.commission_type === "PERCENTAGE" && cLink.commission_rate_basis_points != null) {
+          commTypeToUse = "PERCENTAGE";
+          commRateBpToUse = Number(cLink.commission_rate_basis_points);
+          commValueToUse = commRateBpToUse / 100;
+        }
+
+        // Increment campaign link uses
+        await connection.execute(
+          `UPDATE promotional_campaign_links SET current_uses = current_uses + 1 WHERE id = ?;`,
+          [cLink.id]
+        );
+      }
+    }
+
     // 7. Snapshot rule & create commission
     const commissionPublicId = crypto.randomUUID();
 
-    if (settings.commissionType === "PERCENTAGE") {
+    if (commTypeToUse === "PERCENTAGE") {
       // Percentage Commission: rate basis points is snapshotted.
       // Final monetary amount remains unset until admin approves with legitimate base amount.
       await connection.execute(
         `INSERT INTO referral_commissions (
-           public_id, consultancy_id, attribution_id, referrer_member_id, referred_member_id,
+           public_id, consultancy_id, campaign_link_id, attribution_id, referrer_member_id, referred_member_id,
            commission_type_snapshot, commission_rate_snapshot, rate_basis_points,
            base_amount_cents, final_amount_cents, final_amount, currency, status
-         ) VALUES (?, ?, ?, ?, ?, 'PERCENTAGE', ?, ?, NULL, NULL, NULL, 'BRL', 'PENDING')
+         ) VALUES (?, ?, ?, ?, ?, ?, 'PERCENTAGE', ?, ?, NULL, NULL, NULL, 'BRL', 'PENDING')
          ON DUPLICATE KEY UPDATE updated_at = UTC_TIMESTAMP(3);`,
         [
           commissionPublicId,
           consultancyId,
+          campaignLinkIdToRecord,
           attributionId,
           referrerMemberId,
           studentMemberId,
-          settings.commissionValue,
-          settings.commissionRateBasisPoints,
+          commValueToUse,
+          commRateBpToUse,
         ]
       );
     } else {
       // Fixed Amount: exact cents snapshotted
-      const finalAmountCents = settings.commissionAmountCents;
-      const finalAmountFormatted = centsToBrl(finalAmountCents);
+      const finalAmountFormatted = centsToBrl(commAmountCentsToUse);
 
       await connection.execute(
         `INSERT INTO referral_commissions (
-           public_id, consultancy_id, attribution_id, referrer_member_id, referred_member_id,
+           public_id, consultancy_id, campaign_link_id, attribution_id, referrer_member_id, referred_member_id,
            commission_type_snapshot, commission_rate_snapshot, rate_basis_points,
            base_amount_cents, final_amount_cents, final_amount, currency, status
-         ) VALUES (?, ?, ?, ?, ?, 'FIXED_AMOUNT', ?, NULL, NULL, ?, ?, 'BRL', 'PENDING')
+         ) VALUES (?, ?, ?, ?, ?, ?, 'FIXED_AMOUNT', ?, NULL, NULL, ?, ?, 'BRL', 'PENDING')
          ON DUPLICATE KEY UPDATE updated_at = UTC_TIMESTAMP(3);`,
         [
           commissionPublicId,
           consultancyId,
+          campaignLinkIdToRecord,
           attributionId,
           referrerMemberId,
           studentMemberId,
-          settings.commissionValue,
-          finalAmountCents.toString(),
+          commValueToUse,
+          commAmountCentsToUse.toString(),
           finalAmountFormatted,
         ]
       );
@@ -722,6 +789,21 @@ export async function recordReferralConversion(
       [consultancyId, studentMemberId]
     );
     const commissionId = newCommRows[0]?.id ? Number(newCommRows[0].id) : undefined;
+
+    try {
+      await createNotificationInTransaction(connection, {
+        userId: Number(attributionRow.referrer_user_id),
+        consultancyId,
+        priority: "NORMAL",
+        eventType: "REFERRAL_CONVERSION_CONFIRMED",
+        title: "Contratação confirmada",
+        body: "Contratação confirmada: sua comissão está em análise.",
+        deepLink: `/consultoria/${attributionRow.consultancy_slug || ""}/indicacoes`,
+        dedupeKey: `comm_conversion_${commissionPublicId}`,
+      });
+    } catch {
+      // Non-blocking
+    }
 
     return { success: true, commissionCreated: true, commissionId };
   } finally {
@@ -818,6 +900,30 @@ export async function approveCommission(
       return { success: false, error: "Não foi possível aprovar a comissão (concorrência ou status alterado)." };
     }
 
+    try {
+      const [refUserRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT cm.user_id, c.slug AS consultancy_slug
+         FROM consultancy_members cm
+         JOIN consultancies c ON c.id = cm.consultancy_id
+         WHERE cm.id = ? AND cm.consultancy_id = ? LIMIT 1;`,
+        [comm.referrer_member_id, consultancyId]
+      );
+      if (Array.isArray(refUserRows) && refUserRows.length > 0) {
+        await createNotificationInTransaction(connection, {
+          userId: Number(refUserRows[0].user_id),
+          consultancyId,
+          priority: "NORMAL",
+          eventType: "REFERRAL_COMMISSION_APPROVED",
+          title: "Comissão aprovada",
+          body: `Comissão aprovada: R$ ${finalAmountStr}.`,
+          deepLink: `/consultoria/${refUserRows[0].consultancy_slug}/indicacoes`,
+          dedupeKey: `comm_approved_${commissionId}`,
+        });
+      }
+    } catch {
+      // Non-blocking
+    }
+
     await recordConsultancyActivity({
       consultancyId,
       actorUserId: adminUserId,
@@ -889,6 +995,30 @@ export async function cancelCommission(
 
     if (updateResult.affectedRows !== 1) {
       return { success: false, error: "Não foi possível cancelar a comissão." };
+    }
+
+    try {
+      const [refUserRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT cm.user_id, c.slug AS consultancy_slug
+         FROM consultancy_members cm
+         JOIN consultancies c ON c.id = cm.consultancy_id
+         WHERE cm.id = ? AND cm.consultancy_id = ? LIMIT 1;`,
+        [comm.referrer_member_id, consultancyId]
+      );
+      if (Array.isArray(refUserRows) && refUserRows.length > 0) {
+        await createNotificationInTransaction(connection, {
+          userId: Number(refUserRows[0].user_id),
+          consultancyId,
+          priority: "NORMAL",
+          eventType: "REFERRAL_COMMISSION_CANCELLED",
+          title: "Comissão cancelada",
+          body: `Comissão cancelada: ${cancellationReason.trim()}.`,
+          deepLink: `/consultoria/${refUserRows[0].consultancy_slug}/indicacoes`,
+          dedupeKey: `comm_cancelled_${commissionId}`,
+        });
+      }
+    } catch {
+      // Non-blocking
     }
 
     await recordConsultancyActivity({
@@ -970,6 +1100,30 @@ export async function markCommissionPaid(
 
     if (updateResult.affectedRows !== 1) {
       return { success: false, error: "Não foi possível liquidar o pagamento da comissão." };
+    }
+
+    try {
+      const [refUserRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT cm.user_id, c.slug AS consultancy_slug
+         FROM consultancy_members cm
+         JOIN consultancies c ON c.id = cm.consultancy_id
+         WHERE cm.id = ? AND cm.consultancy_id = ? LIMIT 1;`,
+        [comm.referrer_member_id, consultancyId]
+      );
+      if (Array.isArray(refUserRows) && refUserRows.length > 0) {
+        await createNotificationInTransaction(connection, {
+          userId: Number(refUserRows[0].user_id),
+          consultancyId,
+          priority: "NORMAL",
+          eventType: "REFERRAL_COMMISSION_PAID",
+          title: "Comissão paga",
+          body: `Comissão paga: R$ ${comm.final_amount} via PIX.`,
+          deepLink: `/consultoria/${refUserRows[0].consultancy_slug}/indicacoes`,
+          dedupeKey: `comm_paid_${commissionId}`,
+        });
+      }
+    } catch {
+      // Non-blocking
     }
 
     await recordConsultancyActivity({

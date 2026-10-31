@@ -2,6 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/auth/session";
+import {
+  createPromotionalCampaignLink,
+  updatePromotionalCampaignLink,
+  toggleParticipantPromotionStatus,
+  createMarketingMaterial,
+  archiveMarketingMaterial,
+  type CampaignLinkStatus,
+  type AnnouncedDiscountType,
+  type CampaignCommissionType,
+  type MediaFormat,
+} from "@/lib/referrals/campaigns";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import {
   saveMemberPayoutProfile,
@@ -190,4 +201,187 @@ export async function getOrCreateMyReferralCodeAction(
   if (!context) return { success: false, error: "Consultoria não encontrada." };
 
   return getOrCreateReferralCode(context.consultancyId, context.membershipId);
+}
+
+export async function createCampaignLinkAction(
+  slug: string,
+  input: {
+    referrerMemberId: number;
+    title: string;
+    destinationUrl: string;
+    description?: string | null;
+    code?: string | null;
+    announcedDiscountType?: AnnouncedDiscountType;
+    announcedDiscountValue?: string | null;
+    eligiblePlans?: string | null;
+    commissionType: CampaignCommissionType;
+    commissionValue: number;
+    commissionConditions?: string | null;
+    startsAt?: string | null;
+    endsAt?: string | null;
+    maxUses?: number | null;
+    status?: CampaignLinkStatus;
+    materialIds?: number[];
+  }
+): Promise<{ success: boolean; linkId?: number; code?: string; error?: string }> {
+  const session = await getCurrentSession();
+  if (!session) return { success: false, error: "Usuário não autenticado." };
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return { success: false, error: "Apenas administradores podem cadastrar links de divulgação." };
+  }
+
+  const result = await createPromotionalCampaignLink(
+    {
+      ...input,
+      consultancyId: context.consultancyId,
+    },
+    context.membershipId,
+    session.userId
+  );
+
+  if (result.success) {
+    revalidatePath(`/consultoria/${slug}/indicacoes`);
+  }
+
+  return result;
+}
+
+export async function updateCampaignLinkAction(
+  slug: string,
+  input: {
+    linkId: number;
+    title: string;
+    destinationUrl: string;
+    description?: string | null;
+    announcedDiscountType?: AnnouncedDiscountType;
+    announcedDiscountValue?: string | null;
+    eligiblePlans?: string | null;
+    commissionType: CampaignCommissionType;
+    commissionValue: number;
+    commissionConditions?: string | null;
+    startsAt?: string | null;
+    endsAt?: string | null;
+    maxUses?: number | null;
+    status: CampaignLinkStatus;
+    materialIds?: number[];
+  }
+): Promise<{ success: boolean; error?: string }> {
+  const session = await getCurrentSession();
+  if (!session) return { success: false, error: "Usuário não autenticado." };
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return { success: false, error: "Apenas administradores podem atualizar links de divulgação." };
+  }
+
+  const result = await updatePromotionalCampaignLink(
+    {
+      ...input,
+      consultancyId: context.consultancyId,
+    },
+    context.membershipId,
+    session.userId
+  );
+
+  if (result.success) {
+    revalidatePath(`/consultoria/${slug}/indicacoes`);
+  }
+
+  return result;
+}
+
+export async function toggleParticipantPromotionAction(
+  slug: string,
+  targetMemberId: number,
+  isEnabled: boolean
+): Promise<{ success: boolean; error?: string }> {
+  const session = await getCurrentSession();
+  if (!session) return { success: false, error: "Usuário não autenticado." };
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return { success: false, error: "Apenas administradores podem gerenciar a participação." };
+  }
+
+  const result = await toggleParticipantPromotionStatus(
+    context.consultancyId,
+    targetMemberId,
+    isEnabled,
+    context.membershipId,
+    session.userId
+  );
+
+  if (result.success) {
+    revalidatePath(`/consultoria/${slug}/indicacoes`);
+  }
+
+  return result;
+}
+
+export async function createMarketingMaterialAction(
+  slug: string,
+  input: {
+    title: string;
+    description?: string | null;
+    mediaFormat: MediaFormat;
+    fileUrl?: string | null;
+    storageKey?: string | null;
+    fileSizeBytes?: number | null;
+    mimeType?: string | null;
+    suggestedCaption?: string | null;
+    isGlobal?: boolean;
+    targetMemberId?: number | null;
+    campaignLinkId?: number | null;
+  }
+): Promise<{ success: boolean; materialId?: number; error?: string }> {
+  const session = await getCurrentSession();
+  if (!session) return { success: false, error: "Usuário não autenticado." };
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return { success: false, error: "Apenas administradores podem cadastrar materiais de divulgação." };
+  }
+
+  const result = await createMarketingMaterial(
+    {
+      ...input,
+      consultancyId: context.consultancyId,
+    },
+    context.membershipId,
+    session.userId
+  );
+
+  if (result.success) {
+    revalidatePath(`/consultoria/${slug}/indicacoes`);
+  }
+
+  return result;
+}
+
+export async function archiveMarketingMaterialAction(
+  slug: string,
+  materialId: number
+): Promise<{ success: boolean; error?: string }> {
+  const session = await getCurrentSession();
+  if (!session) return { success: false, error: "Usuário não autenticado." };
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return { success: false, error: "Apenas administradores podem arquivar materiais de divulgação." };
+  }
+
+  const result = await archiveMarketingMaterial(
+    context.consultancyId,
+    materialId,
+    context.membershipId,
+    session.userId
+  );
+
+  if (result.success) {
+    revalidatePath(`/consultoria/${slug}/indicacoes`);
+  }
+
+  return result;
 }

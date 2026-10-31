@@ -368,6 +368,12 @@ export function DashboardInfluencerView({
                   Ver missões
                 </Button>
               </Link>
+
+              <Link href={`/consultoria/${consultancySlug}/indicacoes`}>
+                <Button variant="secondary" size="sm" className="font-semibold min-h-[42px] px-4">
+                  Divulgue e Ganhe
+                </Button>
+              </Link>
             </div>
           </div>
 

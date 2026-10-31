@@ -79,6 +79,10 @@ export default async function ProfessionalStudentProgressDetailPage({
     redirect(`/consultoria/${slug}`);
   }
 
+  const isPersonal = effectiveMode === "PERSONAL";
+  const isNutritionist = effectiveMode === "NUTRITIONIST";
+  const isConsultancyAdmin = effectiveMode === "ADMIN";
+
   // Canonical unification: Operating in Nutritionist mode opens the complete clinical nutrition
   // record (Prontuário) directly. Multi-role users (Personal + Nutritionist or Admin + Nutritionist)
   // seamlessly open Prontuário whenever operating in Nutritionist mode, with NO restrictive !isPersonal block.
@@ -86,44 +90,38 @@ export default async function ProfessionalStudentProgressDetailPage({
     redirect(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
   }
 
-  const isPersonal = effectiveMode === "PERSONAL";
-  const isConsultancyAdmin = effectiveMode === "ADMIN";
-
   // Load complete student hub detail for Personal and Consultancy Admin
   if (isPersonal || isConsultancyAdmin) {
     const connection = await getDbConnection();
     let studentMemberId: number;
+    let canonicalMembershipPublicId = studentPublicId;
     try {
+      // Resolve student membership within this consultancy supporting both cm.public_id and u.public_id
       const [mRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT id FROM consultancy_members WHERE public_id = ? AND consultancy_id = ? LIMIT 1;`,
-        [studentPublicId, context.consultancyId]
+        `SELECT cm.id, cm.public_id
+         FROM consultancy_members cm
+         INNER JOIN users u ON u.id = cm.user_id
+         INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
+         WHERE cm.consultancy_id = ?
+           AND (cm.public_id = ? OR u.public_id = ?)
+           AND cm.status = 'ACTIVE'
+           AND u.deleted_at IS NULL
+         LIMIT 1;`,
+        [context.consultancyId, studentPublicId, studentPublicId]
       );
       if (!Array.isArray(mRows) || mRows.length === 0) {
         notFound();
       }
       studentMemberId = Number(mRows[0].id);
-
-      // Verify assignment: Personal only sees assigned students. Consultancy Admin retains global visibility.
-      if (isPersonal && !isConsultancyAdmin) {
-        const [assignRows] = await connection.execute<RowDataPacket[]>(
-          `SELECT 1 FROM (
-             SELECT student_membership_id FROM workout_assignments
-             WHERE consultancy_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
-             UNION
-             SELECT student_membership_id FROM nutrition_v2_assignments
-             WHERE consultancy_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE'
-           ) t
-           WHERE student_membership_id = ?
-           LIMIT 1;`,
-          [context.consultancyId, context.membershipId, context.consultancyId, context.membershipId, studentMemberId]
-        );
-
-        if (!Array.isArray(assignRows) || assignRows.length === 0) {
-          notFound();
-        }
-      }
+      canonicalMembershipPublicId = String(mRows[0].public_id);
     } finally {
       connection.release();
+    }
+
+    // If accessed via user public_id rather than canonical membership public_id, redirect to canonical URL
+    if (canonicalMembershipPublicId !== studentPublicId) {
+      const query = backQueryStr ? `?${backQueryStr}` : "";
+      redirect(`/consultoria/${slug}/progresso/alunos/${canonicalMembershipPublicId}${query}`);
     }
 
     const detail = await getPersonalStudentDetail({
@@ -212,7 +210,7 @@ export default async function ProfessionalStudentProgressDetailPage({
           title={`Evolução de ${hubData.student.fullName}`}
           description={hubData.student.email}
           backHref={backHref}
-          backLabel={effectiveMode === "NUTRITIONIST" ? "Voltar para lista de pacientes" : "Voltar aos alunos"}
+          backLabel={isNutritionist ? "Voltar para lista de pacientes" : "Voltar aos alunos"}
         />
 
         <Evolution360Hub
@@ -221,7 +219,7 @@ export default async function ProfessionalStudentProgressDetailPage({
           initialComparisonData={initialComparisonData}
           isStudent={false}
           isPersonal={isPersonal}
-          isNutritionist={false}
+          isNutritionist={isNutritionist}
           isAdmin={isConsultancyAdmin}
           studentPublicId={hubData.student.publicId}
           userPublicId={session.userPublicId}

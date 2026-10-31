@@ -44,6 +44,10 @@ export default async function ProfessionalStudentsProgressListPage({
     redirect(`/consultoria/${slug}/progresso`);
   }
 
+  const isPersonal = effectiveMode === "PERSONAL";
+  const isNutritionist = effectiveMode === "NUTRITIONIST";
+  const isConsultancyAdmin = effectiveMode === "ADMIN";
+
   const canAccessNutritionist =
     context.roles.includes("NUTRITIONIST") ||
     context.roles.includes("CONSULTANCY_ADMIN");
@@ -56,9 +60,9 @@ export default async function ProfessionalStudentsProgressListPage({
     context.roles.includes("CONSULTANCY_ADMIN");
 
   const hasAccessForCurrentMode =
-    (effectiveMode === "NUTRITIONIST" && canAccessNutritionist) ||
-    (effectiveMode === "PERSONAL" && canAccessPersonal) ||
-    (effectiveMode === "ADMIN" && canAccessAdmin);
+    (isNutritionist && canAccessNutritionist) ||
+    (isPersonal && canAccessPersonal) ||
+    (isConsultancyAdmin && canAccessAdmin);
 
   if (!hasAccessForCurrentMode) {
     redirect(`/consultoria/${slug}`);

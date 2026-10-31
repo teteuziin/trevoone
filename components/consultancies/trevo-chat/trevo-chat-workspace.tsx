@@ -490,9 +490,9 @@ export function TrevoChatWorkspace({
     handleRestoreConsultation(target);
   };
 
-  // Welcome Intro Modal State
+  // Welcome Intro Modal State (Temporarily suspended for incident recovery)
   const [isIntroOpen, setIsIntroOpen] = useState(false);
-  const [introSeenLocally, setIntroSeenLocally] = useState<boolean>(Boolean(hasSeenIntro));
+  const [introSeenLocally, setIntroSeenLocally] = useState<boolean>(() => Boolean(hasSeenIntro) || true);
   const introHelpButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Auto-open Welcome Intro ONLY on genuine navigation intent

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -9,21 +9,42 @@ interface ConsultancyErrorProps {
   reset: () => void;
 }
 
+function generateDeterministicRef(err: Error): string {
+  try {
+    const str = `${err.name || "Error"}:${err.message || "Unknown"}`;
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return `REF-${Math.abs(hash).toString(36).toUpperCase().padStart(6, "0").slice(0, 8)}`;
+  } catch {
+    return "REF-ERR01";
+  }
+}
+
 export default function ConsultancyError({
   error,
   reset,
 }: ConsultancyErrorProps) {
-  const refCode = error.digest || error.correlationId || null;
+  const [clientRef] = useState<string>(() => {
+    return error.digest || error.correlationId || generateDeterministicRef(error);
+  });
+
+  const refCode = error.digest || error.correlationId || clientRef;
 
   useEffect(() => {
     // Sanitized client diagnostic log for troubleshooting
     console.error("[Trevo One Error Boundary]", {
+      ref: refCode,
       digest: error.digest,
       correlationId: error.correlationId,
       step: error.failedStep,
-      message: error.message ? error.message.slice(0, 150) : undefined,
+      name: error.name,
+      message: error.message ? error.message.slice(0, 200) : undefined,
+      stack: error.stack ? error.stack.slice(0, 500) : undefined,
     });
-  }, [error]);
+  }, [error, refCode]);
 
   return (
     <div
@@ -58,11 +79,9 @@ export default function ConsultancyError({
           <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
             Ocorreu uma instabilidade temporária ao carregar as informações da sua consultoria. Você pode tentar novamente.
           </p>
-          {refCode && (
-            <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1 select-all" title="Código de referência para suporte">
-              Ref: {refCode}
-            </p>
-          )}
+          <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1 select-all" title="Código de referência para suporte">
+            Ref: {refCode}
+          </p>
         </div>
 
         {/* Action Controls */}

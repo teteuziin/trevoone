@@ -76,46 +76,6 @@ type PageProps = {
   }>;
 };
 
-function safeFormatTime(dateInput: unknown, timeZone?: string | null): string {
-  try {
-    const d = dateInput instanceof Date ? dateInput : new Date(String(dateInput));
-    if (isNaN(d.getTime())) return "--:--";
-    const tz = timeZone && timeZone.trim().length > 0 ? timeZone.trim() : "America/Sao_Paulo";
-    return new Intl.DateTimeFormat("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: tz,
-    }).format(d);
-  } catch {
-    try {
-      const d = dateInput instanceof Date ? dateInput : new Date(String(dateInput));
-      return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(d);
-    } catch {
-      return "--:--";
-    }
-  }
-}
-
-function safeFormatDate(dateInput: unknown, timeZone?: string | null): string {
-  try {
-    const d = dateInput instanceof Date ? dateInput : new Date(String(dateInput));
-    if (isNaN(d.getTime())) return "--/--";
-    const tz = timeZone && timeZone.trim().length > 0 ? timeZone.trim() : "America/Sao_Paulo";
-    return new Intl.DateTimeFormat("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      timeZone: tz,
-    }).format(d);
-  } catch {
-    try {
-      const d = dateInput instanceof Date ? dateInput : new Date(String(dateInput));
-      return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(d);
-    } catch {
-      return "--/--";
-    }
-  }
-}
-
 export default async function ConsultancyPage({ params }: PageProps) {
   const { slug } = await params;
 
@@ -289,7 +249,11 @@ export default async function ConsultancyPage({ params }: PageProps) {
                 .map((c) => ({
                   publicId: c.publicId,
                   studentName: c.counterpartName,
-                  timeFormatted: safeFormatTime(c.scheduledStartAt, tz),
+                  timeFormatted: new Intl.DateTimeFormat("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: tz,
+                  }).format(c.scheduledStartAt),
                   type: c.title || "Consulta por vídeo",
                   status: c.status,
                   scheduledStartAt: c.scheduledStartAt.toISOString(),
@@ -406,7 +370,11 @@ export default async function ConsultancyPage({ params }: PageProps) {
                 .map((c) => ({
                   publicId: c.publicId,
                   patientName: c.counterpartName,
-                  timeFormatted: safeFormatTime(c.scheduledStartAt, tz),
+                  timeFormatted: new Intl.DateTimeFormat("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: tz,
+                  }).format(c.scheduledStartAt),
                   status: c.status,
                   statusLabel: CONSULTATION_STATUS_LABELS[c.status] || "Agendada",
                   canJoinNow: c.canJoinNow,
@@ -431,11 +399,19 @@ export default async function ConsultancyPage({ params }: PageProps) {
                 patientName: nextConsultationItem.counterpartName,
                 timeFormatted: (() => {
                   const itemDateStr = getConsultancyLocalDate(tz, nextConsultationItem.scheduledStartAt);
-                  const timeStr = safeFormatTime(nextConsultationItem.scheduledStartAt, tz);
+                  const timeStr = new Intl.DateTimeFormat("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: tz,
+                  }).format(nextConsultationItem.scheduledStartAt);
                   if (itemDateStr === todayDateStr) {
                     return `hoje ${timeStr}`;
                   }
-                  const dateStr = safeFormatDate(nextConsultationItem.scheduledStartAt, tz);
+                  const dateStr = new Intl.DateTimeFormat("pt-BR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    timeZone: tz,
+                  }).format(nextConsultationItem.scheduledStartAt);
                   return `${dateStr} ${timeStr}`;
                 })(),
                 status: nextConsultationItem.status,
@@ -634,8 +610,16 @@ export default async function ConsultancyPage({ params }: PageProps) {
   // Derived student consultations & chats for Student/VIP cockpit
   const normalizedStudentConsultations = (studentConsultations || []).map((c: ConsultationListItemDto) => {
     const tz = context.consultancyTimezone || "America/Sao_Paulo";
-    const timeFormatted = safeFormatTime(c.scheduledStartAt, tz);
-    const dateFormatted = safeFormatDate(c.scheduledStartAt, tz);
+    const timeFormatted = new Intl.DateTimeFormat("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: tz,
+    }).format(c.scheduledStartAt);
+    const dateFormatted = new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      timeZone: tz,
+    }).format(c.scheduledStartAt);
     return {
       publicId: c.publicId,
       professionalName: c.counterpartName,

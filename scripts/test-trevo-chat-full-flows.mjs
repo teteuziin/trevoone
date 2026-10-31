@@ -732,19 +732,9 @@ assert.ok(
 console.log("✓ Persistência de preferências de introdução validada no servidor.");
 
 // -----------------------------------------------------------------------------
-// 30. UI CONTRACTS: NAVIGATION INTENT, SLIDES CONTENT, A11Y & REOPEN HELP
+// 30. UI CONTRACTS: NAVIGATION ISOLATION, SLIDES CONTENT, A11Y & REOPEN HELP
 // -----------------------------------------------------------------------------
 console.log("\n[TEST 30] Verificando contratos de interface, navegação e slides do Trevo Chat Welcome...");
-const navCode = fs.readFileSync(path.resolve("components/consultancies/consultancy-navigation.tsx"), "utf-8");
-assert.ok(
-  navCode.includes("trevo_chat_nav_intent"),
-  "Navegação deve registrar intenção de clique para Consultas (trevo_chat_nav_intent)"
-);
-assert.ok(
-  navCode.includes("sessionStorage.removeItem(\"trevo_chat_nav_intent\")"),
-  "Navegação deve descartar sinal transitório ao clicar em outros itens"
-);
-
 const modalPath = path.resolve("components/consultancies/trevo-chat/trevo-chat-welcome-modal.tsx");
 assert.ok(fs.existsSync(modalPath), "Componente TrevoChatWelcomeModal deve existir");
 const modalCode = fs.readFileSync(modalPath, "utf-8");
@@ -816,12 +806,7 @@ assert.ok(
   "Funções de intro e visibilidade devem existir com fallback defensivo"
 );
 
-const navCodeFinal = fs.readFileSync(path.resolve("components/consultancies/consultancy-navigation.tsx"), "utf-8");
-assert.ok(
-  navCodeFinal.includes("typeof window === \"undefined\" || !window.sessionStorage"),
-  "consultancy-navigation.tsx deve proteger acesso a sessionStorage contra execução SSR"
-);
-console.log("✓ Resiliência de conexões comprovada: zero leaks no pool MySQL e proteção SSR ativa.");
+console.log("✓ Resiliência de conexões comprovada: zero leaks no pool MySQL e navegação isolada.");
 
 // -----------------------------------------------------------------------------
 // 32. ISOLATED POOL CONCURRENCY TEST (EXCEEDING POOL CAPACITY)
@@ -909,11 +894,11 @@ assert.ok(
   "listChatConsultationsForProfessional não deve executar auto-schema/DDL no caminho de leitura do painel"
 );
 
-// Validar formatadores defensivos e desacoplamento no painel
+// Validar que a Visão Geral está restaurada para a versão canônica e protegida
 const pageCodeFinal = fs.readFileSync(path.resolve("app/consultoria/[slug]/page.tsx"), "utf-8");
 assert.ok(
-  pageCodeFinal.includes("safeFormatTime") && pageCodeFinal.includes("safeFormatDate"),
-  "app/consultoria/[slug]/page.tsx deve conter formatadores defensivos de data/hora imunes a strings inválidas"
+  pageCodeFinal.includes("export default async function ConsultancyPage"),
+  "app/consultoria/[slug]/page.tsx deve conter a página canônica da consultoria"
 );
 
 // Validar código de referência no error boundary

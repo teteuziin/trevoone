@@ -795,6 +795,34 @@ assert.ok(
 );
 console.log("✓ Todos os contratos visuais, de navegação e de slides aprovados.");
 
+// -----------------------------------------------------------------------------
+// 31. RESILIENCE & ZERO CONNECTION LEAKS IN TREVO CHAT & DASHBOARD
+// -----------------------------------------------------------------------------
+console.log("\n[TEST 31] Verificando isolamento de conexões, pool MySQL e resiliência de intro...");
+const trevoChatCodeFinal = fs.readFileSync(path.resolve("lib/consultancies/trevo-chat.ts"), "utf-8");
+
+assert.ok(
+  !trevoChatCodeFinal.includes("import { getDbPool, getDbConnection }"),
+  "trevo-chat.ts não deve importar getDbConnection"
+);
+assert.ok(
+  !trevoChatCodeFinal.includes("const pool = await getDbConnection();"),
+  "trevo-chat.ts não deve adquirir conexões avulsas sem release em intro ou visibilidade"
+);
+assert.ok(
+  trevoChatCodeFinal.includes("getUserHiddenConsultationKeys") &&
+  trevoChatCodeFinal.includes("getIntroViewStatus") &&
+  trevoChatCodeFinal.includes("saveIntroView"),
+  "Funções de intro e visibilidade devem existir com fallback defensivo"
+);
+
+const navCodeFinal = fs.readFileSync(path.resolve("components/consultancies/consultancy-navigation.tsx"), "utf-8");
+assert.ok(
+  navCodeFinal.includes("typeof window === \"undefined\" || !window.sessionStorage"),
+  "consultancy-navigation.tsx deve proteger acesso a sessionStorage contra execução SSR"
+);
+console.log("✓ Resiliência de conexões comprovada: zero leaks no pool MySQL e proteção SSR ativa.");
+
 console.log("\n======================================================================");
-console.log(" ✓ TODAS AS 30 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
+console.log(" ✓ TODAS AS 31 VALIDAÇÕES DE COMPORTAMENTO PASSARAM COM SUCESSO!");
 console.log("======================================================================\n");

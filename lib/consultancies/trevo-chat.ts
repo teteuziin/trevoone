@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
-import { getDbPool, getDbConnection } from "../db/mysql";
+import { getDbPool } from "../db/mysql";
 import {
   createNotificationInTransaction,
   deliverNotificationAfterCommit,
@@ -2256,9 +2256,9 @@ export async function getUserHiddenConsultationKeys(
   consultancyId: number,
   userId: number
 ): Promise<Set<string>> {
-  return executeWithAutoSchema(async () => {
-    const pool = await getDbConnection();
-    try {
+  try {
+    return await executeWithAutoSchema(async () => {
+      const pool = getDbPool();
       const [rows] = await pool.query<RowDataPacket[]>(
         `SELECT target_type, target_public_id
          FROM consultation_user_visibility
@@ -2273,11 +2273,11 @@ export async function getUserHiddenConsultationKeys(
         keys.add(row.target_public_id);
       }
       return keys;
-    } catch (err: unknown) {
-      console.warn("[Trevo Chat] Erro ao carregar visibilidade de conversas (fallback vazio):", err);
-      return new Set<string>();
-    }
-  });
+    });
+  } catch (err: unknown) {
+    console.warn("[Trevo Chat] Erro ao carregar visibilidade de conversas (fallback vazio):", err);
+    return new Set<string>();
+  }
 }
 
 /**
@@ -2291,29 +2291,34 @@ export async function hideConsultationFromUser(
   targetType: "CHAT" | "LEGACY_VIDEO",
   targetPublicId: string
 ): Promise<boolean> {
-  return executeWithAutoSchema(async () => {
-    const pool = await getDbConnection();
-    await pool.execute(
-      `INSERT INTO consultation_user_visibility (
-        consultancy_id,
-        user_id,
-        membership_id,
-        target_type,
-        target_public_id,
-        hidden_at,
-        restored_at,
-        created_at,
-        updated_at
-      ) VALUES (?, ?, ?, ?, ?, NOW(3), NULL, NOW(3), NOW(3))
-      ON DUPLICATE KEY UPDATE
-        hidden_at = NOW(3),
-        restored_at = NULL,
-        membership_id = VALUES(membership_id),
-        updated_at = NOW(3);`,
-      [consultancyId, userId, membershipId, targetType, targetPublicId]
-    );
-    return true;
-  });
+  try {
+    return await executeWithAutoSchema(async () => {
+      const pool = getDbPool();
+      await pool.execute(
+        `INSERT INTO consultation_user_visibility (
+          consultancy_id,
+          user_id,
+          membership_id,
+          target_type,
+          target_public_id,
+          hidden_at,
+          restored_at,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, NOW(3), NULL, NOW(3), NOW(3))
+        ON DUPLICATE KEY UPDATE
+          hidden_at = NOW(3),
+          restored_at = NULL,
+          membership_id = VALUES(membership_id),
+          updated_at = NOW(3);`,
+        [consultancyId, userId, membershipId, targetType, targetPublicId]
+      );
+      return true;
+    });
+  } catch (err: unknown) {
+    console.warn("[Trevo Chat] Erro ao ocultar consulta:", err);
+    return false;
+  }
 }
 
 /**
@@ -2325,20 +2330,25 @@ export async function restoreConsultationForUser(
   targetType: "CHAT" | "LEGACY_VIDEO",
   targetPublicId: string
 ): Promise<boolean> {
-  return executeWithAutoSchema(async () => {
-    const pool = await getDbConnection();
-    await pool.execute(
-      `UPDATE consultation_user_visibility
-       SET restored_at = NOW(3),
-           updated_at = NOW(3)
-       WHERE consultancy_id = ?
-         AND user_id = ?
-         AND target_type = ?
-         AND target_public_id = ?;`,
-      [consultancyId, userId, targetType, targetPublicId]
-    );
-    return true;
-  });
+  try {
+    return await executeWithAutoSchema(async () => {
+      const pool = getDbPool();
+      await pool.execute(
+        `UPDATE consultation_user_visibility
+         SET restored_at = NOW(3),
+             updated_at = NOW(3)
+         WHERE consultancy_id = ?
+           AND user_id = ?
+           AND target_type = ?
+           AND target_public_id = ?;`,
+        [consultancyId, userId, targetType, targetPublicId]
+      );
+      return true;
+    });
+  } catch (err: unknown) {
+    console.warn("[Trevo Chat] Erro ao restaurar consulta:", err);
+    return false;
+  }
 }
 
 export interface IntroViewStatus {
@@ -2356,28 +2366,33 @@ export async function getIntroViewStatus(
   userId: number,
   audienceRole: "STUDENT" | "PROFESSIONAL"
 ): Promise<IntroViewStatus> {
-  return executeWithAutoSchema(async () => {
-    const pool = await getDbConnection();
-    const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT status, completed_at, dismissed_at
-       FROM trevo_chat_intro_views
-       WHERE consultancy_id = ? AND user_id = ? AND audience_role = ?
-       LIMIT 1;`,
-      [consultancyId, userId, audienceRole]
-    );
+  try {
+    return await executeWithAutoSchema(async () => {
+      const pool = getDbPool();
+      const [rows] = await pool.query<RowDataPacket[]>(
+        `SELECT status, completed_at, dismissed_at
+         FROM trevo_chat_intro_views
+         WHERE consultancy_id = ? AND user_id = ? AND audience_role = ?
+         LIMIT 1;`,
+        [consultancyId, userId, audienceRole]
+      );
 
-    if (!rows || rows.length === 0) {
-      return { hasSeen: false };
-    }
+      if (!rows || rows.length === 0) {
+        return { hasSeen: false };
+      }
 
-    const row = rows[0];
-    return {
-      hasSeen: true,
-      status: row.status as "COMPLETED" | "DISMISSED",
-      completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : null,
-      dismissedAt: row.dismissed_at ? new Date(row.dismissed_at).toISOString() : null,
-    };
-  });
+      const row = rows[0];
+      return {
+        hasSeen: true,
+        status: row.status as "COMPLETED" | "DISMISSED",
+        completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : null,
+        dismissedAt: row.dismissed_at ? new Date(row.dismissed_at).toISOString() : null,
+      };
+    });
+  } catch (err: unknown) {
+    console.warn("[Trevo Chat] Erro ao obter status de introdução (fallback hasSeen: false):", err);
+    return { hasSeen: false };
+  }
 }
 
 /**
@@ -2389,30 +2404,35 @@ export async function saveIntroView(
   audienceRole: "STUDENT" | "PROFESSIONAL",
   status: "COMPLETED" | "DISMISSED"
 ): Promise<boolean> {
-  return executeWithAutoSchema(async () => {
-    const pool = await getDbConnection();
-    const isCompleted = status === "COMPLETED";
+  try {
+    return await executeWithAutoSchema(async () => {
+      const pool = getDbPool();
+      const isCompleted = status === "COMPLETED";
 
-    await pool.execute(
-      `INSERT INTO trevo_chat_intro_views (
-         consultancy_id, user_id, audience_role, status, completed_at, dismissed_at, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, NOW(3), NOW(3))
-       ON DUPLICATE KEY UPDATE
-         status = CASE WHEN status = 'COMPLETED' THEN 'COMPLETED' ELSE VALUES(status) END,
-         completed_at = CASE WHEN VALUES(status) = 'COMPLETED' THEN COALESCE(completed_at, VALUES(completed_at)) ELSE completed_at END,
-         dismissed_at = CASE WHEN VALUES(status) = 'DISMISSED' THEN COALESCE(dismissed_at, VALUES(dismissed_at)) ELSE dismissed_at END,
-         updated_at = NOW(3);`,
-      [
-        consultancyId,
-        userId,
-        audienceRole,
-        status,
-        isCompleted ? new Date() : null,
-        !isCompleted ? new Date() : null,
-      ]
-    );
-    return true;
-  });
+      await pool.execute(
+        `INSERT INTO trevo_chat_intro_views (
+           consultancy_id, user_id, audience_role, status, completed_at, dismissed_at, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, NOW(3), NOW(3))
+         ON DUPLICATE KEY UPDATE
+           status = CASE WHEN status = 'COMPLETED' THEN 'COMPLETED' ELSE VALUES(status) END,
+           completed_at = CASE WHEN VALUES(status) = 'COMPLETED' THEN COALESCE(completed_at, VALUES(completed_at)) ELSE completed_at END,
+           dismissed_at = CASE WHEN VALUES(status) = 'DISMISSED' THEN COALESCE(dismissed_at, VALUES(dismissed_at)) ELSE dismissed_at END,
+           updated_at = NOW(3);`,
+        [
+          consultancyId,
+          userId,
+          audienceRole,
+          status,
+          isCompleted ? new Date() : null,
+          !isCompleted ? new Date() : null,
+        ]
+      );
+      return true;
+    });
+  } catch (err: unknown) {
+    console.warn("[Trevo Chat] Erro ao salvar status de introdução:", err);
+    return false;
+  }
 }
 
 

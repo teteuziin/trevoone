@@ -496,6 +496,7 @@ export function ConsultancyNavigation({
   const handleNavClick = useCallback(
     (item: { href?: string | null; id?: string }) => {
       try {
+        if (typeof window === "undefined" || !window.sessionStorage) return;
         const isConsultasNav = Boolean(
           item.href?.endsWith("/consultas") ||
           item.id === "student-consultas" ||

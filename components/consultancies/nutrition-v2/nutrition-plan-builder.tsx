@@ -63,6 +63,7 @@ export interface PatientBuilderContext {
   studentPublicId: string;
   studentName: string;
   returnToUrl: string;
+  weightKg?: number | null;
 }
 
 export interface PlanningTargetDto {
@@ -644,7 +645,6 @@ export function NutritionPlanBuilder({
             prescribedQuantity: item.prescribedQuantity,
             prescribedUnitCode: item.prescribedUnitCode,
             prescribedUnitLabel: item.prescribedUnitLabel,
-            portionPublicId: null,
             notes: item.notes,
           });
 
@@ -656,6 +656,7 @@ export function NutritionPlanBuilder({
                 prescribedQuantity: sub.prescribedQuantity,
                 prescribedUnitCode: sub.prescribedUnitCode,
                 prescribedUnitLabel: sub.prescribedUnitLabel,
+                equivalenceCriterion: sub.equivalenceCriterion || null,
                 notes: sub.notes,
               });
             }
@@ -1671,6 +1672,11 @@ export function NutritionPlanBuilder({
                       <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
                         {dailySummary.protein.displayText}
                       </span>
+                      {patientContext?.weightKg && patientContext.weightKg > 0 && dailySummary.protein.value != null && (
+                        <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400 block tabular-nums">
+                          {(dailySummary.protein.value / patientContext.weightKg).toFixed(1).replace(".", ",")} g/kg
+                        </span>
+                      )}
                       {dailySummary.protein.isPartial && (
                         <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold block" title={`${dailySummary.protein.missingItemCount} sem info`}>
                           * ({dailySummary.protein.missingItemCount} sem info)
@@ -1689,6 +1695,11 @@ export function NutritionPlanBuilder({
                       <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
                         {dailySummary.carbohydrate.displayText}
                       </span>
+                      {patientContext?.weightKg && patientContext.weightKg > 0 && dailySummary.carbohydrate.value != null && (
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 block tabular-nums">
+                          {(dailySummary.carbohydrate.value / patientContext.weightKg).toFixed(1).replace(".", ",")} g/kg
+                        </span>
+                      )}
                       {dailySummary.carbohydrate.isPartial && (
                         <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold block" title={`${dailySummary.carbohydrate.missingItemCount} sem info`}>
                           * ({dailySummary.carbohydrate.missingItemCount} sem info)
@@ -1707,6 +1718,11 @@ export function NutritionPlanBuilder({
                       <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
                         {dailySummary.fat.displayText}
                       </span>
+                      {patientContext?.weightKg && patientContext.weightKg > 0 && dailySummary.fat.value != null && (
+                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 block tabular-nums">
+                          {(dailySummary.fat.value / patientContext.weightKg).toFixed(1).replace(".", ",")} g/kg
+                        </span>
+                      )}
                       {dailySummary.fat.isPartial && (
                         <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold block" title={`${dailySummary.fat.missingItemCount} sem info`}>
                           * ({dailySummary.fat.missingItemCount} sem info)
@@ -1891,6 +1907,11 @@ export function NutritionPlanBuilder({
                 <span className="text-xl font-bold text-[var(--text-primary)]">
                   {dailySummary.protein.displayText}
                 </span>
+                {patientContext?.weightKg && patientContext.weightKg > 0 && dailySummary.protein.value != null && (
+                  <span className="text-xs font-bold text-sky-600 dark:text-sky-400 block mt-0.5">
+                    {(dailySummary.protein.value / patientContext.weightKg).toFixed(1).replace(".", ",")} g/kg
+                  </span>
+                )}
                 {dailySummary.protein.isPartial && (
                   <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
                     * {dailySummary.protein.missingItemCount} sem info
@@ -1908,6 +1929,11 @@ export function NutritionPlanBuilder({
                 <span className="text-xl font-bold text-[var(--text-primary)]">
                   {dailySummary.carbohydrate.displayText}
                 </span>
+                {patientContext?.weightKg && patientContext.weightKg > 0 && dailySummary.carbohydrate.value != null && (
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block mt-0.5">
+                    {(dailySummary.carbohydrate.value / patientContext.weightKg).toFixed(1).replace(".", ",")} g/kg
+                  </span>
+                )}
                 {dailySummary.carbohydrate.isPartial && (
                   <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
                     * {dailySummary.carbohydrate.missingItemCount} sem info
@@ -1925,6 +1951,11 @@ export function NutritionPlanBuilder({
                 <span className="text-xl font-bold text-[var(--text-primary)]">
                   {dailySummary.fat.displayText}
                 </span>
+                {patientContext?.weightKg && patientContext.weightKg > 0 && dailySummary.fat.value != null && (
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400 block mt-0.5">
+                    {(dailySummary.fat.value / patientContext.weightKg).toFixed(1).replace(".", ",")} g/kg
+                  </span>
+                )}
                 {dailySummary.fat.isPartial && (
                   <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
                     * {dailySummary.fat.missingItemCount} sem info

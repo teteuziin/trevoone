@@ -332,7 +332,9 @@ export const CANONICAL_FOOD_VOCABULARY: readonly string[] = Object.freeze([
   "tapioca", "cuscuz", "milho", "ervilha", "palmito", "pepino", "espinafre", "couve",
   "repolho", "berinjela", "abobrinha", "melancia", "melao", "mamao", "uva", "abacate",
   "manga", "pera", "kiwi", "goiaba", "cacau", "cafe", "cha", "cozido", "grelhado",
-  "assado", "frito", "refogado", "cru", "integral", "desnatado", "moido", "desfiado"
+  "assado", "frito", "refogado", "cru", "integral", "desnatado", "moido", "desfiado",
+  "rap10", "cottage", "jerimum", "cabotia", "ponca", "musculo", "acem", "fradinho",
+  "tortilha", "macaxeira", "aipim", "ricota", "requeijao"
 ]);
 
 function getWordStem(word: string): string {
@@ -342,10 +344,6 @@ function getWordStem(word: string): string {
 }
 
 /**
- * Curated Brazilian Food Synonyms & Regional Equivalents.
- * Expands search vocabulary without risky automated database merges.
- */
-/**
  * Curated Brazilian Food Synonyms & Regional Equivalents for user search.
  * STRICTLY Portuguese regional equivalents, culinary preparation states,
  * and unambiguous Brazilian synonyms.
@@ -353,70 +351,123 @@ function getWordStem(word: string): string {
  */
 export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = Object.freeze({
   // Pães e variações regionais brasileiras
-  cacetinho: ["pao frances", "frances", "pao de sal", "careca"],
+  cacetinho: ["pao frances", "frances", "pao de sal", "pao careca", "careca"],
   careca: ["pao frances", "frances", "cacetinho", "pao de sal"],
   "pao de sal": ["pao frances", "cacetinho", "careca", "frances"],
   "pao careca": ["pao frances", "cacetinho", "pao de sal", "frances"],
   "pao frances": ["cacetinho", "pao de sal", "pao careca", "frances"],
+  frances: ["pao frances", "cacetinho", "pao de sal"],
 
   // Tubérculos e Raízes (variações regionais inequívocas em PT-BR)
   aipim: ["mandioca", "macaxeira"],
   macaxeira: ["mandioca", "aipim"],
   mandioca: ["aipim", "macaxeira"],
   cassava: ["mandioca", "aipim", "macaxeira"],
+  inhame: ["cara"],
+  cara: ["inhame"],
 
-  // Mandioquinha / Batata-baroa
+  // Mandioquinha / Batata-baroa / Batata doce
   mandioquinha: ["batata baroa", "batata-baroa", "baroa"],
   baroa: ["mandioquinha", "batata baroa", "batata-baroa"],
   "batata baroa": ["mandioquinha", "baroa"],
   "batata-baroa": ["mandioquinha", "baroa"],
+  "batata doce": ["batata-doce", "batata"],
+  "batata-doce": ["batata doce", "batata"],
 
-  // Abóbora e jerimum
-  abobora: ["jerimum"],
-  jerimum: ["abobora"],
+  // Abóbora e jerimum / cabotiá / moranga
+  abobora: ["jerimum", "cabotia", "moranga"],
+  jerimum: ["abobora", "cabotia", "moranga"],
+  cabotia: ["abobora", "jerimum", "abobora cabotia"],
+  "abobora cabotia": ["abobora", "jerimum", "cabotia"],
+  "abobora japonesa": ["abobora", "jerimum", "cabotia"],
+  moranga: ["abobora", "jerimum"],
 
   // Frutas com variações regionais brasileiras
-  mexerica: ["tangerina", "bergamota", "mandarina"],
-  bergamota: ["tangerina", "mexerica", "mandarina"],
-  tangerina: ["mexerica", "bergamota", "mandarina"],
+  mexerica: ["tangerina", "bergamota", "ponca", "mandarina"],
+  bergamota: ["tangerina", "mexerica", "ponca", "mandarina"],
+  tangerina: ["mexerica", "bergamota", "ponca", "mandarina"],
+  ponca: ["tangerina", "mexerica", "bergamota"],
   mandarina: ["tangerina", "mexerica", "bergamota"],
   abacaxi: ["ananas"],
+  "banana da terra": ["banana-da-terra", "banana"],
+  "banana-da-terra": ["banana da terra", "banana"],
 
-  // Feijões regionais
+  // Feijões e leguminosas regionais
   fradinho: ["feijao fradinho", "feijao de corda", "corda", "caupi"],
   corda: ["feijao fradinho", "fradinho", "feijao de corda", "caupi"],
   "feijao fradinho": ["feijao de corda", "fradinho", "corda"],
   "feijao-fradinho": ["feijao de corda", "fradinho", "corda"],
   "feijao de corda": ["feijao fradinho", "fradinho", "corda"],
   "feijao-de-corda": ["feijao fradinho", "fradinho", "corda"],
+  "feijao preto": ["feijao-preto"],
+  "feijao carioca": ["feijao-carioca"],
+  "grao de bico": ["grao-de-bico"],
+  "grao-de-bico": ["grao de bico"],
 
-  // Milho e cuscuz
+  // Milho, cuscuz e tapioca
   milho: ["milho verde"],
   "milho verde": ["milho"],
   cuscuz: ["cuscuz de milho", "flocao"],
   "cuscuz de milho": ["cuscuz", "flocao"],
   flocao: ["cuscuz", "cuscuz de milho", "milho flocos"],
+  tapioca: ["goma de tapioca", "polvilho"],
+  "goma de tapioca": ["tapioca", "polvilho"],
 
   // Aveia
   aveia: ["flocos de aveia", "aveia em flocos"],
 
-  // Laticínios
+  // Laticínios e queijos regionais
   yogurt: ["iogurte"],
-
-  // Queijos e grafias em PT-BR
   mussarela: ["mucarela", "mozarela"],
   mucarela: ["mussarela", "mozarela"],
   mozarela: ["mussarela", "mucarela"],
   mozzarella: ["mussarela", "mucarela", "mozarela"],
+  "queijo branco": ["queijo minas", "minas frescal", "queijo minas frescal"],
+  "queijo minas": ["minas frescal", "queijo branco", "queijo minas frescal"],
+  "minas frescal": ["queijo minas", "queijo branco"],
+  cottage: ["queijo cottage"],
+  "queijo cottage": ["cottage"],
 
-  // Carnes
-  mignon: ["file mignon"],
-  contrafile: ["contra-file", "contra file"],
-  "contra file": ["contrafile", "contra-file"],
-  "contra-file": ["contrafile", "contra file"],
+  // Carnes, cortes e preparações
+  mignon: ["file mignon", "carne bovina"],
+  "file mignon": ["mignon", "carne bovina"],
+  contrafile: ["contra-file", "contra file", "carne bovina"],
+  "contra file": ["contrafile", "contra-file", "carne bovina"],
+  "contra-file": ["contrafile", "contra file", "carne bovina"],
+  alcatra: ["carne bovina", "bife de alcatra"],
+  patinho: ["carne bovina", "patinho moido", "carne moida"],
+  "carne moida": ["patinho moido", "patinho", "carne bovina"],
+  "patinho moido": ["carne moida", "patinho", "carne bovina"],
+  acem: ["carne bovina", "musculo"],
+  musculo: ["carne bovina", "acem"],
 
-  // Suplementos e derivados lácteos em PT-BR
-  whey: ["whey protein", "soro de leite"],
+  // Aves
+  "frango grelhado": ["peito de frango", "file de frango", "frango"],
+  "file de frango": ["peito de frango", "frango grelhado", "frango"],
+  "frango desfiado": ["peito de frango", "frango cozido", "frango"],
+  "peito de frango": ["frango", "file de frango", "frango grelhado"],
+
+  // Ovos
+  "ovo cozido": ["ovo de galinha", "ovo"],
+  "ovo mexido": ["ovo de galinha", "ovo"],
+  "ovo inteiro": ["ovo de galinha", "ovo"],
+  "clara de ovo": ["clara", "ovo de galinha"],
+  clara: ["clara de ovo"],
+
+  // Suplementos e essenciais fitness
+  whey: ["whey protein", "soro de leite", "whey concentrado", "whey isolado"],
+  "whey protein": ["whey", "soro de leite", "whey concentrado", "whey isolado"],
+  "whey concentrado": ["whey", "whey protein"],
+  "whey isolado": ["whey", "whey protein"],
+  creatina: ["creatina monohidratada", "creatina pura"],
+  "creatina monohidratada": ["creatina", "creatina pura"],
+  "creatina pura": ["creatina", "creatina monohidratada"],
+  "pasta de amendoim": ["manteiga de amendoim", "creme de amendoim"],
+  "manteiga de amendoim": ["pasta de amendoim", "creme de amendoim"],
+  "creme de amendoim": ["pasta de amendoim", "manteiga de amendoim"],
+  rap10: ["rap 10", "tortilha", "pao folha"],
+  "rap 10": ["rap10", "tortilha", "pao folha"],
+  tortilha: ["rap10", "rap 10"],
 
   // Flexões culinárias e estados de preparo simétricos (preserva o estado exato: cozido <-> cozida, cru <-> crua, etc.)
   cozido: ["cozida"],
@@ -512,6 +563,12 @@ export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
   const hasArroz = allRoots.some((t) => t === "arroz");
   const hasMilho = allRoots.some((t) => t === "milho");
   const hasCuscuz = allRoots.some((t) => t === "cuscuz");
+  const hasFrango = allRoots.some((t) => t === "frango");
+  const hasCarne = allRoots.some((t) => t === "carne");
+  const hasAbobora = allRoots.some((t) => t === "abobora" || t === "jerimum");
+  const hasWhey = allRoots.some((t) => t === "whey");
+  const hasCreatina = allRoots.some((t) => t === "creatina");
+  const hasRap10 = allRoots.some((t) => t === "rap10" || t === "tortilha");
 
   return tokens.map((token) => {
     const variants = new Set<string>([token]);
@@ -591,7 +648,37 @@ export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
     }
 
     if (normalized === "desfiado" || normalized === "desfiada") {
-      return [token, "desfiado", "desfiada", "cozido", "cozida"];
+      return [token, "desfiado", "desfiada", "cozido", "cozida", "peito"];
+    }
+
+    // Phrase-aware handling: frango grelhado / desfiado
+    if (hasFrango && (normalized === "grelhado" || normalized === "grelhada")) {
+      return [token, "grelhado", "grelhada", "file", "peito"];
+    }
+
+    // Phrase-aware handling: carne moída
+    if (hasCarne && (normalized === "moida" || normalized === "moido")) {
+      return [token, "moida", "moido", "patinho", "bovina"];
+    }
+
+    // Phrase-aware handling: abóbora cabotiá / japonesa / moranga
+    if (hasAbobora && (normalized === "cabotia" || normalized === "japonesa" || normalized === "moranga")) {
+      return [token, normalized, "abobora", "jerimum"];
+    }
+
+    // Phrase-aware handling: whey protein concentrado / isolado
+    if (hasWhey && (normalized === "concentrado" || normalized === "isolado")) {
+      return [token, normalized, "whey", "protein"];
+    }
+
+    // Phrase-aware handling: creatina monohidratada / pura
+    if (hasCreatina && (normalized === "monohidratada" || normalized === "pura")) {
+      return [token, normalized, "creatina"];
+    }
+
+    // Phrase-aware handling: rap 10 / tortilha
+    if (hasRap10 && (normalized === "tortilha" || normalized === "10" || normalized === "folha")) {
+      return [token, "rap10", "rap 10", "tortilha"];
     }
 
     // Look up known aliases for all roots
@@ -1075,11 +1162,12 @@ export function buildFoodSearchOrderClause(
              OR f.normalized_name LIKE '%fruit%' OR f.normalized_name LIKE '%flavored%') THEN 3
       ELSE 1
     END ASC,
-    -- Prioritize canonical TACO first, then consultancy custom foods
+    -- Prioritize canonical TACO first, then Growth Supplements, then consultancy custom foods
     CASE
       WHEN f.source_key = 'TACO' THEN 1
-      WHEN f.scope = 'CONSULTANCY' THEN 2
-      ELSE 3
+      WHEN f.source_key = 'GROWTH_SUPPLEMENTS' THEN 2
+      WHEN f.scope = 'CONSULTANCY' THEN 3
+      ELSE 4
     END ASC,
     -- Shorter food names tend to be basic primary ingredients rather than complex derivatives
     CHAR_LENGTH(COALESCE(f.display_name_pt_br, f.name)) ASC,
@@ -1214,16 +1302,16 @@ export function buildWhereClause(
       conditions.push("f.status IN ('ACTIVE', 'ARCHIVED')");
     }
   } else if (filter.source === "TACO" || targetScope === "GLOBAL") {
-    conditions.push("f.scope = 'GLOBAL' AND f.source_key = 'TACO' AND f.status = 'ACTIVE'");
+    conditions.push("f.scope = 'GLOBAL' AND f.source_key IN ('TACO', 'GROWTH_SUPPLEMENTS') AND f.status = 'ACTIVE'");
   } else if (filter.source === "USDA") {
     // Prohibited from search results
     conditions.push("1=0");
   } else {
-    // UNIFIED SEARCH: TACO Brasil (GLOBAL ACTIVE) + Custom Foods of Current Consultancy
+    // UNIFIED SEARCH: TACO Brasil + Curated Fitness Supplements (GLOBAL ACTIVE) + Custom Foods of Current Consultancy
     if (consultancyId != null) {
       if (targetStatus === "ACTIVE") {
         conditions.push(
-          "((f.source_key = 'TACO' AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE') OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status = 'ACTIVE'))"
+          "((f.source_key IN ('TACO', 'GROWTH_SUPPLEMENTS') AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE') OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status = 'ACTIVE'))"
         );
         params.push(consultancyId);
       } else if (targetStatus === "ARCHIVED") {
@@ -1231,12 +1319,12 @@ export function buildWhereClause(
         params.push(consultancyId);
       } else {
         conditions.push(
-          "((f.source_key = 'TACO' AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE') OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status IN ('ACTIVE', 'ARCHIVED')))"
+          "((f.source_key IN ('TACO', 'GROWTH_SUPPLEMENTS') AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE') OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status IN ('ACTIVE', 'ARCHIVED')))"
         );
         params.push(consultancyId);
       }
     } else {
-      conditions.push("f.source_key = 'TACO' AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE'");
+      conditions.push("f.source_key IN ('TACO', 'GROWTH_SUPPLEMENTS') AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE'");
     }
   }
 

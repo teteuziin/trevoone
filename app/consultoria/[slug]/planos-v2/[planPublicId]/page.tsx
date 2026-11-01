@@ -51,6 +51,7 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
     studentPublicId: string;
     studentName: string;
     returnToUrl: string;
+    weightKg?: number | null;
   } | null = null;
 
   let planningTarget: {
@@ -76,14 +77,33 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
       );
       if (studentRows && studentRows.length > 0) {
         const sr = studentRows[0];
+        const planning = await getPatientPlanningByStudent(ctx.consultancyId!, Number(sr.id), conn);
+        let studentWeightKg = planning?.snapshotWeightKg ? Number(planning.snapshotWeightKg) : null;
+        if (!studentWeightKg || studentWeightKg <= 0) {
+          try {
+            const [wRows] = await conn.query<RowDataPacket[]>(
+              `SELECT pa.weight_kg FROM nutrition_v2_patient_anthropometrics pa
+               INNER JOIN nutrition_v2_patient_records pr ON pr.id = pa.patient_record_id
+               WHERE pr.student_membership_id = ? AND pa.deleted_at IS NULL AND pa.weight_kg > 0
+               ORDER BY pa.measured_at DESC LIMIT 1`,
+              [Number(sr.id)]
+            );
+            if (wRows && wRows.length > 0 && wRows[0].weight_kg) {
+              studentWeightKg = Number(wRows[0].weight_kg);
+            }
+          } catch {
+            // Non-blocking fallback
+          }
+        }
+
         patientContext = {
           studentMembershipPublicId: String(sr.public_id),
           studentPublicId: String(sr.user_public_id),
           studentName: String(sr.full_name),
           returnToUrl: returnTo || `/consultoria/${slug}/planos-v2/prontuario/${sr.user_public_id}?tab=plano`,
+          weightKg: studentWeightKg && studentWeightKg > 0 ? studentWeightKg : null,
         };
 
-        const planning = await getPatientPlanningByStudent(ctx.consultancyId!, Number(sr.id), conn);
         if (planning) {
           planningTarget = {
             caloriesKcal: planning.targetCaloriesKcal,
@@ -111,14 +131,33 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
       );
       if (draftAssignRows && draftAssignRows.length > 0) {
         const dar = draftAssignRows[0];
+        const planning = await getPatientPlanningByStudent(ctx.consultancyId!, Number(dar.membership_id), conn);
+        let studentWeightKg = planning?.snapshotWeightKg ? Number(planning.snapshotWeightKg) : null;
+        if (!studentWeightKg || studentWeightKg <= 0) {
+          try {
+            const [wRows] = await conn.query<RowDataPacket[]>(
+              `SELECT pa.weight_kg FROM nutrition_v2_patient_anthropometrics pa
+               INNER JOIN nutrition_v2_patient_records pr ON pr.id = pa.patient_record_id
+               WHERE pr.student_membership_id = ? AND pa.deleted_at IS NULL AND pa.weight_kg > 0
+               ORDER BY pa.measured_at DESC LIMIT 1`,
+              [Number(dar.membership_id)]
+            );
+            if (wRows && wRows.length > 0 && wRows[0].weight_kg) {
+              studentWeightKg = Number(wRows[0].weight_kg);
+            }
+          } catch {
+            // Non-blocking fallback
+          }
+        }
+
         patientContext = {
           studentMembershipPublicId: String(dar.public_id),
           studentPublicId: String(dar.user_public_id),
           studentName: String(dar.full_name),
           returnToUrl: `/consultoria/${slug}/planos-v2/prontuario/${dar.user_public_id}?tab=plano`,
+          weightKg: studentWeightKg && studentWeightKg > 0 ? studentWeightKg : null,
         };
 
-        const planning = await getPatientPlanningByStudent(ctx.consultancyId!, Number(dar.membership_id), conn);
         if (planning) {
           planningTarget = {
             caloriesKcal: planning.targetCaloriesKcal,

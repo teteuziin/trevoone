@@ -135,6 +135,23 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   },
 
   // -------------------------------------------------------------------------
+  // 6b. CLARA DE OVO (Pasteurizada ou cozida)
+  // Ref: TACO/Pinheiro (unidade média de clara 33g)
+  // -------------------------------------------------------------------------
+  {
+    id: "clara-de-ovo",
+    matcher: (norm) =>
+      (norm.includes("clara") && (norm.includes("ovo") || norm.includes("galinha") || norm.includes("pasteurizada"))) ||
+      (norm.includes("egg") && norm.includes("white")),
+    portions: [
+      { label: "Unidade (clara)", amount: 33, notes: "Equivalência padrão clara de ovo (33g)" },
+      { label: "2 Unidades (claras)", amount: 66, notes: "Equivalência 2 claras de ovo" },
+      { label: "3 Unidades (claras)", amount: 99, notes: "Equivalência 3 claras de ovo" },
+      { label: "Colher de sopa", amount: 15, notes: "Equivalência Pinheiro" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
   // 7. OVOS DE GALINHA (Inteiro cozido, frito, mexido, cru)
   // Ref: TACO/IBGE (unidade média 50g, grande 60g, pequena 45g)
   // -------------------------------------------------------------------------
@@ -149,7 +166,7 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
       { label: "Unidade média", amount: 50, notes: "Equivalência padrão TACO/IBGE" },
       { label: "Unidade grande", amount: 60, notes: "Equivalência padrão IBGE" },
       { label: "Unidade pequena", amount: 45, notes: "Equivalência padrão IBGE" },
-      { label: "Clara de ovo", amount: 35, notes: "Equivalência padrão TACO" },
+      { label: "Clara de ovo", amount: 33, notes: "Equivalência padrão clara de ovo (33g)" },
       { label: "Gema de ovo", amount: 15, notes: "Equivalência padrão TACO" },
     ],
   },
@@ -442,7 +459,7 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   {
     id: "macarrao-cozido",
     matcher: (norm, cat, prep) =>
-      (norm.includes("macarrao") || norm.includes("pasta") || norm.includes("spaghetti") || norm.includes("penne") || norm.includes("noodle")) &&
+      (norm.includes("macarrao") || (norm.includes("pasta") && !norm.includes("amendoim")) || norm.includes("spaghetti") || norm.includes("penne") || norm.includes("noodle")) &&
       !norm.includes("cru") && !norm.includes("raw") && !norm.includes("dry") && prep !== "Cru",
     portions: [
       { label: "Prato raso", amount: 160, notes: "Equivalência Pinheiro" },
@@ -501,7 +518,7 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
   // -------------------------------------------------------------------------
   {
     id: "requeijao",
-    matcher: (norm) => norm.includes("requeijao") || norm.includes("cream cheese") || norm.includes("cottage"),
+    matcher: (norm) => norm.includes("requeijao") || norm.includes("cream cheese"),
     portions: [
       { label: "Colher de sopa cheia", amount: 30, notes: "Equivalência Pinheiro" },
       { label: "Colher de sopa rasa", amount: 20, notes: "Equivalência Pinheiro" },
@@ -582,6 +599,65 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
     portions: [
       { label: "Ramo / Pedaço médio", amount: 40, notes: "Equivalência Pinheiro" },
       { label: "Xícara de chá", amount: 100, notes: "Equivalência Pinheiro" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 37. CUSCUZ DE MILHO (Preparado no vapor / cozido)
+  // Ref: IBGE/Pinheiro (fatia média 100g, colher de servir 50g, colher sopa 25g)
+  // -------------------------------------------------------------------------
+  {
+    id: "cuscuz-milho",
+    matcher: (norm) =>
+      norm.includes("cuscuz") || norm.includes("flocao") || (norm.includes("milho") && (norm.includes("flocos") || norm.includes("polenta") || norm.includes("pre-cozido"))),
+    portions: [
+      { label: "Fatia / Porção média", amount: 100, notes: "Equivalência porção pronta (100g)" },
+      { label: "Colher de servir cheia", amount: 50, notes: "Equivalência Pinheiro" },
+      { label: "Colher de sopa cheia", amount: 25, notes: "Equivalência Pinheiro" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 38. RAP10 / TORTILHA / PÃO FOLHA
+  // Ref: Fabricante / TACO correspondente (unidade comercial 40g)
+  // -------------------------------------------------------------------------
+  {
+    id: "rap10-tortilha",
+    matcher: (norm) =>
+      norm.includes("rap10") || norm.includes("rap 10") || norm.includes("tortilha") || norm.includes("pao folha") || norm.includes("tortilla"),
+    portions: [
+      { label: "Disco / Unidade", amount: 40, notes: "Equivalência disco comercial Rap10 / tortilha (40g)" },
+      { label: "2 Discos", amount: 80, notes: "Equivalência 2 discos comerciais (80g)" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 39. QUEIJO COTTAGE
+  // Ref: Pinheiro (colher sopa cheia 30g, pote 100g/200g)
+  // -------------------------------------------------------------------------
+  {
+    id: "queijo-cottage",
+    matcher: (norm) => norm.includes("cottage"),
+    portions: [
+      { label: "Colher de sopa cheia", amount: 30, notes: "Equivalência Pinheiro (30g)" },
+      { label: "Pote pequeno", amount: 100, notes: "Equivalência pote individual (100g)" },
+      { label: "Pote comercial", amount: 200, notes: "Equivalência pote comercial (200g)" },
+      { label: "Colher de sobremesa", amount: 15, notes: "Equivalência Pinheiro (15g)" },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // 40. CREATINA MONOHIDRATADA / PURA
+  // Ref: Rótulo padrão dosador 3g e 5g
+  // -------------------------------------------------------------------------
+  {
+    id: "creatina",
+    matcher: (norm) => norm.includes("creatina") || norm.includes("creatine"),
+    portions: [
+      { label: "Dosador / Scoop (3g)", amount: 3, notes: "Dose diária recomendada (3g)" },
+      { label: "Dosador / Scoop (5g)", amount: 5, notes: "Dose diária cheia (5g)" },
+      { label: "Colher de café (3g)", amount: 3, notes: "Equivalência caseira colher de café (3g)" },
+      { label: "Colher de chá rasa (5g)", amount: 5, notes: "Equivalência caseira colher de chá (5g)" },
     ],
   },
 ];

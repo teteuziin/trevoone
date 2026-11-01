@@ -146,6 +146,8 @@ export function cleanPortionLabel(label: string | null | undefined): string {
 export function cleanFoodCatalogDisplayName(name: string | null | undefined): string {
   if (!name || typeof name !== "string") return "";
   let s = name.trim();
+  // Strip lab duration annotations (e.g. /10minutos in UNICAMP egg protocols)
+  s = s.replace(/\/10minutos\b/gi, "");
   // Strip IBGE POF suffixes
   s = s.replace(/\s+de\s+qualquer\s+marca(?:\s+ou\s+sabor)?\b/gi, "");
   // Normalize inverted catalog commas from TACO (e.g. 'Doce, de leite, cremoso' -> 'Doce de leite cremoso')

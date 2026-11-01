@@ -276,15 +276,18 @@ export function NutritionSubstitutionEditor({
       ? generatePracticalRoundingSuggestions(curQtyNum, activeUnitLabel)
       : [];
 
+  const subKcal = substitution.caloriesKcalSnapshot != null ? Math.round(Number(substitution.caloriesKcalSnapshot)) : null;
+  const subP = substitution.proteinGSnapshot != null ? formatQuickMacroDisplay(substitution.proteinGSnapshot) : null;
+  const subC = substitution.carbohydrateGSnapshot != null ? formatQuickMacroDisplay(substitution.carbohydrateGSnapshot) : null;
+  const subG = substitution.fatGSnapshot != null ? formatQuickMacroDisplay(substitution.fatGSnapshot) : null;
+
   return (
-    <div className="pl-3 sm:pl-6 pr-2.5 sm:pr-3 py-2 sm:py-2.5 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/30 hover:border-[var(--brand-primary)]/40 transition-colors w-full max-w-full min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap flex-1 max-w-full">
+    <div className="pl-2.5 sm:pl-4 pr-2 sm:pr-2.5 py-1.5 sm:py-2 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/30 hover:border-[var(--brand-primary)]/40 transition-colors w-full max-w-full min-w-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-1.5 md:gap-2 w-full max-w-full min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap flex-1 max-w-full">
           {substitution.equivalenceCriterion && substitution.equivalenceCriterion !== "MANUAL" ? (
             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shrink-0 uppercase tracking-wide inline-flex items-center gap-1">
-              <span>⇄ Equivalente</span>
-              <span>•</span>
-              <span>{EQUIVALENT_CRITERIA_SHORT_LABELS[substitution.equivalenceCriterion as EquivalentCriterion] || substitution.equivalenceCriterion}</span>
+              <span>⇄ {EQUIVALENT_CRITERIA_SHORT_LABELS[substitution.equivalenceCriterion as EquivalentCriterion] || substitution.equivalenceCriterion}</span>
             </span>
           ) : (
             <span
@@ -294,7 +297,7 @@ export function NutritionSubstitutionEditor({
               OU
             </span>
           )}
-          <span className="text-xs font-medium text-[var(--text-primary)] line-clamp-2 break-words [overflow-wrap:anywhere] min-w-0 flex-1">
+          <span className="text-xs font-medium text-[var(--text-primary)] truncate max-w-[240px] sm:max-w-[320px]" title={substitution.foodNameSnapshot}>
             {cleanFoodCatalogDisplayName(substitution.foodNameSnapshot)}
           </span>
           {substitution.foodId == null && (
@@ -306,7 +309,7 @@ export function NutritionSubstitutionEditor({
           {isLegacyUnresolved && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              REVISÃO NECESSÁRIA · MEDIDA SEM CONVERSÃO
+              Sem conversão
             </span>
           )}
           {substitution.prescribedQuantity != null && (
@@ -388,9 +391,22 @@ export function NutritionSubstitutionEditor({
           )}
         </div>
 
-        {/* Action icons com touch targets acessíveis (mínimo 44px/área de toque) */}
+        {/* Resumo direto de macros em telas md/lg */}
+        {subKcal != null && (
+          <span className="hidden md:inline-flex items-center gap-1 font-mono text-[11px] text-[var(--text-secondary)] shrink-0 ml-auto mr-1">
+            <strong className="text-[var(--brand)] font-semibold">{subKcal} kcal</strong>
+            <span className="text-[var(--text-tertiary)]">·</span>
+            <span>P {subP}g</span>
+            <span className="text-[var(--text-tertiary)]">·</span>
+            <span>C {subC}g</span>
+            <span className="text-[var(--text-tertiary)]">·</span>
+            <span>G {subG}g</span>
+          </span>
+        )}
+
+        {/* Action icons com touch targets acessíveis */}
         {!readOnly && (
-          <div className="flex items-center justify-end gap-1 shrink-0 ml-auto">
+          <div className="flex items-center justify-end gap-0.5 shrink-0 ml-auto md:ml-0">
             {!isEditing && (
               <>
                 {onMoveUp && !isFirst && (

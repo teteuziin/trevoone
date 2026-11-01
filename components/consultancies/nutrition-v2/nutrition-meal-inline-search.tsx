@@ -533,11 +533,31 @@ export function NutritionMealInlineSearch({
                       {cleanFoodCatalogDisplayName(food.displayNamePtBr || food.name)}
                     </span>
 
+                    {food.matchedAlias && (
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                        ({food.matchedAlias})
+                      </span>
+                    )}
+
                     {food.scope === "CONSULTANCY" && (
                       <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold shrink-0 bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
                         Personalizado
                       </span>
                     )}
+
+                    {/* Quick 1-Click Direct Add Shortcut */}
+                    <button
+                      type="button"
+                      disabled={isAdding || isRecentlyAdded}
+                      onClick={() => handleAddFood(food)}
+                      className="px-2 py-0.5 rounded text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-all cursor-pointer inline-flex items-center gap-1 shrink-0 active:scale-95"
+                      title={`Adicionar direto: ${qtyText} ${activePortion ? activePortion.label : unitShort}`}
+                    >
+                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>+ {qtyText} {activePortion ? activePortion.label : unitShort}</span>
+                    </button>
 
                     <button
                       type="button"

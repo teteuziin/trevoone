@@ -377,6 +377,11 @@ export function NutritionFoodPicker({
                             <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] truncate">
                               {cleanFoodCatalogDisplayName(food.displayNamePtBr || food.name)}
                             </span>
+                            {food.matchedAlias && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                                ({food.matchedAlias})
+                              </span>
+                            )}
                             {food.preparationState && (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
                                 {food.preparationState}

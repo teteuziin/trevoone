@@ -184,8 +184,22 @@ export function NutritionMealEditor({
           )}
         </div>
 
-        {/* Right: Collapse toggle + Action menu ⋮ */}
+        {/* Right: Collapse toggle + 1-Click Duplicate + Action menu ⋮ */}
         <div className="flex items-center gap-1 shrink-0">
+          {/* Quick 1-Click Duplicate Button */}
+          {!readOnly && onDuplicateMeal && (
+            <button
+              type="button"
+              title="Duplicar refeição em 1 clique"
+              onClick={onDuplicateMeal}
+              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--brand)] rounded-lg hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+              </svg>
+            </button>
+          )}
+
           {/* Collapse / Expand Toggle */}
           <button
             type="button"

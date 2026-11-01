@@ -38,8 +38,8 @@ console.log("\n[Test 1] buildWhereClause — Unified Search Isolation");
 // Scenario A: Default unified search with consultancyId = 42
 const searchUnified = buildWhereClause({ query: "arroz" }, 42);
 assert.ok(
-  searchUnified.whereClause.includes("(f.source_key = 'TACO' AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE')"),
-  "Must include TACO GLOBAL ACTIVE condition"
+  searchUnified.whereClause.includes("(f.source_key IN ('TACO', 'GROWTH_SUPPLEMENTS') AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE')"),
+  "Must include TACO + GROWTH_SUPPLEMENTS GLOBAL ACTIVE condition"
 );
 assert.ok(
   searchUnified.whereClause.includes("(f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status = 'ACTIVE')"),
@@ -48,13 +48,13 @@ assert.ok(
 assert.ok(!searchUnified.whereClause.includes("USDA"), "Must NOT query USDA in unified search");
 assert.ok(!searchUnified.whereClause.includes("auto_imported_from_reference"), "Must NOT leak auto_imported allowlist");
 assert.strictEqual(searchUnified.params[0], 42, "First parameter must be consultancyId");
-console.log("  ✅ Busca unificada restringe a TACO e alimentos da consultoria 42.");
+console.log("  ✅ Busca unificada restringe a TACO + Suplementos e alimentos da consultoria 42.");
 
 // Scenario B: Empty query with consultancyId = 15
 const searchEmpty = buildWhereClause({}, 15);
 assert.ok(
-  searchEmpty.whereClause.includes("(f.source_key = 'TACO' AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE')"),
-  "Empty query must restrict to TACO"
+  searchEmpty.whereClause.includes("(f.source_key IN ('TACO', 'GROWTH_SUPPLEMENTS') AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE')"),
+  "Empty query must restrict to TACO + GROWTH_SUPPLEMENTS"
 );
 assert.strictEqual(searchEmpty.params[0], 15, "Parameter must be consultancyId");
 console.log("  ✅ Busca sem termo (listagem padrão) restringe a TACO + consultoria 15.");
@@ -62,8 +62,8 @@ console.log("  ✅ Busca sem termo (listagem padrão) restringe a TACO + consult
 // Scenario C: Search without consultancy (public / anonymous fallback)
 const searchNoConsultancy = buildWhereClause({ query: "frango" }, null);
 assert.ok(
-  searchNoConsultancy.whereClause.includes("f.source_key = 'TACO' AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE'"),
-  "Fallback without consultancy must be strictly TACO GLOBAL"
+  searchNoConsultancy.whereClause.includes("f.source_key IN ('TACO', 'GROWTH_SUPPLEMENTS') AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE'"),
+  "Fallback without consultancy must be strictly TACO + GROWTH_SUPPLEMENTS GLOBAL"
 );
 assert.ok(!searchNoConsultancy.whereClause.includes("f.scope = 'CONSULTANCY'"), "Must NOT allow consultancy foods when consultancyId is null");
 console.log("  ✅ Busca sem consultoria selecionada restringe estritamente a TACO GLOBAL.");
@@ -88,8 +88,9 @@ console.log("  ✅ Filtro por CONSULTANCY isola estritamente a consultoria 77.")
 console.log("\n[Test 2] buildFoodSearchOrderClause — Prioridade TACO e Consultoria");
 const { orderClause } = buildFoodSearchOrderClause("banana", ["banana"], true);
 assert.ok(orderClause.includes("WHEN f.source_key = 'TACO' THEN 1"), "TACO must have top priority ranking (1)");
-assert.ok(orderClause.includes("WHEN f.scope = 'CONSULTANCY' THEN 2"), "Consultancy must have ranking 2");
-console.log("  ✅ buildFoodSearchOrderClause prioriza TACO (1) e Consultoria (2).");
+assert.ok(orderClause.includes("WHEN f.source_key = 'GROWTH_SUPPLEMENTS' THEN 2"), "Growth Supplements must have ranking 2");
+assert.ok(orderClause.includes("WHEN f.scope = 'CONSULTANCY' THEN 3"), "Consultancy must have ranking 3");
+console.log("  ✅ buildFoodSearchOrderClause prioriza TACO (1), Suplementos (2) e Consultoria (3).");
 
 // -----------------------------------------------------------------------------
 // Test 3: buildSelectFoodsQuery & buildCountQuery
@@ -98,11 +99,11 @@ console.log("\n[Test 3] buildSelectFoodsQuery & buildCountQuery integridade SQL"
 const selectResult = buildSelectFoodsQuery({ query: "feijao", page: 1, pageSize: 20 }, 42);
 assert.ok(selectResult.fullSql.startsWith("SELECT"), "Must generate SELECT query");
 assert.ok(selectResult.fullSql.includes("LIMIT ? OFFSET ?"), "Must contain limit/offset placeholders");
-assert.ok(selectResult.fullSql.includes("f.source_key = 'TACO'"), "Must contain TACO guard");
+assert.ok(selectResult.fullSql.includes("f.source_key IN ('TACO', 'GROWTH_SUPPLEMENTS')"), "Must contain TACO guard");
 
 const countResult = buildCountQuery({ query: "feijao" }, 42);
 assert.ok(countResult.sql.startsWith("SELECT COUNT(*)"), "Must generate COUNT query");
-assert.ok(countResult.sql.includes("f.source_key = 'TACO'"), "Must contain TACO guard");
+assert.ok(countResult.sql.includes("f.source_key IN ('TACO', 'GROWTH_SUPPLEMENTS')"), "Must contain TACO guard");
 console.log("  ✅ SELECT e COUNT gerados com integridade e guardas TACO.");
 
 // -----------------------------------------------------------------------------

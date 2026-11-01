@@ -500,6 +500,7 @@ export async function searchReferenceCatalogCandidate(
          FROM nutrition_v2_foods f
          WHERE f.status = 'ACTIVE'
            AND f.deleted_at IS NULL
+           AND f.source_key = 'TACO'
            AND (f.normalized_name LIKE ? OR f.normalized_display_name_pt_br LIKE ?)
          LIMIT 10`,
         [`%${cleanCandidate}%`, `%${cleanCandidate}%`]
@@ -552,7 +553,7 @@ export async function searchReferenceCatalogCandidate(
         FROM nutrition_v2_foods f
         LEFT JOIN nutrition_v2_food_portions p
           ON p.food_id = f.id AND p.status = 'ACTIVE' AND p.deleted_at IS NULL
-        WHERE f.status = 'ACTIVE' AND f.deleted_at IS NULL
+        WHERE f.status = 'ACTIVE' AND f.deleted_at IS NULL AND f.source_key = 'TACO'
       `;
       const params: (string | number)[] = [];
 
@@ -611,7 +612,7 @@ export async function searchReferenceCatalogCandidate(
        FROM nutrition_v2_foods f
        WHERE f.status = 'ACTIVE'
          AND f.deleted_at IS NULL
-         AND f.source_key IN ('IBGE_POF_2008_2009', 'USDA_FOUNDATION', 'USDA_FNDDS', 'TACO')
+         AND f.source_key = 'TACO'
          AND (
            f.normalized_name LIKE ?
            OR f.normalized_display_name_pt_br LIKE ?
@@ -619,12 +620,6 @@ export async function searchReferenceCatalogCandidate(
            OR f.display_name_pt_br LIKE ?
          )
        ORDER BY
-         CASE
-           WHEN f.source_key = 'IBGE_POF_2008_2009' THEN 1
-           WHEN f.source_key = 'TACO' THEN 2
-           WHEN f.source_key = 'USDA_FOUNDATION' THEN 3
-           ELSE 4
-         END ASC,
          CHAR_LENGTH(COALESCE(f.display_name_pt_br, f.name)) ASC
        LIMIT 5`,
       [

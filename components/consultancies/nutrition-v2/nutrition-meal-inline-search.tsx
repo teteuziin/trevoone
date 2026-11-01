@@ -6,11 +6,11 @@ import {
   getFoodPortionsForPickerAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
 import type { FoodListItemDto } from "@/lib/nutrition-v2/food-repository";
-import { getDataQualityBadgeInfo } from "@/lib/nutrition-v2/food-search";
 import {
   calculateItemNutrients,
   parseQuantityInput,
   formatQuantityForDisplay,
+  cleanFoodCatalogDisplayName,
 } from "@/lib/nutrition-v2/nutrient-calculator";
 import type { FoodSelectionResult } from "./nutrition-food-picker";
 import {
@@ -46,7 +46,6 @@ export function NutritionMealInlineSearch({
   onClose,
 }: NutritionMealInlineSearchProps) {
   const [query, setQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<"ALL" | "TACO" | "USDA" | "CONSULTANCY">("ALL");
   const [foods, setFoods] = useState<FoodListItemDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, startSearchTransition] = useTransition();
@@ -83,14 +82,14 @@ export function NutritionMealInlineSearch({
     searchInputRef.current?.focus();
   }, []);
 
-  // Fetch foods with debounce and out-of-order race-condition protection
+  // Fetch foods with debounce and out-of-order race-condition protection (unified TACO + Consultancy)
   const fetchFoods = useCallback(
-    async (searchTerm: string, source: "ALL" | "TACO" | "USDA" | "CONSULTANCY") => {
+    async (searchTerm: string) => {
       const currentReqId = ++requestIdRef.current;
       setIsLoading(true);
       try {
         const effectiveQuery = searchTerm.trim() || "arroz";
-        const res = await searchFoodsForPickerAction(slug, effectiveQuery, "ALL", 1, source);
+        const res = await searchFoodsForPickerAction(slug, effectiveQuery, "ALL", 1, "ALL");
         // Discard stale responses from older search requests
         if (currentReqId !== requestIdRef.current) return;
         if (res.success && res.data) {
@@ -112,7 +111,7 @@ export function NutritionMealInlineSearch({
     [slug]
   );
 
-  // Trigger search on mount and on query/filter changes
+  // Trigger search on mount and on query change
   useEffect(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -120,14 +119,14 @@ export function NutritionMealInlineSearch({
 
     debounceTimerRef.current = setTimeout(() => {
       startSearchTransition(() => {
-        fetchFoods(query, sourceFilter);
+        fetchFoods(query);
       });
     }, 220);
 
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [query, sourceFilter, fetchFoods]);
+  }, [query, fetchFoods]);
 
   // Load portions for all visible foods (without blocking on food.portionsCount > 0)
   useEffect(() => {
@@ -427,54 +426,6 @@ export function NutritionMealInlineSearch({
             </button>
           )}
         </div>
-
-        {/* Source Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs scrollbar-none">
-          <button
-            type="button"
-            onClick={() => setSourceFilter("ALL")}
-            className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 transition-colors cursor-pointer ${
-              sourceFilter === "ALL"
-                ? "bg-[var(--brand)] text-white shadow-2xs"
-                : "bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
-            }`}
-          >
-            Todos os catálogos
-          </button>
-          <button
-            type="button"
-            onClick={() => setSourceFilter("TACO")}
-            className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 transition-colors cursor-pointer ${
-              sourceFilter === "TACO"
-                ? "bg-[var(--brand)] text-white shadow-2xs"
-                : "bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
-            }`}
-          >
-            TACO Brasil
-          </button>
-          <button
-            type="button"
-            onClick={() => setSourceFilter("USDA")}
-            className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 transition-colors cursor-pointer ${
-              sourceFilter === "USDA"
-                ? "bg-[var(--brand)] text-white shadow-2xs"
-                : "bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
-            }`}
-          >
-            USDA Internacional
-          </button>
-          <button
-            type="button"
-            onClick={() => setSourceFilter("CONSULTANCY")}
-            className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 transition-colors cursor-pointer ${
-              sourceFilter === "CONSULTANCY"
-                ? "bg-[var(--brand)] text-white shadow-2xs"
-                : "bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
-            }`}
-          >
-            Consultoria
-          </button>
-        </div>
       </div>
 
       {/* Quick Suggestions Chips when query is empty */}
@@ -559,7 +510,6 @@ export function NutritionMealInlineSearch({
               : null,
           });
 
-          const qualityBadge = getDataQualityBadgeInfo(food.dataQuality);
           const isAdding = addingFoodId === food.publicId;
           const isRecentlyAdded = recentlyAddedId === food.publicId;
           const isActive = idx === activeIndex;
@@ -580,31 +530,12 @@ export function NutritionMealInlineSearch({
                 <div className="space-y-0.5 min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] leading-tight">
-                      {food.displayNamePtBr || food.name}
+                      {cleanFoodCatalogDisplayName(food.displayNamePtBr || food.name)}
                     </span>
 
-                    <span
-                      className={`px-1.5 py-0.2 rounded text-[9px] font-semibold shrink-0 ${
-                        food.scope === "GLOBAL"
-                          ? food.sourceKey === "TACO"
-                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                            : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
-                          : "bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20"
-                      }`}
-                    >
-                      {food.scope === "GLOBAL"
-                        ? food.sourceKey === "TACO"
-                          ? "TACO"
-                          : "USDA"
-                        : "Consultoria"}
-                    </span>
-
-                    {qualityBadge && (
-                      <span
-                        title={qualityBadge.title}
-                        className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
-                      >
-                        {qualityBadge.label}
+                    {food.scope === "CONSULTANCY" && (
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold shrink-0 bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
+                        Personalizado
                       </span>
                     )}
 
@@ -812,7 +743,7 @@ export function NutritionMealInlineSearch({
                     <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
                       <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Origem</div>
                       <div className="font-semibold text-[var(--text-primary)]">
-                        {food.scope === "GLOBAL" ? (food.sourceKey === "TACO" ? "Tabela TACO" : "USDA FoodData") : "Consultoria"}
+                        {food.scope === "GLOBAL" ? "Tabela TACO Brasil" : "Alimento da Consultoria"}
                       </div>
                     </div>
                     <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">

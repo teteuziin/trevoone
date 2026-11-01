@@ -1075,14 +1075,11 @@ export function buildFoodSearchOrderClause(
              OR f.normalized_name LIKE '%fruit%' OR f.normalized_name LIKE '%flavored%') THEN 3
       ELSE 1
     END ASC,
-    -- Prioritize analytical laboratory direct data & survey recipe data quality
+    -- Prioritize canonical TACO first, then consultancy custom foods
     CASE
       WHEN f.source_key = 'TACO' THEN 1
-      WHEN f.source_key = 'GROWTH_SUPPLEMENTS' THEN 2
-      WHEN f.source_key = 'IBGE_POF_2008_2009' THEN 3
-      WHEN f.source_key = 'USDA_FOUNDATION' THEN 4
-      WHEN f.source_key = 'USDA_FNDDS' THEN 5
-      ELSE 6
+      WHEN f.scope = 'CONSULTANCY' THEN 2
+      ELSE 3
     END ASC,
     -- Shorter food names tend to be basic primary ingredients rather than complex derivatives
     CHAR_LENGTH(COALESCE(f.display_name_pt_br, f.name)) ASC,
@@ -1201,9 +1198,8 @@ export function buildWhereClause(
   const conditions: string[] = ["f.deleted_at IS NULL"];
   const params: (string | number)[] = [];
 
-  if (targetScope === "GLOBAL") {
-    conditions.push("f.scope = 'GLOBAL' AND f.status = 'ACTIVE'");
-  } else if (targetScope === "CONSULTANCY") {
+  // 1. Status & Scope isolation: Unified search = TACO (Global) + Consultancy custom foods
+  if (filter.source === "CONSULTANCY" || targetScope === "CONSULTANCY") {
     if (consultancyId != null) {
       conditions.push("f.scope = 'CONSULTANCY' AND f.consultancy_id = ?");
       params.push(consultancyId);
@@ -1217,12 +1213,17 @@ export function buildWhereClause(
     } else {
       conditions.push("f.status IN ('ACTIVE', 'ARCHIVED')");
     }
+  } else if (filter.source === "TACO" || targetScope === "GLOBAL") {
+    conditions.push("f.scope = 'GLOBAL' AND f.source_key = 'TACO' AND f.status = 'ACTIVE'");
+  } else if (filter.source === "USDA") {
+    // Prohibited from search results
+    conditions.push("1=0");
   } else {
-    // ALL: GLOBAL ACTIVE + Current Consultancy
+    // UNIFIED SEARCH: TACO Brasil (GLOBAL ACTIVE) + Custom Foods of Current Consultancy
     if (consultancyId != null) {
       if (targetStatus === "ACTIVE") {
         conditions.push(
-          "((f.scope = 'GLOBAL' AND f.status = 'ACTIVE') OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status = 'ACTIVE'))"
+          "((f.source_key = 'TACO' AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE') OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status = 'ACTIVE'))"
         );
         params.push(consultancyId);
       } else if (targetStatus === "ARCHIVED") {
@@ -1230,67 +1231,17 @@ export function buildWhereClause(
         params.push(consultancyId);
       } else {
         conditions.push(
-          "((f.scope = 'GLOBAL' AND f.status = 'ACTIVE') OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status IN ('ACTIVE', 'ARCHIVED')))"
+          "((f.source_key = 'TACO' AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE') OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status IN ('ACTIVE', 'ARCHIVED')))"
         );
         params.push(consultancyId);
       }
     } else {
-      conditions.push("f.scope = 'GLOBAL' AND f.status = 'ACTIVE'");
+      conditions.push("f.source_key = 'TACO' AND f.scope = 'GLOBAL' AND f.status = 'ACTIVE'");
     }
   }
 
-  // Determine effective source tab
-  let effectiveTab: FoodSourceTab | "ALL" = filter.sourceTab || (filter.source === "ALL" ? "ALL" : "TREVO_BRASIL");
-  if (filter.source === "USDA") {
-    effectiveTab = "OTHER_DATABASES";
-  } else if (filter.source === "CONSULTANCY") {
-    effectiveTab = "MY_FOODS";
-  } else if (filter.source === "TACO") {
-    effectiveTab = "TREVO_BRASIL";
-  } else if (filter.source === "ALL") {
-    effectiveTab = filter.sourceTab ? filter.sourceTab : "ALL";
-  }
-
-  if (effectiveTab === "ALL") {
-    // Searches all valid active foods across sources (TACO, USDA, IBGE POF, Branded, Consultancy)
-    conditions.push(`NOT ${OBJECTIVE_INVALID_DATA_SQL_CONDITION}`);
-  } else if (effectiveTab === "TREVO_BRASIL") {
-    // Explicit allowlist: TACO + Approved Commercial Brands + Consultancy custom foods
-    // Strictly blocks unknown future sources, unverified brands (AMAFIL), and raw USDA
-    const brKeysSql = APPROVED_BR_SOURCE_KEYS.map(() => "?").join(", ");
-    if (consultancyId != null) {
-      conditions.push(
-        `(f.source_key IN (${brKeysSql}) OR f.auto_imported_from_reference = 1 OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ?))`
-      );
-      params.push(...APPROVED_BR_SOURCE_KEYS, consultancyId);
-    } else {
-      conditions.push(`(f.source_key IN (${brKeysSql}) OR f.auto_imported_from_reference = 1)`);
-      params.push(...APPROVED_BR_SOURCE_KEYS);
-    }
-
-    // Objective data invalidity guard (physical / structural invariants only)
-    // NOTE: Atwater heuristic auto-hiding is strictly DISABLED per Phase B1.1 Section 4.
-    conditions.push(`NOT ${OBJECTIVE_INVALID_DATA_SQL_CONDITION}`);
-  } else if (effectiveTab === "COMMERCIAL") {
-    // Verified commercial products only: requires BOTH source_type = 'BRANDED' AND approved commercial source_key
-    const commKeysSql = APPROVED_COMMERCIAL_SOURCE_KEYS.map(() => "?").join(", ");
-    conditions.push(`(f.source_type = 'BRANDED' AND f.source_key IN (${commKeysSql}))`);
-    params.push(...APPROVED_COMMERCIAL_SOURCE_KEYS);
-    conditions.push(`NOT ${OBJECTIVE_INVALID_DATA_SQL_CONDITION}`);
-  } else if (effectiveTab === "MY_FOODS") {
-    // Consultancy custom foods only
-    if (consultancyId != null) {
-      conditions.push("f.scope = 'CONSULTANCY' AND f.consultancy_id = ?");
-      params.push(consultancyId);
-    } else {
-      conditions.push("f.scope = 'CONSULTANCY' AND 1=0");
-    }
-  } else if (effectiveTab === "OTHER_DATABASES") {
-    // USDA and international databases
-    const intlKeysSql = INTERNATIONAL_DATABASE_SOURCE_KEYS.map(() => "?").join(", ");
-    conditions.push(`f.source_key IN (${intlKeysSql})`);
-    params.push(...INTERNATIONAL_DATABASE_SOURCE_KEYS);
-  }
+  // Objective data invalidity guard (physical / structural invariants only)
+  conditions.push(`NOT ${OBJECTIVE_INVALID_DATA_SQL_CONDITION}`);
 
   // Text search tokens
   const queryTokens = filter.query ? tokenizeSearchQuery(filter.query) : [];

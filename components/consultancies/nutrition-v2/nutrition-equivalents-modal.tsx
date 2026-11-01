@@ -31,6 +31,7 @@ import {
 import {
   derivePortionUnitCode,
   roundMacro,
+  cleanFoodCatalogDisplayName,
 } from "@/lib/nutrition-v2/nutrient-calculator";
 
 interface NutritionEquivalentsModalProps {
@@ -94,7 +95,7 @@ export function NutritionEquivalentsModal({
     getInitialCriterion(substitutionToReview, prescribedItem)
   );
   const [query, setQuery] = useState("");
-  const [scopeFilter, setScopeFilter] = useState<"ALL" | "GLOBAL" | "CONSULTANCY">("ALL");
+  const scopeFilter = "ALL";
   const [foods, setFoods] = useState<FoodListItemDto[]>(initialFoods || []);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -140,10 +141,10 @@ export function NutritionEquivalentsModal({
     };
   }, [prescribedItem]);
 
-  // Render-phase state sync: Reset to page 1 whenever search query or scope filter changes
-  const [prevSearchSnapshot, setPrevSearchSnapshot] = useState({ query, scopeFilter });
-  if (prevSearchSnapshot.query !== query || prevSearchSnapshot.scopeFilter !== scopeFilter) {
-    setPrevSearchSnapshot({ query, scopeFilter });
+  // Render-phase state sync: Reset to page 1 whenever search query changes
+  const [prevSearchSnapshot, setPrevSearchSnapshot] = useState({ query });
+  if (prevSearchSnapshot.query !== query) {
+    setPrevSearchSnapshot({ query });
     setPage(1);
   }
 
@@ -1023,43 +1024,6 @@ export function NutritionEquivalentsModal({
                 </svg>
               </div>
 
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] text-[var(--text-tertiary)] font-medium mr-1">Origem:</span>
-                <button
-                  type="button"
-                  onClick={() => setScopeFilter("ALL")}
-                  className={`min-h-[32px] px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                    scopeFilter === "ALL"
-                      ? "bg-[var(--surface-sunken)] text-[var(--text-primary)] border border-[var(--border-default)]"
-                      : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-                  }`}
-                >
-                  Todas
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setScopeFilter("GLOBAL")}
-                  className={`min-h-[32px] px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                    scopeFilter === "GLOBAL"
-                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
-                      : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-                  }`}
-                >
-                  Trevo One
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setScopeFilter("CONSULTANCY")}
-                  className={`min-h-[32px] px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                    scopeFilter === "CONSULTANCY"
-                      ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30"
-                      : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-                  }`}
-                >
-                  Minha Consultoria
-                </button>
-              </div>
-
               {/* Top Pagination Controls */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-xs">
@@ -1203,17 +1167,11 @@ export function NutritionEquivalentsModal({
                       <div className="space-y-0.5 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-sm text-[var(--text-primary)]">
-                            {food.displayNamePtBr || food.name}
+                            {cleanFoodCatalogDisplayName(food.displayNamePtBr || food.name)}
                           </span>
-                          {food.scope && (
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                                food.scope === "GLOBAL"
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300"
-                                  : "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300"
-                              }`}
-                            >
-                              {food.scope === "GLOBAL" ? "Trevo One" : "Minha Consultoria"}
+                          {food.scope === "CONSULTANCY" && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-300">
+                              Personalizado
                             </span>
                           )}
                           {food.category && (

@@ -6,11 +6,11 @@ import {
   searchFoodsForPickerAction,
   getFoodPortionsForPickerAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
-import { getDataQualityBadgeInfo } from "@/lib/nutrition-v2/food-search";
 import {
   calculateItemNutrients,
   getSafeStandardUnitsForFood,
   parseQuantityInput,
+  cleanFoodCatalogDisplayName,
 } from "@/lib/nutrition-v2/nutrient-calculator";
 import type { FoodListItemDto, FoodWithPortionsDto } from "@/lib/nutrition-v2/food-repository";
 import { Button } from "@/components/ui/button";
@@ -70,7 +70,6 @@ export function NutritionFoodPicker({
   // Catalog search state
   const [prevInitialQuery, setPrevInitialQuery] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery || "");
-  const [sourceFilter, setSourceFilter] = useState<"ALL" | "TACO" | "USDA" | "CONSULTANCY">("ALL");
 
   if (initialQuery !== prevInitialQuery) {
     setPrevInitialQuery(initialQuery);
@@ -99,15 +98,14 @@ export function NutritionFoodPicker({
   const [customUnitCode, setCustomUnitCode] = useState<string>("UNIDADE");
   const [customNotes, setCustomNotes] = useState<string>("");
 
-  // Debounced search execution with cancellation guard to prevent race conditions
+  // Debounced search execution with cancellation guard to prevent race conditions (unified TACO + Consultancy)
   useEffect(() => {
     if (!isOpen || activeTab !== "CATALOG" || selectedFood) return;
 
     let isCurrent = true;
     const timer = setTimeout(() => {
       startSearchTransition(async () => {
-        const scope = sourceFilter === "CONSULTANCY" ? "CONSULTANCY" : sourceFilter === "ALL" ? "ALL" : "GLOBAL";
-        const res = await searchFoodsForPickerAction(slug, query, scope, page, sourceFilter);
+        const res = await searchFoodsForPickerAction(slug, query, "ALL", page, "ALL");
         if (isCurrent && res.success && res.data) {
           setItems(res.data.items);
           setTotalPages(res.data.totalPages);
@@ -119,7 +117,7 @@ export function NutritionFoodPicker({
       isCurrent = false;
       clearTimeout(timer);
     };
-  }, [isOpen, activeTab, selectedFood, query, sourceFilter, page, slug]);
+  }, [isOpen, activeTab, selectedFood, query, page, slug]);
 
   // Handle food selection
   const handlePickFood = async (foodItem: FoodListItemDto) => {
@@ -312,65 +310,6 @@ export function NutritionFoodPicker({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
-
-                <div className="flex gap-1.5 overflow-x-auto text-xs pb-1 scrollbar-none">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSourceFilter("ALL");
-                      setPage(1);
-                    }}
-                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold shrink-0 ${
-                      sourceFilter === "ALL"
-                        ? "bg-[var(--brand)] text-white"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-                    }`}
-                  >
-                    Todos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSourceFilter("TACO");
-                      setPage(1);
-                    }}
-                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold shrink-0 ${
-                      sourceFilter === "TACO"
-                        ? "bg-[var(--brand)] text-white"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-                    }`}
-                  >
-                    TACO (Brasil)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSourceFilter("USDA");
-                      setPage(1);
-                    }}
-                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold shrink-0 ${
-                      sourceFilter === "USDA"
-                        ? "bg-[var(--brand)] text-white"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-                    }`}
-                  >
-                    USDA (EUA)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSourceFilter("CONSULTANCY");
-                      setPage(1);
-                    }}
-                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold shrink-0 ${
-                      sourceFilter === "CONSULTANCY"
-                        ? "bg-[var(--brand)] text-white"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-                    }`}
-                  >
-                    Minha Consultoria
-                  </button>
-                </div>
               </div>
 
               {/* Food List */}
@@ -436,7 +375,7 @@ export function NutritionFoodPicker({
                         <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] truncate">
-                              {food.displayNamePtBr || food.name}
+                              {cleanFoodCatalogDisplayName(food.displayNamePtBr || food.name)}
                             </span>
                             {food.preparationState && (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
@@ -453,39 +392,11 @@ export function NutritionFoodPicker({
                                 Dados incompletos
                               </span>
                             )}
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${
-                                food.scope === "GLOBAL"
-                                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                                  : "bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20"
-                              }`}
-                            >
-                              {food.scope === "GLOBAL"
-                                ? food.sourceKey?.startsWith("USDA")
-                                  ? "USDA"
-                                  : food.sourceKey === "TACO"
-                                  ? "TACO"
-                                  : "Trevo One"
-                                : "Consultoria"}
-                            </span>
-                            {(() => {
-                              const badge = getDataQualityBadgeInfo(food.dataQuality);
-                              if (!badge) return null;
-                              return (
-                                <span
-                                  title={badge.title}
-                                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
-                                    badge.variant === "analytical"
-                                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                                      : badge.variant === "review"
-                                      ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
-                                      : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
-                                  }`}
-                                >
-                                  {badge.label}
-                                </span>
-                              );
-                            })()}
+                            {food.scope === "CONSULTANCY" && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
+                                Personalizado
+                              </span>
+                            )}
                           </div>
 
                           {food.matchedAlias && (
@@ -609,41 +520,13 @@ export function NutritionFoodPicker({
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-bold text-sm text-[var(--text-primary)]">
-                        {selectedFood.displayNamePtBr || selectedFood.name}
+                        {cleanFoodCatalogDisplayName(selectedFood.displayNamePtBr || selectedFood.name)}
                       </h3>
-                      <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                          selectedFood.scope === "GLOBAL"
-                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                            : "bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20"
-                        }`}
-                      >
-                        {selectedFood.scope === "GLOBAL"
-                          ? selectedFood.sourceKey?.startsWith("USDA")
-                            ? "USDA"
-                            : selectedFood.sourceKey === "TACO"
-                            ? "TACO"
-                            : "Trevo One"
-                          : "Consultoria"}
-                      </span>
-                      {(() => {
-                        const badge = getDataQualityBadgeInfo(selectedFood.dataQuality);
-                        if (!badge) return null;
-                        return (
-                          <span
-                            title={badge.title}
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                              badge.variant === "analytical"
-                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                              : badge.variant === "review"
-                              ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
-                              : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
-                            }`}
-                          >
-                            {badge.label}
-                          </span>
-                        );
-                      })()}
+                      {selectedFood.scope === "CONSULTANCY" && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
+                          Personalizado
+                        </span>
+                      )}
                     </div>
                     {Boolean(selectedFood.displayNamePtBr) &&
                       selectedFood.name &&

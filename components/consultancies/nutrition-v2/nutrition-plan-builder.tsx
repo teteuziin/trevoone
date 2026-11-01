@@ -56,7 +56,7 @@ import { NutritionFoodPicker, type FoodSelectionResult } from "./nutrition-food-
 import { NutritionManualFoodModal } from "./nutrition-manual-food-modal";
 import type { AddSubstitutionInput } from "@/lib/nutrition-v2/plan-repository";
 import type { PendingPublicationItem } from "@/lib/nutrition-v2/validation";
-import { scaleItemSnapshots, calculateMealTotals, calculatePlanTotals, calculateDailySummary, detectPlanDays, filterMealsBySelectedDay, type DailyNutritionalSummary, type PlanDayInfo } from "@/lib/nutrition-v2/nutrient-calculator";
+import { scaleItemSnapshots, calculateMealTotals, calculatePlanTotals, calculateDailySummary, detectPlanDays, filterMealsBySelectedDay, formatQuickMacroDisplay, type DailyNutritionalSummary, type PlanDayInfo } from "@/lib/nutrition-v2/nutrient-calculator";
 
 export interface PatientBuilderContext {
   studentMembershipPublicId: string;
@@ -1267,7 +1267,7 @@ export function NutritionPlanBuilder({
                     <option value="" disabled>Ir para refeição...</option>
                     {tree.meals.map((m) => (
                       <option key={m.publicId} value={`meal-${m.publicId}`}>
-                        {m.title} ({m.mealTotals.caloriesKcal} kcal)
+                        {m.title} ({Math.round(m.mealTotals.caloriesKcal)} kcal)
                       </option>
                     ))}
                   </select>
@@ -1975,10 +1975,10 @@ export function NutritionPlanBuilder({
                       <tr key={m.publicId} className="hover:bg-[var(--surface-hover)]">
                         <td className="py-2 px-3 font-semibold text-[var(--text-primary)]">{m.title}</td>
                         <td className="py-2 px-3 text-[var(--text-secondary)]">{m.scheduledTime || "—"}</td>
-                        <td className="py-2 px-3 text-right font-bold text-[var(--brand)]">{m.caloriesKcal}</td>
-                        <td className="py-2 px-3 text-right text-[var(--text-primary)]">{m.proteinG}g</td>
-                        <td className="py-2 px-3 text-right text-[var(--text-primary)]">{m.carbohydrateG}g</td>
-                        <td className="py-2 px-3 text-right text-[var(--text-primary)]">{m.fatG}g</td>
+                        <td className="py-2 px-3 text-right font-bold text-[var(--brand)]">{Math.round(m.caloriesKcal)}</td>
+                        <td className="py-2 px-3 text-right text-[var(--text-primary)]">{formatQuickMacroDisplay(m.proteinG)}g</td>
+                        <td className="py-2 px-3 text-right text-[var(--text-primary)]">{formatQuickMacroDisplay(m.carbohydrateG)}g</td>
+                        <td className="py-2 px-3 text-right text-[var(--text-primary)]">{formatQuickMacroDisplay(m.fatG)}g</td>
                         <td className="py-2 px-3 text-right text-[var(--text-secondary)]">{m.percentOfDay}%</td>
                       </tr>
                     ))}

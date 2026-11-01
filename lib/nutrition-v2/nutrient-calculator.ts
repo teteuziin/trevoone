@@ -1275,7 +1275,8 @@ export function evaluateNutrientCompleteness(
     };
   }
 
-  const value = Math.round(rawSum * 100) / 100;
+  const value = unit === "kcal" ? Math.round(rawSum) : Math.round(rawSum * 10) / 10;
+  const formattedVal = formatQuickMacroDisplay(value);
 
   // Case 2: Partial data (some items known, some missing)
   if (missingItemCount > 0) {
@@ -1286,7 +1287,7 @@ export function evaluateNutrientCompleteness(
       totalItemCount,
       missingItemCount,
       status: "PARTIAL",
-      displayText: `${value} ${unit}`,
+      displayText: `${formattedVal} ${unit}`,
       completenessText: `Subtotal calculado (${missingItemCount} sem info)`,
       isPartial: true,
       isComplete: false,
@@ -1302,7 +1303,7 @@ export function evaluateNutrientCompleteness(
     totalItemCount,
     missingItemCount: 0,
     status: "COMPLETE",
-    displayText: `${value} ${unit}`,
+    displayText: `${formattedVal} ${unit}`,
     completenessText: "Total completo",
     isPartial: false,
     isComplete: true,

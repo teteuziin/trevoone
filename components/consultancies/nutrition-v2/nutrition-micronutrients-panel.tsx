@@ -291,7 +291,7 @@ export function NutritionMicronutrientsPanel({
       {/* Footnote */}
       <div className="pt-2 text-[10px] text-[var(--text-tertiary)] leading-relaxed border-t border-[var(--border-subtle)]">
         <span>
-          ℹ️ <strong>Valores calculados:</strong> Proporcionais à quantidade prescrita e fontes oficiais (TACO, USDA, IBGE). Nutrientes marcados com &ldquo;—&rdquo; não possuem dados informados na fonte.
+          ℹ️ <strong>Valores calculados:</strong> Proporcionais à quantidade prescrita e base oficial (Tabela TACO Brasil e alimentos da consultoria). Nutrientes marcados com &ldquo;—&rdquo; não possuem dados informados na fonte.
         </span>
       </div>
     </div>

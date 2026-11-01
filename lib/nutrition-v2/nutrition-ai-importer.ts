@@ -69,7 +69,6 @@ import { detectMealSectionHeaders, type DocumentInput } from "../ai/openai-clien
 import type { RawNutritionImportProposal } from "../ai/schemas";
 import { recordConsultancyActivity } from "../consultancies/activity-log";
 import { normalizeSearchText, USER_SEARCH_ALIASES, getPortugueseWordRoots } from "./food-search";
-import { searchExternalFoodSource, autoIngestExternalFood, isUsdaApiConfigured } from "./external-food-source";
 import {
   searchReferenceCatalogCandidate,
   autoPromoteReferenceFood,
@@ -575,8 +574,7 @@ export async function matchFoodCandidate(
        WHERE f.status = 'ACTIVE'
          AND f.deleted_at IS NULL
          AND (
-           f.source_key IN ('TACO', 'GROWTH_SUPPLEMENTS')
-           OR f.auto_imported_from_reference = 1
+           (f.source_key = 'TACO' AND f.scope = 'GLOBAL')
            OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ?)
          )`,
       [consultancyId]
@@ -1358,207 +1356,7 @@ export async function matchFoodCandidate(
       }
     }
 
-    // 5. TIER 5: USDA FOUNDATION & FNDDS LOCAL DATABASE (Zero Network, Zero API Key)
-    // Searches records from USDA_FOUNDATION and USDA_FNDDS already present in MySQL nutrition_v2_foods
-    const usdaCandidateRows = rows.filter(
-      (r) => r.source_key === "USDA_FOUNDATION" || r.source_key === "USDA_FNDDS"
-    );
-
-    const USDA_SYNONYM_PAIRS: Record<string, string[]> = {
-      "pasta de amendoim": ["creme de amendoim", "manteiga de amendoim", "peanut butter"],
-      "creme de amendoim": ["pasta de amendoim", "peanut butter"],
-      "manteiga de amendoim": ["pasta de amendoim", "peanut butter"],
-      "queijo cottage": ["cottage", "cottage cheese"],
-      "cottage": ["queijo cottage", "cottage cheese"],
-      "cottage cheese": ["queijo cottage", "cottage"],
-      "edamame": ["edamame"],
-      "tofu": ["tofu"],
-      "quinoa cozida": ["quinoa sem adicao de gordura", "quinoa"],
-      "quinoa": ["quinoa"],
-      "hummus": ["homus", "hummus"],
-      "homus": ["hummus", "homus"],
-      "xarope de bordo": ["maple syrup", "syrup maple"],
-      "maple syrup": ["xarope de bordo", "syrup maple"],
-      "leite de amendoas": ["almond milk", "bebida de amendoa"],
-      "leite de amendoa": ["almond milk", "bebida de amendoa"],
-      "leite de aveia": ["oat milk", "bebida de aveia"],
-      "leite de soja": ["soy milk", "bebida de soja"],
-      "cranberry": ["cranberry"],
-      "blueberry": ["blueberry", "mirtilo"],
-      "mirtilo": ["blueberry"],
-      "aspargos": ["asparagus", "aspargo"],
-      "aspargo": ["asparagus"],
-    };
-
-    const usdaSearchKeys = new Set<string>([cleanCandidate, normCandidate]);
-    if (USDA_SYNONYM_PAIRS[cleanCandidate]) {
-      for (const syn of USDA_SYNONYM_PAIRS[cleanCandidate]) {
-        usdaSearchKeys.add(cleanPunctuation(normalizeSearchText(syn)));
-      }
-    }
-    for (const [ptKey, synList] of Object.entries(USDA_SYNONYM_PAIRS)) {
-      if (cleanCandidate.includes(ptKey)) {
-        for (const syn of synList) {
-          usdaSearchKeys.add(cleanPunctuation(normalizeSearchText(syn)));
-        }
-      }
-    }
-
-    const usdaMatchedRows: RowDataPacket[] = [];
-    for (const r of usdaCandidateRows) {
-      const normPt = cleanPunctuation(normalizeSearchText(String(r.display_name_pt_br || r.display_name)));
-      const normEn = cleanPunctuation(normalizeSearchText(String(r.original_name || r.name)));
-
-      for (const sk of usdaSearchKeys) {
-        if (sk.length < 3) continue;
-        if (normPt === sk || normEn === sk) {
-          usdaMatchedRows.push(r);
-          break;
-        }
-        if (normPt.startsWith(sk) || normEn.startsWith(sk)) {
-          usdaMatchedRows.push(r);
-          break;
-        }
-        if (new RegExp(`\\b${sk}\\b`, "i").test(normPt) || new RegExp(`\\b${sk}\\b`, "i").test(normEn)) {
-          usdaMatchedRows.push(r);
-          break;
-        }
-      }
-    }
-
-    if (usdaMatchedRows.length > 0) {
-      // Prioritize preparation if requested
-      let filteredUsda = usdaMatchedRows;
-      if (requestedPrep) {
-        const prepFiltered = usdaMatchedRows.filter((r) => {
-          const pt = normalizeSearchText(String(r.display_name_pt_br || r.display_name));
-          const en = normalizeSearchText(String(r.original_name || r.name));
-          return (
-            new RegExp(`\\b${requestedPrep}\\b`, "i").test(pt) ||
-            (requestedPrep === "cozido" && en.includes("cooked"))
-          );
-        });
-        if (prepFiltered.length > 0) filteredUsda = prepFiltered;
-      }
-
-      if (cleanCandidate === "pasta de amendoim" || cleanCandidate.includes("amendoim")) {
-        const purePeanut =
-          filteredUsda.find(
-            (r) =>
-              cleanPunctuation(normalizeSearchText(String(r.original_name || r.name))) ===
-              "peanut butter creamy"
-          ) ||
-          filteredUsda.find((r) =>
-            cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("creme de amendoim")
-          );
-        if (purePeanut) {
-          const matched = mapCandidateObj(purePeanut);
-          return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
-        }
-      }
-
-      if (cleanCandidate.includes("cottage")) {
-        const lowfatCottage =
-          filteredUsda.find((r) => String(r.original_name || r.name).includes("lowfat, 2%")) ||
-          filteredUsda[0];
-        if (lowfatCottage) {
-          const matched = mapCandidateObj(lowfatCottage);
-          return {
-            status: "MATCHED",
-            matched,
-            candidates: filteredUsda.slice(0, 10).map(mapCandidateObj),
-            provenance: "LOCAL_MATCHED",
-          };
-        }
-      }
-
-      if (cleanCandidate.includes("quinoa")) {
-        const cookedQuinoa =
-          filteredUsda.find(
-            (r) =>
-              cleanPunctuation(normalizeSearchText(String(r.original_name || r.name))) ===
-              "quinoa no added fat"
-          ) ||
-          filteredUsda.find((r) => String(r.original_name || r.name).includes("Quinoa")) ||
-          filteredUsda[0];
-        if (cookedQuinoa) {
-          const matched = mapCandidateObj(cookedQuinoa);
-          return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
-        }
-      }
-
-      if (cleanCandidate.includes("homus") || cleanCandidate.includes("hummus")) {
-        const plainHummus =
-          filteredUsda.find(
-            (r) =>
-              cleanPunctuation(normalizeSearchText(String(r.original_name || r.name))) ===
-              "hummus plain"
-          ) || filteredUsda[0];
-        if (plainHummus) {
-          const matched = mapCandidateObj(plainHummus);
-          return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
-        }
-      }
-
-      if (
-        cleanCandidate.includes("amendoa") &&
-        (cleanCandidate.includes("leite") || cleanCandidate.includes("bebida"))
-      ) {
-        const almondMilk =
-          filteredUsda.find((r) => String(r.original_name || r.name).includes("unsweetened, plain")) ||
-          filteredUsda[0];
-        if (almondMilk) {
-          const matched = mapCandidateObj(almondMilk);
-          return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
-        }
-      }
-
-      // Prefer Foundation Analytical Gold or first canonical
-      const canonicalUsda =
-        filteredUsda.find((r) => r.source_key === "USDA_FOUNDATION") || filteredUsda[0];
-      const matched = mapCandidateObj(canonicalUsda);
-      return {
-        status: "MATCHED",
-        matched,
-        candidates: filteredUsda.slice(0, 10).map(mapCandidateObj),
-        provenance: "LOCAL_MATCHED",
-      };
-    }
-
-    // 6. TIER 6: OPTIONAL EXTERNAL NUTRITIONAL SOURCE (USDA Online API - optional fallback)
-    if (isUsdaApiConfigured()) {
-      const externalResult = await searchExternalFoodSource(candidateName, { requestedPrep });
-      if (externalResult.status === "FOUND" && externalResult.candidates.length > 0) {
-        const top = externalResult.candidates[0];
-        if (top.confidence === "HIGH") {
-          const ingested = await autoIngestExternalFood(consultancyId, top);
-          return {
-            status: "MATCHED",
-            matched: ingested,
-            candidates: [ingested],
-            provenance: "EXTERNAL_IMPORTED",
-          };
-        } else {
-          const mappedCandidates: MatchedFoodCandidate[] = externalResult.candidates.map((c) => ({
-            foodPublicId: c.sourceUid,
-            name: c.displayNamePtBr,
-            sourceType: "EXTERNAL_USDA",
-            caloriesKcal: c.caloriesKcal,
-            proteinG: c.proteinG,
-            carbsG: c.carbsG,
-            fatG: c.fatG,
-            fiberG: c.fiberG,
-            referenceAmount: c.referenceAmount,
-            referenceUnitCode: c.referenceUnitCode,
-          }));
-          return {
-            status: "AMBIGUOUS",
-            candidates: mappedCandidates.slice(0, 10),
-            provenance: "NEEDS_REVIEW",
-          };
-        }
-      }
-    }
+    // Tiers 5 & 6 (USDA Local & External API) removed: platform operates exclusively with TACO & Consultancy custom foods.
 
     // TIER: REFERENCE FOOD CATALOG AUTO-ENRICHMENT (IBGE POF, USDA Foundation, USDA FNDDS)
     const refResult = await searchReferenceCatalogCandidate(candidateName);

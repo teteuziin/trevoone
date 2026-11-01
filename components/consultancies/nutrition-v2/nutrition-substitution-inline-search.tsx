@@ -22,8 +22,8 @@ import {
   calculateItemNutrients,
   parseQuantityInput,
   formatQuantityForDisplay,
+  cleanFoodCatalogDisplayName,
 } from "@/lib/nutrition-v2/nutrient-calculator";
-import { getDataQualityBadgeInfo } from "@/lib/nutrition-v2/food-search";
 import {
   NutritionCustomMeasureModal,
   type FoodPortionOption,
@@ -77,7 +77,6 @@ export function NutritionSubstitutionInlineSearch({
     () => getInitialCriterion(prescribedItem)
   );
   const [query, setQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<"ALL" | "TACO" | "USDA" | "CONSULTANCY">("ALL");
   const [foods, setFoods] = useState<FoodListItemDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, startSearchTransition] = useTransition();
@@ -137,14 +136,14 @@ export function NutritionSubstitutionInlineSearch({
     searchInputRef.current?.focus();
   }, []);
 
-  // Fetch candidate foods with debounce and race-condition guard
+  // Fetch candidate foods with debounce and race-condition guard (unified TACO + Consultancy)
   const fetchFoods = useCallback(
-    async (searchTerm: string, source: "ALL" | "TACO" | "USDA" | "CONSULTANCY") => {
+    async (searchTerm: string) => {
       const currentReqId = ++requestIdRef.current;
       setIsLoading(true);
       try {
         const effectiveQuery = searchTerm.trim() || quickSuggestions[0] || "batata";
-        const res = await searchFoodsForPickerAction(slug, effectiveQuery, "ALL", 1, source);
+        const res = await searchFoodsForPickerAction(slug, effectiveQuery, "ALL", 1, "ALL");
         if (currentReqId !== requestIdRef.current) return;
         if (res.success && res.data) {
           // Filter out the base food itself from candidates
@@ -174,14 +173,14 @@ export function NutritionSubstitutionInlineSearch({
     }
     debounceTimerRef.current = setTimeout(() => {
       startSearchTransition(() => {
-        fetchFoods(query, sourceFilter);
+        fetchFoods(query);
       });
     }, 220);
 
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [query, sourceFilter, fetchFoods]);
+  }, [query, fetchFoods]);
 
   // Load portions for all candidate foods
   useEffect(() => {
@@ -478,34 +477,6 @@ export function NutritionSubstitutionInlineSearch({
           )}
         </div>
 
-        {/* Source Catalog Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs no-scrollbar">
-          {(
-            [
-              { key: "ALL", label: "Todos os catálogos" },
-              { key: "TACO", label: "TACO Brasil" },
-              { key: "USDA", label: "USDA Internacional" },
-              { key: "CONSULTANCY", label: "Consultoria" },
-            ] as const
-          ).map((src) => {
-            const isActive = sourceFilter === src.key;
-            return (
-              <button
-                key={src.key}
-                type="button"
-                onClick={() => setSourceFilter(src.key)}
-                className={`px-2.5 py-0.5 rounded-lg font-semibold shrink-0 transition-colors cursor-pointer text-[11px] ${
-                  isActive
-                    ? "bg-[var(--brand)] text-white shadow-2xs"
-                    : "bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
-                }`}
-              >
-                {src.label}
-              </button>
-            );
-          })}
-        </div>
-
         {/* Quick Suggestions when query is empty */}
         {!query && (
           <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
@@ -649,7 +620,6 @@ export function NutritionSubstitutionInlineSearch({
             }
           }
 
-          const qualityBadge = getDataQualityBadgeInfo(food.dataQuality);
           const isSubmitting = submittingFoodId === food.publicId;
           const isRecentlyAdded = recentlyAddedId === food.publicId;
           const isDetailsOpen = expandedDetailsId === food.publicId;
@@ -668,31 +638,12 @@ export function NutritionSubstitutionInlineSearch({
                 <div className="space-y-0.5 min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] leading-tight">
-                      {food.displayNamePtBr || food.name}
+                      {cleanFoodCatalogDisplayName(food.displayNamePtBr || food.name)}
                     </span>
 
-                    <span
-                      className={`px-1.5 py-0.2 rounded text-[9px] font-semibold shrink-0 ${
-                        food.scope === "GLOBAL"
-                          ? food.sourceKey === "TACO"
-                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                            : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
-                          : "bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20"
-                      }`}
-                    >
-                      {food.scope === "GLOBAL"
-                        ? food.sourceKey === "TACO"
-                          ? "TACO"
-                          : "USDA"
-                        : "Consultoria"}
-                    </span>
-
-                    {qualityBadge && (
-                      <span
-                        title={qualityBadge.title}
-                        className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
-                      >
-                        {qualityBadge.label}
+                    {food.scope === "CONSULTANCY" && (
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold shrink-0 bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
+                        Personalizado
                       </span>
                     )}
 

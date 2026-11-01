@@ -67,8 +67,6 @@ function NutrientRow({ detail }: { detail: MicronutrientTotalDetail }) {
     quantifiedItemCount,
     traceItemCount,
     hasTrace,
-    hasUnknown,
-    totalItemCount,
   } = detail;
 
   // Determine value display state:
@@ -76,10 +74,8 @@ function NutrientRow({ detail }: { detail: MicronutrientTotalDetail }) {
   // KNOWN_ZERO -> show 0 with unit
   // TRACE -> show "Traços"
   // UNKNOWN -> show "—" (NEVER 0)
-  const isQuantified = quantifiedItemCount > 0;
   const isPureTrace = quantifiedItemCount === 0 && hasTrace;
   const isUnknown = quantifiedItemCount === 0 && !hasTrace;
-  const isPartial = isQuantified && hasUnknown && totalItemCount > 1;
 
   return (
     <div className="flex items-center justify-between py-2.5 px-3 hover:bg-[var(--surface-subtle)] rounded-xl transition-colors border-b border-[var(--border-subtle)] last:border-b-0 gap-3">
@@ -87,14 +83,6 @@ function NutrientRow({ detail }: { detail: MicronutrientTotalDetail }) {
         <span className="text-xs font-semibold text-[var(--text-primary)] truncate" title={namePtBr}>
           {namePtBr}
         </span>
-        {isPartial && (
-          <span
-            className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0 cursor-help"
-            title={`Subtotal parcial: ${quantifiedItemCount} de ${totalItemCount} alimentos com dado nesta fonte`}
-          >
-            Dados parciais
-          </span>
-        )}
       </div>
 
       <div className="text-right shrink-0">
@@ -190,6 +178,12 @@ export function NutritionMicronutrientsPanel({
 
   const content = (
     <div className="space-y-4">
+      {/* Informative Notice (replaces noisy per-row badges) */}
+      <div className="px-3 py-2 rounded-xl bg-[var(--surface-subtle)] text-[11px] text-[var(--text-tertiary)] border border-[var(--border-subtle)] flex items-center gap-2">
+        <span className="shrink-0">ℹ️</span>
+        <span>Valores calculados com base nos alimentos que possuem laudo de micronutrientes na TACO.</span>
+      </div>
+
       {/* Category Tabs & Quick Search */}
       <div className="space-y-2">
         <div className="flex items-center gap-1.5 flex-wrap">

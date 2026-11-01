@@ -156,11 +156,6 @@ export function NutritionMealEditor({
             <span className="font-bold text-[var(--brand)]">
               {Math.round(meal.mealTotals.caloriesKcal || 0)} kcal
             </span>
-            {meal.mealTotals.hasIncompleteData && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                Subtotal parcial
-              </span>
-            )}
             <span className="text-[var(--text-tertiary)]">·</span>
             <span>
               P {formatQuickMacroDisplay(meal.mealTotals.proteinG)}g
@@ -177,11 +172,6 @@ export function NutritionMealEditor({
               {meal.mealTotals.missingFatCount > 0 && <span className="text-amber-500 font-bold ml-0.5">*</span>}
             </span>
           </div>
-          {meal.mealTotals.hasIncompleteData && (
-            <span className="sm:hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-              Subtotal parcial
-            </span>
-          )}
         </div>
 
         {/* Right: Collapse toggle + 1-Click Duplicate + Action menu ⋮ */}
@@ -340,11 +330,6 @@ export function NutritionMealEditor({
             <span className="font-bold text-[var(--brand)] shrink-0">
               {Math.round(meal.mealTotals.caloriesKcal || 0)} kcal
             </span>
-            {meal.mealTotals.hasIncompleteData && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
-                Subtotal parcial
-              </span>
-            )}
             <span className="text-[var(--text-tertiary)]">·</span>
             <span className="text-[var(--text-muted)] text-[11px]">
               P {formatQuickMacroDisplay(meal.mealTotals.proteinG)}g • C {formatQuickMacroDisplay(meal.mealTotals.carbohydrateG)}g • G {formatQuickMacroDisplay(meal.mealTotals.fatG)}g

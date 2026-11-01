@@ -93,9 +93,6 @@ export function NutritionSubstitutionInlineSearch({
   const [submittingFoodId, setSubmittingFoodId] = useState<string | null>(null);
   const [recentlyAddedId, setRecentlyAddedId] = useState<string | null>(null);
 
-  // Optional expanded details per food
-  const [expandedDetailsId, setExpandedDetailsId] = useState<string | null>(null);
-
   // Custom measure modal trigger
   const [customMeasureFood, setCustomMeasureFood] = useState<FoodListItemDto | null>(null);
 
@@ -622,7 +619,6 @@ export function NutritionSubstitutionInlineSearch({
 
           const isSubmitting = submittingFoodId === food.publicId;
           const isRecentlyAdded = recentlyAddedId === food.publicId;
-          const isDetailsOpen = expandedDetailsId === food.publicId;
 
           return (
             <div
@@ -646,15 +642,6 @@ export function NutritionSubstitutionInlineSearch({
                         Personalizado
                       </span>
                     )}
-
-                    <button
-                      type="button"
-                      onClick={() => setExpandedDetailsId(isDetailsOpen ? null : food.publicId)}
-                      className="px-1.5 py-0.2 rounded text-[9px] font-medium text-[var(--text-tertiary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
-                      title="Ver detalhes complementares deste alimento"
-                    >
-                      {isDetailsOpen ? "Ocultar detalhes" : "Detalhes"}
-                    </button>
                   </div>
 
                   {/* Macros in one row + Compact Rounding Difference */}
@@ -829,54 +816,6 @@ export function NutritionSubstitutionInlineSearch({
                   </button>
                 </div>
               </div>
-
-              {/* Optional Discrete Details / Comparison Drawer */}
-              {isDetailsOpen && (
-                <div className="mt-2 p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs space-y-1.5 animate-in fade-in duration-100">
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-[var(--text-secondary)]">
-                    <span>Comparativo Nutricional: Base vs Substituto</span>
-                    <span className="text-[var(--text-tertiary)]">{food.category || "Geral"}</span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
-                    <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
-                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Calorias</div>
-                      <div className="font-semibold text-[var(--text-primary)]">
-                        {liveNutrients.caloriesKcal != null ? `${liveNutrients.caloriesKcal} kcal` : "—"}
-                      </div>
-                      <div className="text-[10px] text-[var(--text-muted)]">
-                        Base: {prescribedItem.caloriesKcalSnapshot != null ? `${prescribedItem.caloriesKcalSnapshot} kcal` : "—"}
-                      </div>
-                    </div>
-                    <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
-                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Proteína</div>
-                      <div className="font-semibold text-[var(--text-primary)]">
-                        {liveNutrients.proteinG != null ? `${liveNutrients.proteinG}g` : "—"}
-                      </div>
-                      <div className="text-[10px] text-[var(--text-muted)]">
-                        Base: {prescribedItem.proteinGSnapshot != null ? `${prescribedItem.proteinGSnapshot}g` : "—"}
-                      </div>
-                    </div>
-                    <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
-                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Carboidrato</div>
-                      <div className="font-semibold text-[var(--text-primary)]">
-                        {liveNutrients.carbohydrateG != null ? `${liveNutrients.carbohydrateG}g` : "—"}
-                      </div>
-                      <div className="text-[10px] text-[var(--text-muted)]">
-                        Base: {prescribedItem.carbohydrateGSnapshot != null ? `${prescribedItem.carbohydrateGSnapshot}g` : "—"}
-                      </div>
-                    </div>
-                    <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
-                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Gordura</div>
-                      <div className="font-semibold text-[var(--text-primary)]">
-                        {liveNutrients.fatG != null ? `${liveNutrients.fatG}g` : "—"}
-                      </div>
-                      <div className="text-[10px] text-[var(--text-muted)]">
-                        Base: {prescribedItem.fatGSnapshot != null ? `${prescribedItem.fatGSnapshot}g` : "—"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}

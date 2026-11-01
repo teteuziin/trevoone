@@ -56,7 +56,7 @@ import { NutritionFoodPicker, type FoodSelectionResult } from "./nutrition-food-
 import { NutritionManualFoodModal } from "./nutrition-manual-food-modal";
 import type { AddSubstitutionInput } from "@/lib/nutrition-v2/plan-repository";
 import type { PendingPublicationItem } from "@/lib/nutrition-v2/validation";
-import { scaleItemSnapshots, calculateMealTotals, calculatePlanTotals, calculateDailySummary, detectPlanDays, filterMealsBySelectedDay, formatQuickMacroDisplay, type DailyNutritionalSummary, type PlanDayInfo } from "@/lib/nutrition-v2/nutrient-calculator";
+import { scaleItemSnapshots, calculateMealTotals, calculatePlanTotals, calculateDailySummary, detectPlanDays, filterMealsBySelectedDay, type DailyNutritionalSummary, type PlanDayInfo } from "@/lib/nutrition-v2/nutrient-calculator";
 
 export interface PatientBuilderContext {
   studentMembershipPublicId: string;
@@ -157,8 +157,8 @@ export function NutritionPlanBuilder({
   );
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
 
-  // Tabs: Montagem, Análise, Orientações
-  const [activeTab, setActiveTab] = useState<"BUILDER" | "ANALYSIS" | "GUIDANCE">("BUILDER");
+  // Tabs: Cardápio, Orientações
+  const [activeTab, setActiveTab] = useState<"BUILDER" | "GUIDANCE">("BUILDER");
 
   // Day group tabs: "ALL_DAYS" default
   const [selectedDayTab, setSelectedDayTab] = useState<string>("ALL_DAYS");
@@ -1018,69 +1018,6 @@ export function NutritionPlanBuilder({
                   : `Arquivada V${tree.version.versionNumber}`}
               </Badge>
 
-              {patientContext && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)]/10 text-[var(--brand)] border border-[var(--brand)]/20 truncate max-w-[150px]">
-                  {patientContext.studentName}
-                </span>
-              )}
-
-              {/* Plan Update Policy Pill */}
-              <div className="relative inline-flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={handleToggleAutoPublishPolicy}
-                  disabled={isReadOnly || isUpdatingPolicy}
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all cursor-pointer min-h-[26px] ${
-                    (tree.plan.updatePolicy ?? "MANUAL") === "AUTO_PUBLISH"
-                      ? tree.plan.autoPublishPaused
-                        ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
-                        : "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
-                      : "bg-[var(--surface-subtle)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
-                  }`}
-                  title={
-                    (tree.plan.updatePolicy ?? "MANUAL") === "AUTO_PUBLISH"
-                      ? tree.plan.autoPublishPaused
-                        ? "Atualização automática pausada. Clique para alternar para manual."
-                        : "Atualização automática ativa. Clique para alternar para manual."
-                      : "Publicação manual. Clique para ativar atualização automática para o aluno."
-                  }
-                  data-testid="plan-update-policy-btn"
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      (tree.plan.updatePolicy ?? "MANUAL") === "AUTO_PUBLISH"
-                        ? tree.plan.autoPublishPaused
-                          ? "bg-amber-500"
-                          : "bg-emerald-500"
-                        : "bg-neutral-400 dark:bg-neutral-500"
-                    }`}
-                    aria-hidden="true"
-                  />
-                  <span>
-                    {(tree.plan.updatePolicy ?? "MANUAL") === "AUTO_PUBLISH"
-                      ? tree.plan.autoPublishPaused
-                        ? "Atualização pausada"
-                        : "Atualização automática"
-                      : "Publicação manual"}
-                  </span>
-                </button>
-                {(tree.plan.updatePolicy ?? "MANUAL") === "AUTO_PUBLISH" && !isReadOnly && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTogglePauseAutoPublish();
-                    }}
-                    disabled={isUpdatingPolicy}
-                    className="text-[11px] font-medium text-[var(--text-tertiary)] hover:text-[var(--text-primary)] underline cursor-pointer px-1 py-0.5"
-                    title={tree.plan.autoPublishPaused ? "Retomar envio automático" : "Pausar envio automático"}
-                    data-testid="toggle-pause-auto-publish-btn"
-                  >
-                    {tree.plan.autoPublishPaused ? "Retomar" : "Pausar"}
-                  </button>
-                )}
-              </div>
-
               <AutosaveIndicator
                 status={autosaveStatus}
                 policy={tree.plan.updatePolicy ?? "MANUAL"}
@@ -1147,18 +1084,6 @@ export function NutritionPlanBuilder({
               </button>
             )}
 
-            {/* Panel View Preferences Trigger */}
-            <button
-              type="button"
-              onClick={() => setIsPreferencesOpen(true)}
-              className="px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[34px] cursor-pointer"
-              title="Configurar preferências de visualização do painel"
-              aria-label="Preferências do painel"
-            >
-              <SettingsIcon className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-              <span>Preferências</span>
-            </button>
-
             {/* Publish / Prescribe Buttons */}
             {tree.version.status === "DRAFT" && (
               <Button
@@ -1211,12 +1136,11 @@ export function NutritionPlanBuilder({
         )}
 
         {/* ========================================================================= */}
-        {/* CRISP TABS: Montagem, Análise, Orientações                                */}
+        {/* CRISP TABS: Cardápio, Orientações                                         */}
         {/* ========================================================================= */}
         <div className="border-b border-[var(--border-default)] flex items-center gap-1 sm:gap-2">
           {[
-            { id: "BUILDER", label: "Montagem" },
-            { id: "ANALYSIS", label: "Análise" },
+            { id: "BUILDER", label: "Cardápio" },
             { id: "GUIDANCE", label: "Orientações" },
           ].map((tab) => (
             <button
@@ -1235,24 +1159,42 @@ export function NutritionPlanBuilder({
         </div>
 
         {/* ========================================================================= */}
-        {/* TAB 1: MONTAGEM (BUILDER)                                                 */}
+        {/* TAB 1: CARDÁPIO (BUILDER)                                                 */}
         {/* ========================================================================= */}
         {activeTab === "BUILDER" && (
           <div className="space-y-3 sm:space-y-4">
             {/* Days / Menus Selector Bar with Quick Meal Jump & Expand All */}
             <div className="p-2 sm:p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs flex items-center justify-between gap-2 overflow-x-auto scrollbar-none flex-wrap sm:flex-nowrap">
               <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setSelectedDayTab("ALL_DAYS")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                    selectedDayTab === "ALL_DAYS"
-                      ? "bg-[var(--brand)] text-white shadow-2xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-                  }`}
-                >
-                  Todos os dias
-                </button>
+                {detectedDays.length > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDayTab("ALL_DAYS")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                        selectedDayTab === "ALL_DAYS"
+                          ? "bg-[var(--brand)] text-white shadow-2xs"
+                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                      }`}
+                    >
+                      Todos os dias
+                    </button>
+                    {detectedDays.map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => setSelectedDayTab(d.id)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                          selectedDayTab === d.id
+                            ? "bg-[var(--brand)] text-white shadow-2xs"
+                            : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {/* Quick Meal Jump Dropdown */}
                 {tree.meals.length > 0 && (
@@ -1840,199 +1782,28 @@ export function NutritionPlanBuilder({
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* ========================================================================= */}
-        {/* TAB 2: ANÁLISE NUTRICIONAL (DEEP DIVE)                                    */}
-        {/* ========================================================================= */}
-        {activeTab === "ANALYSIS" && (
-          <div className="p-4 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-6 depth-surface">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-                  Análise Nutricional Completa — {dailySummary.dayLabel}
-                </h2>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Quadro comparativo de macronutrientes, distribuição energética (% VET via Fatores de Atwater) e micronutrientes.
-                </p>
-              </div>
-
-              {detectedDays.length > 1 && (
-                <div className="flex items-center gap-1 bg-[var(--surface-subtle)] p-1 rounded-xl border border-[var(--border-default)]">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedDayTab("ALL_DAYS")}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                      selectedDayTab === "ALL_DAYS" ? "bg-[var(--brand)] text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    }`}
-                  >
-                    Todos os dias
-                  </button>
-                  {detectedDays.map((d) => (
+                  {/* Panel Preferences Trigger */}
+                  <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs">
                     <button
-                      key={d.id}
                       type="button"
-                      onClick={() => setSelectedDayTab(d.id)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                        selectedDayTab === d.id ? "bg-[var(--brand)] text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                      }`}
+                      onClick={() => setIsPreferencesOpen(true)}
+                      className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                      title="Configurar preferências de visualização do painel"
+                      aria-label="Preferências do painel"
                     >
-                      {d.label}
+                      <SettingsIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+                      <span>Preferências</span>
                     </button>
-                  ))}
+                  </div>
                 </div>
-              )}
-            </div>
-
-            {/* Macro Summary Matrix */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div className="p-3.5 rounded-xl bg-[var(--brand)]/10 border border-[var(--brand)]/20">
-                <span className="text-xs text-[var(--text-secondary)] block">Valor Energético Total</span>
-                <span className="text-xl font-extrabold text-[var(--brand)]">
-                  {dailySummary.calories.status === "NO_DATA" ? "Sem dados" : `${dailySummary.calories.value?.toLocaleString("pt-BR")} kcal`}
-                </span>
-                <span className={`text-[10px] font-semibold block mt-0.5 ${dailySummary.calories.isPartial ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                  {dailySummary.calories.completenessText}
-                </span>
-                <span className="text-[11px] text-[var(--text-tertiary)] block mt-1">
-                  {dailySummary.targets.calories.hasTarget ? dailySummary.targets.calories.statusText : "Meta não definida"}
-                </span>
-              </div>
-              <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                <span className="text-xs text-[var(--text-secondary)] block">Proteínas Totais</span>
-                <span className="text-xl font-bold text-[var(--text-primary)]">
-                  {dailySummary.protein.displayText}
-                </span>
-                {patientContext?.weightKg && patientContext.weightKg > 0 && dailySummary.protein.value != null && (
-                  <span className="text-xs font-bold text-sky-600 dark:text-sky-400 block mt-0.5">
-                    {(dailySummary.protein.value / patientContext.weightKg).toFixed(1).replace(".", ",")} g/kg
-                  </span>
-                )}
-                {dailySummary.protein.isPartial && (
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
-                    * {dailySummary.protein.missingItemCount} sem info
-                  </span>
-                )}
-                <span className="text-[11px] text-sky-600 dark:text-sky-400 block mt-1">
-                  {dailySummary.caloricDistribution.proteinPercent}% do VET
-                </span>
-                <span className="text-[10px] text-[var(--text-tertiary)] block">
-                  {dailySummary.targets.protein.hasTarget ? dailySummary.targets.protein.statusText : "Meta não definida"}
-                </span>
-              </div>
-              <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                <span className="text-xs text-[var(--text-secondary)] block">Carboidratos Totais</span>
-                <span className="text-xl font-bold text-[var(--text-primary)]">
-                  {dailySummary.carbohydrate.displayText}
-                </span>
-                {patientContext?.weightKg && patientContext.weightKg > 0 && dailySummary.carbohydrate.value != null && (
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block mt-0.5">
-                    {(dailySummary.carbohydrate.value / patientContext.weightKg).toFixed(1).replace(".", ",")} g/kg
-                  </span>
-                )}
-                {dailySummary.carbohydrate.isPartial && (
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
-                    * {dailySummary.carbohydrate.missingItemCount} sem info
-                  </span>
-                )}
-                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block mt-1">
-                  {dailySummary.caloricDistribution.carbsPercent}% do VET
-                </span>
-                <span className="text-[10px] text-[var(--text-tertiary)] block">
-                  {dailySummary.targets.carbohydrates.hasTarget ? dailySummary.targets.carbohydrates.statusText : "Meta não definida"}
-                </span>
-              </div>
-              <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                <span className="text-xs text-[var(--text-secondary)] block">Lipídios Totais</span>
-                <span className="text-xl font-bold text-[var(--text-primary)]">
-                  {dailySummary.fat.displayText}
-                </span>
-                {patientContext?.weightKg && patientContext.weightKg > 0 && dailySummary.fat.value != null && (
-                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400 block mt-0.5">
-                    {(dailySummary.fat.value / patientContext.weightKg).toFixed(1).replace(".", ",")} g/kg
-                  </span>
-                )}
-                {dailySummary.fat.isPartial && (
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">
-                    * {dailySummary.fat.missingItemCount} sem info
-                  </span>
-                )}
-                <span className="text-[11px] text-amber-600 dark:text-amber-400 block mt-1">
-                  {dailySummary.caloricDistribution.fatPercent}% do VET
-                </span>
-                <span className="text-[10px] text-[var(--text-tertiary)] block">
-                  {dailySummary.targets.fats.hasTarget ? dailySummary.targets.fats.statusText : "Meta não definida"}
-                </span>
               </div>
             </div>
-
-            {/* Caloric Distribution Method Card */}
-            <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-between text-xs flex-wrap gap-2">
-              <div className="space-y-0.5">
-                <span className="font-bold text-[var(--text-primary)] block">Método de Distribuição Calórica (% VET)</span>
-                <span className="text-[var(--text-secondary)]">Fatores de Atwater: 4 kcal/g (Proteína), 4 kcal/g (Carboidrato), 9 kcal/g (Gordura).</span>
-              </div>
-              {dailySummary.caloricDistribution.isEstimatedFromPartialData && (
-                <span className="px-2 py-1 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                  Estimativa sobre dados parciais
-                </span>
-              )}
-            </div>
-
-            {/* Meal-by-Meal Table */}
-            <div className="space-y-2">
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                Quadro por Refeição ({dailySummary.dayLabel})
-              </h3>
-              <div className="overflow-x-auto rounded-xl border border-[var(--border-default)]">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-b border-[var(--border-default)] font-semibold">
-                    <tr>
-                      <th className="py-2.5 px-3">Refeição</th>
-                      <th className="py-2.5 px-3">Horário</th>
-                      <th className="py-2.5 px-3 text-right">Calorias (kcal)</th>
-                      <th className="py-2.5 px-3 text-right">Proteínas (g)</th>
-                      <th className="py-2.5 px-3 text-right">Carboidratos (g)</th>
-                      <th className="py-2.5 px-3 text-right">Gorduras (g)</th>
-                      <th className="py-2.5 px-3 text-right">% do Dia</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--border-subtle)]">
-                    {dailySummary.meals.map((m) => (
-                      <tr key={m.publicId} className="hover:bg-[var(--surface-hover)]">
-                        <td className="py-2 px-3 font-semibold text-[var(--text-primary)]">{m.title}</td>
-                        <td className="py-2 px-3 text-[var(--text-secondary)]">{m.scheduledTime || "—"}</td>
-                        <td className="py-2 px-3 text-right font-bold text-[var(--brand)]">{Math.round(m.caloriesKcal)}</td>
-                        <td className="py-2 px-3 text-right text-[var(--text-primary)]">{formatQuickMacroDisplay(m.proteinG)}g</td>
-                        <td className="py-2 px-3 text-right text-[var(--text-primary)]">{formatQuickMacroDisplay(m.carbohydrateG)}g</td>
-                        <td className="py-2 px-3 text-right text-[var(--text-primary)]">{formatQuickMacroDisplay(m.fatG)}g</td>
-                        <td className="py-2 px-3 text-right text-[var(--text-secondary)]">{m.percentOfDay}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* In-page Micronutrients */}
-            {tree.dailyMicronutrientTotals && (
-              <div className="pt-2">
-                <NutritionMicronutrientsPanel
-                  totals={tree.dailyMicronutrientTotals}
-                  title="Micronutrientes do Plano (Minerais e Vitaminas)"
-                  defaultCollapsed={false}
-                />
-              </div>
-            )}
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 3: ORIENTAÇÕES E RECOMENDAÇÕES                                       */}
+        {/* TAB 2: ORIENTAÇÕES E RECOMENDAÇÕES                                       */}
         {/* ========================================================================= */}
         {activeTab === "GUIDANCE" && (
           <NutritionGuidanceEditor

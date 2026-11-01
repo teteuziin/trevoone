@@ -69,9 +69,6 @@ export function NutritionMealInlineSearch({
   // Custom measure modal trigger
   const [customMeasureFood, setCustomMeasureFood] = useState<FoodListItemDto | null>(null);
 
-  // Optional discrete details view
-  const [expandedDetailsId, setExpandedDetailsId] = useState<string | null>(null);
-
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -544,40 +541,6 @@ export function NutritionMealInlineSearch({
                         Personalizado
                       </span>
                     )}
-
-                    {/* Quick 1-Click Direct Add Shortcut */}
-                    <button
-                      type="button"
-                      disabled={isAdding || isRecentlyAdded}
-                      onClick={() => handleAddFood(food)}
-                      className="px-2 py-0.5 rounded text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-all cursor-pointer inline-flex items-center gap-1 shrink-0 active:scale-95"
-                      title={`Adicionar direto: ${qtyText} ${activePortion ? activePortion.label : unitShort}`}
-                    >
-                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                      </svg>
-                      <span>+ {qtyText} {activePortion ? activePortion.label : unitShort}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setExpandedDetailsId(expandedDetailsId === food.publicId ? null : food.publicId)}
-                      className="px-1.5 py-0.2 rounded text-[9px] font-medium text-[var(--text-tertiary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
-                      title="Ver detalhes complementares deste alimento"
-                    >
-                      {expandedDetailsId === food.publicId ? "Ocultar detalhes" : "Detalhes"}
-                    </button>
-
-                    {portions.length === 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setCustomMeasureFood(food)}
-                        className="px-1.5 py-0.2 rounded text-[9px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-colors cursor-pointer"
-                        title="Cadastrar medida personalizada para este alimento"
-                      >
-                        + Cadastrar medida
-                      </button>
-                    )}
                   </div>
 
                   {/* Live Recalculated Badges & Physical Equivalence */}
@@ -739,42 +702,6 @@ export function NutritionMealInlineSearch({
                   </button>
                 </div>
               </div>
-
-              {/* Optional Discrete Details Drawer */}
-              {expandedDetailsId === food.publicId && (
-                <div className="mt-2 p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs space-y-1.5 animate-in fade-in duration-100">
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-[var(--text-secondary)]">
-                    <span>Informações Adicionais do Catálogo</span>
-                    <span className="text-[var(--text-tertiary)]">{food.category || "Geral"}</span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
-                    <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
-                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Porção Referência</div>
-                      <div className="font-semibold text-[var(--text-primary)]">
-                        {food.referenceAmount || 100} {food.referenceUnitCode || "g"}
-                      </div>
-                    </div>
-                    <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
-                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Densidade / Estado</div>
-                      <div className="font-semibold text-[var(--text-primary)]">
-                        {isVolumeFood ? "Líquido (ml)" : "Sólido (g)"}
-                      </div>
-                    </div>
-                    <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
-                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Origem</div>
-                      <div className="font-semibold text-[var(--text-primary)]">
-                        {food.scope === "GLOBAL" ? "Tabela TACO Brasil" : "Alimento da Consultoria"}
-                      </div>
-                    </div>
-                    <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
-                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold">Medidas Cadastradas</div>
-                      <div className="font-semibold text-[var(--text-primary)]">
-                        {portions.length} opção(ões)
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}

@@ -1,8 +1,12 @@
+import { register } from "node:module";
+register("./ts-loader.mjs", import.meta.url);
+
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { formatQuantity } from "../lib/nutrition-v2/nutrition-plan-presentation.ts";
-import { buildSelectFoodsQuery } from "../lib/nutrition-v2/food-query-builder.ts";
+
+const { formatQuantity } = await import("../lib/nutrition-v2/nutrition-plan-presentation.ts");
+const { buildSelectFoodsQuery } = await import("../lib/nutrition-v2/food-query-builder.ts");
 
 console.log("--- Starting Nutrition Builder & Food Library Reconstruction Tests ---");
 
@@ -50,7 +54,7 @@ assert.ok(
   "Must export NutritionMealInlineSearch"
 );
 assert.ok(
-  inlineSearchContent.includes("previewKcal"),
+  inlineSearchContent.includes("liveNutrients") || inlineSearchContent.includes("previewKcal"),
   "Must calculate preview macros"
 );
 console.log("✓ Test 4 Passed: NutritionMealInlineSearch verified");
@@ -94,9 +98,8 @@ assert.ok(
 );
 assert.ok(
   builderContent.includes('activeTab === "BUILDER"') &&
-  builderContent.includes('activeTab === "ANALYSIS"') &&
   builderContent.includes('activeTab === "GUIDANCE"'),
-  "Must support 3 main tabs: BUILDER, ANALYSIS, GUIDANCE"
+  "Must support 2 main tabs: BUILDER (Cardápio) and GUIDANCE (Orientações)"
 );
 assert.ok(
   builderContent.includes("handleDuplicateMeal"),

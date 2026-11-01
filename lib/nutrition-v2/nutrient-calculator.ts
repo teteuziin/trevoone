@@ -126,6 +126,89 @@ export function formatQuantityForDisplay(num: number | null | undefined): string
   return String(rounded).replace(".", ",");
 }
 
+/**
+ * Strips redundant leading numerals ("1 ", "1x ", "1 - ") from portion labels
+ * to prevent collisions like "3.3 1 Colher de Cafe" or "2 1 Fatia".
+ */
+export function cleanPortionLabel(label: string | null | undefined): string {
+  if (!label || typeof label !== "string") return "";
+  let s = label.trim();
+  s = s.replace(/^(?:1x?|1\s*[-–—])\s+/i, "");
+  return s;
+}
+
+/**
+ * Cleans catalog food display names for presentation:
+ * - Strips IBGE POF generic research suffixes (" de Qualquer Marca ou Sabor", " de Qualquer Marca")
+ * - Cleans inverted catalog commas from TACO (e.g. "Doce, de leite, cremoso" -> "Doce de leite cremoso")
+ * Preserves custom/clinical names entered by the nutritionist without modifying database records.
+ */
+export function cleanFoodCatalogDisplayName(name: string | null | undefined): string {
+  if (!name || typeof name !== "string") return "";
+  let s = name.trim();
+  // Strip IBGE POF suffixes
+  s = s.replace(/\s+de\s+qualquer\s+marca(?:\s+ou\s+sabor)?\b/gi, "");
+  // Normalize inverted catalog commas from TACO (e.g. 'Doce, de leite, cremoso' -> 'Doce de leite cremoso')
+  s = s.replace(/,\s*/g, " ").replace(/\s+/g, " ").trim();
+  return s;
+}
+
+/**
+ * Formats a macronutrient number cleanly for quick UI cards (max 1 decimal place, integer if integer).
+ */
+export function formatQuickMacroDisplay(val: number | null | undefined): string {
+  if (val == null || !Number.isFinite(Number(val))) return "0";
+  const num = Number(val);
+  const rounded = Math.round(num * 10) / 10;
+  if (Number.isInteger(rounded)) return String(rounded);
+  return String(rounded).replace(".", ",");
+}
+
+/**
+ * Human-friendly formatter for displaying quantity + portion label:
+ * - Cleans redundant leading numerals in portion labels (e.g. "1 Colher de Cafe" -> "Colher de Cafe")
+ * - Formats household measures with practical rounding for equivalents (halves or 1 decimal)
+ * - Appends total grams in parentheses when portion equivalent amount is known
+ */
+export function formatHumanPortionDisplay(
+  quantity: number | null | undefined,
+  unitLabel: string | null | undefined,
+  unitCode?: string | null | undefined,
+  portionEquivalentAmount?: number | null,
+  isEquivalence?: boolean
+): string {
+  if (quantity == null || !Number.isFinite(quantity) || quantity <= 0) return "";
+  const cleanedLabel = cleanPortionLabel(unitLabel);
+  const code = (unitCode || "").trim().toUpperCase();
+  const isMetric = ["G", "KG", "ML", "L"].includes(code) ||
+    ["g", "gr", "grama", "gramas", "ml", "kg", "l"].includes(cleanedLabel.toLowerCase());
+
+  if (isMetric) {
+    return `${formatQuantityForDisplay(quantity)} ${cleanedLabel || code.toLowerCase() || "g"}`;
+  }
+
+  let displayQty = quantity;
+  if (isEquivalence) {
+    if (Math.abs(quantity - Math.round(quantity)) < 0.08) {
+      displayQty = Math.round(quantity);
+    } else if (Math.abs(quantity - (Math.floor(quantity) + 0.5)) < 0.08) {
+      displayQty = Math.floor(quantity) + 0.5;
+    } else {
+      displayQty = Math.round(quantity * 10) / 10;
+    }
+  }
+
+  const qtyStr = formatQuantityForDisplay(displayQty);
+  const baseStr = `${qtyStr} ${cleanedLabel || code || "un"}`;
+
+  if (portionEquivalentAmount != null && portionEquivalentAmount > 0) {
+    const totalGrams = Math.round(displayQty * portionEquivalentAmount);
+    return `${baseStr} (${totalGrams} g)`;
+  }
+
+  return baseStr;
+}
+
 export function roundMacro(val: number | null | undefined): number | null {
   if (val == null || !Number.isFinite(Number(val))) return null;
   return Math.round(Number(val) * 100) / 100;

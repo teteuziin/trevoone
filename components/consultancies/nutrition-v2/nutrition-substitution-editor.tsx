@@ -3,11 +3,12 @@
 import { useState, useRef, useCallback } from "react";
 import type { ItemSubstitutionDto, UpdateSubstitutionInput } from "@/lib/nutrition-v2/plan-repository";
 import {
-  calculateMealMicronutrientTotals,
   derivePortionUnitCode,
   parseQuantityInput,
+  cleanFoodCatalogDisplayName,
+  formatHumanPortionDisplay,
+  formatQuickMacroDisplay,
 } from "@/lib/nutrition-v2/nutrient-calculator";
-import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { NutritionFoodPicker } from "./nutrition-food-picker";
 import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
 import { getFoodPortionsForPickerAction } from "@/app/consultoria/[slug]/planos-v2/actions";
@@ -58,7 +59,6 @@ export function NutritionSubstitutionEditor({
   );
   const [selectedUnitValue, setSelectedUnitValue] = useState<string>("G");
   const [notes, setNotes] = useState(substitution.notes || "");
-  const [showMicro, setShowMicro] = useState(false);
 
   // Authoritative food portions loaded strictly from Food Library for this food
   const [availablePortions, setAvailablePortions] = useState<FoodPortionOption[]>([]);
@@ -280,11 +280,22 @@ export function NutritionSubstitutionEditor({
     <div className="pl-3 sm:pl-6 pr-2.5 sm:pr-3 py-2 sm:py-2.5 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/30 hover:border-[var(--brand-primary)]/40 transition-colors w-full max-w-full min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap flex-1 max-w-full">
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0 uppercase tracking-wide">
-            OU
-          </span>
+          {substitution.equivalenceCriterion && substitution.equivalenceCriterion !== "MANUAL" ? (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shrink-0 uppercase tracking-wide inline-flex items-center gap-1">
+              <span>⇄ Equivalente</span>
+              <span>•</span>
+              <span>{EQUIVALENT_CRITERIA_SHORT_LABELS[substitution.equivalenceCriterion as EquivalentCriterion] || substitution.equivalenceCriterion}</span>
+            </span>
+          ) : (
+            <span
+              className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0 uppercase tracking-wide"
+              title="Alternativa com quantidade fixa definida pelo nutricionista"
+            >
+              OU
+            </span>
+          )}
           <span className="text-xs font-medium text-[var(--text-primary)] line-clamp-2 break-words [overflow-wrap:anywhere] min-w-0 flex-1">
-            {substitution.foodNameSnapshot}
+            {cleanFoodCatalogDisplayName(substitution.foodNameSnapshot)}
           </span>
           {substitution.foodId == null && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
@@ -300,12 +311,13 @@ export function NutritionSubstitutionEditor({
           )}
           {substitution.prescribedQuantity != null && (
             <span className="text-xs text-[var(--text-secondary)] shrink-0 font-medium">
-              — {substitution.prescribedQuantity} {substitution.prescribedUnitLabel || substitution.prescribedUnitCode || "g"}
-            </span>
-          )}
-          {substitution.equivalenceCriterion && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
-              {EQUIVALENT_CRITERIA_SHORT_LABELS[substitution.equivalenceCriterion as EquivalentCriterion] || substitution.equivalenceCriterion}
+              — {formatHumanPortionDisplay(
+                substitution.prescribedQuantity,
+                substitution.prescribedUnitLabel,
+                substitution.prescribedUnitCode,
+                substitution.portionEquivalentAmount,
+                substitution.equivalenceCriterion !== "MANUAL"
+              )}
             </span>
           )}
           {substitution.derivedStatus === "UNVERIFIED" && (
@@ -564,33 +576,13 @@ export function NutritionSubstitutionEditor({
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--text-muted)] mt-1">
           {substitution.caloriesKcalSnapshot != null && (
             <span className="font-semibold text-amber-600 dark:text-amber-400">
-              {substitution.caloriesKcalSnapshot} kcal
+              {Math.round(substitution.caloriesKcalSnapshot)} kcal
             </span>
           )}
-          {substitution.proteinGSnapshot != null && <span>P: {substitution.proteinGSnapshot}g</span>}
-          {substitution.carbohydrateGSnapshot != null && <span>C: {substitution.carbohydrateGSnapshot}g</span>}
-          {substitution.fatGSnapshot != null && <span>G: {substitution.fatGSnapshot}g</span>}
+          {substitution.proteinGSnapshot != null && <span>P: {formatQuickMacroDisplay(substitution.proteinGSnapshot)}g</span>}
+          {substitution.carbohydrateGSnapshot != null && <span>C: {formatQuickMacroDisplay(substitution.carbohydrateGSnapshot)}g</span>}
+          {substitution.fatGSnapshot != null && <span>G: {formatQuickMacroDisplay(substitution.fatGSnapshot)}g</span>}
           {substitution.notes && <span className="italic">· {substitution.notes}</span>}
-          {substitution.micronutrientsSnapshotJson && (
-            <button
-              type="button"
-              onClick={() => setShowMicro(!showMicro)}
-              className="text-[10px] text-[var(--brand-primary)] hover:underline font-semibold ml-auto cursor-pointer"
-            >
-              {showMicro ? "Ocultar micronutrientes" : "Micronutrientes"}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Substitution Micronutrients Breakdown */}
-      {showMicro && substitution.micronutrientsSnapshotJson && (
-        <div className="pt-2">
-          <NutritionMicronutrientsPanel
-            totals={calculateMealMicronutrientTotals([substitution])}
-            title={`Micronutrientes — ${substitution.foodNameSnapshot}`}
-            defaultCollapsed={false}
-          />
         </div>
       )}
 

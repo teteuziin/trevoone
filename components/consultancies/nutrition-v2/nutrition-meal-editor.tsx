@@ -11,6 +11,7 @@ import { NutritionItemEditor } from "./nutrition-item-editor";
 import { NutritionFoodPicker, type FoodSelectionResult } from "./nutrition-food-picker";
 import { NutritionMealInlineSearch } from "./nutrition-meal-inline-search";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
+import { formatQuickMacroDisplay } from "@/lib/nutrition-v2/nutrient-calculator";
 
 interface NutritionMealEditorProps {
   slug: string;
@@ -153,7 +154,7 @@ export function NutritionMealEditor({
           {/* Subtotal badge directly in header for quick glancing */}
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-[var(--text-secondary)] font-mono ml-1">
             <span className="font-bold text-[var(--brand)]">
-              {meal.mealTotals.caloriesKcal} kcal
+              {Math.round(meal.mealTotals.caloriesKcal || 0)} kcal
             </span>
             {meal.mealTotals.hasIncompleteData && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
@@ -162,17 +163,17 @@ export function NutritionMealEditor({
             )}
             <span className="text-[var(--text-tertiary)]">·</span>
             <span>
-              P {meal.mealTotals.proteinG}g
+              P {formatQuickMacroDisplay(meal.mealTotals.proteinG)}g
               {meal.mealTotals.missingProteinCount > 0 && <span className="text-amber-500 font-bold ml-0.5">*</span>}
             </span>
             <span className="text-[var(--text-tertiary)]">·</span>
             <span>
-              C {meal.mealTotals.carbohydrateG}g
+              C {formatQuickMacroDisplay(meal.mealTotals.carbohydrateG)}g
               {meal.mealTotals.missingCarbohydrateCount > 0 && <span className="text-amber-500 font-bold ml-0.5">*</span>}
             </span>
             <span className="text-[var(--text-tertiary)]">·</span>
             <span>
-              G {meal.mealTotals.fatG}g
+              G {formatQuickMacroDisplay(meal.mealTotals.fatG)}g
               {meal.mealTotals.missingFatCount > 0 && <span className="text-amber-500 font-bold ml-0.5">*</span>}
             </span>
           </div>
@@ -323,7 +324,7 @@ export function NutritionMealEditor({
             </span>
             <span className="text-[var(--text-tertiary)]">·</span>
             <span className="font-bold text-[var(--brand)] shrink-0">
-              {meal.mealTotals.caloriesKcal} kcal
+              {Math.round(meal.mealTotals.caloriesKcal || 0)} kcal
             </span>
             {meal.mealTotals.hasIncompleteData && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
@@ -332,7 +333,7 @@ export function NutritionMealEditor({
             )}
             <span className="text-[var(--text-tertiary)]">·</span>
             <span className="text-[var(--text-muted)] text-[11px]">
-              P {meal.mealTotals.proteinG}g • C {meal.mealTotals.carbohydrateG}g • G {meal.mealTotals.fatG}g
+              P {formatQuickMacroDisplay(meal.mealTotals.proteinG)}g • C {formatQuickMacroDisplay(meal.mealTotals.carbohydrateG)}g • G {formatQuickMacroDisplay(meal.mealTotals.fatG)}g
             </span>
           </div>
           <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0 ml-1">
@@ -437,25 +438,25 @@ export function NutritionMealEditor({
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={`font-bold text-xs sm:text-sm ${meal.mealTotals.status === "INCOMPLETE" ? "text-amber-600 dark:text-amber-400" : "text-[var(--text-primary)]"}`}>
-                  {meal.mealTotals.status === "INCOMPLETE" ? `Subtotal calculado: ${meal.mealTotals.caloriesKcal} kcal` : `Subtotal: ${meal.mealTotals.caloriesKcal} kcal`}
+                  {meal.mealTotals.status === "INCOMPLETE" ? `Subtotal calculado: ${Math.round(meal.mealTotals.caloriesKcal || 0)} kcal` : `Subtotal: ${Math.round(meal.mealTotals.caloriesKcal || 0)} kcal`}
                 </span>
                 <span className="text-[var(--text-tertiary)]">•</span>
                 <span className="text-[var(--text-secondary)]">
-                  P <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.proteinG}g</strong>
+                  P <strong className="text-[var(--text-primary)] font-semibold">{formatQuickMacroDisplay(meal.mealTotals.proteinG)}g</strong>
                   {!meal.mealTotals.empty && meal.mealTotals.missingProteinCount > 0 && (
                     <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.missingProteinCount} alimento(s) sem proteína cadastrada`}>*</span>
                   )}
                 </span>
                 <span className="text-[var(--text-tertiary)]">•</span>
                 <span className="text-[var(--text-secondary)]">
-                  C <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.carbohydrateG}g</strong>
+                  C <strong className="text-[var(--text-primary)] font-semibold">{formatQuickMacroDisplay(meal.mealTotals.carbohydrateG)}g</strong>
                   {!meal.mealTotals.empty && meal.mealTotals.missingCarbohydrateCount > 0 && (
                     <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.missingCarbohydrateCount} alimento(s) sem carboidrato cadastrado`}>*</span>
                   )}
                 </span>
                 <span className="text-[var(--text-tertiary)]">•</span>
                 <span className="text-[var(--text-secondary)]">
-                  G <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.fatG}g</strong>
+                  G <strong className="text-[var(--text-primary)] font-semibold">{formatQuickMacroDisplay(meal.mealTotals.fatG)}g</strong>
                   {!meal.mealTotals.empty && meal.mealTotals.missingFatCount > 0 && (
                     <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.missingFatCount} alimento(s) sem gordura cadastrada`}>*</span>
                   )}

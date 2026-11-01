@@ -228,6 +228,7 @@ export function NutritionPlanBuilder({
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isMicronutrientsDrawerOpen, setIsMicronutrientsDrawerOpen] = useState(false);
+  const [isFibersAndMicrosOpen, setIsFibersAndMicrosOpen] = useState(false);
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyItems, setHistoryItems] = useState<PlanVersionHistoryItemDto[]>([]);
@@ -777,6 +778,34 @@ export function NutritionPlanBuilder({
       if (baseQty == null || baseQty <= 0) return prevTree;
 
       const scaled = scaleItemSnapshots(currentItem, quantity);
+      const ratio = quantity / baseQty;
+
+      // Real-time automatic recalculation of child substitutions with active equivalence criteria
+      const updatedSubstitutions = (currentItem.substitutions || []).map((sub) => {
+        if (
+          sub.equivalenceCriterion &&
+          sub.equivalenceCriterion !== "MANUAL" &&
+          sub.prescribedQuantity != null &&
+          sub.prescribedQuantity > 0
+        ) {
+          const newSubQty = Math.round(sub.prescribedQuantity * ratio * 100) / 100;
+          const scaledSub = scaleItemSnapshots(sub, newSubQty);
+          return {
+            ...sub,
+            prescribedQuantity: newSubQty,
+            caloriesKcalSnapshot: scaledSub.caloriesKcalSnapshot,
+            proteinGSnapshot: scaledSub.proteinGSnapshot,
+            carbohydrateGSnapshot: scaledSub.carbohydrateGSnapshot,
+            fatGSnapshot: scaledSub.fatGSnapshot,
+            baseQuantitySnapshot: quantity,
+            isStale: false,
+            staleReason: null,
+            derivedStatus: "FRESH" as const,
+          };
+        }
+        return sub;
+      });
+
       const updatedItem: MealItemWithSubstitutionsDto = {
         ...currentItem,
         prescribedQuantity: quantity,
@@ -784,6 +813,7 @@ export function NutritionPlanBuilder({
         proteinGSnapshot: scaled.proteinGSnapshot,
         carbohydrateGSnapshot: scaled.carbohydrateGSnapshot,
         fatGSnapshot: scaled.fatGSnapshot,
+        substitutions: updatedSubstitutions,
       };
 
       const updatedItems = [...targetMeal.items];
@@ -1256,7 +1286,7 @@ export function NutritionPlanBuilder({
                   </button>
                 )}
                 <span className="text-[var(--text-tertiary)] hidden md:inline">
-                  {tree.meals.length} refeição{tree.meals.length === 1 ? "" : "ões"}
+                  {tree.meals.length === 1 ? "1 refeição" : `${tree.meals.length} refeições`}
                 </span>
               </div>
             </div>
@@ -1516,24 +1546,37 @@ export function NutritionPlanBuilder({
                         <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
                           {dailySummary.dayLabel === "Cardápio Diário" ? "Resumo Diário" : `Resumo — ${dailySummary.dayLabel}`}
                         </span>
-                        {dailySummary.calories.isPartial && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                            Subtotal parcial
-                          </span>
-                        )}
-                        {dailySummary.calories.isComplete && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                            Total completo
-                          </span>
-                        )}
+                        {(() => {
+                          const isPlanComplete =
+                            dailySummary.calories.isComplete &&
+                            dailySummary.protein.isComplete &&
+                            dailySummary.carbohydrate.isComplete &&
+                            dailySummary.fat.isComplete;
+
+                          if (isPlanComplete) {
+                            return (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                                Total completo
+                              </span>
+                            );
+                          }
+                          if (dailySummary.calories.status !== "NO_DATA") {
+                            return (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                Dados parciais
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                       <div className="text-xl sm:text-2xl font-extrabold text-[var(--brand)] font-heading leading-tight mt-0.5">
                         {dailySummary.calories.status === "NO_DATA" ? (
                           <span className="text-base text-[var(--text-muted)] font-semibold">Sem dados</span>
                         ) : (
                           <>
-                            {dailySummary.calories.value?.toLocaleString("pt-BR")}{" "}
+                            {dailySummary.calories.value != null ? Math.round(dailySummary.calories.value).toLocaleString("pt-BR") : 0}{" "}
                             <span className="text-xs font-semibold text-[var(--text-secondary)]">kcal</span>
                           </>
                         )}
@@ -1546,29 +1589,20 @@ export function NutritionPlanBuilder({
                       <div className="text-xs sm:text-sm font-semibold text-[var(--text-secondary)] mt-0.5">
                         {dailySummary.targets.calories.hasTarget ? (
                           <span className="font-bold text-[var(--text-primary)]">
-                            {dailySummary.targets.calories.targetValue} kcal
+                            {Math.round(dailySummary.targets.calories.targetValue || 0)} kcal
                           </span>
                         ) : (
-                          <span className="text-[var(--text-muted)] italic">Meta não definida</span>
+                          <button
+                            type="button"
+                            onClick={() => setIsPreferencesOpen(true)}
+                            className="text-xs text-[var(--brand)] hover:underline font-semibold cursor-pointer"
+                          >
+                            + Definir meta
+                          </button>
                         )}
                       </div>
                     </div>
                   </div>
-
-                  {/* Partial data warning if any macro has missing data */}
-                  {dailySummary.calories.isPartial && (
-                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2">
-                      <span className="text-sm shrink-0">⚠️</span>
-                      <div className="space-y-0.5">
-                        <p className="font-semibold text-[11px]">Subtotal calculado — dados incompletos</p>
-                        <p className="text-[11px] text-amber-700 dark:text-amber-400/90 leading-relaxed">
-                          {dailySummary.calories.missingItemCount}{" "}
-                          {dailySummary.calories.missingItemCount === 1 ? "alimento precisa" : "alimentos precisam"} de
-                          vínculo ou medida caseira para fechar as calorias exatas.
-                        </p>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Calories Progress Bar ONLY if valid target > 0 */}
                   {dailySummary.targets.calories.hasTarget && dailySummary.targets.calories.percentage != null && (
@@ -1594,7 +1628,6 @@ export function NutritionPlanBuilder({
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)]">
                       <span>Distribuição Calórica (% VET)</span>
-                      <span className="text-[9px] font-normal normal-case text-[var(--text-muted)]">Atwater 4-4-9</span>
                     </div>
                     <div className="h-2.5 w-full rounded-full bg-[var(--surface-subtle)] flex overflow-hidden">
                       <div
@@ -1613,11 +1646,6 @@ export function NutritionPlanBuilder({
                         title={`Gorduras: ${dailySummary.caloricDistribution.fatPercent}%`}
                       />
                     </div>
-                    {dailySummary.caloricDistribution.isEstimatedFromPartialData && (
-                      <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                        Distribuição estimada sobre dados parciais
-                      </div>
-                    )}
                     <div className="flex items-center justify-between text-[10px] text-[var(--text-secondary)] font-medium pt-0.5">
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0" />
@@ -1648,9 +1676,11 @@ export function NutritionPlanBuilder({
                           * ({dailySummary.protein.missingItemCount} sem info)
                         </span>
                       )}
-                      <span className="text-[9px] text-[var(--text-tertiary)] block">
-                        {dailySummary.targets.protein.hasTarget ? dailySummary.targets.protein.statusText : "Meta não definida"}
-                      </span>
+                      {dailySummary.targets.protein.hasTarget && (
+                        <span className="text-[9px] text-[var(--text-tertiary)] block">
+                          {dailySummary.targets.protein.statusText}
+                        </span>
+                      )}
                     </div>
                     <div className="p-2 sm:p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                       <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block truncate">
@@ -1664,9 +1694,11 @@ export function NutritionPlanBuilder({
                           * ({dailySummary.carbohydrate.missingItemCount} sem info)
                         </span>
                       )}
-                      <span className="text-[9px] text-[var(--text-tertiary)] block">
-                        {dailySummary.targets.carbohydrates.hasTarget ? dailySummary.targets.carbohydrates.statusText : "Meta não definida"}
-                      </span>
+                      {dailySummary.targets.carbohydrates.hasTarget && (
+                        <span className="text-[9px] text-[var(--text-tertiary)] block">
+                          {dailySummary.targets.carbohydrates.statusText}
+                        </span>
+                      )}
                     </div>
                     <div className="p-2 sm:p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                       <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block truncate">
@@ -1680,51 +1712,97 @@ export function NutritionPlanBuilder({
                           * ({dailySummary.fat.missingItemCount} sem info)
                         </span>
                       )}
-                      <span className="text-[9px] text-[var(--text-tertiary)] block">
-                        {dailySummary.targets.fats.hasTarget ? dailySummary.targets.fats.statusText : "Meta não definida"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Fiber Row */}
-                  <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface-subtle)] text-xs border border-[var(--border-subtle)]">
-                    <span className="text-[var(--text-secondary)] font-medium">Fibras Alimentares</span>
-                    <div className="text-right">
-                      <span className="font-bold text-[var(--text-primary)]">
-                        {dailySummary.fiber.displayText}
-                      </span>
-                      {dailySummary.fiber.isPartial && (
-                        <span className="text-[9px] text-amber-600 dark:text-amber-400 block">
-                          * ({dailySummary.fiber.missingItemCount} sem info)
+                      {dailySummary.targets.fats.hasTarget && (
+                        <span className="text-[9px] text-[var(--text-tertiary)] block">
+                          {dailySummary.targets.fats.statusText}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Key Micronutrients Compact Strip */}
-                  {dailySummary.micronutrients.keyMicronutrients.length > 0 && (
-                    <div className="space-y-1.5 pt-1 border-t border-[var(--border-subtle)]">
-                      <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)]">
-                        <span>Micronutrientes Principais</span>
-                        <span className="text-[9px] font-normal normal-case text-[var(--text-muted)]">Base oficial</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1.5 text-xs">
-                        {dailySummary.micronutrients.keyMicronutrients.slice(0, 4).map((k) => (
-                          <div
-                            key={k.code}
-                            className="p-1.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between text-[11px]"
-                          >
-                            <span className="text-[var(--text-secondary)] truncate max-w-[80px]" title={k.namePtBr}>
-                              {k.namePtBr}
+                  {/* Accordion Colapsável: Fibras e Micronutrientes (fechado por padrão) */}
+                  <div className="border-t border-[var(--border-subtle)] pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsFibersAndMicrosOpen((prev) => !prev)}
+                      className="w-full flex items-center justify-between py-1.5 px-1 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer rounded-lg hover:bg-[var(--surface-subtle)]"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span>Fibras e micronutrientes</span>
+                        {dailySummary.fiber.displayText && (
+                          <span className="text-[11px] text-[var(--text-tertiary)] font-normal">
+                            ({dailySummary.fiber.displayText})
+                          </span>
+                        )}
+                      </span>
+                      <svg
+                        className={`w-3.5 h-3.5 text-[var(--text-muted)] transition-transform duration-200 ${
+                          isFibersAndMicrosOpen ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {isFibersAndMicrosOpen && (
+                      <div className="space-y-3 pt-2.5 animate-in fade-in duration-150">
+                        {/* Fiber Row */}
+                        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface-subtle)] text-xs border border-[var(--border-subtle)]">
+                          <span className="text-[var(--text-secondary)] font-medium">Fibras Alimentares</span>
+                          <div className="text-right">
+                            <span className="font-bold text-[var(--text-primary)]">
+                              {dailySummary.fiber.displayText}
                             </span>
-                            <span className="font-semibold text-[var(--text-primary)] shrink-0">
-                              {k.hasData ? `${k.value} ${k.unit}` : "Sem dados"}
-                            </span>
+                            {dailySummary.fiber.isPartial && (
+                              <span className="text-[9px] text-amber-600 dark:text-amber-400 block">
+                                * ({dailySummary.fiber.missingItemCount} sem info)
+                              </span>
+                            )}
                           </div>
-                        ))}
+                        </div>
+
+                        {/* Key Micronutrients Compact Strip */}
+                        {dailySummary.micronutrients.keyMicronutrients.length > 0 && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)]">
+                              <span>Micronutrientes Principais</span>
+                              <span className="text-[9px] font-normal normal-case text-[var(--text-muted)]">Base oficial</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1.5 text-xs">
+                              {dailySummary.micronutrients.keyMicronutrients.slice(0, 4).map((k) => (
+                                <div
+                                  key={k.code}
+                                  className="p-1.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between text-[11px]"
+                                >
+                                  <span className="text-[var(--text-secondary)] truncate max-w-[80px]" title={k.namePtBr}>
+                                    {k.namePtBr}
+                                  </span>
+                                  <span className="font-semibold text-[var(--text-primary)] shrink-0">
+                                    {k.hasData ? `${k.value} ${k.unit}` : "Sem dados"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Ver micronutrientes detalhados trigger */}
+                        <button
+                          type="button"
+                          onClick={() => setIsMicronutrientsDrawerOpen(true)}
+                          className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
+                        >
+                          <svg className="w-3.5 h-3.5 text-[var(--brand)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                          </svg>
+                          <span>Ver micronutrientes detalhados</span>
+                        </button>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   {/* Caloric Distribution per Meal */}
                   {dailySummary.meals.length > 0 && (dailySummary.calories.value || 0) > 0 && (
@@ -1739,25 +1817,13 @@ export function NutritionPlanBuilder({
                               {m.title}
                             </span>
                             <span className="font-semibold text-[var(--text-primary)] shrink-0">
-                              {m.caloriesKcal} kcal ({m.percentOfDay}%)
+                              {Math.round(m.caloriesKcal)} kcal ({m.percentOfDay}%)
                             </span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-
-                  {/* Micronutrients Trigger */}
-                  <button
-                    type="button"
-                    onClick={() => setIsMicronutrientsDrawerOpen(true)}
-                    className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] transition-all cursor-pointer min-h-[36px]"
-                  >
-                    <svg className="w-3.5 h-3.5 text-[var(--brand)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                    </svg>
-                    <span>Ver micronutrientes detalhados</span>
-                  </button>
                 </div>
               </div>
             </div>

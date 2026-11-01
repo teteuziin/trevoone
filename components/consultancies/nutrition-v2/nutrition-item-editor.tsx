@@ -32,6 +32,7 @@ import {
   calculateMealMicronutrientTotals,
   parseQuantityInput,
   formatQuantityForDisplay,
+  cleanFoodCatalogDisplayName,
 } from "@/lib/nutrition-v2/nutrient-calculator";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { getFoodPortionsForPickerAction } from "@/app/consultoria/[slug]/planos-v2/actions";
@@ -84,7 +85,8 @@ export function NutritionItemEditor({
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notes, setNotes] = useState(item.notes || "");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [areSubsExpanded, setAreSubsExpanded] = useState(true);
+  const [areSubsExpanded, setAreSubsExpanded] = useState(false);
+  const [isQtyInputFocused, setIsQtyInputFocused] = useState(false);
 
   // States for resolving unlinked / incomplete nutrition
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -137,7 +139,9 @@ export function NutritionItemEditor({
       unitCode: item.prescribedUnitCode,
       portionEquivalent: item.portionEquivalentAmount,
     });
-    setLocalQuantity(item.prescribedQuantity != null ? formatNumberForDisplay(item.prescribedQuantity) : "");
+    if (!isQtyInputFocused) {
+      setLocalQuantity(item.prescribedQuantity != null ? formatNumberForDisplay(item.prescribedQuantity) : "");
+    }
     setNotes(item.notes || "");
   }
 
@@ -512,13 +516,7 @@ export function NutritionItemEditor({
             className="font-bold text-sm sm:text-base text-[var(--text-primary)] leading-snug break-words"
             title={item.foodNameSnapshot}
           >
-            {item.foodNameSnapshot}
-          </span>
-          <span
-            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0"
-            title="Alimento de referência para o cálculo de calorias e macronutrientes da refeição"
-          >
-            Referência do cálculo
+            {cleanFoodCatalogDisplayName(item.foodNameSnapshot)}
           </span>
           <div className="relative inline-flex items-center" ref={actionChoiceRef}>
             {item.foodId == null ? (
@@ -814,6 +812,18 @@ export function NutritionItemEditor({
             type="text"
             inputMode="decimal"
             value={localQuantity}
+            onFocus={() => {
+              setIsQtyInputFocused(true);
+            }}
+            onBlur={() => {
+              setIsQtyInputFocused(false);
+              if (item.prescribedQuantity != null) {
+                const parsed = parseQuantityInput(localQuantity);
+                if (parsed == null) {
+                  setLocalQuantity(formatNumberForDisplay(item.prescribedQuantity));
+                }
+              }
+            }}
             onChange={(e) => handleQuantityChange(e.target.value)}
             placeholder="100"
             className="w-16 px-2 py-1.5 text-xs sm:text-sm text-center font-bold rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[34px]"
@@ -887,18 +897,7 @@ export function NutritionItemEditor({
           </span>
         )}
 
-        {!readOnly && item.foodPublicId && availablePortions.length === 0 && (
-          <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)] italic">
-            <span>Este alimento ainda não tem medidas caseiras cadastradas.</span>
-            <button
-              type="button"
-              onClick={() => setIsCustomMeasureModalOpen(true)}
-              className="not-italic font-semibold text-[var(--brand)] hover:underline cursor-pointer"
-            >
-              + Cadastrar medida
-            </button>
-          </span>
-        )}
+
       </div>
 
       {/* Practical Rounding Banner */}
@@ -954,11 +953,12 @@ export function NutritionItemEditor({
 
         <div className="flex items-center gap-1.5 shrink-0">
           {!readOnly && (
+            /* Equivalentes Button Desktop */
             <button
               type="button"
               onClick={handleOpenEquivalents}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 min-h-[32px] rounded-lg text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
-              title="Calcular equivalência nutricional deste alimento"
+              title="Calcular equivalência nutricional deste alimento (Calcular equivalentes nutricionais)"
             >
               <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -1123,21 +1123,6 @@ export function NutritionItemEditor({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                 </svg>
                 <span>+ Adicionar alternativa (OU)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSubstitutionToReview(null);
-                  setIsEquivalentsOpen(true);
-                }}
-                className="min-h-[44px] px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 rounded-xl border border-amber-500/30 transition-colors inline-flex items-center gap-1.5 cursor-pointer ml-auto"
-                title="Calcular quantidade equivalente com base em energia, proteína, carboidrato ou gordura"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                <span>Equivalentes</span>
               </button>
             </div>
           )}

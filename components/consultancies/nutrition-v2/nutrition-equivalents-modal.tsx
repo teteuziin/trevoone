@@ -449,8 +449,7 @@ export function NutritionEquivalentsModal({
 
       const isOverridden =
         selectedCriterion === "MANUAL" ||
-        (customQtyStr != null && parseFloat(customQtyStr.replace(",", ".")) !== defaultRoundedQty) ||
-        Boolean(portionPublicId);
+        (customQtyStr != null && parseFloat(customQtyStr.replace(",", ".")) !== defaultRoundedQty);
       const criterionToSave = isOverridden ? "MANUAL" : selectedCriterion;
 
       const normalizedUnit = (unitCode || "G").toUpperCase();
@@ -553,8 +552,7 @@ export function NutritionEquivalentsModal({
 
       const isOverridden =
         selectedCriterion === "MANUAL" ||
-        (calcRoundedQty != null && finalQty !== calcRoundedQty) ||
-        Boolean(portionPublicId);
+        (calcRoundedQty != null && finalQty !== calcRoundedQty);
       const criterionToSave = isOverridden ? "MANUAL" : selectedCriterion;
 
       const normalizedUnit = (unitCode || substitutionToReview.prescribedUnitCode || "G").toUpperCase();
@@ -1183,8 +1181,7 @@ export function NutritionEquivalentsModal({
 
                 const isOverridden =
                   selectedCriterion === "MANUAL" ||
-                  (calc.roundedQuantity != null && activeQty !== calc.roundedQuantity) ||
-                  selectedUnitVal !== "G";
+                  (calc.roundedQuantity != null && activeQty !== calc.roundedQuantity);
 
                 // Dynamic macros based on chosen prescribed quantity and unit
                 const effectiveGrams = activeQty * (selectedUnitVal === "G" ? 1 : portionMultiplier);

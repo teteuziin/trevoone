@@ -2375,20 +2375,51 @@ export async function updateMealItem(
     const isBaseUnitChanged = prescribedUnitCode !== (item.prescribed_unit_code ? String(item.prescribed_unit_code) : null);
 
     if (isBaseFoodChanged || isBaseUnitChanged || isBaseQtyChanged) {
-      const reason = isBaseFoodChanged
-        ? "BASE_FOOD_CHANGED"
-        : isBaseUnitChanged
-        ? "BASE_UNIT_CHANGED"
-        : "BASE_QUANTITY_CHANGED";
-
       try {
-        await connection.query(
-          `UPDATE nutrition_v2_item_substitutions
-           SET is_stale = 1,
-               stale_reason = ?
-           WHERE meal_item_id = ? AND deleted_at IS NULL`,
-          [reason, item.id]
-        );
+        const oldBaseQty = item.prescribed_quantity != null ? Number(item.prescribed_quantity) : null;
+        const newBaseQty = prescribedQuantity;
+
+        if (!isBaseFoodChanged && !isBaseUnitChanged && isBaseQtyChanged && oldBaseQty != null && oldBaseQty > 0 && newBaseQty != null && newBaseQty > 0) {
+          const ratio = newBaseQty / oldBaseQty;
+
+          // 1. Recalculate automatic equivalents dynamically (CALORIES, PROTEIN, CARBOHYDRATE, FAT)
+          await connection.query(
+            `UPDATE nutrition_v2_item_substitutions
+             SET prescribed_quantity = ROUND(prescribed_quantity * ?, 2),
+                 calories_kcal_snapshot = CASE WHEN calories_kcal_snapshot IS NOT NULL THEN ROUND(calories_kcal_snapshot * ?) ELSE NULL END,
+                 protein_g_snapshot = CASE WHEN protein_g_snapshot IS NOT NULL THEN ROUND(protein_g_snapshot * ?, 2) ELSE NULL END,
+                 carbohydrate_g_snapshot = CASE WHEN carbohydrate_g_snapshot IS NOT NULL THEN ROUND(carbohydrate_g_snapshot * ?, 2) ELSE NULL END,
+                 fat_g_snapshot = CASE WHEN fat_g_snapshot IS NOT NULL THEN ROUND(fat_g_snapshot * ?, 2) ELSE NULL END,
+                 base_quantity_snapshot = ?,
+                 is_stale = 0,
+                 stale_reason = NULL
+             WHERE meal_item_id = ? AND deleted_at IS NULL AND equivalence_criterion IS NOT NULL AND equivalence_criterion != 'MANUAL'`,
+            [ratio, ratio, ratio, ratio, ratio, newBaseQty, item.id]
+          );
+
+          // 2. Mark manual alternatives (or uncategorized) as stale without altering their prescribed quantity
+          await connection.query(
+            `UPDATE nutrition_v2_item_substitutions
+             SET is_stale = 1,
+                 stale_reason = 'BASE_QUANTITY_CHANGED'
+             WHERE meal_item_id = ? AND deleted_at IS NULL AND (equivalence_criterion IS NULL OR equivalence_criterion = 'MANUAL')`,
+            [item.id]
+          );
+        } else {
+          const reason = isBaseFoodChanged
+            ? "BASE_FOOD_CHANGED"
+            : isBaseUnitChanged
+            ? "BASE_UNIT_CHANGED"
+            : "BASE_QUANTITY_CHANGED";
+
+          await connection.query(
+            `UPDATE nutrition_v2_item_substitutions
+             SET is_stale = 1,
+                 stale_reason = ?
+             WHERE meal_item_id = ? AND deleted_at IS NULL`,
+            [reason, item.id]
+          );
+        }
       } catch (staleErr: unknown) {
         if (!isMissingSnapshotColumnError(staleErr)) throw staleErr;
       }

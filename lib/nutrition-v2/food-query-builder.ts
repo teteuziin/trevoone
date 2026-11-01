@@ -752,13 +752,17 @@ export function cleanTacoDisplayName(name: string): string {
 export function cleanFoodDisplayName(name: string, sourceKey?: string | null): string {
   if (!name || typeof name !== "string") return "";
 
+  let s = name.trim();
+  // Strip IBGE POF generic research suffixes (" de Qualquer Marca ou Sabor", " de Qualquer Marca")
+  s = s.replace(/\s+de\s+qualquer\s+marca(?:\s+ou\s+sabor)?\b/gi, "");
+
   if (sourceKey === "TACO" || !sourceKey) {
-    return cleanTacoDisplayName(name);
+    return cleanTacoDisplayName(s);
   }
 
   // For USDA, branded products, or consultancy custom foods:
   // preserve existing name without inventing semantics
-  return name.trim();
+  return s.trim();
 }
 
 export function detectFoodPreparationAndBrand(

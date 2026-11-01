@@ -32,7 +32,13 @@ const {
   cleanFoodCatalogDisplayName,
   formatQuickMacroDisplay,
   calculateItemNutrients,
+  cleanPortionLabel,
 } = await import("../lib/nutrition-v2/nutrient-calculator.ts");
+
+const {
+  CANONICAL_SPORTS_FOODS,
+  searchCanonicalSportsFoods,
+} = await import("../lib/nutrition-v2/canonical-sports-foods.ts");
 
 console.log("=== TREVO ONE NUTRITION V2 — SYNONYMS & ACCURACY SUITE ===");
 
@@ -299,5 +305,79 @@ assert.ok(
   "Order clause must prioritize GROWTH_SUPPLEMENTS right after TACO"
 );
 console.log("  ✓ Order clause ranks TACO first, GROWTH_SUPPLEMENTS second, CONSULTANCY third");
+
+// ---------------------------------------------------------------------------
+// 8. CANONICAL SPORTS FOODS OBJECT RETRIEVAL
+// ---------------------------------------------------------------------------
+console.log("\n[Test 8] Canonical Sports Foods Object Retrieval");
+
+const wheyResults = searchCanonicalSportsFoods("whey");
+assert.ok(wheyResults.length >= 2, `Expected at least 2 whey foods, got ${wheyResults.length}`);
+const wheyConcentrado = wheyResults.find((f) => f.name.includes("Concentrado"));
+assert.ok(wheyConcentrado != null, "Must find Whey Protein Concentrado");
+assert.strictEqual(wheyConcentrado.proteinG, 80, "Whey 80% must have 80g protein per 100g");
+assert.ok(wheyConcentrado.portionsCount > 0, "Whey must have portions available");
+
+const wheyCanonicalPortions = resolveCanonicalPortionsForFood({
+  name: wheyConcentrado.name,
+  displayName: wheyConcentrado.displayNamePtBr,
+  category: wheyConcentrado.category,
+  referenceUnitCode: wheyConcentrado.referenceUnitCode,
+});
+assert.ok(wheyCanonicalPortions.some((p) => p.label.includes("Scoop") && p.amount === 30), "Whey must have Scoop (30g) portion");
+console.log(`  ✓ "whey" returned ${wheyResults.length} foods including "${wheyConcentrado.name}" (80g protein/100g, Scoop 30g)`);
+
+const creatinaResults = searchCanonicalSportsFoods("creatina");
+assert.ok(creatinaResults.length >= 1, `Expected at least 1 creatina food, got ${creatinaResults.length}`);
+const creatina = creatinaResults[0];
+assert.ok(creatina.name.includes("Creatina"), "Must find Creatina Monohidratada");
+const creatinaCanonicalPortions = resolveCanonicalPortionsForFood({
+  name: creatina.name,
+  displayName: creatina.displayNamePtBr,
+  category: creatina.category,
+  referenceUnitCode: creatina.referenceUnitCode,
+});
+assert.ok(creatinaCanonicalPortions.some((p) => p.label.includes("Dosador") && p.amount === 3), "Creatina must have Dosador 3g portion");
+console.log(`  ✓ "creatina" returned "${creatina.name}" (Dosador 3g)`);
+
+const amendoimResults = searchCanonicalSportsFoods("pasta de amendoim");
+assert.ok(amendoimResults.length >= 1, `Expected at least 1 pasta de amendoim food, got ${amendoimResults.length}`);
+const pasta = amendoimResults[0];
+assert.ok(pasta.name.toLowerCase().includes("pasta de amendoim"), "Must find Pasta de amendoim");
+console.log(`  ✓ "pasta de amendoim" returned "${pasta.name}"`);
+
+// ---------------------------------------------------------------------------
+// 9. PRIORITIZATION OF COOKED OVER RAW IN SEARCH RANKING
+// ---------------------------------------------------------------------------
+console.log("\n[Test 9] Prioritization of Cooked over Raw in Search Ranking");
+
+const arrozOrder = buildFoodSearchOrderClause("arroz", ["arroz"]);
+assert.ok(
+  arrozOrder.orderClause.includes("LIKE '%cozid%' OR") && arrozOrder.orderClause.includes("THEN 1"),
+  "Order clause for 'arroz' must prioritize cooked foods (THEN 1)"
+);
+assert.ok(
+  arrozOrder.orderClause.includes("LIKE '%cru%'") && arrozOrder.orderClause.includes("THEN 3"),
+  "Order clause for 'arroz' must rank raw foods after cooked (THEN 3)"
+);
+console.log("  ✓ Querying 'arroz' prioritizes cooked (1) over raw (3)");
+
+const arrozCruOrder = buildFoodSearchOrderClause("arroz cru", ["arroz", "cru"]);
+assert.ok(
+  arrozCruOrder.orderClause.includes("LIKE '%cru%') THEN 1"),
+  "Order clause for 'arroz cru' must prioritize raw foods (cru THEN 1)"
+);
+console.log("  ✓ Querying 'arroz cru' prioritizes raw foods (cru THEN 1, cozid THEN 3)");
+
+// ---------------------------------------------------------------------------
+// 10. CLEAN PORTION LABEL
+// ---------------------------------------------------------------------------
+console.log("\n[Test 10] cleanPortionLabel Dropdown Hygiene");
+
+assert.strictEqual(cleanPortionLabel("1 Fatia - 25 g"), "Fatia - 25 g");
+assert.strictEqual(cleanPortionLabel("1 Colher de sopa"), "Colher de sopa");
+assert.strictEqual(cleanPortionLabel("1x copo americano"), "copo americano");
+assert.strictEqual(cleanPortionLabel("Fatia"), "Fatia");
+console.log("  ✓ cleanPortionLabel strips redundant '1 ' prefix without corrupting portion labels");
 
 console.log("\nALL TESTS PASSED SUCCESSFULLY! ✓\n");

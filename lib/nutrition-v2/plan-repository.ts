@@ -25,6 +25,34 @@ function isMissingSnapshotColumnError(err: unknown): boolean {
   );
 }
 
+async function resolveFoodRowByPublicId(
+  connection: { query: (sql: string, params?: unknown[]) => Promise<unknown> },
+  foodPublicId: string
+): Promise<RowDataPacket | null> {
+  const [foods] = (await connection.query(
+    `SELECT * FROM nutrition_v2_foods WHERE public_id = ? AND deleted_at IS NULL`,
+    [foodPublicId]
+  )) as [RowDataPacket[]];
+
+  if (foods && foods.length > 0) return foods[0];
+
+  const canonical = CANONICAL_SPORTS_FOODS.find((s) => s.publicId === foodPublicId);
+  if (canonical) {
+    try {
+      await ensureCanonicalSportsFoodsInDatabase(connection);
+      const [recheck] = (await connection.query(
+        `SELECT * FROM nutrition_v2_foods WHERE public_id = ? AND deleted_at IS NULL`,
+        [foodPublicId]
+      )) as [RowDataPacket[]];
+      if (recheck && recheck.length > 0) return recheck[0];
+    } catch {
+      // Continue
+    }
+  }
+
+  return null;
+}
+
 /**
  * TREVO ONE — NUTRITION V2 PLAN REPOSITORY
  * Core repository for Plan Root, Version, Meals, Items, and Substitutions.
@@ -41,6 +69,10 @@ import {
   type NutritionAccessContext,
   assertCanAuthorNutrition,
 } from "./access";
+import {
+  CANONICAL_SPORTS_FOODS,
+  ensureCanonicalSportsFoodsInDatabase,
+} from "./canonical-sports-foods";
 import {
   calculateItemNutrients,
   derivePortionUnitCode,
@@ -1640,16 +1672,11 @@ export async function addMealItem(
 
     if (input.foodPublicId && input.foodPublicId.trim()) {
       // Library food
-      const [foods] = await connection.query<RowDataPacket[]>(
-        `SELECT * FROM nutrition_v2_foods WHERE public_id = ? AND deleted_at IS NULL`,
-        [input.foodPublicId.trim()]
-      );
-
-      if (foods.length === 0) {
+      const food = await resolveFoodRowByPublicId(connection, input.foodPublicId.trim());
+      if (!food) {
         throw new NutritionAuthorizationError("Alimento não encontrado.", "FOOD_NOT_FOUND", 404);
       }
 
-      const food = foods[0];
       foodRow = food;
 
       // Exclude archived foods for new insertion (Section 28, 80)
@@ -2047,14 +2074,10 @@ export async function updateMealItem(
     }
     if (input.foodPublicId !== undefined) {
       if (input.foodPublicId && input.foodPublicId.trim()) {
-        const [foods] = await connection.query<RowDataPacket[]>(
-          `SELECT * FROM nutrition_v2_foods WHERE public_id = ? AND deleted_at IS NULL`,
-          [input.foodPublicId.trim()]
-        );
-        if (foods.length === 0) {
+        const newFood = await resolveFoodRowByPublicId(connection, input.foodPublicId.trim());
+        if (!newFood) {
           throw new NutritionAuthorizationError("Alimento não encontrado.", "FOOD_NOT_FOUND", 404);
         }
-        const newFood = foods[0];
         if (newFood.status !== "ACTIVE") {
           throw new NutritionAuthorizationError("Alimentos arquivados não podem ser adicionados.", "ARCHIVED_FOOD", 400);
         }
@@ -2637,16 +2660,11 @@ export async function addSubstitution(
     let fatSnapshot: number | null = null;
 
     if (input.foodPublicId && input.foodPublicId.trim()) {
-      const [foods] = await connection.query<RowDataPacket[]>(
-        `SELECT * FROM nutrition_v2_foods WHERE public_id = ? AND deleted_at IS NULL`,
-        [input.foodPublicId.trim()]
-      );
-
-      if (foods.length === 0) {
+      const food = await resolveFoodRowByPublicId(connection, input.foodPublicId.trim());
+      if (!food) {
         throw new NutritionAuthorizationError("Alimento não encontrado.", "FOOD_NOT_FOUND", 404);
       }
 
-      const food = foods[0];
       foodRow = food;
 
       if (food.status !== "ACTIVE") {
@@ -3022,14 +3040,10 @@ export async function updateSubstitution(
 
     if (input.foodPublicId !== undefined) {
       if (input.foodPublicId && input.foodPublicId.trim()) {
-        const [foods] = await connection.query<RowDataPacket[]>(
-          `SELECT * FROM nutrition_v2_foods WHERE public_id = ? AND deleted_at IS NULL`,
-          [input.foodPublicId.trim()]
-        );
-        if (foods.length === 0) {
+        const newFood = await resolveFoodRowByPublicId(connection, input.foodPublicId.trim());
+        if (!newFood) {
           throw new NutritionAuthorizationError("Alimento não encontrado.", "FOOD_NOT_FOUND", 404);
         }
-        const newFood = foods[0];
         if (newFood.status !== "ACTIVE") {
           throw new NutritionAuthorizationError("Alimentos arquivados não podem ser adicionados.", "ARCHIVED_FOOD", 400);
         }

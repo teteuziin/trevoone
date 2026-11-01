@@ -1093,6 +1093,17 @@ export function buildFoodSearchOrderClause(
     END ASC,`;
   }
 
+  // Prioritize cooked / prepared over raw by default when 'cru' is NOT in query
+  const hasExplicitRawQuery = queryTokens.some((t) => ["cru", "crua", "raw", "uncooked"].includes(t));
+  const cookedOverRawSql = !hasExplicitRawQuery
+    ? `
+    CASE
+      WHEN ${targetCol} LIKE '%cozid%' OR ${targetCol} LIKE '%grelhad%' OR ${targetCol} LIKE '%assad%' OR ${targetCol} LIKE '%refogad%' THEN 1
+      WHEN ${targetCol} LIKE '%cru%' OR ${targetCol} LIKE '%crua%' THEN 3
+      ELSE 2
+    END ASC,`
+    : "";
+
   const orderClause = `ORDER BY
     ${tenancyOrder}
     CASE
@@ -1128,6 +1139,7 @@ export function buildFoodSearchOrderClause(
       ELSE 11
     END ASC,
     ${prepOrderSql}
+    ${cookedOverRawSql}
     ${cutPrioritySql}
     ${brandPrioritySql}
     -- Prioritize direct milk foods over dairy derivatives (yogurt, cheese) when querying milk / leite

@@ -12,6 +12,11 @@ import {
   generateDeterministicPortionPublicId,
 } from "./canonical-food-portions";
 import {
+  CANONICAL_SPORTS_FOODS,
+  searchCanonicalSportsFoods,
+  ensureCanonicalSportsFoodsInDatabase,
+} from "./canonical-sports-foods";
+import {
   NutritionAuthorizationError,
   type NutritionAccessContext,
   assertCanAuthorNutrition,
@@ -164,6 +169,13 @@ export async function listUnifiedFoodsForNutritionist(
   try {
     connection = await getDbConnection();
 
+    // Ensure canonical sports & essential performance foods are present in MySQL
+    try {
+      await ensureCanonicalSportsFoodsInDatabase(connection);
+    } catch {
+      // Non-blocking fallback
+    }
+
     // 1. Isolated COUNT stage
     const countQuery = buildCountQuery(filter, ctx.consultancyId);
     let countRows: RowDataPacket[];
@@ -181,7 +193,6 @@ export async function listUnifiedFoodsForNutritionist(
 
     // 2. Isolated SELECT stage with sub-stage probes
     const builtQuery = buildSelectFoodsQuery(filter, ctx.consultancyId, { isUnified: true });
-    const totalPages = Math.ceil(total / builtQuery.pageSize) || 1;
 
     let rows: RowDataPacket[];
     try {
@@ -248,12 +259,27 @@ export async function listUnifiedFoodsForNutritionist(
       );
     }
 
+    // Ensure canonical sports foods are surfaced even if DB query did not match
+    let finalItems = items;
+    let finalTotal = total;
+    if (filter.query && filter.query.trim()) {
+      const canonicalMatches = searchCanonicalSportsFoods(filter.query);
+      if (canonicalMatches.length > 0) {
+        const existingIds = new Set(items.map((i) => i.publicId));
+        const toAdd = canonicalMatches.filter((m) => !existingIds.has(m.publicId));
+        if (toAdd.length > 0) {
+          finalItems = [...toAdd, ...items];
+          finalTotal = finalTotal + toAdd.length;
+        }
+      }
+    }
+
     return {
-      items,
-      total,
+      items: finalItems,
+      total: finalTotal,
       page: Math.floor(builtQuery.offset / builtQuery.pageSize) + 1,
       pageSize: builtQuery.pageSize,
-      totalPages,
+      totalPages: Math.ceil(finalTotal / builtQuery.pageSize) || 1,
     };
   } finally {
     if (connection) connection.release();
@@ -277,7 +303,6 @@ export async function listGlobalFoodsForAdmin(
 
     // 2. SELECT
     const builtQuery = buildSelectFoodsQuery({ ...filter, scope: "GLOBAL" }, null, { isUnified: false });
-    const totalPages = Math.ceil(total / builtQuery.pageSize) || 1;
 
     const [rows] = await connection.query<RowDataPacket[]>(builtQuery.fullSql, builtQuery.selectParams);
 
@@ -285,12 +310,27 @@ export async function listGlobalFoodsForAdmin(
       mapFoodRow(r as Record<string, unknown>, filter.query)
     );
 
+    // Ensure canonical sports foods are surfaced even if DB query did not match
+    let finalItems = items;
+    let finalTotal = total;
+    if (filter.query && filter.query.trim()) {
+      const canonicalMatches = searchCanonicalSportsFoods(filter.query);
+      if (canonicalMatches.length > 0) {
+        const existingIds = new Set(items.map((i) => i.publicId));
+        const toAdd = canonicalMatches.filter((m) => !existingIds.has(m.publicId));
+        if (toAdd.length > 0) {
+          finalItems = [...toAdd, ...items];
+          finalTotal = finalTotal + toAdd.length;
+        }
+      }
+    }
+
     return {
-      items,
-      total,
+      items: finalItems,
+      total: finalTotal,
       page: Math.floor(builtQuery.offset / builtQuery.pageSize) + 1,
       pageSize: builtQuery.pageSize,
-      totalPages,
+      totalPages: Math.ceil(finalTotal / builtQuery.pageSize) || 1,
     };
   } finally {
     if (connection) connection.release();
@@ -314,8 +354,26 @@ export async function getFoodWithPortions(
       [foodPublicId]
     );
 
-    if (foods.length === 0) return null;
-    const f = foods[0];
+    let f = foods[0];
+    if (!f) {
+      const canonical = CANONICAL_SPORTS_FOODS.find((s) => s.publicId === foodPublicId);
+      if (canonical) {
+        try {
+          await ensureCanonicalSportsFoodsInDatabase(connection);
+          const [recheck] = await connection.query<RowDataPacket[]>(
+            `SELECT * FROM nutrition_v2_foods WHERE public_id = ? AND deleted_at IS NULL`,
+            [foodPublicId]
+          );
+          if (recheck.length > 0) {
+            f = recheck[0];
+          }
+        } catch {
+          // Continue
+        }
+      }
+    }
+
+    if (!f) return null;
 
     // Authorization check
     if (f.scope === "CONSULTANCY") {

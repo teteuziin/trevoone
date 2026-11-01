@@ -8,6 +8,7 @@ import {
   cleanFoodCatalogDisplayName,
   formatHumanPortionDisplay,
   formatQuickMacroDisplay,
+  cleanPortionLabel,
 } from "@/lib/nutrition-v2/nutrient-calculator";
 import { NutritionFoodPicker } from "./nutrition-food-picker";
 import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
@@ -283,140 +284,66 @@ export function NutritionSubstitutionEditor({
 
   return (
     <div className="pl-2.5 sm:pl-4 pr-2 sm:pr-2.5 py-1.5 sm:py-2 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/30 hover:border-[var(--brand-primary)]/40 transition-colors w-full max-w-full min-w-0">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-1.5 md:gap-2 w-full max-w-full min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0 flex-wrap flex-1 max-w-full">
-          {substitution.equivalenceCriterion && substitution.equivalenceCriterion !== "MANUAL" ? (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shrink-0 uppercase tracking-wide inline-flex items-center gap-1">
-              <span>⇄ {EQUIVALENT_CRITERIA_SHORT_LABELS[substitution.equivalenceCriterion as EquivalentCriterion] || substitution.equivalenceCriterion}</span>
-            </span>
-          ) : (
+      <div className="flex flex-col gap-1.5 w-full max-w-full min-w-0">
+        {/* LINHA 1 (TOPO): OU / Critério + Nome da substituição + Macros + Ações */}
+        <div className="flex items-center justify-between gap-2 w-full min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            {substitution.equivalenceCriterion && substitution.equivalenceCriterion !== "MANUAL" ? (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shrink-0 uppercase tracking-wide inline-flex items-center gap-1">
+                <span>⇄ {EQUIVALENT_CRITERIA_SHORT_LABELS[substitution.equivalenceCriterion as EquivalentCriterion] || substitution.equivalenceCriterion}</span>
+              </span>
+            ) : (
+              <span
+                className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0 uppercase tracking-wide"
+                title="Alternativa com quantidade fixa definida pelo nutricionista"
+              >
+                OU
+              </span>
+            )}
             <span
-              className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0 uppercase tracking-wide"
-              title="Alternativa com quantidade fixa definida pelo nutricionista"
+              className="text-xs sm:text-sm font-medium text-[var(--text-primary)] truncate"
+              title={substitution.foodNameSnapshot}
             >
-              OU
+              {cleanFoodCatalogDisplayName(substitution.foodNameSnapshot)}
             </span>
-          )}
-          <span className="text-xs font-medium text-[var(--text-primary)] truncate max-w-[240px] sm:max-w-[320px]" title={substitution.foodNameSnapshot}>
-            {cleanFoodCatalogDisplayName(substitution.foodNameSnapshot)}
-          </span>
-          {substitution.foodId == null && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Pendente
-            </span>
-          )}
-          {isLegacyUnresolved && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Sem conversão
-            </span>
-          )}
-          {substitution.prescribedQuantity != null && (
-            <span className="text-xs text-[var(--text-secondary)] shrink-0 font-medium">
-              — {formatHumanPortionDisplay(
-                substitution.prescribedQuantity,
-                substitution.prescribedUnitLabel,
-                substitution.prescribedUnitCode,
-                substitution.portionEquivalentAmount,
-                substitution.equivalenceCriterion !== "MANUAL"
-              )}
-            </span>
-          )}
-          {substitution.derivedStatus === "UNVERIFIED" && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20 shrink-0">
-              Não verificada
-            </span>
-          )}
-          {!readOnly && substitution.derivedStatus === "UNVERIFIED" && onReviewOrRecalculate && (
-            <button
-              type="button"
-              onClick={() => onReviewOrRecalculate(substitution)}
-              className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 cursor-pointer shrink-0"
-              title="Revisar e definir critério de equivalência"
-            >
-              [ Revisar ]
-            </button>
-          )}
-          {substitution.derivedStatus === "STALE" && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
-              Desatualizada
-            </span>
-          )}
-          {!readOnly && substitution.derivedStatus === "STALE" && onReviewOrRecalculate && (
-            <button
-              type="button"
-              onClick={() => onReviewOrRecalculate(substitution)}
-              className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer shrink-0"
-              title="Recalcular porção equivalente com base no alimento principal"
-            >
-              [ Recalcular ]
-            </button>
-          )}
-          {!readOnly && substitution.equivalenceCriterion === "MANUAL" && substitution.derivedStatus !== "STALE" && onReviewOrRecalculate && (
-            <button
-              type="button"
-              onClick={() => onReviewOrRecalculate(substitution)}
-              className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 cursor-pointer shrink-0"
-              title="Recalcular equivalência matemática com base no alimento principal"
-            >
-              [ Recalcular ]
-            </button>
-          )}
-          {!readOnly && substitution.foodId == null && slug && (
-            <button
-              type="button"
-              onClick={() => setIsResolvePickerOpen(true)}
-              className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer shrink-0"
-              title="Vincular a um alimento da tabela nutricional"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <span>Vincular</span>
-            </button>
-          )}
-          {onCompare && (
-            <button
-              type="button"
-              onClick={onCompare}
-              className="text-[10px] font-semibold text-purple-700 dark:text-purple-400 hover:underline inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/10 hover:bg-purple-500/20 cursor-pointer shrink-0"
-              title="Comparar valores nutricionais lado a lado com o alimento principal"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <span>Comparar</span>
-            </button>
-          )}
-        </div>
+            {substitution.prescribedQuantity != null && (
+              <span className="text-xs text-[var(--text-secondary)] shrink-0 font-medium whitespace-nowrap">
+                — {formatHumanPortionDisplay(
+                  substitution.prescribedQuantity,
+                  substitution.prescribedUnitLabel,
+                  substitution.prescribedUnitCode,
+                  substitution.portionEquivalentAmount,
+                  substitution.equivalenceCriterion !== "MANUAL"
+                )}
+              </span>
+            )}
+          </div>
 
-        {/* Resumo direto de macros em telas md/lg */}
-        {subKcal != null && (
-          <span className="hidden md:inline-flex items-center gap-1 font-mono text-[11px] text-[var(--text-secondary)] shrink-0 ml-auto mr-1">
-            <strong className="text-[var(--brand)] font-semibold">{subKcal} kcal</strong>
-            <span className="text-[var(--text-tertiary)]">·</span>
-            <span>P {subP}g</span>
-            <span className="text-[var(--text-tertiary)]">·</span>
-            <span>C {subC}g</span>
-            <span className="text-[var(--text-tertiary)]">·</span>
-            <span>G {subG}g</span>
-          </span>
-        )}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Macros */}
+            {subKcal != null && (
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] text-[var(--text-secondary)] whitespace-nowrap">
+                <strong className="text-[var(--brand)] font-semibold">{subKcal} kcal</strong>
+                <span className="text-[var(--text-tertiary)] hidden sm:inline">·</span>
+                <span className="hidden sm:inline">P {subP}g</span>
+                <span className="text-[var(--text-tertiary)] hidden sm:inline">·</span>
+                <span className="hidden sm:inline">C {subC}g</span>
+                <span className="text-[var(--text-tertiary)] hidden sm:inline">·</span>
+                <span className="hidden sm:inline">G {subG}g</span>
+              </span>
+            )}
 
-        {/* Action icons com touch targets acessíveis */}
-        {!readOnly && (
-          <div className="flex items-center justify-end gap-0.5 shrink-0 ml-auto md:ml-0">
-            {!isEditing && (
-              <>
+            {/* Action icons */}
+            {!readOnly && !isEditing && (
+              <div className="flex items-center gap-0.5 shrink-0">
                 {onMoveUp && !isFirst && (
                   <button
                     type="button"
                     title="Mover para cima"
                     onClick={() => onMoveUp()}
-                    className="min-h-[38px] min-w-[36px] sm:min-h-[34px] sm:min-w-[32px] p-2 sm:p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                   >
-                    <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
                     </svg>
                   </button>
@@ -426,9 +353,9 @@ export function NutritionSubstitutionEditor({
                     type="button"
                     title="Mover para baixo"
                     onClick={() => onMoveDown()}
-                    className="min-h-[38px] min-w-[36px] sm:min-h-[34px] sm:min-w-[32px] p-2 sm:p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                   >
-                    <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
@@ -437,9 +364,9 @@ export function NutritionSubstitutionEditor({
                   type="button"
                   title="Editar quantidade e unidade"
                   onClick={handleOpenEdit}
-                  className="min-h-[38px] min-w-[36px] sm:min-h-[34px] sm:min-w-[32px] p-2 sm:p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                  className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                 >
-                  <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                 </button>
@@ -447,13 +374,92 @@ export function NutritionSubstitutionEditor({
                   type="button"
                   title="Remover substituição"
                   onClick={onRemove}
-                  className="min-h-[38px] min-w-[36px] sm:min-h-[34px] sm:min-w-[32px] p-2 sm:p-1.5 text-red-500/80 hover:text-red-600 rounded-lg hover:bg-red-500/10 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                  className="p-1 text-red-500/80 hover:text-red-600 rounded-lg hover:bg-red-500/10 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                 >
-                  <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
-              </>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* LINHA 2 (SE HOUVER BADGES OU AÇÕES AUXILIARES) */}
+        {(substitution.foodId == null || isLegacyUnresolved || substitution.derivedStatus === "UNVERIFIED" || substitution.derivedStatus === "STALE" || onCompare || (substitution.equivalenceCriterion === "MANUAL" && onReviewOrRecalculate)) && (
+          <div className="flex items-center gap-1.5 flex-wrap text-[10px] pt-1 border-t border-[var(--border-subtle)]/40">
+            {substitution.foodId == null && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Pendente
+              </span>
+            )}
+            {isLegacyUnresolved && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Sem conversão
+              </span>
+            )}
+            {substitution.derivedStatus === "UNVERIFIED" && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-medium bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20 shrink-0">
+                Não verificada
+              </span>
+            )}
+            {!readOnly && substitution.derivedStatus === "UNVERIFIED" && onReviewOrRecalculate && (
+              <button
+                type="button"
+                onClick={() => onReviewOrRecalculate(substitution)}
+                className="font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 cursor-pointer shrink-0"
+              >
+                [ Revisar ]
+              </button>
+            )}
+            {substitution.derivedStatus === "STALE" && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                Desatualizada
+              </span>
+            )}
+            {!readOnly && substitution.derivedStatus === "STALE" && onReviewOrRecalculate && (
+              <button
+                type="button"
+                onClick={() => onReviewOrRecalculate(substitution)}
+                className="font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer shrink-0"
+              >
+                [ Recalcular ]
+              </button>
+            )}
+            {!readOnly && substitution.equivalenceCriterion === "MANUAL" && substitution.derivedStatus !== "STALE" && onReviewOrRecalculate && (
+              <button
+                type="button"
+                onClick={() => onReviewOrRecalculate(substitution)}
+                className="font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 cursor-pointer shrink-0"
+              >
+                [ Recalcular ]
+              </button>
+            )}
+            {!readOnly && substitution.foodId == null && slug && (
+              <button
+                type="button"
+                onClick={() => setIsResolvePickerOpen(true)}
+                className="font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer shrink-0"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span>Vincular</span>
+              </button>
+            )}
+            {onCompare && (
+              <button
+                type="button"
+                onClick={onCompare}
+                className="font-semibold text-purple-700 dark:text-purple-400 hover:underline inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/10 hover:bg-purple-500/20 cursor-pointer shrink-0 ml-auto"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span>Comparar</span>
+              </button>
             )}
           </div>
         )}
@@ -493,11 +499,18 @@ export function NutritionSubstitutionEditor({
                 {!isLoadingPortions && availablePortions.length === 0 && substitution.foodPublicId && (
                   <option value="" disabled>Equivalência não cadastrada</option>
                 )}
-                {availablePortions.map((p) => (
-                  <option key={p.publicId} value={p.publicId}>
-                    {p.label} ({p.equivalentReferenceAmount}g)
-                  </option>
-                ))}
+                {availablePortions.map((p) => {
+                  const cleaned = cleanPortionLabel(p.label);
+                  const hasGramsInLabel = /\b\d+(?:[.,]\d+)?\s*(?:g|ml|kg|l)\b/i.test(cleaned);
+                  const optionLabel = hasGramsInLabel
+                    ? cleaned
+                    : `${cleaned} (${p.equivalentReferenceAmount}g)`;
+                  return (
+                    <option key={p.publicId} value={p.publicId}>
+                      {optionLabel}
+                    </option>
+                  );
+                })}
                 {isLegacyUnresolved && selectedUnitValue === "__LEGACY__" && (
                   <option value="__LEGACY__" disabled>
                     {substitution.prescribedUnitLabel || substitution.prescribedUnitCode} (sem conversão cadastrada)

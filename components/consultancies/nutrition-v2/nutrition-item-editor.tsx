@@ -33,6 +33,7 @@ import {
   parseQuantityInput,
   formatQuantityForDisplay,
   cleanFoodCatalogDisplayName,
+  cleanPortionLabel,
 } from "@/lib/nutrition-v2/nutrient-calculator";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { getFoodPortionsForPickerAction } from "@/app/consultoria/[slug]/planos-v2/actions";
@@ -506,240 +507,109 @@ export function NutritionItemEditor({
       className="p-2 sm:p-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] shadow-2xs hover:border-[var(--brand)]/40 transition-all space-y-2 w-full max-w-full min-w-0"
     >
       {/* ========================================================================= */}
-      {/* LINHA COMPACTA HORIZONTAL (Desktop md:/lg: linha única; Mobile: 2 linhas) */}
+      {/* CARD DO ALIMENTO — 2 LINHAS DEFINIDAS (L1: Nome + Macros + Menu | L2: Controles + Ações) */}
       {/* ========================================================================= */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-3 w-full min-w-0">
-        {/* ESQUERDA: Nome completo / truncado com title + Badges de Pendência */}
-        <div className="flex items-center gap-1.5 min-w-0 flex-1 md:max-w-[32%]">
-          <span
-            className="font-bold text-xs sm:text-sm text-[var(--text-primary)] leading-snug truncate"
-            title={item.foodNameSnapshot}
-          >
-            {cleanFoodCatalogDisplayName(item.foodNameSnapshot)}
-          </span>
-          <div className="relative inline-flex items-center" ref={actionChoiceRef}>
-            {item.foodId == null ? (
-              <span
-                onClick={() => setIsActionChoiceOpen(!isActionChoiceOpen)}
-                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border shrink-0 cursor-pointer ${
-                  isReviewedWithoutNutrition
-                    ? "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
-                    : "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30"
-                }`}
-                title="Clique para opções de vínculo e dados nutricionais"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${isReviewedWithoutNutrition ? "bg-zinc-400" : "bg-amber-500 animate-pulse"}`} />
-                {isReviewedWithoutNutrition ? "Sem macros (revisado)" : "Sem vínculo"}
-              </span>
-            ) : hasIssues ? (
-              <span
-                onClick={() => setIsActionChoiceOpen(!isActionChoiceOpen)}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0 cursor-pointer"
-                title="Clique para revisar dados ausentes"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                Revisar dados
-              </span>
-            ) : null}
+      <div className="flex flex-col gap-1.5 w-full min-w-0">
+        {/* LINHA 1 (TOPO COMPACTO): Nome à esquerda (nunca encolhe a 0) + Macros e Menu ⋮ à direita */}
+        <div className="flex items-center justify-between gap-2 w-full min-w-0">
+          {/* Nome e Badges de Pendência */}
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <span
+              className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] leading-tight truncate"
+              title={item.foodNameSnapshot}
+            >
+              {cleanFoodCatalogDisplayName(item.foodNameSnapshot)}
+            </span>
+            <div className="relative inline-flex items-center" ref={actionChoiceRef}>
+              {item.foodId == null ? (
+                <span
+                  onClick={() => setIsActionChoiceOpen(!isActionChoiceOpen)}
+                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border shrink-0 cursor-pointer ${
+                    isReviewedWithoutNutrition
+                      ? "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                      : "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                  }`}
+                  title="Clique para opções de vínculo e dados nutricionais"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${isReviewedWithoutNutrition ? "bg-zinc-400" : "bg-amber-500 animate-pulse"}`} />
+                  {isReviewedWithoutNutrition ? "Sem macros (revisado)" : "Sem vínculo"}
+                </span>
+              ) : hasIssues ? (
+                <span
+                  onClick={() => setIsActionChoiceOpen(!isActionChoiceOpen)}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0 cursor-pointer"
+                  title="Clique para revisar dados ausentes"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Revisar dados
+                </span>
+              ) : null}
 
-            {/* Quick 3-Choice Action Menu */}
-            {isActionChoiceOpen && (
-              <div className="absolute left-0 top-full mt-1.5 w-60 rounded-xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-2xl py-1.5 z-40 text-xs animate-in fade-in zoom-in-95 duration-150">
-                <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-subtle)] mb-1">
-                  Resolver Pendência
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionChoiceOpen(false);
-                    setIsResolvePickerOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <span>Buscar na biblioteca</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionChoiceOpen(false);
-                    setIsManualModalOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  <span>Informar valores nutricionais</span>
-                </button>
-                {onToggleAcknowledge && (
+              {/* Quick 3-Choice Action Menu */}
+              {isActionChoiceOpen && (
+                <div className="absolute left-0 top-full mt-1.5 w-60 rounded-xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-2xl py-1.5 z-40 text-xs animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-subtle)] mb-1">
+                    Resolver Pendência
+                  </div>
                   <button
                     type="button"
-                    onClick={async () => {
+                    onClick={() => {
                       setIsActionChoiceOpen(false);
-                      await onToggleAcknowledge(!isReviewedWithoutNutrition);
+                      setIsResolvePickerOpen(true);
                     }}
                     className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-medium"
                   >
-                    <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    <span>{isReviewedWithoutNutrition ? "Desmarcar revisão" : "Manter sem dados"}</span>
+                    <span>Buscar na biblioteca</span>
                   </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* CENTRO: Quantidade + Seletor de Medida + Conversão Física */}
-        <div className="flex items-center gap-1.5 shrink-0 text-xs">
-          {!readOnly ? (
-            <input
-              data-item-input={item.publicId}
-              type="text"
-              inputMode="decimal"
-              value={localQuantity}
-              onFocus={() => {
-                setIsQtyInputFocused(true);
-              }}
-              onBlur={() => {
-                setIsQtyInputFocused(false);
-                if (item.prescribedQuantity != null) {
-                  const parsed = parseQuantityInput(localQuantity);
-                  if (parsed == null) {
-                    setLocalQuantity(formatNumberForDisplay(item.prescribedQuantity));
-                  }
-                }
-              }}
-              onChange={(e) => handleQuantityChange(e.target.value)}
-              placeholder="100"
-              className="w-14 sm:w-16 px-1.5 py-1 text-xs sm:text-sm text-center font-bold rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[32px]"
-              title="Quantidade prescrita"
-            />
-          ) : (
-            <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] px-1">
-              {localQuantity}
-            </span>
-          )}
-
-          {!readOnly && item.foodPublicId ? (
-            <select
-              value={selectedMeasureKey}
-              onChange={(e) => handleMeasureChange(e.target.value)}
-              className="text-xs sm:text-sm font-semibold px-2 py-1 rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[32px] max-w-[175px] sm:max-w-[210px] truncate cursor-pointer"
-              title="Selecione a medida deste alimento"
-            >
-              <optgroup label="Unidade Padrão">
-                <option value={isVolumeFood ? "ML" : "G"}>
-                  {standardUnitLabel}
-                </option>
-              </optgroup>
-
-              {availablePortions.length > 0 ? (
-                <optgroup label="Medidas do Alimento">
-                  {availablePortions.map((p) => {
-                    const isCurrentSelected = p.publicId === selectedMeasureKey;
-                    const displayEq = isCurrentSelected && item.portionEquivalentAmount && item.portionEquivalentAmount > 0
-                      ? item.portionEquivalentAmount
-                      : p.equivalentReferenceAmount;
-                    return (
-                      <option key={p.publicId} value={p.publicId}>
-                        {p.label} · {displayEq} {standardUnitShort}
-                        {p.scope === "PERSONAL" ? " (Pessoal)" : p.scope === "CONSULTANCY" ? " (Consultoria)" : ""}
-                      </option>
-                    );
-                  })}
-                </optgroup>
-              ) : (
-                <optgroup label="Medidas do Alimento">
-                  <option value="" disabled>
-                    Equivalência não cadastrada
-                  </option>
-                </optgroup>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionChoiceOpen(false);
+                      setIsManualModalOpen(true);
+                    }}
+                    className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-medium"
+                  >
+                    <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <span>Informar valores nutricionais</span>
+                  </button>
+                  {onToggleAcknowledge && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIsActionChoiceOpen(false);
+                        await onToggleAcknowledge(!isReviewedWithoutNutrition);
+                      }}
+                      className="w-full text-left px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] flex items-center gap-2 cursor-pointer font-medium"
+                    >
+                      <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>{isReviewedWithoutNutrition ? "Desmarcar revisão" : "Manter sem dados"}</span>
+                    </button>
+                  )}
+                </div>
               )}
-
-              <optgroup label="Personalização">
-                <option value="__CREATE_CUSTOM__">+ Cadastrar medida...</option>
-              </optgroup>
-            </select>
-          ) : (
-            <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              {item.prescribedUnitLabel || item.prescribedUnitCode || standardUnitShort}
-            </span>
-          )}
-
-          {/* Conversão em gramas (APENAS quando não for unidade métrica padrão) */}
-          {selectedMeasureKey !== "G" && selectedMeasureKey !== "ML" && equivGrams != null && (
-            <span
-              className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 whitespace-nowrap"
-              title="Equivalência física correspondente"
-            >
-              = {equivGrams} {standardUnitShort}
-            </span>
-          )}
-
-          {isMissingPortionConversion && (
-            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 whitespace-nowrap">
-              Sem conversão
-            </span>
-          )}
-        </div>
-
-        {/* DIREITA: Macros à esquerda + Botões de ação (Equivalentes, Substituições, Menu ⋮) */}
-        <div className="flex items-center justify-between md:justify-end gap-2 shrink-0 text-xs pt-1 md:pt-0 border-t md:border-t-0 border-[var(--border-subtle)]/60">
-          <div className="flex items-center gap-1.5 font-mono text-xs sm:text-sm text-[var(--text-secondary)] whitespace-nowrap">
-            <span className="font-bold text-[var(--brand)]">
-              {displayKcal != null ? `${displayKcal} kcal` : "— kcal"}
-            </span>
-            <span className="text-[var(--text-tertiary)]">·</span>
-            <span>P {displayP != null ? `${displayP}g` : "—"}</span>
-            <span className="text-[var(--text-tertiary)]">·</span>
-            <span>C {displayC != null ? `${displayC}g` : "—"}</span>
-            <span className="text-[var(--text-tertiary)]">·</span>
-            <span>G {displayG != null ? `${displayG}g` : "—"}</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            {!readOnly && (
-              <button
-                type="button"
-                onClick={handleOpenEquivalents}
-                className="inline-flex items-center gap-1 px-2 py-1 min-h-[30px] rounded-lg text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
-                title="Calcular equivalência nutricional deste alimento"
-              >
-                <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                <span className="hidden sm:inline">Equivalentes</span>
-              </button>
-            )}
-
-            {item.substitutions.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setAreSubsExpanded(!areSubsExpanded)}
-                className={`inline-flex items-center gap-1 px-2 py-1 min-h-[30px] rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                  areSubsExpanded
-                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30"
-                    : "bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]"
-                }`}
-                title={areSubsExpanded ? "Recolher alternativas OU" : "Ver alternativas OU"}
-              >
-                <span className="px-1 py-0.2 rounded text-[8px] font-black bg-amber-500 text-white shrink-0">OU</span>
-                <span>Alternativas ({item.substitutions.length})</span>
-                {unverifiedSubsCount > 0 && (
-                  <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-500 text-white shrink-0">
-                    {unverifiedSubsCount}
-                  </span>
-                )}
-                <svg className={`w-3 h-3 transition-transform duration-200 ${areSubsExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            )}
+          {/* Resumo de Macros e Menu ⋮ */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 font-mono text-xs sm:text-sm text-[var(--text-secondary)] whitespace-nowrap">
+              <span className="font-bold text-[var(--brand)]">
+                {displayKcal != null ? `${displayKcal} kcal` : "— kcal"}
+              </span>
+              <span className="text-[var(--text-tertiary)] hidden sm:inline">·</span>
+              <span className="hidden sm:inline">P {displayP != null ? `${displayP}g` : "—"}</span>
+              <span className="text-[var(--text-tertiary)] hidden sm:inline">·</span>
+              <span className="hidden sm:inline">C {displayC != null ? `${displayC}g` : "—"}</span>
+              <span className="text-[var(--text-tertiary)] hidden sm:inline">·</span>
+              <span className="hidden sm:inline">G {displayG != null ? `${displayG}g` : "—"}</span>
+            </div>
 
             {/* Action Menu ⋮ */}
             {!readOnly && (
@@ -753,7 +623,7 @@ export function NutritionItemEditor({
                 <button
                   type="button"
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer min-h-[30px] min-w-[30px] flex items-center justify-center transition-colors"
+                  className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] cursor-pointer min-h-[28px] min-w-[28px] flex items-center justify-center transition-colors"
                   title="Mais opções do alimento"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -947,6 +817,149 @@ export function NutritionItemEditor({
                   </div>
                 )}
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* LINHA 2 (CONTROLES): Inputs à esquerda + Botões de ação à direita */}
+        <div className="flex items-center justify-between gap-2 w-full min-w-0 pt-1 border-t border-[var(--border-subtle)]/50">
+          {/* Controles de Quantidade e Medida */}
+          <div className="flex items-center gap-1.5 min-w-0 flex-1 text-xs">
+            {!readOnly ? (
+              <input
+                data-item-input={item.publicId}
+                type="text"
+                inputMode="decimal"
+                value={localQuantity}
+                onFocus={() => {
+                  setIsQtyInputFocused(true);
+                }}
+                onBlur={() => {
+                  setIsQtyInputFocused(false);
+                  if (item.prescribedQuantity != null) {
+                    const parsed = parseQuantityInput(localQuantity);
+                    if (parsed == null) {
+                      setLocalQuantity(formatNumberForDisplay(item.prescribedQuantity));
+                    }
+                  }
+                }}
+                onChange={(e) => handleQuantityChange(e.target.value)}
+                placeholder="100"
+                className="w-14 sm:w-16 px-1.5 py-1 text-xs sm:text-sm text-center font-bold rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[30px] shrink-0"
+                title="Quantidade prescrita"
+              />
+            ) : (
+              <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] px-1 shrink-0">
+                {localQuantity}
+              </span>
+            )}
+
+            {!readOnly && item.foodPublicId ? (
+              <select
+                value={selectedMeasureKey}
+                onChange={(e) => handleMeasureChange(e.target.value)}
+                className="text-xs sm:text-sm font-semibold px-2 py-1 rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[30px] max-w-[170px] sm:max-w-[220px] truncate cursor-pointer"
+                title="Selecione a medida deste alimento"
+              >
+                <optgroup label="Unidade Padrão">
+                  <option value={isVolumeFood ? "ML" : "G"}>
+                    {standardUnitLabel}
+                  </option>
+                </optgroup>
+
+                {availablePortions.length > 0 ? (
+                  <optgroup label="Medidas do Alimento">
+                    {availablePortions.map((p) => {
+                      const isCurrentSelected = p.publicId === selectedMeasureKey;
+                      const displayEq = isCurrentSelected && item.portionEquivalentAmount && item.portionEquivalentAmount > 0
+                        ? item.portionEquivalentAmount
+                        : p.equivalentReferenceAmount;
+                      const cleaned = cleanPortionLabel(p.label);
+                      const hasGramsInLabel = /\b\d+(?:[.,]\d+)?\s*(?:g|ml|kg|l)\b/i.test(cleaned);
+                      const optionLabel = hasGramsInLabel
+                        ? cleaned
+                        : `${cleaned} (${displayEq} ${standardUnitShort})`;
+                      return (
+                        <option key={p.publicId} value={p.publicId}>
+                          {optionLabel}
+                          {p.scope === "PERSONAL" ? " (Pessoal)" : p.scope === "CONSULTANCY" ? " (Consultoria)" : ""}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                ) : (
+                  <optgroup label="Medidas do Alimento">
+                    <option value="" disabled>
+                      Equivalência não cadastrada
+                    </option>
+                  </optgroup>
+                )}
+
+                <optgroup label="Personalização">
+                  <option value="__CREATE_CUSTOM__">+ Cadastrar medida...</option>
+                </optgroup>
+              </select>
+            ) : (
+              <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">
+                {item.prescribedUnitLabel ? cleanPortionLabel(item.prescribedUnitLabel) : (item.prescribedUnitCode || standardUnitShort)}
+              </span>
+            )}
+
+            {/* Conversão em gramas (APENAS quando não for unidade métrica padrão) */}
+            {selectedMeasureKey !== "G" && selectedMeasureKey !== "ML" && equivGrams != null && (
+              <span
+                className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 whitespace-nowrap shrink-0"
+                title="Equivalência física correspondente"
+              >
+                = {equivGrams} {standardUnitShort}
+              </span>
+            )}
+
+            {isMissingPortionConversion && (
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 whitespace-nowrap shrink-0">
+                Sem conversão
+              </span>
+            )}
+          </div>
+
+          {/* Botões de Ação: Equivalentes e OU Alternativas */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={handleOpenEquivalents}
+                className="inline-flex items-center gap-1 px-2 py-1 min-h-[30px] rounded-lg text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
+                title="Calcular equivalência nutricional deste alimento"
+              >
+                <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <span className="hidden sm:inline">Equivalentes</span>
+              </button>
+            )}
+
+            {item.substitutions.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setAreSubsExpanded(!areSubsExpanded)}
+                className={`inline-flex items-center gap-1 px-2 py-1 min-h-[30px] rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  areSubsExpanded
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30"
+                    : "bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]"
+                }`}
+                title={areSubsExpanded ? "Recolher alternativas OU" : "Ver alternativas OU"}
+              >
+                <span className="px-1 py-0.2 rounded text-[8px] font-black bg-amber-500 text-white shrink-0">OU</span>
+                <span>Alternativas ({item.substitutions.length})</span>
+                {unverifiedSubsCount > 0 && (
+                  <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-500 text-white shrink-0">
+                    {unverifiedSubsCount}
+                  </span>
+                )}
+                <svg className={`w-3 h-3 transition-transform duration-200 ${areSubsExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
             )}
           </div>
         </div>

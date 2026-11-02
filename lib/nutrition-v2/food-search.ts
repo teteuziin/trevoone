@@ -155,6 +155,10 @@ function getWordStem(word: string): string {
  * NO English cross-language tokens allowed in user search queries.
  */
 export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  // Cereais e arroz (priorizando versão cozida por padrão)
+  arroz: ["arroz tipo 1 cozido", "arroz cozido"],
+  "arroz branco": ["arroz tipo 1 cozido", "arroz cozido", "arroz"],
+
   // Pães e variações regionais brasileiras
   cacetinho: ["pao frances", "frances", "pao de sal", "careca"],
   careca: ["pao frances", "frances", "cacetinho", "pao de sal"],

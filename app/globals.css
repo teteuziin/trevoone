@@ -623,12 +623,12 @@ body {
   height: 100%;
   background-repeat: no-repeat;
   background-position: right bottom;
-  background-size: min(520px, 38vw);
+  background-size: min(520px, 36vw);
   max-height: 520px;
   opacity: 0.35;
   pointer-events: none;
-  -webkit-mask-image: radial-gradient(circle at 100% 100%, black 45%, transparent 95%);
-  mask-image: radial-gradient(circle at 100% 100%, black 45%, transparent 95%);
+  -webkit-mask-image: radial-gradient(circle 440px at 100% 100%, black 0%, black 20%, transparent 80%);
+  mask-image: radial-gradient(circle 440px at 100% 100%, black 0%, black 20%, transparent 80%);
 }
 
 /* Light Mode — Landscape (Horizontal / Desktop) */
@@ -637,6 +637,7 @@ body {
     background-image: url("/images/wallpapers/wallpaper-light-desktop.webp");
     background-size: min(520px, 36vw);
     max-height: 520px;
+    mix-blend-mode: multiply;
   }
 }
 
@@ -647,6 +648,9 @@ body {
     background-size: min(320px, 65vw);
     max-height: 400px;
     opacity: 0.28;
+    mix-blend-mode: multiply;
+    -webkit-mask-image: radial-gradient(circle 280px at 100% 100%, black 0%, black 20%, transparent 80%);
+    mask-image: radial-gradient(circle 280px at 100% 100%, black 0%, black 20%, transparent 80%);
   }
 }
 
@@ -661,6 +665,7 @@ body {
       background-size: min(520px, 36vw);
       max-height: 520px;
       opacity: 0.38;
+      mix-blend-mode: screen;
     }
   }
   @media (orientation: portrait) {
@@ -669,6 +674,9 @@ body {
       background-size: min(320px, 65vw);
       max-height: 400px;
       opacity: 0.3;
+      mix-blend-mode: screen;
+      -webkit-mask-image: radial-gradient(circle 280px at 100% 100%, black 0%, black 20%, transparent 80%);
+      mask-image: radial-gradient(circle 280px at 100% 100%, black 0%, black 20%, transparent 80%);
     }
   }
 }
@@ -684,6 +692,7 @@ body {
     background-size: min(520px, 36vw);
     max-height: 520px;
     opacity: 0.38;
+    mix-blend-mode: screen;
   }
 }
 
@@ -693,6 +702,9 @@ body {
     background-size: min(320px, 65vw);
     max-height: 400px;
     opacity: 0.3;
+    mix-blend-mode: screen;
+    -webkit-mask-image: radial-gradient(circle 280px at 100% 100%, black 0%, black 20%, transparent 80%);
+    mask-image: radial-gradient(circle 280px at 100% 100%, black 0%, black 20%, transparent 80%);
   }
 }
 

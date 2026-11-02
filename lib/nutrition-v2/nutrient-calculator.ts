@@ -181,6 +181,7 @@ export function isPureProteinFood(name?: string | null): boolean {
 export function resolveItemEffectiveMacros(item: {
   foodNameSnapshot?: string | null;
   name?: string | null;
+  prescribedQuantity?: number | null;
   caloriesKcalSnapshot?: number | null;
   caloriesKcal?: number | null;
   proteinGSnapshot?: number | null;
@@ -195,18 +196,35 @@ export function resolveItemEffectiveMacros(item: {
   carbohydrate: number | null;
   fat: number | null;
 } {
+  const foodName = item.foodNameSnapshot || item.name || "";
+  const norm = foodName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const isEgg = norm.includes("ovo") && !norm.includes("codorna") && !norm.includes("avestruz") && !norm.includes("pascoa") && !norm.includes("easter");
+
+  const rawQty = item.prescribedQuantity != null ? Number(item.prescribedQuantity) : 1;
+  const qty = Number.isFinite(rawQty) && rawQty > 0 ? rawQty : 1;
+
   const rawCal = item.caloriesKcalSnapshot !== undefined ? item.caloriesKcalSnapshot : item.caloriesKcal;
   const rawProt = item.proteinGSnapshot !== undefined ? item.proteinGSnapshot : item.proteinG;
   const rawCarb = item.carbohydrateGSnapshot !== undefined ? item.carbohydrateGSnapshot : item.carbohydrateG;
   const rawFat = item.fatGSnapshot !== undefined ? item.fatGSnapshot : item.fatG;
 
-  const cal = rawCal != null && Number.isFinite(Number(rawCal)) ? Number(rawCal) : null;
-  const prot = rawProt != null && Number.isFinite(Number(rawProt)) ? Number(rawProt) : null;
+  let cal = rawCal != null && Number.isFinite(Number(rawCal)) ? Number(rawCal) : null;
+  let prot = rawProt != null && Number.isFinite(Number(rawProt)) ? Number(rawProt) : null;
   let carb = rawCarb != null && Number.isFinite(Number(rawCarb)) ? Number(rawCarb) : null;
-  const fat = rawFat != null && Number.isFinite(Number(rawFat)) ? Number(rawFat) : null;
+  let fat = rawFat != null && Number.isFinite(Number(rawFat)) ? Number(rawFat) : null;
 
+  // Auto-heal corrupted egg macros (e.g. 1232 kcal for 4 eggs)
+  if (isEgg) {
+    if ((cal != null && cal > 350 * qty) || (prot != null && prot > 20 * qty) || (cal != null && cal >= 900)) {
+      cal = Math.round(qty * 73);
+      prot = Math.round(qty * 6.65 * 10) / 10;
+      carb = Math.round(qty * 0.3 * 10) / 10;
+      fat = Math.round(qty * 4.75 * 10) / 10;
+    }
+  }
+
+  // Pure animal protein / meat / poultry / fish / egg: 0g carbs check
   if (carb == null) {
-    const foodName = item.foodNameSnapshot || item.name || "";
     const isPure = isPureProteinFood(foodName);
     const matchesAtwater = cal != null && prot != null && fat != null && Math.abs(cal - (prot * 4 + fat * 9)) <= 15;
     if (isPure || matchesAtwater) {
@@ -215,6 +233,55 @@ export function resolveItemEffectiveMacros(item: {
   }
 
   return { calories: cal, protein: prot, carbohydrate: carb, fat };
+}
+
+/**
+ * Detects whether a prescribed staple food (cereal, legume, pasta, tuber, meat)
+ * is registered as "cru" / "crua" (raw) which can distort caloric density
+ * when prescribed in consumption measures (e.g. 200g raw rice = 716 kcal vs 256 kcal cooked).
+ * Excludes foods routinely consumed raw (fruits, salad vegetables, oats, seeds, nuts).
+ */
+export function isUncookedStapleFood(name: string | null | undefined): boolean {
+  if (!name || typeof name !== "string") return false;
+  const norm = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  // Must contain standalone word "cru" or "crua"
+  if (!/\b(cru|crua|crus|cruas)\b/i.test(norm)) return false;
+
+  // Exclude fruits, salad greens, seeds, nuts and oats normally eaten uncooked
+  const isExcluded = /\b(maca|banana|laranja|morango|melancia|melao|mamao|abacaxi|uva|manga|pera|kiwi|limao|ameixa|pessego|goiaba|alface|rucula|agriao|espinafre|couve|tomate|pepino|rabanete|cenoura|beterraba|repolho|cebola|alho|aveia|chia|linhaca|castanha|noz|nozes|amendoa|amendoim)\b/i.test(norm);
+  if (isExcluded) return false;
+
+  // Must match staple categories (cereals, legumes, pasta, tubers, meats/poultry/fish)
+  const isStaple = /\b(arroz|feijao|macarrao|espaguete|massa|grao-de-bico|grao de bico|lentilha|ervilha|soja|mandioca|aipim|macaxeira|batata|batata-doce|batata doce|inhame|carne|frango|peito|patinho|alcatra|bife|peixe|tilapia|salmao|lombo|porco|suin[oa]|bovin[oa])\b/i.test(norm);
+
+  return isStaple;
+}
+
+/**
+ * Suggests an optimal search term for finding the cooked/prepared equivalent
+ * of an uncooked staple food (e.g. "Arroz tipo 2 cru" -> "arroz cozido").
+ */
+export function suggestCookedEquivalentTerm(name: string | null | undefined): string {
+  if (!name || typeof name !== "string") return "cozido";
+  const norm = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  if (norm.includes("arroz")) return "arroz cozido";
+  if (norm.includes("feijao")) return "feijao cozido";
+  if (norm.includes("macarrao") || norm.includes("espaguete") || norm.includes("massa")) return "macarrao cozido";
+  if (norm.includes("frango") || norm.includes("peito")) return "peito de frango grelhado";
+  if (norm.includes("carne moida") || norm.includes("patinho moido")) return "carne moida refogada";
+  if (norm.includes("patinho")) return "patinho grelhado";
+  if (norm.includes("carne") || norm.includes("bife") || norm.includes("alcatra")) return "carne bovina grelhada";
+  if (norm.includes("peixe") || norm.includes("tilapia") || norm.includes("salmao")) return "file de peixe grelhado";
+  if (norm.includes("mandioca") || norm.includes("aipim") || norm.includes("macaxeira")) return "mandioca cozida";
+  if (norm.includes("batata doce") || norm.includes("batata-doce")) return "batata doce cozida";
+  if (norm.includes("batata")) return "batata cozida";
+  if (norm.includes("grao-de-bico") || norm.includes("grao de bico")) return "grao de bico cozido";
+  if (norm.includes("lentilha")) return "lentilha cozida";
+
+  // General fallback: replace "cru" or "crua" with "cozido"
+  return name.replace(/\b(?:crus?|cruas?)\b/gi, "cozido").trim();
 }
 
 /**
@@ -883,6 +950,8 @@ export function calculatePlanTotals(
  */
 export function scaleItemSnapshots(
   item: {
+    foodNameSnapshot?: string | null;
+    name?: string | null;
     prescribedQuantity?: number | null;
     caloriesKcalSnapshot?: number | null;
     proteinGSnapshot?: number | null;
@@ -896,6 +965,8 @@ export function scaleItemSnapshots(
   carbohydrateGSnapshot: number | null;
   fatGSnapshot: number | null;
 } {
+  const eff = resolveItemEffectiveMacros(item);
+
   if (!Number.isFinite(newQuantity) || newQuantity <= 0) {
     return {
       caloriesKcalSnapshot: null,
@@ -908,10 +979,10 @@ export function scaleItemSnapshots(
   const baseQty = Number(item.prescribedQuantity);
   if (!Number.isFinite(baseQty) || baseQty <= 0) {
     return {
-      caloriesKcalSnapshot: item.caloriesKcalSnapshot ?? null,
-      proteinGSnapshot: item.proteinGSnapshot ?? null,
-      carbohydrateGSnapshot: item.carbohydrateGSnapshot ?? null,
-      fatGSnapshot: item.fatGSnapshot ?? null,
+      caloriesKcalSnapshot: eff.calories,
+      proteinGSnapshot: eff.protein,
+      carbohydrateGSnapshot: eff.carbohydrate,
+      fatGSnapshot: eff.fat,
     };
   }
 
@@ -926,10 +997,10 @@ export function scaleItemSnapshots(
   };
 
   return {
-    caloriesKcalSnapshot: scaleValue(item.caloriesKcalSnapshot),
-    proteinGSnapshot: scaleValue(item.proteinGSnapshot),
-    carbohydrateGSnapshot: scaleValue(item.carbohydrateGSnapshot),
-    fatGSnapshot: scaleValue(item.fatGSnapshot),
+    caloriesKcalSnapshot: scaleValue(eff.calories),
+    proteinGSnapshot: scaleValue(eff.protein),
+    carbohydrateGSnapshot: scaleValue(eff.carbohydrate),
+    fatGSnapshot: scaleValue(eff.fat),
   };
 }
 
@@ -1649,6 +1720,8 @@ export function calculateDailySummary(params: {
     title?: string;
     scheduledTime?: string | null;
     items?: Array<{
+      foodNameSnapshot?: string | null;
+      name?: string | null;
       caloriesKcalSnapshot?: number | null;
       proteinGSnapshot?: number | null;
       carbohydrateGSnapshot?: number | null;
@@ -1680,6 +1753,7 @@ export function calculateDailySummary(params: {
 
   // 1. Extract ONLY primary prescribed items from filtered meals. NEVER sum substitutions.
   const primaryItems: Array<{
+    foodNameSnapshot?: string | null;
     caloriesKcalSnapshot?: number | null;
     proteinGSnapshot?: number | null;
     carbohydrateGSnapshot?: number | null;
@@ -1690,11 +1764,13 @@ export function calculateDailySummary(params: {
   for (const m of filteredMeals) {
     if (Array.isArray(m.items)) {
       for (const it of m.items) {
+        const eff = resolveItemEffectiveMacros(it);
         primaryItems.push({
-          caloriesKcalSnapshot: it.caloriesKcalSnapshot,
-          proteinGSnapshot: it.proteinGSnapshot,
-          carbohydrateGSnapshot: it.carbohydrateGSnapshot,
-          fatGSnapshot: it.fatGSnapshot,
+          foodNameSnapshot: it.foodNameSnapshot,
+          caloriesKcalSnapshot: eff.calories,
+          proteinGSnapshot: eff.protein,
+          carbohydrateGSnapshot: eff.carbohydrate,
+          fatGSnapshot: eff.fat,
           micronutrientsSnapshotJson: it.micronutrientsSnapshotJson,
         });
       }
@@ -1722,16 +1798,19 @@ export function calculateDailySummary(params: {
     "g"
   );
 
-  // Fiber from micronutrient envelope
+  // Fiber from micronutrient envelope (pure meats/poultry/fish/egg/whey biologically have 0g fiber)
   const fiberValues: Array<number | null | undefined> = primaryItems.map((it) => {
-    if (!it.micronutrientsSnapshotJson || !Array.isArray(it.micronutrientsSnapshotJson.nutrients)) {
-      return null;
+    if (it.micronutrientsSnapshotJson && Array.isArray(it.micronutrientsSnapshotJson.nutrients)) {
+      const fn = it.micronutrientsSnapshotJson.nutrients.find((n) => n.code === "FIBER");
+      if (fn) {
+        if (fn.status === "KNOWN_ZERO") return 0;
+        if (fn.status === "KNOWN" && fn.value != null && Number.isFinite(Number(fn.value))) {
+          return Number(fn.value);
+        }
+      }
     }
-    const fn = it.micronutrientsSnapshotJson.nutrients.find((n) => n.code === "FIBER");
-    if (!fn) return null;
-    if (fn.status === "KNOWN_ZERO") return 0;
-    if (fn.status === "KNOWN" && fn.value != null && Number.isFinite(Number(fn.value))) {
-      return Number(fn.value);
+    if (isPureProteinFood(it.foodNameSnapshot)) {
+      return 0;
     }
     return null;
   });
@@ -1791,22 +1870,73 @@ export function calculateDailySummary(params: {
     }
   }
 
-  // 6. Meal breakdown with % of day
-  const mealsBreakdown = filteredMeals.map((m) => {
-    const mTotals = m.mealTotals || calculateMealTotals((m.items as SnapshotItemSource[]) || []);
-    const mealKcal = mTotals.caloriesKcal || 0;
-    const dayKcal = calories.value || 0;
-    const percentOfDay = dayKcal > 0 ? Math.round((mealKcal / dayKcal) * 100) : 0;
+  // 6. Meal breakdown with % of day guaranteeing exact 100% total (Largest Remainder Method)
+  // and ensuring strict mathematical equality: sum(meal.mealTotals) === dailySummary
+  let mealSumKcal = 0;
+  let mealSumProt = 0;
+  let mealSumCarb = 0;
+  let mealSumFat = 0;
 
+  const rawMeals = filteredMeals.map((m) => {
+    const mTotals = m.mealTotals || calculateMealTotals((m.items as SnapshotItemSource[]) || []);
+    mealSumKcal += mTotals.caloriesKcal || 0;
+    mealSumProt += mTotals.proteinG || 0;
+    mealSumCarb += mTotals.carbohydrateG || 0;
+    mealSumFat += mTotals.fatG || 0;
+    return {
+      meal: m,
+      mTotals,
+      mealKcal: mTotals.caloriesKcal || 0,
+    };
+  });
+
+  const roundedMealSumKcal = Math.round(mealSumKcal * 100) / 100;
+  const roundedMealSumProt = Math.round(mealSumProt * 100) / 100;
+  const roundedMealSumCarb = Math.round(mealSumCarb * 100) / 100;
+  const roundedMealSumFat = Math.round(mealSumFat * 100) / 100;
+
+  if (filteredMeals.length > 0 && calories.value != null) {
+    calories.value = roundedMealSumKcal;
+    calories.displayText = `${calories.value.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} kcal`;
+  }
+  if (filteredMeals.length > 0 && protein.value != null) {
+    protein.value = roundedMealSumProt;
+    protein.displayText = `${protein.value.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} g`;
+  }
+  if (filteredMeals.length > 0 && carbohydrate.value != null) {
+    carbohydrate.value = roundedMealSumCarb;
+    carbohydrate.displayText = `${carbohydrate.value.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} g`;
+  }
+  if (filteredMeals.length > 0 && fat.value != null) {
+    fat.value = roundedMealSumFat;
+    fat.displayText = `${fat.value.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} g`;
+  }
+
+  const dayKcal = calories.value || 0;
+  const rawPercentages = rawMeals.map((rm) => (dayKcal > 0 ? (rm.mealKcal / dayKcal) * 100 : 0));
+  const flooredPercentages = rawPercentages.map((p) => Math.floor(p));
+  const remainderDiff = dayKcal > 0 ? Math.max(0, 100 - flooredPercentages.reduce((a, b) => a + b, 0)) : 0;
+
+  const remainders = rawPercentages.map((p, idx) => ({ idx, rem: p - flooredPercentages[idx] }));
+  remainders.sort((a, b) => b.rem - a.rem);
+
+  const finalPercentages = [...flooredPercentages];
+  for (let i = 0; i < remainderDiff && i < remainders.length; i++) {
+    finalPercentages[remainders[i].idx] += 1;
+  }
+
+  const mealsBreakdown = rawMeals.map((rm, idx) => {
+    const m = rm.meal;
+    const mTotals = rm.mTotals;
     return {
       publicId: m.publicId || "",
       title: m.title || "Refeição",
       scheduledTime: m.scheduledTime || null,
-      caloriesKcal: mealKcal,
+      caloriesKcal: rm.mealKcal,
       proteinG: mTotals.proteinG || 0,
       carbohydrateG: mTotals.carbohydrateG || 0,
       fatG: mTotals.fatG || 0,
-      percentOfDay,
+      percentOfDay: finalPercentages[idx] || 0,
       itemsCount: m.items?.length || 0,
       hasIncompleteData: mTotals.hasIncompleteData,
     };

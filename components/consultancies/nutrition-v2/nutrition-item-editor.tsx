@@ -35,6 +35,8 @@ import {
   cleanFoodCatalogDisplayName,
   cleanPortionLabel,
   resolveItemEffectiveMacros,
+  isUncookedStapleFood,
+  suggestCookedEquivalentTerm,
 } from "@/lib/nutrition-v2/nutrient-calculator";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { getFoodPortionsForPickerAction } from "@/app/consultoria/[slug]/planos-v2/actions";
@@ -149,6 +151,9 @@ export function NutritionItemEditor({
 
   // Modals & Panels
   const [isResolvePickerOpen, setIsResolvePickerOpen] = useState(false);
+  const [isReplaceRawPickerOpen, setIsReplaceRawPickerOpen] = useState(false);
+  const [replaceRawPickerQuery, setReplaceRawPickerQuery] = useState("");
+  const [replaceRawPickerTitle, setReplaceRawPickerTitle] = useState("");
   const [isEquivalentsOpen, setIsEquivalentsOpen] = useState(false);
   const [isInlineSubSearchOpen, setIsInlineSubSearchOpen] = useState(false);
   const [subSearchMode, setSubSearchMode] = useState<"SUBSTITUTION" | "REPLACE">("SUBSTITUTION");
@@ -281,6 +286,7 @@ export function NutritionItemEditor({
 
   const foodNameNorm = (item.foodNameSnapshot || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
   const isEgg = foodNameNorm.includes("ovo") && !foodNameNorm.includes("codorna") && !foodNameNorm.includes("avestruz") && !foodNameNorm.includes("pascoa");
+  const isUncooked = isUncookedStapleFood(item.foodNameSnapshot);
 
   // Dynamic preview calculation when typing quantity
   const parsedLocalQty = parseQuantityInput(localQuantity);
@@ -546,6 +552,26 @@ export function NutritionItemEditor({
             >
               {cleanFoodCatalogDisplayName(item.foodNameSnapshot)}
             </span>
+
+            {/* Detector e Troca Rápida de Alimento Cru (Cereais, Carnes, Tubérculos) */}
+            {isUncooked && !readOnly && (
+              <button
+                type="button"
+                onClick={() => {
+                  const query = suggestCookedEquivalentTerm(item.foodNameSnapshot);
+                  setReplaceRawPickerQuery(query);
+                  setReplaceRawPickerTitle(`Trocar "${cleanFoodCatalogDisplayName(item.foodNameSnapshot)}" por versão Cozida/Grelhada`);
+                  setIsReplaceRawPickerOpen(true);
+                }}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-500/50 transition-colors shrink-0 cursor-pointer shadow-2xs"
+                title="Este alimento foi prescrito na versão CRUA. Clique para trocar para a versão cozida/grelhada com medidas e macros atualizados."
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <span>Alimento cru</span>
+                <span className="text-[9px] opacity-80 underline decoration-dotted ml-0.5">Usar cozido</span>
+              </button>
+            )}
+
             <div className="relative inline-flex items-center" ref={actionChoiceRef}>
               {item.foodId == null ? (
                 <span
@@ -1217,6 +1243,27 @@ export function NutritionItemEditor({
           setIsResolvePickerOpen(false);
         }}
         title={item.foodId == null ? `Vincular Alimento para "${item.foodNameSnapshot}"` : `Escolher Medida para "${item.foodNameSnapshot}"`}
+      />
+
+      {/* Food Picker for Replacing Raw Food with Cooked/Prepared Equivalent */}
+      <NutritionFoodPicker
+        slug={slug}
+        isOpen={isReplaceRawPickerOpen}
+        onClose={() => setIsReplaceRawPickerOpen(false)}
+        initialQuery={replaceRawPickerQuery}
+        disableCustomTab={true}
+        onSelect={async (selection) => {
+          await onUpdateItem({
+            foodPublicId: selection.foodPublicId || undefined,
+            preserveFoodName: false,
+            portionPublicId: selection.portionPublicId || null,
+            prescribedQuantity: selection.prescribedQuantity ?? item.prescribedQuantity,
+            prescribedUnitCode: selection.prescribedUnitCode ?? item.prescribedUnitCode,
+            prescribedUnitLabel: selection.prescribedUnitLabel ?? item.prescribedUnitLabel,
+          });
+          setIsReplaceRawPickerOpen(false);
+        }}
+        title={replaceRawPickerTitle || `Escolher versão cozida para "${item.foodNameSnapshot}"`}
       />
 
       {/* Manual Food Modal for registering macros */}

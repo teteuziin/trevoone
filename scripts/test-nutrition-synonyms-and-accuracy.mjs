@@ -380,4 +380,94 @@ assert.strictEqual(cleanPortionLabel("1x copo americano"), "copo americano");
 assert.strictEqual(cleanPortionLabel("Fatia"), "Fatia");
 console.log("  ✓ cleanPortionLabel strips redundant '1 ' prefix without corrupting portion labels");
 
+// ---------------------------------------------------------------------------
+// 11. WHOLE EGG PORTION AND ACCURACY (4 EGGS = 200G, ~292 KCAL, 26.6G P)
+// ---------------------------------------------------------------------------
+console.log("\n[Test 11] Whole Egg Canonical Portions & 4 Eggs Macro Accuracy");
+
+const eggCanonicalPortions = resolveCanonicalPortionsForFood({
+  name: "Ovo, de galinha, inteiro, cozido",
+  displayName: "Ovo inteiro cozido ou mexido",
+  category: "Ovos e derivados",
+  referenceUnitCode: "G",
+});
+
+const defaultEggPortion = eggCanonicalPortions.find((p) => p.label === "Unidade");
+assert.ok(defaultEggPortion != null, "Must have 'Unidade' portion for eggs");
+assert.strictEqual(defaultEggPortion.amount, 50, "1 Unidade of chicken egg must be 50g");
+
+// TACO 100g cooked whole egg: 146 kcal, 13.3g P, 0.6g C, 9.5g G
+const eggCalc = calculateItemNutrients({
+  food: {
+    name: "Ovo inteiro cozido ou mexido",
+    referenceAmount: 100,
+    referenceUnitCode: "G",
+    caloriesKcal: 146,
+    proteinG: 13.3,
+    carbohydrateG: 0.6,
+    fatG: 9.5,
+  },
+  prescribedQuantity: 4,
+  prescribedUnitCode: "PORCAO",
+  portion: {
+    label: "Unidade",
+    equivalentReferenceAmount: defaultEggPortion.amount, // 50g
+  },
+});
+
+assert.strictEqual(eggCalc.isValid, true, "Egg calculation must be valid");
+assert.strictEqual(eggCalc.effectiveGrams, 200, "4 whole eggs must equal 200g (never 16g)");
+assert.strictEqual(eggCalc.caloriesKcal, 292, "4 eggs must equal 292 kcal (never 1232 kcal!)");
+assert.strictEqual(eggCalc.proteinG, 26.6, "4 eggs must equal 26.6g protein (never 192g!)");
+assert.strictEqual(eggCalc.carbohydrateG, 1.2, "4 eggs must equal 1.2g carbs");
+assert.strictEqual(eggCalc.fatG, 19, "4 eggs must equal 19g fat");
+console.log(`  ✓ 4 eggs (Unidade 50g) = ${eggCalc.effectiveGrams}g, ${eggCalc.caloriesKcal} kcal, ${eggCalc.proteinG}g P (never 1232 kcal / 192g P / 16g!)`);
+
+// ---------------------------------------------------------------------------
+// 12. PURE PROTEIN ZERO CARBS (CARNE MOÍDA, PATINHO, FRANGO)
+// ---------------------------------------------------------------------------
+console.log("\n[Test 12] Pure Protein Foods Zero Carbs Inference & Clean Daily Totals");
+
+const {
+  isPureProteinFood,
+  resolveItemEffectiveMacros,
+  calculateMealTotals,
+} = await import("../lib/nutrition-v2/nutrient-calculator.ts");
+
+assert.strictEqual(isPureProteinFood("Carne Moida"), true);
+assert.strictEqual(isPureProteinFood("Patinho bovino moido cozido"), true);
+assert.strictEqual(isPureProteinFood("Peito de frango grelhado"), true);
+assert.strictEqual(isPureProteinFood("Ovo mexido"), true);
+assert.strictEqual(isPureProteinFood("Torta de frango"), false);
+assert.strictEqual(isPureProteinFood("Bife a milanesa"), false);
+
+const carneMoidaResolved = resolveItemEffectiveMacros({
+  name: "Carne Moida",
+  caloriesKcalSnapshot: 128,
+  proteinGSnapshot: 16,
+  carbohydrateGSnapshot: null, // missing in raw source
+  fatGSnapshot: 6.7,
+});
+
+assert.strictEqual(carneMoidaResolved.carbohydrate, 0, "Pure meat with null carbs must resolve to 0g carbs");
+
+const mealTotalsWithPureMeat = calculateMealTotals([
+  {
+    foodNameSnapshot: "Carne Moida",
+    foodId: 101,
+    prescribedQuantity: 100,
+    prescribedUnitCode: "G",
+    caloriesKcalSnapshot: 128,
+    proteinGSnapshot: 16,
+    carbohydrateGSnapshot: null,
+    fatGSnapshot: 6.7,
+  },
+]);
+
+assert.strictEqual(mealTotalsWithPureMeat.carbohydrateG, 0);
+assert.strictEqual(mealTotalsWithPureMeat.hasIncompleteData, false, "Meal with pure meat must not flag incomplete data");
+assert.strictEqual(mealTotalsWithPureMeat.missingCarbohydrateCount, 0, "Carbohydrate count must not be flagged missing");
+assert.strictEqual(mealTotalsWithPureMeat.incompleteItems.length, 0, "Incomplete items list must be empty");
+console.log("  ✓ Pure protein items (Carne Moída with null carbs) resolve to 0g carbs without flagging incomplete warnings");
+
 console.log("\nALL TESTS PASSED SUCCESSFULLY! ✓\n");

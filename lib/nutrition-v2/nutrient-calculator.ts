@@ -17,6 +17,7 @@
 export interface CanonicalFoodSource {
   referenceAmount: number;
   referenceUnitCode: string;
+  name?: string | null;
   caloriesKcal?: number | null;
   proteinG?: number | null;
   carbohydrateG?: number | null;
@@ -153,6 +154,67 @@ export function cleanFoodCatalogDisplayName(name: string | null | undefined): st
   // Normalize inverted catalog commas from TACO (e.g. 'Doce, de leite, cremoso' -> 'Doce de leite cremoso')
   s = s.replace(/,\s*/g, " ").replace(/\s+/g, " ").trim();
   return s;
+}
+
+/**
+ * Detects whether a food is biologically pure animal protein/poultry/fish/egg
+ * which in natura has zero carbohydrates.
+ * Excludes battered, breaded, sweet preparations or processed baked goods.
+ */
+export function isPureProteinFood(name?: string | null): boolean {
+  if (!name || typeof name !== "string") return false;
+  const norm = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  // Exclude preparations that add significant carbs
+  if (/\b(empanad[oa]|milanesa|doce|molho|industrializad[oa]|torta|pastel|bolo|biscoito|cookie|hamburguer com pao|sanduiche|croquete|nuggets?|lasanha|rechead[oa]|pizza)\b/i.test(norm)) {
+    return false;
+  }
+  // Pure meat, poultry, fish, seafood, egg, protein supplements
+  return /\b(carne|patinho|alcatra|maminha|coxao|acem|musculo|fraldinha|contrafile|contra-file|picanha|file mignon|file de carne|bife|frango|peito de frango|file de frango|sobrecoxa|coxa de frango|moela|peru|peixe|tilapia|salmao|atum|merluza|bacalhau|pescada|sardinha|camarao|ovo|ovos|clara|albumina|whey|suino|lombo|pernil|costela|bovino|bovina|suina)\b/i.test(norm);
+}
+
+/**
+ * Resolves effective macronutrients for an item or food:
+ * If carbohydrate is null, but the food is pure animal protein/poultry/fish/egg
+ * OR calories match the Atwater equation (P*4 + G*9 ≈ Kcal within 15 kcal),
+ * treats carbohydrate as 0g instead of null/unknown, avoiding false "incomplete data" flags.
+ */
+export function resolveItemEffectiveMacros(item: {
+  foodNameSnapshot?: string | null;
+  name?: string | null;
+  caloriesKcalSnapshot?: number | null;
+  caloriesKcal?: number | null;
+  proteinGSnapshot?: number | null;
+  proteinG?: number | null;
+  carbohydrateGSnapshot?: number | null;
+  carbohydrateG?: number | null;
+  fatGSnapshot?: number | null;
+  fatG?: number | null;
+}): {
+  calories: number | null;
+  protein: number | null;
+  carbohydrate: number | null;
+  fat: number | null;
+} {
+  const rawCal = item.caloriesKcalSnapshot !== undefined ? item.caloriesKcalSnapshot : item.caloriesKcal;
+  const rawProt = item.proteinGSnapshot !== undefined ? item.proteinGSnapshot : item.proteinG;
+  const rawCarb = item.carbohydrateGSnapshot !== undefined ? item.carbohydrateGSnapshot : item.carbohydrateG;
+  const rawFat = item.fatGSnapshot !== undefined ? item.fatGSnapshot : item.fatG;
+
+  const cal = rawCal != null && Number.isFinite(Number(rawCal)) ? Number(rawCal) : null;
+  const prot = rawProt != null && Number.isFinite(Number(rawProt)) ? Number(rawProt) : null;
+  let carb = rawCarb != null && Number.isFinite(Number(rawCarb)) ? Number(rawCarb) : null;
+  const fat = rawFat != null && Number.isFinite(Number(rawFat)) ? Number(rawFat) : null;
+
+  if (carb == null) {
+    const foodName = item.foodNameSnapshot || item.name || "";
+    const isPure = isPureProteinFood(foodName);
+    const matchesAtwater = cal != null && prot != null && fat != null && Math.abs(cal - (prot * 4 + fat * 9)) <= 15;
+    if (isPure || matchesAtwater) {
+      carb = 0;
+    }
+  }
+
+  return { calories: cal, protein: prot, carbohydrate: carb, fat };
 }
 
 /**
@@ -325,12 +387,33 @@ export function calculateItemNutrients(input: NutrientCalculationInput): Nutrien
     };
   }
 
-  const portionEquivalent = portion ? portion.equivalentReferenceAmount : null;
-  const unit = portion ? "PORCAO" : (prescribedUnitCode || food.referenceUnitCode);
+  let portionEquivalent = portion ? portion.equivalentReferenceAmount : null;
+  // Guard against corrupt egg / fruit portions
+  if (food.name && portionEquivalent != null && portionEquivalent < 20) {
+    const fNorm = food.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (fNorm.includes("ovo") && !fNorm.includes("codorna") && !fNorm.includes("avestruz") && !fNorm.includes("pascoa")) {
+      portionEquivalent = 50;
+    } else if (fNorm.includes("banana")) {
+      portionEquivalent = 70;
+    }
+  }
+
+  const effectiveFood = {
+    ...food,
+    carbohydrateG: resolveItemEffectiveMacros({
+      name: food.name,
+      caloriesKcal: food.caloriesKcal,
+      proteinG: food.proteinG,
+      carbohydrateG: food.carbohydrateG,
+      fatG: food.fatG,
+    }).carbohydrate,
+  };
+
+  const unit = portion ? "PORCAO" : (prescribedUnitCode || effectiveFood.referenceUnitCode);
 
   const { factor, effectiveQty, error } = calculateNutrientFactor(
-    food.referenceAmount,
-    food.referenceUnitCode,
+    effectiveFood.referenceAmount,
+    effectiveFood.referenceUnitCode,
     prescribedQuantity,
     unit,
     portionEquivalent
@@ -401,11 +484,11 @@ export function calculateItemNutrients(input: NutrientCalculationInput): Nutrien
     effectiveQuantityInReferenceUnit: roundedEffectiveAmount,
     effectiveReferenceUnitCode: food.referenceUnitCode,
     formattedEffectiveQuantity,
-    caloriesKcal: scale(food.caloriesKcal),
-    proteinG: scale(food.proteinG),
-    carbohydrateG: scale(food.carbohydrateG),
-    fatG: scale(food.fatG),
-    fiberG: scale(food.fiberG),
+    caloriesKcal: scale(effectiveFood.caloriesKcal),
+    proteinG: scale(effectiveFood.proteinG),
+    carbohydrateG: scale(effectiveFood.carbohydrateG),
+    fatG: scale(effectiveFood.fatG),
+    fiberG: scale(effectiveFood.fiberG),
   };
 }
 
@@ -561,14 +644,25 @@ export function calculateMealTotals(
   items: SnapshotItemSource[]
 ): MacroTotals {
   const totalItemsCount = items.length;
-  const calDetail = calculateSingleNutrientTotal(items.map((i) => i.caloriesKcalSnapshot));
-  const protDetail = calculateSingleNutrientTotal(items.map((i) => i.proteinGSnapshot));
-  const carbDetail = calculateSingleNutrientTotal(items.map((i) => i.carbohydrateGSnapshot));
-  const fatDetail = calculateSingleNutrientTotal(items.map((i) => i.fatGSnapshot));
+  const resolvedItems = items.map((i) => {
+    const eff = resolveItemEffectiveMacros(i);
+    return {
+      ...i,
+      caloriesKcalSnapshot: eff.calories,
+      proteinGSnapshot: eff.protein,
+      carbohydrateGSnapshot: eff.carbohydrate,
+      fatGSnapshot: eff.fat,
+    };
+  });
+
+  const calDetail = calculateSingleNutrientTotal(resolvedItems.map((i) => i.caloriesKcalSnapshot));
+  const protDetail = calculateSingleNutrientTotal(resolvedItems.map((i) => i.proteinGSnapshot));
+  const carbDetail = calculateSingleNutrientTotal(resolvedItems.map((i) => i.carbohydrateGSnapshot));
+  const fatDetail = calculateSingleNutrientTotal(resolvedItems.map((i) => i.fatGSnapshot));
 
   const incompleteItems: IncompleteFoodItemInfo[] = [];
 
-  for (const item of items) {
+  for (const item of resolvedItems) {
     const isCalUnknown = item.caloriesKcalSnapshot == null || !Number.isFinite(Number(item.caloriesKcalSnapshot));
     const isProtUnknown = item.proteinGSnapshot == null || !Number.isFinite(Number(item.proteinGSnapshot));
     const isCarbUnknown = item.carbohydrateGSnapshot == null || !Number.isFinite(Number(item.carbohydrateGSnapshot));

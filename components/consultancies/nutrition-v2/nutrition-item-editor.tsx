@@ -34,6 +34,7 @@ import {
   formatQuantityForDisplay,
   cleanFoodCatalogDisplayName,
   cleanPortionLabel,
+  resolveItemEffectiveMacros,
 } from "@/lib/nutrition-v2/nutrient-calculator";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { getFoodPortionsForPickerAction } from "@/app/consultoria/[slug]/planos-v2/actions";
@@ -203,15 +204,32 @@ export function NutritionItemEditor({
           notes?: string | null;
         }>;
 
+        const fNorm = (item.foodNameSnapshot || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const isEgg = fNorm.includes("ovo") && !fNorm.includes("codorna") && !fNorm.includes("avestruz") && !fNorm.includes("pascoa");
+
         const activePortions: FoodPortionOption[] = rawPortions
           .filter((p) => (p.status || "ACTIVE") === "ACTIVE")
-          .map((p) => ({
-            publicId: p.publicId,
-            label: p.label,
-            equivalentReferenceAmount: Number(p.equivalentReferenceAmount),
-            scope: p.scope,
-            notes: p.notes,
-          }));
+          .map((p) => {
+            let eq = Number(p.equivalentReferenceAmount);
+            if (isEgg && p.label.toLowerCase().includes("unidade") && eq < 20) {
+              eq = 50;
+            }
+            return {
+              publicId: p.publicId,
+              label: p.label,
+              equivalentReferenceAmount: eq,
+              scope: p.scope,
+              notes: p.notes,
+            };
+          });
+
+        if (isEgg && !activePortions.some((p) => p.label.trim().toLowerCase() === "unidade")) {
+          activePortions.unshift({
+            publicId: "canonical-egg-unidade-50",
+            label: "Unidade",
+            equivalentReferenceAmount: 50,
+          });
+        }
 
         setAvailablePortions(activePortions);
 
@@ -233,7 +251,8 @@ export function NutritionItemEditor({
 
         if (item.prescribedUnitLabel) {
           const match = activePortions.find(
-            (p) => p.label.trim().toLowerCase() === item.prescribedUnitLabel!.trim().toLowerCase()
+            (p) => p.label.trim().toLowerCase() === item.prescribedUnitLabel!.trim().toLowerCase() ||
+                   (isEgg && p.label.trim().toLowerCase() === "unidade" && item.prescribedUnitLabel!.toLowerCase().startsWith("unidade"))
           );
           if (match) {
             setSelectedMeasureKey(match.publicId);
@@ -252,13 +271,16 @@ export function NutritionItemEditor({
     return () => {
       isCancelled = true;
     };
-  }, [slug, item.foodPublicId, item.prescribedUnitLabel, item.prescribedUnitCode]);
+  }, [slug, item.foodPublicId, item.foodNameSnapshot, item.prescribedUnitLabel, item.prescribedUnitCode]);
 
   // Is volume-based food
   const isVolumeFood = foodReferenceUnit === "ML" || foodReferenceUnit === "L";
   const standardUnitLabel = isVolumeFood ? "Mililitros (ml)" : "Gramas (g)";
   const standardUnitCode = isVolumeFood ? "ML" : "G";
   const standardUnitShort = isVolumeFood ? "ml" : "g";
+
+  const foodNameNorm = (item.foodNameSnapshot || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const isEgg = foodNameNorm.includes("ovo") && !foodNameNorm.includes("codorna") && !foodNameNorm.includes("avestruz") && !foodNameNorm.includes("pascoa");
 
   // Dynamic preview calculation when typing quantity
   const parsedLocalQty = parseQuantityInput(localQuantity);
@@ -267,18 +289,19 @@ export function NutritionItemEditor({
     ? parsedLocalQty / item.prescribedQuantity
     : 1;
 
+  const effMacros = resolveItemEffectiveMacros(item);
   const displayKcal = item.caloriesKcalSnapshot != null
     ? Math.round(item.caloriesKcalSnapshot * scale)
-    : null;
+    : (effMacros.calories != null ? Math.round(effMacros.calories * scale) : null);
   const displayP = item.proteinGSnapshot != null
     ? Math.round(item.proteinGSnapshot * scale * 10) / 10
-    : null;
+    : (effMacros.protein != null ? Math.round(effMacros.protein * scale * 10) / 10 : null);
   const displayC = item.carbohydrateGSnapshot != null
     ? Math.round(item.carbohydrateGSnapshot * scale * 10) / 10
-    : null;
+    : (effMacros.carbohydrate != null ? Math.round(effMacros.carbohydrate * scale * 10) / 10 : null);
   const displayG = item.fatGSnapshot != null
     ? Math.round(item.fatGSnapshot * scale * 10) / 10
-    : null;
+    : (effMacros.fat != null ? Math.round(effMacros.fat * scale * 10) / 10 : null);
 
   // Portion weight calculation
   // Active portion reference amount
@@ -287,11 +310,14 @@ export function NutritionItemEditor({
     ? availablePortions.find((p) => p.publicId === selectedMeasureKey)
     : null;
   // Prioritize explicit prescribed equivalent snapshot (e.g. 183g / 3 = 61g) over standard catalogue default
-  const activeEquivalent = !isStandardMetricSelected
+  let activeEquivalent = !isStandardMetricSelected
     ? ((item.portionEquivalentAmount != null && item.portionEquivalentAmount > 0)
         ? item.portionEquivalentAmount
         : (currentPortion ? currentPortion.equivalentReferenceAmount : null))
     : null;
+  if (isEgg && activeEquivalent != null && activeEquivalent < 20) {
+    activeEquivalent = 50;
+  }
 
   const equivGrams = !isStandardMetricSelected && activeEquivalent != null && activeEquivalent > 0
     ? Math.round((isCustomQtyValid ? parsedLocalQty! : (item.prescribedQuantity || 0)) * activeEquivalent * 10) / 10
@@ -498,8 +524,8 @@ export function NutritionItemEditor({
   ).length;
 
   const hasIssues = item.foodId == null ||
-    (item.caloriesKcalSnapshot == null && (item.prescribedUnitCode === "PORCAO" || (item.prescribedUnitCode && !["G", "KG", "ML", "L"].includes(item.prescribedUnitCode.trim().toUpperCase())))) ||
-    (item.caloriesKcalSnapshot == null || item.proteinGSnapshot == null || item.carbohydrateGSnapshot == null || item.fatGSnapshot == null);
+    (displayKcal == null && (item.prescribedUnitCode === "PORCAO" || (item.prescribedUnitCode && !["G", "KG", "ML", "L"].includes(item.prescribedUnitCode.trim().toUpperCase())))) ||
+    (displayKcal == null || displayP == null || displayC == null || displayG == null);
 
   return (
     <div

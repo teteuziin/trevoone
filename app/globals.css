@@ -607,12 +607,11 @@ body {
    ========================================================================= */
 
 .trevo-dashboard-wallpaper {
-  background-color: #F0F1F3;
+  background-color: transparent !important;
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  transition: background-color 200ms ease-out;
 }
 
 .trevo-dashboard-wallpaper::after {
@@ -628,6 +627,8 @@ body {
   max-height: 520px;
   opacity: 0.35;
   pointer-events: none;
+  -webkit-mask-image: radial-gradient(circle at 100% 100%, black 45%, transparent 95%);
+  mask-image: radial-gradient(circle at 100% 100%, black 45%, transparent 95%);
 }
 
 /* Light Mode — Landscape (Horizontal / Desktop) */
@@ -652,7 +653,7 @@ body {
 /* Dark Mode — System Preference (quando não forçado explicitamente para light) */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .trevo-dashboard-wallpaper {
-    background-color: #0B0C0E;
+    background-color: transparent !important;
   }
   @media (orientation: landscape) {
     :root:not([data-theme="light"]) .trevo-dashboard-wallpaper::after {
@@ -674,7 +675,7 @@ body {
 
 /* Dark Mode — Explicit (.dark ou [data-theme="dark"]) */
 :is(.dark, [data-theme="dark"]) .trevo-dashboard-wallpaper {
-  background-color: #0B0C0E;
+  background-color: transparent !important;
 }
 
 @media (orientation: landscape) {

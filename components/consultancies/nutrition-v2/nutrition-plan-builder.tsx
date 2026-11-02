@@ -927,7 +927,7 @@ export function NutritionPlanBuilder({
 
   return (
     <div className="w-full max-w-full min-w-0 min-h-[calc(100vh-4rem)] bg-transparent px-3 sm:px-6 md:px-8 py-2.5 sm:py-5">
-      <div className="space-y-3 sm:space-y-4 w-full max-w-full lg:max-w-7xl mx-auto pb-28 sm:pb-20 min-w-0">
+      <div className="space-y-3 sm:space-y-4 w-full max-w-[1440px] mx-auto pb-28 sm:pb-20 min-w-0">
         {/* ========================================================================= */}
         {/* COMPACT TOP BAR: Back link, Inline Title, Badges, Autosave, Desktop Actions */}
         {/* (Eliminates the giant separate title card!)                              */}
@@ -1783,19 +1783,6 @@ export function NutritionPlanBuilder({
                     </div>
                   )}
 
-                  {/* Panel Preferences Trigger */}
-                  <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setIsPreferencesOpen(true)}
-                      className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
-                      title="Configurar preferências de visualização do painel"
-                      aria-label="Preferências do painel"
-                    >
-                      <SettingsIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                      <span>Preferências</span>
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1806,20 +1793,22 @@ export function NutritionPlanBuilder({
         {/* TAB 2: ORIENTAÇÕES E RECOMENDAÇÕES                                       */}
         {/* ========================================================================= */}
         {activeTab === "GUIDANCE" && (
-          <NutritionGuidanceEditor
-            initialGuidance={tree.version.guidanceJson}
-            initialNotes={notes}
-            readOnly={isReadOnly}
-            onSaveGuidance={async (newGuidance, newNotes) => {
-              setNotes(newNotes || "");
-              await handleSaveMetadata({
-                guidanceJson: newGuidance,
-                notes: newNotes,
-              });
-            }}
-            autosaveStatus={autosaveStatus}
-            autosaveError={autosaveError}
-          />
+          <div className="w-full max-w-[1440px] mx-auto min-w-0">
+            <NutritionGuidanceEditor
+              initialGuidance={tree.version.guidanceJson}
+              initialNotes={notes}
+              readOnly={isReadOnly}
+              onSaveGuidance={async (newGuidance, newNotes) => {
+                setNotes(newNotes || "");
+                await handleSaveMetadata({
+                  guidanceJson: newGuidance,
+                  notes: newNotes,
+                });
+              }}
+              autosaveStatus={autosaveStatus}
+              autosaveError={autosaveError}
+            />
+          </div>
         )}
 
         {/* ========================================================================= */}

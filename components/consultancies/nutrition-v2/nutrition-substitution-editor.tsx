@@ -9,6 +9,7 @@ import {
   formatHumanPortionDisplay,
   formatQuickMacroDisplay,
   cleanPortionLabel,
+  resolveItemEffectiveMacros,
 } from "@/lib/nutrition-v2/nutrient-calculator";
 import { NutritionFoodPicker } from "./nutrition-food-picker";
 import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
@@ -101,13 +102,30 @@ export function NutritionSubstitutionEditor({
           equivalentReferenceAmount: number;
           status?: string;
         }>;
+        const fNorm = (substitution.foodNameSnapshot || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const isEgg = fNorm.includes("ovo") && !fNorm.includes("codorna") && !fNorm.includes("avestruz") && !fNorm.includes("pascoa");
+
         const activePortions: FoodPortionOption[] = rawPortions
           .filter((p) => (p.status || "ACTIVE") === "ACTIVE")
-          .map((p) => ({
-            publicId: p.publicId,
-            label: p.label,
-            equivalentReferenceAmount: Number(p.equivalentReferenceAmount),
-          }));
+          .map((p) => {
+            let eq = Number(p.equivalentReferenceAmount);
+            if (isEgg && p.label.toLowerCase().includes("unidade") && eq < 20) {
+              eq = 50;
+            }
+            return {
+              publicId: p.publicId,
+              label: p.label,
+              equivalentReferenceAmount: eq,
+            };
+          });
+
+        if (isEgg && !activePortions.some((p) => p.label.trim().toLowerCase() === "unidade")) {
+          activePortions.unshift({
+            publicId: "canonical-egg-sub-unidade-50",
+            label: "Unidade",
+            equivalentReferenceAmount: 50,
+          });
+        }
 
         setAvailablePortions(activePortions);
 
@@ -143,7 +161,7 @@ export function NutritionSubstitutionEditor({
     } catch {
       setIsLoadingPortions(false);
     }
-  }, [slug, substitution.foodPublicId, substitution.prescribedUnitCode, substitution.prescribedUnitLabel]);
+  }, [slug, substitution.foodPublicId, substitution.foodNameSnapshot, substitution.prescribedUnitCode, substitution.prescribedUnitLabel]);
 
   // Authoritative Autosave execution with concurrency protection
   const performSave = useCallback(
@@ -277,10 +295,19 @@ export function NutritionSubstitutionEditor({
       ? generatePracticalRoundingSuggestions(curQtyNum, activeUnitLabel)
       : [];
 
-  const subKcal = substitution.caloriesKcalSnapshot != null ? Math.round(Number(substitution.caloriesKcalSnapshot)) : null;
-  const subP = substitution.proteinGSnapshot != null ? formatQuickMacroDisplay(substitution.proteinGSnapshot) : null;
-  const subC = substitution.carbohydrateGSnapshot != null ? formatQuickMacroDisplay(substitution.carbohydrateGSnapshot) : null;
-  const subG = substitution.fatGSnapshot != null ? formatQuickMacroDisplay(substitution.fatGSnapshot) : null;
+  const effMacros = resolveItemEffectiveMacros(substitution);
+  const subKcal = substitution.caloriesKcalSnapshot != null
+    ? Math.round(Number(substitution.caloriesKcalSnapshot))
+    : (effMacros.calories != null ? Math.round(effMacros.calories) : null);
+  const subP = substitution.proteinGSnapshot != null
+    ? formatQuickMacroDisplay(substitution.proteinGSnapshot)
+    : (effMacros.protein != null ? formatQuickMacroDisplay(effMacros.protein) : null);
+  const subC = substitution.carbohydrateGSnapshot != null
+    ? formatQuickMacroDisplay(substitution.carbohydrateGSnapshot)
+    : (effMacros.carbohydrate != null ? formatQuickMacroDisplay(effMacros.carbohydrate) : null);
+  const subG = substitution.fatGSnapshot != null
+    ? formatQuickMacroDisplay(substitution.fatGSnapshot)
+    : (effMacros.fat != null ? formatQuickMacroDisplay(effMacros.fat) : null);
 
   return (
     <div className="pl-2.5 sm:pl-4 pr-2 sm:pr-2.5 py-1.5 sm:py-2 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/30 hover:border-[var(--brand-primary)]/40 transition-colors w-full max-w-full min-w-0">

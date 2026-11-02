@@ -81,6 +81,7 @@ import {
   calculateMealMicronutrientTotals,
   calculatePlanMicronutrientTotals,
   scaleMicronutrientsForFood,
+  isPureProteinFood,
   type MacroTotals,
   type MicronutrientTotalsSummary,
   type FoodNutrientDensityItem,
@@ -932,6 +933,97 @@ export async function deletePlan(
 // CANONICAL PLAN TREE READER
 // ============================================================================
 
+/**
+ * Auto-heals corrupted plan items and substitutions in runtime:
+ * 1. Egg items: if portion equivalent is corrupted (< 20g, e.g. 4g) or macros are
+ *    grossly multiplied (e.g. 1232 kcal and 192g protein for 4 eggs), recomputes using
+ *    authoritative TACO values (146 kcal, 13.3g P, 0.6g C, 9.5g G per 100g; 50g per egg unit).
+ * 2. Pure meat/poultry/fish/egg: if carbohydrate is null, sets carbohydrate to 0g
+ *    instead of null, eliminating false "incomplete data" flags.
+ * Persists the healed values to the database idempotently.
+ */
+async function sanitizePlanItemRow(
+  connection: PoolConnection,
+  row: RowDataPacket,
+  tableName: "nutrition_v2_meal_items" | "nutrition_v2_item_substitutions"
+): Promise<boolean> {
+  const name = String(row.food_name_snapshot || "");
+  const norm = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const isEgg = norm.includes("ovo") && !norm.includes("codorna") && !norm.includes("avestruz") && !norm.includes("pascoa") && !norm.includes("easter");
+
+  let modified = false;
+  const qty = row.prescribed_quantity != null ? Number(row.prescribed_quantity) : 1;
+
+  if (isEgg) {
+    // 1. Portion equivalent: 1 chicken egg is ~50g, never < 20g
+    if (row.portion_equivalent_amount != null && Number(row.portion_equivalent_amount) < 20) {
+      row.portion_equivalent_amount = 50;
+      modified = true;
+    }
+    if (
+      row.prescribed_unit_label &&
+      (/unidade\s*\(\s*\d+\s*g\s*\)/i.test(String(row.prescribed_unit_label)) ||
+        String(row.prescribed_unit_label).toLowerCase().trim() === "unidade (4 g)")
+    ) {
+      row.prescribed_unit_label = "Unidade";
+      modified = true;
+    }
+    // 2. Corrupted macros: e.g. 1232 kcal and 192g P for 4 eggs
+    const currentCal = row.calories_kcal_snapshot != null ? Number(row.calories_kcal_snapshot) : 0;
+    const currentProt = row.protein_g_snapshot != null ? Number(row.protein_g_snapshot) : 0;
+    if (currentCal > 350 * (qty || 1) || currentProt > 20 * (qty || 1) || currentCal >= 900) {
+      row.portion_equivalent_amount = 50;
+      row.prescribed_unit_label = "Unidade";
+      row.calories_kcal_snapshot = Math.round(qty * 73);
+      row.protein_g_snapshot = Math.round(qty * 6.65 * 10) / 10;
+      row.carbohydrate_g_snapshot = Math.round(qty * 0.3 * 10) / 10;
+      row.fat_g_snapshot = Math.round(qty * 4.75 * 10) / 10;
+      modified = true;
+    }
+  }
+
+  // Pure animal protein / meat / poultry / fish / egg: 0g carbs check
+  if (row.carbohydrate_g_snapshot == null) {
+    const isPure = isPureProteinFood(name);
+    const cal = row.calories_kcal_snapshot != null ? Number(row.calories_kcal_snapshot) : null;
+    const prot = row.protein_g_snapshot != null ? Number(row.protein_g_snapshot) : null;
+    const fat = row.fat_g_snapshot != null ? Number(row.fat_g_snapshot) : null;
+    const matchesAtwater = cal != null && prot != null && fat != null && Math.abs(cal - (prot * 4 + fat * 9)) <= 15;
+    if (isPure || matchesAtwater) {
+      row.carbohydrate_g_snapshot = 0;
+      modified = true;
+    }
+  }
+
+  if (modified) {
+    try {
+      await connection.query(
+        `UPDATE ${tableName}
+         SET portion_equivalent_amount = ?,
+             prescribed_unit_label = ?,
+             calories_kcal_snapshot = ?,
+             protein_g_snapshot = ?,
+             carbohydrate_g_snapshot = ?,
+             fat_g_snapshot = ?
+         WHERE id = ?`,
+        [
+          row.portion_equivalent_amount,
+          row.prescribed_unit_label,
+          row.calories_kcal_snapshot,
+          row.protein_g_snapshot,
+          row.carbohydrate_g_snapshot,
+          row.fat_g_snapshot,
+          row.id,
+        ]
+      );
+    } catch {
+      // Safe fallback
+    }
+  }
+
+  return modified;
+}
+
 export async function getPlanVersionTreeByPlanPublicId(
   ctx: NutritionAccessContext,
   planPublicId: string,
@@ -1118,12 +1210,14 @@ export async function getPlanVersionTreeByPlanPublicId(
 
     const itemsById = new Map<number, RowDataPacket>();
     for (const it of items) {
+      await sanitizePlanItemRow(connection, it, "nutrition_v2_meal_items");
       itemsById.set(Number(it.id), it);
     }
 
     // Organize hierarchy and compute totals
     const subsByItemId = new Map<number, ItemSubstitutionDto[]>();
     for (const s of substitutions) {
+      await sanitizePlanItemRow(connection, s, "nutrition_v2_item_substitutions");
       const parentId = Number(s.meal_item_id);
       const parent = itemsById.get(parentId);
 
@@ -2259,9 +2353,21 @@ export async function updateMealItem(
         }
       }
 
+      // Guard against corrupt portion equivalents (< 20g for eggs or bananas)
+      const foodNameCheck = String(effectiveFoodRow.name || item.food_name_snapshot || "");
+      const fNormCheck = foodNameCheck.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (portionEquivalentAmount != null && portionEquivalentAmount < 20) {
+        if (fNormCheck.includes("ovo") && !fNormCheck.includes("codorna") && !fNormCheck.includes("avestruz") && !fNormCheck.includes("pascoa")) {
+          portionEquivalentAmount = 50;
+        } else if (fNormCheck.includes("banana")) {
+          portionEquivalentAmount = 70;
+        }
+      }
+
       if (effectiveFoodRow.reference_amount != null) {
         const calc = calculateItemNutrients({
           food: {
+            name: foodNameCheck,
             referenceAmount: Number(effectiveFoodRow.reference_amount),
             referenceUnitCode: String(effectiveFoodRow.reference_unit_code),
             caloriesKcal: effectiveFoodRow.calories_kcal != null ? Number(effectiveFoodRow.calories_kcal) : null,
@@ -3255,9 +3361,21 @@ export async function updateSubstitution(
         }
       }
 
+      // Guard against corrupt portion equivalents (< 20g for eggs or bananas)
+      const foodNameCheck = String(effectiveFoodRow.name || sub.food_name_snapshot || "");
+      const fNormCheck = foodNameCheck.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (portionEquivalentAmount != null && portionEquivalentAmount < 20) {
+        if (fNormCheck.includes("ovo") && !fNormCheck.includes("codorna") && !fNormCheck.includes("avestruz") && !fNormCheck.includes("pascoa")) {
+          portionEquivalentAmount = 50;
+        } else if (fNormCheck.includes("banana")) {
+          portionEquivalentAmount = 70;
+        }
+      }
+
       if (effectiveFoodRow.reference_amount != null) {
         const calc = calculateItemNutrients({
           food: {
+            name: foodNameCheck,
             referenceAmount: Number(effectiveFoodRow.reference_amount),
             referenceUnitCode: String(effectiveFoodRow.reference_unit_code),
             caloriesKcal: effectiveFoodRow.calories_kcal != null ? Number(effectiveFoodRow.calories_kcal) : null,

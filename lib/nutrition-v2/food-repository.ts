@@ -6,7 +6,7 @@
 import crypto from "node:crypto";
 import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
-import { calculateItemNutrients, type CanonicalPortionSource } from "./nutrient-calculator";
+import { calculateItemNutrients, isPureProteinFood, type CanonicalPortionSource } from "./nutrient-calculator";
 import {
   resolveCanonicalPortionsForFood,
   generateDeterministicPortionPublicId,
@@ -487,6 +487,59 @@ export async function getFoodWithPortions(
       }
     }
 
+    // Ensure egg food portions are never corrupted to < 20g (e.g. 4g)
+    const foodNameStr = safeString(f.name);
+    const foodDisplayStr = safeNullableString(f.display_name_pt_br) || "";
+    const fNorm = (foodNameStr + " " + foodDisplayStr).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const isEgg = fNorm.includes("ovo") && !fNorm.includes("codorna") && !fNorm.includes("avestruz") && !fNorm.includes("pascoa") && !fNorm.includes("easter");
+
+    if (isEgg) {
+      let hasFixedPortion = false;
+      for (const p of portions) {
+        const pLabel = String(p.label || "").toLowerCase();
+        if (pLabel.includes("unidade") || pLabel === "un" || pLabel === "und") {
+          if (Number(p.equivalent_reference_amount) < 20) {
+            p.equivalent_reference_amount = 50;
+            hasFixedPortion = true;
+          }
+        }
+      }
+      if (hasFixedPortion) {
+        try {
+          await connection.query(
+            `UPDATE nutrition_v2_food_portions
+             SET equivalent_reference_amount = 50
+             WHERE food_id = ? AND (LOWER(TRIM(label)) = 'unidade' OR LOWER(TRIM(label)) LIKE 'unidade%') AND equivalent_reference_amount < 20`,
+            [f.id]
+          );
+        } catch {}
+      }
+      // Ensure "Unidade" portion (50g) is present in the list
+      const hasUnidade = portions.some((p) => String(p.label || "").trim().toLowerCase() === "unidade");
+      if (!hasUnidade) {
+        portions.unshift({
+          public_id: generateDeterministicPortionPublicId(f.id, "Unidade"),
+          label: "Unidade",
+          equivalent_reference_amount: 50,
+          sort_order: 0,
+          status: "ACTIVE",
+          scope: "GLOBAL",
+          consultancy_id: null,
+          created_by_user_id: null,
+          notes: "Equivalência padrão TACO/IBGE (50g)",
+          created_at: new Date(),
+          updated_at: new Date(),
+          deleted_at: null,
+        } as RowDataPacket);
+      }
+    }
+
+    // Pure protein carbs = 0 if null
+    let effectiveCarbs = safeNullableNumber(f.carbohydrate_g);
+    if (effectiveCarbs == null && isPureProteinFood(foodDisplayStr || foodNameStr)) {
+      effectiveCarbs = 0;
+    }
+
     return {
       publicId: safeString(f.public_id),
       scope: (f.scope === "CONSULTANCY" ? "CONSULTANCY" : "GLOBAL") as NutritionV2FoodScope,
@@ -500,7 +553,7 @@ export async function getFoodWithPortions(
       referenceUnitCode: safeString(f.reference_unit_code, "G").toUpperCase(),
       caloriesKcal: safeNullableNumber(f.calories_kcal),
       proteinG: safeNullableNumber(f.protein_g),
-      carbohydrateG: safeNullableNumber(f.carbohydrate_g),
+      carbohydrateG: effectiveCarbs,
       fatG: safeNullableNumber(f.fat_g),
       fiberG: safeNullableNumber(f.fiber_g),
       dataQuality: safeNullableString(f.data_quality) || "UNCLASSIFIED",

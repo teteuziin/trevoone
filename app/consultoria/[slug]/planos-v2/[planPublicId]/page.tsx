@@ -175,7 +175,7 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
   const initialPreferences = await getNutritionBuilderPreferences(ctx);
 
   return (
-    <main className="relative min-h-svh w-full max-w-full min-w-0 flex-1 flex flex-col bg-[#F0F1F3] dark:bg-[#0B0C0E] text-[var(--text-primary)]">
+    <main className="relative min-h-svh w-full max-w-full min-w-0 flex-1 flex flex-col bg-[var(--background)] text-[var(--text-primary)]">
       {/* Official Trevo One Wallpaper: Responsive Dark/Light Signature */}
       <div
         data-trevo-dashboard-wallpaper="true"

@@ -153,16 +153,19 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
 
   // -------------------------------------------------------------------------
   // 7. OVOS DE GALINHA (Inteiro cozido, frito, mexido, cru)
-  // Ref: TACO/IBGE (unidade média 50g, grande 60g, pequena 45g)
+  // Ref: TACO/IBGE (unidade padrão 50g, média 50g, grande 60g, pequena 45g)
   // -------------------------------------------------------------------------
   {
     id: "ovos-galinha",
     matcher: (norm) =>
       ((norm.includes("ovo") &&
-        (norm.includes("galinha") || norm.includes("cozido") || norm.includes("frito") || norm.includes("mexido") || norm.includes("poche") || norm.includes("cru")) &&
-        !norm.includes("codorna") && !norm.includes("avestruz")) ||
+        !norm.includes("codorna") &&
+        !norm.includes("avestruz") &&
+        !norm.includes("pascoa") &&
+        !norm.includes("easter")) ||
       (/\b(egg|eggs)\b/.test(norm) && !norm.includes("quail") && !norm.includes("eggplant") && !norm.includes("easter"))),
     portions: [
+      { label: "Unidade", amount: 50, notes: "Equivalência padrão TACO/IBGE (50g)" },
       { label: "Unidade média", amount: 50, notes: "Equivalência padrão TACO/IBGE" },
       { label: "Unidade grande", amount: 60, notes: "Equivalência padrão IBGE" },
       { label: "Unidade pequena", amount: 45, notes: "Equivalência padrão IBGE" },
@@ -209,6 +212,7 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
       norm.includes("banana") &&
       !norm.includes("frita") && !norm.includes("doce") && !norm.includes("farofa") && !norm.includes("farinha") && !norm.includes("bread") && !norm.includes("cake"),
     portions: [
+      { label: "Unidade", amount: 70, notes: "Equivalência padrão Pinheiro (sem casca, 70g)" },
       { label: "Unidade média", amount: 70, notes: "Equivalência Pinheiro (sem casca)" },
       { label: "Unidade grande", amount: 90, notes: "Equivalência Pinheiro (sem casca)" },
       { label: "Unidade pequena", amount: 50, notes: "Equivalência Pinheiro (sem casca)" },
@@ -225,6 +229,7 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
       (norm.includes("maca") || /\b(apple|apples)\b/.test(norm)) &&
       !norm.includes("torta") && !norm.includes("doce") && !norm.includes("vinagre") && !norm.includes("pie") && !norm.includes("cider") && !norm.includes("sauce"),
     portions: [
+      { label: "Unidade", amount: 130, notes: "Equivalência padrão Pinheiro/IBGE (130g)" },
       { label: "Unidade média", amount: 130, notes: "Equivalência Pinheiro/IBGE" },
       { label: "Unidade pequena", amount: 90, notes: "Equivalência Pinheiro" },
       { label: "Unidade grande", amount: 180, notes: "Equivalência Pinheiro" },
@@ -240,6 +245,7 @@ export const CANONICAL_FOOD_PORTIONS_RULES: CanonicalPortionRule[] = [
       (norm.includes("laranja") || /\b(orange|oranges)\b/.test(norm)) &&
       !norm.includes("suco") && !norm.includes("juice") && !norm.includes("doce") && !norm.includes("geleia") && !norm.includes("jam"),
     portions: [
+      { label: "Unidade", amount: 130, notes: "Equivalência padrão Pinheiro (sem casca, 130g)" },
       { label: "Unidade média", amount: 130, notes: "Equivalência Pinheiro (sem casca)" },
       { label: "Unidade pequena", amount: 90, notes: "Equivalência Pinheiro (sem casca)" },
       { label: "Unidade grande", amount: 180, notes: "Equivalência Pinheiro (sem casca)" },
@@ -737,7 +743,9 @@ export async function resolveAndEnsureCanonicalPortion(
           `INSERT INTO nutrition_v2_food_portions
            (public_id, food_id, label, equivalent_reference_amount, sort_order, status, scope, consultancy_id, created_by_user_id, notes)
            VALUES (?, ?, ?, ?, ?, 'ACTIVE', 'GLOBAL', NULL, NULL, ?)
-           ON DUPLICATE KEY UPDATE status = 'ACTIVE'`,
+           ON DUPLICATE KEY UPDATE
+             equivalent_reference_amount = VALUES(equivalent_reference_amount),
+             status = 'ACTIVE'`,
           [detPublicId, foodId, c.label, c.amount, i, c.notes || null]
         );
       } catch {

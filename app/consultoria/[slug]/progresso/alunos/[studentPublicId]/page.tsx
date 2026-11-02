@@ -2,7 +2,10 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
-import { getPersonalStudentDetail } from "@/lib/consultancies/personal-student-hub";
+import {
+  getPersonalStudentDetail,
+  type PersonalStudentDetail,
+} from "@/lib/consultancies/personal-student-hub";
 import { evaluateStudentMonitoring } from "@/lib/monitoring/evaluator";
 import { getDbConnection } from "@/lib/db/mysql";
 import type { RowDataPacket } from "mysql2/promise";
@@ -125,56 +128,63 @@ export default async function ProfessionalStudentProgressDetailPage({
       //   3. CANNOT access students who are actively assigned to ANOTHER coach in the consultancy,
       //      protecting clinical data, evaluations, and team responsibility boundaries.
       if (isPersonal && !isConsultancyAdmin) {
-        const [relRows] = await connection.execute<RowDataPacket[]>(
-          `SELECT 1 FROM (
-             -- Active workout assignment (V2)
-             SELECT 1 FROM workout_assignments
-             WHERE consultancy_id = ? AND student_membership_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
-             UNION
-             -- Active training plan (V1)
-             SELECT 1 FROM training_plans
-             WHERE consultancy_id = ? AND student_membership_id = ? AND created_by_user_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
-             UNION
-             -- Active nutrition assignment (V2)
-             SELECT 1 FROM nutrition_v2_assignments
-             WHERE consultancy_id = ? AND student_membership_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
-             UNION
-             -- Scheduled or in-progress consultation
-             SELECT 1 FROM consultations
-             WHERE consultancy_id = ? AND student_membership_id = ? AND professional_membership_id = ? AND status IN ('SCHEDULED', 'IN_PROGRESS')
-             UNION
-             -- Active Trevo Chat consultation
-             SELECT 1 FROM chat_consultations
-             WHERE consultancy_id = ? AND (
-               (initiator_membership_id = ? AND recipient_membership_id = ?) OR
-               (initiator_membership_id = ? AND recipient_membership_id = ?)
-             )
-           ) rel LIMIT 1;`,
-          [
-            context.consultancyId, studentMemberId, context.membershipId,
-            context.consultancyId, studentMemberId, session.userId,
-            context.consultancyId, studentMemberId, context.membershipId,
-            context.consultancyId, studentMemberId, context.membershipId,
-            context.consultancyId, context.membershipId, studentMemberId, studentMemberId, context.membershipId,
-          ]
-        );
-
-        const hasDirectRelationship = Array.isArray(relRows) && relRows.length > 0;
+        let hasDirectRelationship = false;
+        try {
+          const [relRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT 1 FROM (
+               -- Active workout assignment (V2)
+               SELECT 1 FROM workout_assignments
+               WHERE consultancy_id = ? AND student_membership_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
+               UNION
+               -- Active training plan (V1)
+               SELECT 1 FROM training_plans
+               WHERE consultancy_id = ? AND student_membership_id = ? AND created_by_user_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
+               UNION
+               -- Active nutrition assignment (V2)
+               SELECT 1 FROM nutrition_v2_assignments
+               WHERE consultancy_id = ? AND student_membership_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
+               UNION
+               -- Scheduled or in-progress consultation
+               SELECT 1 FROM consultations
+               WHERE consultancy_id = ? AND student_membership_id = ? AND professional_membership_id = ? AND status IN ('SCHEDULED', 'IN_PROGRESS')
+               UNION
+               -- Active Trevo Chat consultation
+               SELECT 1 FROM chat_consultations
+               WHERE consultancy_id = ? AND student_membership_id = ? AND professional_membership_id = ?
+             ) rel LIMIT 1;`,
+            [
+              context.consultancyId, studentMemberId, context.membershipId,
+              context.consultancyId, studentMemberId, session.userId,
+              context.consultancyId, studentMemberId, context.membershipId,
+              context.consultancyId, studentMemberId, context.membershipId,
+              context.consultancyId, studentMemberId, context.membershipId,
+            ]
+          );
+          hasDirectRelationship = Array.isArray(relRows) && relRows.length > 0;
+        } catch (err: unknown) {
+          console.error("[Student Evolution Hub] Error checking direct relationship:", err instanceof Error ? err.message : err);
+          hasDirectRelationship = false;
+        }
 
         if (!hasDirectRelationship) {
-          // Check if the student is actively assigned to another coach in this consultancy
-          const [assignedToOtherRows] = await connection.execute<RowDataPacket[]>(
-            `SELECT 1 FROM workout_assignments
-             WHERE consultancy_id = ?
-               AND student_membership_id = ?
-               AND assigned_by_membership_id != ?
-               AND status = 'ACTIVE'
-               AND deleted_at IS NULL
-             LIMIT 1;`,
-            [context.consultancyId, studentMemberId, context.membershipId]
-          );
+          let isAssignedToOtherCoach = false;
+          try {
+            // Check if the student is actively assigned to another coach in this consultancy
+            const [assignedToOtherRows] = await connection.execute<RowDataPacket[]>(
+              `SELECT 1 FROM workout_assignments
+               WHERE consultancy_id = ?
+                 AND student_membership_id = ?
+                 AND assigned_by_membership_id != ?
+                 AND status = 'ACTIVE'
+                 AND deleted_at IS NULL
+               LIMIT 1;`,
+              [context.consultancyId, studentMemberId, context.membershipId]
+            );
 
-          const isAssignedToOtherCoach = Array.isArray(assignedToOtherRows) && assignedToOtherRows.length > 0;
+            isAssignedToOtherCoach = Array.isArray(assignedToOtherRows) && assignedToOtherRows.length > 0;
+          } catch (err: unknown) {
+            console.error("[Student Evolution Hub] Error checking other coach assignment:", err instanceof Error ? err.message : err);
+          }
 
           if (isAssignedToOtherCoach) {
             // Student is under the active responsibility of another coach in the consultancy.
@@ -193,11 +203,16 @@ export default async function ProfessionalStudentProgressDetailPage({
       redirect(`/consultoria/${slug}/progresso/alunos/${canonicalMembershipPublicId}${query}`);
     }
 
-    const detail = await getPersonalStudentDetail({
-      consultancyId: context.consultancyId,
-      consultancySlug: slug,
-      studentMembershipPublicId: studentPublicId,
-    });
+    let detail: PersonalStudentDetail | null = null;
+    try {
+      detail = await getPersonalStudentDetail({
+        consultancyId: context.consultancyId,
+        consultancySlug: slug,
+        studentMembershipPublicId: canonicalMembershipPublicId,
+      });
+    } catch (err: unknown) {
+      console.error("[Student Evolution Hub] Error fetching student detail:", err instanceof Error ? err.message : err);
+    }
 
     if (!detail) {
       notFound();

@@ -13,9 +13,11 @@ export default function StudentEvolutionError({
   reset,
 }: StudentEvolutionErrorProps) {
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.error("[Student Evolution Error Boundary]", error);
-    }
+    console.error("[Student Evolution Error Boundary]", {
+      message: error?.message,
+      digest: error?.digest,
+      stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+    });
   }, [error]);
 
   return (

@@ -25,6 +25,15 @@ export function formatDateYmd(val: unknown): string {
   return str;
 }
 
+export function safeToIsoString(val: unknown, fallback?: string): string {
+  if (!val) return fallback || new Date().toISOString();
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? (fallback || new Date().toISOString()) : val.toISOString();
+  }
+  const parsed = new Date(String(val));
+  return isNaN(parsed.getTime()) ? (fallback || new Date().toISOString()) : parsed.toISOString();
+}
+
 export interface PersonalStudentSummary {
   membershipPublicId: string;
   userPublicId: string;
@@ -406,7 +415,7 @@ export async function getPersonalStudentDetail(params: {
   try {
     connection = await getDbConnection();
 
-    // 1. Authenticate student membership strictly by consultancy_members.public_id (no user_public_id fallback)
+    // 1. Authenticate student membership supporting both cm.public_id and u.public_id
     const [members] = await connection.execute<RowDataPacket[]>(
       `SELECT
         cm.id AS membership_id,
@@ -421,11 +430,11 @@ export async function getPersonalStudentDetail(params: {
        INNER JOIN users u ON u.id = cm.user_id
        INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
        WHERE cm.consultancy_id = ?
-         AND cm.public_id = ?
+         AND (cm.public_id = ? OR u.public_id = ?)
          AND cm.status = 'ACTIVE'
          AND u.deleted_at IS NULL
        LIMIT 1;`,
-      [consultancyId, studentMembershipPublicId]
+      [consultancyId, studentMembershipPublicId, studentMembershipPublicId]
     );
 
     if (!Array.isArray(members) || members.length === 0) {
@@ -441,27 +450,34 @@ export async function getPersonalStudentDetail(params: {
       name: String(member.full_name),
       email: String(member.email),
       phone: null,
-      joinedAt: member.joined_at ? new Date(member.joined_at).toISOString() : new Date().toISOString(),
+      joinedAt: safeToIsoString(member.joined_at),
       status: String(member.membership_status),
     };
 
     // 2. Fetch Intake Submissions (Anamnesis & Questionnaires)
-    const [intakes] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        id,
-        public_id,
-        form_key,
-        form_version,
-        status,
-        responses_json,
-        submitted_at
-       FROM student_intake_submissions
-       WHERE consultancy_id = ?
-         AND membership_id = ?
-         AND status = 'SUBMITTED'
-       ORDER BY submitted_at DESC, id DESC;`,
-      [consultancyId, membershipId]
-    );
+    let intakes: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          id,
+          public_id,
+          form_key,
+          form_version,
+          status,
+          responses_json,
+          submitted_at
+         FROM student_intake_submissions
+         WHERE consultancy_id = ?
+           AND membership_id = ?
+           AND status = 'SUBMITTED'
+         ORDER BY submitted_at DESC, id DESC;`,
+        [consultancyId, membershipId]
+      );
+      intakes = rows;
+    } catch (err: unknown) {
+      console.error("[Personal Student Hub] Error fetching intake submissions:", err instanceof Error ? err.message : err);
+      intakes = [];
+    }
 
     let mergedResponses: Record<string, unknown> = {};
     const forms: StudentFormAnswer[] = [];
@@ -515,7 +531,7 @@ export async function getPersonalStudentDetail(params: {
             status: "Respondido",
             rawStatus: "SUBMITTED",
             authorOrigin: "STUDENT",
-            submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : null,
+            submittedAt: row.submitted_at ? safeToIsoString(row.submitted_at) : null,
             questions,
           });
         }
@@ -532,7 +548,7 @@ export async function getPersonalStudentDetail(params: {
             status: "Respondido",
             rawStatus: "SUBMITTED",
             authorOrigin: "STUDENT",
-            submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : null,
+            submittedAt: row.submitted_at ? safeToIsoString(row.submitted_at) : null,
             questions,
           };
           forms.push(intakeItem);
@@ -542,27 +558,34 @@ export async function getPersonalStudentDetail(params: {
     }
 
     // 3. Fetch Custom Forms (consultancy_custom_form_requests)
-    const [customForms] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        r.id,
-        r.public_id,
-        r.status,
-        r.responses_json,
-        r.submitted_at,
-        r.created_at,
-        r.reviewed_at,
-        t.public_id AS template_public_id,
-        t.title AS template_title,
-        t.description AS template_description,
-        t.fields_json
-       FROM consultancy_custom_form_requests r
-       INNER JOIN consultancy_custom_form_templates t ON t.id = r.template_id
-       WHERE r.consultancy_id = ?
-         AND r.student_membership_id = ?
-         AND r.status IN ('PENDING', 'SUBMITTED', 'REVIEWED', 'CHANGES_REQUESTED')
-       ORDER BY COALESCE(r.submitted_at, r.created_at) DESC, r.id DESC;`,
-      [consultancyId, membershipId]
-    );
+    let customForms: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          r.id,
+          r.public_id,
+          r.status,
+          r.responses_json,
+          r.submitted_at,
+          r.created_at,
+          r.reviewed_at,
+          t.public_id AS template_public_id,
+          t.title AS template_title,
+          t.description AS template_description,
+          t.fields_json
+         FROM consultancy_custom_form_requests r
+         INNER JOIN consultancy_custom_form_templates t ON t.id = r.template_id
+         WHERE r.consultancy_id = ?
+           AND r.student_membership_id = ?
+           AND r.status IN ('PENDING', 'SUBMITTED', 'REVIEWED', 'CHANGES_REQUESTED')
+         ORDER BY COALESCE(r.submitted_at, r.created_at) DESC, r.id DESC;`,
+        [consultancyId, membershipId]
+      );
+      customForms = rows;
+    } catch (err: unknown) {
+      console.error("[Personal Student Hub] Error fetching custom forms:", err instanceof Error ? err.message : err);
+      customForms = [];
+    }
 
     if (Array.isArray(customForms) && customForms.length > 0) {
       for (const row of customForms) {
@@ -641,9 +664,9 @@ export async function getPersonalStudentDetail(params: {
           status: statusLabel,
           rawStatus: String(row.status),
           authorOrigin,
-          submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : null,
-          requestedAt: row.created_at ? new Date(row.created_at).toISOString() : null,
-          reviewedAt: row.reviewed_at ? new Date(row.reviewed_at).toISOString() : null,
+          submittedAt: row.submitted_at ? safeToIsoString(row.submitted_at) : null,
+          requestedAt: row.created_at ? safeToIsoString(row.created_at) : null,
+          reviewedAt: row.reviewed_at ? safeToIsoString(row.reviewed_at) : null,
           questions,
           fields: parsedFields,
         };
@@ -658,13 +681,20 @@ export async function getPersonalStudentDetail(params: {
     }
 
     // 3.4. Fetch Available Templates for Quick Selection
-    const [templateRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT public_id, title, description, fields_json
-       FROM consultancy_custom_form_templates
-       WHERE consultancy_id = ? AND is_active = 1 AND deleted_at IS NULL
-       ORDER BY created_at DESC;`,
-      [consultancyId]
-    );
+    let templateRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT public_id, title, description, fields_json
+         FROM consultancy_custom_form_templates
+         WHERE consultancy_id = ? AND is_active = 1 AND deleted_at IS NULL
+         ORDER BY created_at DESC;`,
+        [consultancyId]
+      );
+      templateRows = rows;
+    } catch (err: unknown) {
+      console.error("[Personal Student Hub] Error fetching form templates:", err instanceof Error ? err.message : err);
+      templateRows = [];
+    }
 
     const availableTemplates: FormTemplateSummary[] = [];
     if (Array.isArray(templateRows)) {
@@ -761,26 +791,33 @@ export async function getPersonalStudentDetail(params: {
     }
 
     // 4. Fetch Physical Progress Entries (weight & measurements)
-    const [progressRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        recorded_on,
-        weight_kg,
-        waist_cm,
-        abdomen_cm,
-        hip_cm,
-        arm_cm,
-        thigh_cm,
-        note
-       FROM student_progress_entries
-       WHERE consultancy_id = ?
-         AND student_membership_id = ?
-       ORDER BY recorded_on DESC, id DESC
-       LIMIT 10;`,
-      [consultancyId, membershipId]
-    );
+    let progressRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          recorded_on,
+          weight_kg,
+          waist_cm,
+          abdomen_cm,
+          hip_cm,
+          arm_cm,
+          thigh_cm,
+          note
+         FROM student_progress_entries
+         WHERE consultancy_id = ?
+           AND student_membership_id = ?
+         ORDER BY recorded_on DESC, id DESC
+         LIMIT 10;`,
+        [consultancyId, membershipId]
+      );
+      progressRows = rows;
+    } catch (err: unknown) {
+      console.error("[Personal Student Hub] Error fetching progress entries:", err instanceof Error ? err.message : err);
+      progressRows = [];
+    }
 
     const measurements: PhysicalMeasurement[] = (progressRows || []).map((r) => ({
-      recordedOn: String(r.recorded_on),
+      recordedOn: formatDateYmd(r.recorded_on),
       weightKg: r.weight_kg != null ? Number(r.weight_kg) : null,
       waistCm: r.waist_cm != null ? Number(r.waist_cm) : null,
       abdomenCm: r.abdomen_cm != null ? Number(r.abdomen_cm) : null,
@@ -805,24 +842,31 @@ export async function getPersonalStudentDetail(params: {
     const finalHeightCm = intakeRawHeight && !Number.isNaN(intakeRawHeight) ? intakeRawHeight : null;
 
     // 5. Fetch Photo Evaluations
-    const [photoRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-        r.id AS request_id,
-        r.public_id AS request_public_id,
-        r.status,
-        r.reviewer_notes,
-        r.submitted_at,
-        r.reviewed_at,
-        r.created_at,
-        i.pose,
-        i.public_id AS image_public_id
-       FROM student_photo_evaluation_requests r
-       LEFT JOIN student_photo_evaluation_images i ON i.request_id = r.id
-       WHERE r.consultancy_id = ?
-         AND r.student_membership_id = ?
-       ORDER BY COALESCE(r.submitted_at, r.created_at) DESC, r.id DESC;`,
-      [consultancyId, membershipId]
-    );
+    let photoRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          r.id AS request_id,
+          r.public_id AS request_public_id,
+          r.status,
+          r.reviewer_notes,
+          r.submitted_at,
+          r.reviewed_at,
+          r.created_at,
+          i.pose,
+          i.public_id AS image_public_id
+         FROM student_photo_evaluation_requests r
+         LEFT JOIN student_photo_evaluation_images i ON i.request_id = r.id
+         WHERE r.consultancy_id = ?
+           AND r.student_membership_id = ?
+         ORDER BY COALESCE(r.submitted_at, r.created_at) DESC, r.id DESC;`,
+        [consultancyId, membershipId]
+      );
+      photoRows = rows;
+    } catch (err: unknown) {
+      console.error("[Personal Student Hub] Error fetching photo evaluations:", err instanceof Error ? err.message : err);
+      photoRows = [];
+    }
 
     const photosMap = new Map<string, PhotoEvaluationItem>();
     if (Array.isArray(photoRows)) {
@@ -830,17 +874,17 @@ export async function getPersonalStudentDetail(params: {
         const reqPubId = String(r.request_public_id);
         if (!photosMap.has(reqPubId)) {
           const evalDate = r.submitted_at
-            ? new Date(r.submitted_at).toISOString()
+            ? safeToIsoString(r.submitted_at)
             : r.created_at
-            ? new Date(r.created_at).toISOString()
+            ? safeToIsoString(r.created_at)
             : null;
 
           photosMap.set(reqPubId, {
             requestPublicId: reqPubId,
             status: String(r.status),
-            submittedAt: r.submitted_at ? new Date(r.submitted_at).toISOString() : null,
-            reviewedAt: r.reviewed_at ? new Date(r.reviewed_at).toISOString() : null,
-            createdAt: r.created_at ? new Date(r.created_at).toISOString() : null,
+            submittedAt: r.submitted_at ? safeToIsoString(r.submitted_at) : null,
+            reviewedAt: r.reviewed_at ? safeToIsoString(r.reviewed_at) : null,
+            createdAt: r.created_at ? safeToIsoString(r.created_at) : null,
             evaluationDate: evalDate,
             reviewerNotes: r.reviewer_notes ? String(r.reviewer_notes) : null,
             images: [],
@@ -889,35 +933,41 @@ export async function getPersonalStudentDetail(params: {
       workoutRows = rows;
     } catch (err: unknown) {
       if (isMissingColumnError(err, ["custom_title"])) {
-        const [rows] = await connection.execute<RowDataPacket[]>(
-          `SELECT
-            wa.public_id AS assignment_public_id,
-            wa.status AS assignment_status,
-            wa.starts_on,
-            wa.ends_on,
-            wa.notes_for_student,
-            NULL AS custom_title,
-            wa.created_at AS assigned_at,
-            w.public_id AS workout_public_id,
-            COALESCE(wv.title, w.title) AS base_workout_title,
-            COALESCE(wv.title, w.title) AS workout_title,
-            COALESCE(wv.subtitle, w.subtitle) AS workout_subtitle,
-            COALESCE(wv.objective, w.objective) AS workout_objective,
-            COALESCE(wv.difficulty_level, w.difficulty_level) AS difficulty_level,
-            wv.public_id AS version_public_id,
-            wv.version_number
-           FROM workout_assignments wa
-           INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
-           INNER JOIN workouts w ON w.id = wv.workout_id
-           WHERE wa.consultancy_id = ?
-             AND wa.student_membership_id = ?
-             AND wa.deleted_at IS NULL
-           ORDER BY wa.status = 'ACTIVE' DESC, wa.created_at DESC;`,
-          [consultancyId, membershipId]
-        );
-        workoutRows = rows;
+        try {
+          const [rows] = await connection.execute<RowDataPacket[]>(
+            `SELECT
+              wa.public_id AS assignment_public_id,
+              wa.status AS assignment_status,
+              wa.starts_on,
+              wa.ends_on,
+              wa.notes_for_student,
+              NULL AS custom_title,
+              wa.created_at AS assigned_at,
+              w.public_id AS workout_public_id,
+              COALESCE(wv.title, w.title) AS base_workout_title,
+              COALESCE(wv.title, w.title) AS workout_title,
+              COALESCE(wv.subtitle, w.subtitle) AS workout_subtitle,
+              COALESCE(wv.objective, w.objective) AS workout_objective,
+              COALESCE(wv.difficulty_level, w.difficulty_level) AS difficulty_level,
+              wv.public_id AS version_public_id,
+              wv.version_number
+             FROM workout_assignments wa
+             INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+             INNER JOIN workouts w ON w.id = wv.workout_id
+             WHERE wa.consultancy_id = ?
+               AND wa.student_membership_id = ?
+               AND wa.deleted_at IS NULL
+             ORDER BY wa.status = 'ACTIVE' DESC, wa.created_at DESC;`,
+            [consultancyId, membershipId]
+          );
+          workoutRows = rows;
+        } catch (innerErr: unknown) {
+          console.error("[Personal Student Hub] Error in workout assignments fallback query:", innerErr instanceof Error ? innerErr.message : innerErr);
+          workoutRows = [];
+        }
       } else {
-        throw err;
+        console.error("[Personal Student Hub] Error fetching workout assignments:", err instanceof Error ? err.message : err);
+        workoutRows = [];
       }
     }
 
@@ -938,7 +988,7 @@ export async function getPersonalStudentDetail(params: {
       startsOn: formatDateYmd(r.starts_on),
       endsOn: r.ends_on ? formatDateYmd(r.ends_on) : null,
       notesForStudent: r.notes_for_student ? String(r.notes_for_student) : null,
-      assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : new Date().toISOString(),
+      assignedAt: safeToIsoString(r.assigned_at),
     }));
 
     // 7. Fetch Completed Workout Sessions
@@ -975,34 +1025,39 @@ export async function getPersonalStudentDetail(params: {
       completedRows = rows;
     } catch {
       // Defensive fallback if 068 columns are missing
-      const [rows] = await connection.execute<RowDataPacket[]>(
-        `SELECT
-          wes.public_id,
-          wes.started_at,
-          wes.completed_at,
-          NULL AS student_completion_state,
-          NULL AS student_feedback_notes,
-          NULL AS custom_title,
-          COALESCE(wv.title, w.title) AS base_workout_title,
-          COALESCE(wv.title, w.title) AS workout_title,
-          (
-            SELECT COUNT(*)
-            FROM workout_execution_sets weset
-            WHERE weset.execution_session_id = wes.id
-              AND weset.completed_at IS NOT NULL
-          ) AS completed_sets_count
-         FROM workout_execution_sessions wes
-         INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
-         INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
-         INNER JOIN workouts w ON w.id = wv.workout_id
-         WHERE wes.consultancy_id = ?
-           AND wes.student_membership_id = ?
-           AND wes.status = 'COMPLETED'
-         ORDER BY wes.completed_at DESC, wes.id DESC
-         LIMIT 10;`,
-        [consultancyId, membershipId]
-      );
-      completedRows = rows;
+      try {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+            wes.public_id,
+            wes.started_at,
+            wes.completed_at,
+            NULL AS student_completion_state,
+            NULL AS student_feedback_notes,
+            NULL AS custom_title,
+            COALESCE(wv.title, w.title) AS base_workout_title,
+            COALESCE(wv.title, w.title) AS workout_title,
+            (
+              SELECT COUNT(*)
+              FROM workout_execution_sets weset
+              WHERE weset.execution_session_id = wes.id
+                AND weset.completed_at IS NOT NULL
+            ) AS completed_sets_count
+           FROM workout_execution_sessions wes
+           INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
+           INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+           INNER JOIN workouts w ON w.id = wv.workout_id
+           WHERE wes.consultancy_id = ?
+             AND wes.student_membership_id = ?
+             AND wes.status = 'COMPLETED'
+           ORDER BY wes.completed_at DESC, wes.id DESC
+           LIMIT 10;`,
+          [consultancyId, membershipId]
+        );
+        completedRows = rows;
+      } catch (err2: unknown) {
+        console.error("[Personal Student Hub] Error in completed sessions fallback query:", err2 instanceof Error ? err2.message : err2);
+        completedRows = [];
+      }
     }
 
     const sessionSubstitutionsMap = new Map<string, Array<{ originalExerciseName: string; performedExerciseName: string; reason: string }>>();
@@ -1050,8 +1105,8 @@ export async function getPersonalStudentDetail(params: {
           studentName: student.name,
           baseTitle: r.base_workout_title || r.workout_title,
         }),
-        startedAt: new Date(r.started_at).toISOString(),
-        completedAt: new Date(r.completed_at).toISOString(),
+        startedAt: safeToIsoString(r.started_at),
+        completedAt: safeToIsoString(r.completed_at),
         completedSetsCount: Number(r.completed_sets_count || 0),
         studentCompletionState: (r.student_completion_state as "ALL" | "PARTIAL" | "NONE") || null,
         studentFeedbackNotes: r.student_feedback_notes ? String(r.student_feedback_notes) : null,
@@ -1210,7 +1265,7 @@ export async function getPersonalStudentDetail(params: {
         startsOn: formatDateYmd(r.starts_on),
         endsOn: r.ends_on ? formatDateYmd(r.ends_on) : null,
         notesForStudent: r.notes_for_student ? String(r.notes_for_student) : null,
-        assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : new Date().toISOString(),
+        assignedAt: safeToIsoString(r.assigned_at),
       }));
     } catch {
       nutritionPlans = [];
@@ -1246,7 +1301,7 @@ export async function getPersonalStudentDetail(params: {
           versionPublicId: String(dr.version_public_id),
           versionNumber: Number(dr.version_number || 1),
           title: String(dr.draft_title),
-          updatedAt: dr.updated_at ? new Date(dr.updated_at).toISOString() : new Date().toISOString(),
+          updatedAt: safeToIsoString(dr.updated_at),
         };
       }
     } catch {

@@ -67,6 +67,7 @@ import {
   type WorkoutNextExerciseDefault,
 } from "./workout-next-exercise-default-modal";
 import { TrainingStudioAssistant } from "./training-studio-assistant";
+import { parseRepsInput } from "@/lib/training-v2/reps-normalizer";
 
 function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -565,15 +566,26 @@ export function WorkoutBuilder({
       );
       if (res.ok && res.data) {
         createdPublicId = res.data.publicId;
+        const newCatIdx = (version.blocks || []).length;
+        const targetPublicId = res.data.publicId;
         setVersion((prev) => ({
           ...prev,
           blocks: [...(prev.blocks || []), res.data!],
         }));
+        setActiveMobileCategoryIndex(newCatIdx);
         if (!customTitle) {
           setNewCategoryName("");
           setIsCreatingCategory(false);
         }
         notify(`Categoria "${res.data.title}" criada.`);
+        if (typeof window !== "undefined") {
+          setTimeout(() => {
+            const el = document.getElementById(`category-wrapper-${targetPublicId}`);
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }, 120);
+        }
       } else {
         notify(res.error || "Erro ao criar categoria.");
         throw new Error(res.error || "Erro ao criar categoria.");
@@ -606,10 +618,21 @@ export function WorkoutBuilder({
     await runWithAutosave(async () => {
       const res = await duplicateCategoryAction(consultancySlug, categoryPublicId);
       if (res.ok && res.data) {
+        const newCatIdx = (version.blocks || []).length;
+        const targetPublicId = res.data.publicId;
         setVersion((prev) => ({
           ...prev,
           blocks: [...prev.blocks, res.data!],
         }));
+        setActiveMobileCategoryIndex(newCatIdx);
+        if (typeof window !== "undefined") {
+          setTimeout(() => {
+            const el = document.getElementById(`category-wrapper-${targetPublicId}`);
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }, 120);
+        }
         notify("Categoria duplicada com sucesso.");
       } else {
         notify(res.error || "Erro ao duplicar categoria.");
@@ -623,10 +646,18 @@ export function WorkoutBuilder({
     await runWithAutosave(async () => {
       const res = await deleteCategoryAction(consultancySlug, categoryPublicId);
       if (res.ok) {
-        setVersion((prev) => ({
-          ...prev,
-          blocks: prev.blocks.filter((b) => b.publicId !== categoryPublicId),
-        }));
+        setVersion((prev) => {
+          const newBlocks = (prev.blocks || []).filter((b) => b.publicId !== categoryPublicId);
+          setActiveMobileCategoryIndex((curr) => {
+            if (curr === -1) return -1;
+            if (curr >= newBlocks.length) return Math.max(0, newBlocks.length - 1);
+            return curr;
+          });
+          return {
+            ...prev,
+            blocks: newBlocks,
+          };
+        });
         notify("Categoria removida.");
       } else {
         notify(res.error || "Erro ao remover categoria.");
@@ -753,19 +784,37 @@ export function WorkoutBuilder({
     categoryPublicId: string,
     subBlockPublicId?: string,
     convertingItemPublicId?: string,
-    initialData?: { name?: string; muscleGroup?: string; equipment?: string }
+    initialData?: Partial<CustomExerciseFormData>
   ) {
+    const defaultRepsText = nextExerciseDefault
+      ? nextExerciseDefault.repsType === "RANGE"
+        ? `${nextExerciseDefault.repsMin}-${nextExerciseDefault.repsMax}`
+        : `${nextExerciseDefault.reps || 10}`
+      : "10-12";
+
     setCustomModalTarget({
       categoryPublicId,
       subBlockPublicId,
       convertingItemPublicId,
-      initialData: initialData
-        ? {
-            name: initialData.name || "",
-            muscleGroup: initialData.muscleGroup || "",
-            equipment: initialData.equipment || "",
-          }
-        : undefined,
+      initialData: {
+        name: initialData?.name || "",
+        muscleGroup: initialData?.muscleGroup || "",
+        equipment: initialData?.equipment || "",
+        sets: initialData?.sets ?? (nextExerciseDefault?.sets || 3),
+        reps: initialData?.reps || defaultRepsText,
+        load: initialData?.load || "",
+        restSeconds:
+          initialData?.restSeconds !== undefined && initialData?.restSeconds !== null
+            ? initialData.restSeconds
+            : 60,
+        instructions: initialData?.instructions,
+        notes: initialData?.notes,
+        videoUrl: initialData?.videoUrl,
+        videoKey: initialData?.videoKey,
+        saveToMyLibrary: initialData?.saveToMyLibrary,
+        isSequence: initialData?.isSequence,
+        sequenceMovements: initialData?.sequenceMovements,
+      },
     });
     setIsCustomModalOpen(true);
   }
@@ -816,6 +865,37 @@ export function WorkoutBuilder({
 
       const catId = customModalTarget.categoryPublicId;
       const sbId = customModalTarget.subBlockPublicId;
+
+      const numSets =
+        data.sets && Number(data.sets) > 0
+          ? Math.min(20, Math.max(1, Math.round(Number(data.sets))))
+          : (nextExerciseDefault ? nextExerciseDefault.sets : 3);
+
+      const parsedReps = data.reps ? parseRepsInput(data.reps) : null;
+      const targetReps = parsedReps
+        ? (parsedReps.repsMin ?? (parsedReps.durationSeconds ? null : 10))
+        : nextExerciseDefault
+        ? (nextExerciseDefault.repsType === "FIXED" ? nextExerciseDefault.reps || 10 : nextExerciseDefault.repsMin || 8)
+        : 10;
+      const targetRepsMax = parsedReps
+        ? (parsedReps.repsMax ?? null)
+        : nextExerciseDefault && nextExerciseDefault.repsType === "RANGE"
+        ? nextExerciseDefault.repsMax || 12
+        : null;
+      const targetDurationSeconds = parsedReps?.durationSeconds ?? null;
+      const durationUnit = parsedReps?.durationSeconds ? "SECONDS" : undefined;
+
+      const parsedLoadKg = data.load
+        ? parseFloat(String(data.load).replace(",", ".").replace(/[^\d.]/g, "")) || undefined
+        : undefined;
+
+      const parsedRestSeconds =
+        data.restSeconds !== undefined &&
+        data.restSeconds !== null &&
+        !isNaN(Number(data.restSeconds))
+          ? Math.max(0, Math.round(Number(data.restSeconds)))
+          : 60;
+
       const res = await createCustomExerciseAction(consultancySlug, catId, {
         name: data.name,
         muscleGroup: data.muscleGroup,
@@ -828,15 +908,16 @@ export function WorkoutBuilder({
         notes: data.notes,
         isSequence: data.isSequence || data.type === "SEQUENCE",
         sequenceMovements: data.sequenceMovements,
-        sets: Array.from({ length: nextExerciseDefault ? nextExerciseDefault.sets : 1 }, () => ({
+        durationUnit,
+        sets: Array.from({ length: numSets }, (_, i) => ({
+          setNumber: i + 1,
           setType: "NORMAL",
-          targetReps: nextExerciseDefault
-            ? (nextExerciseDefault.repsType === "FIXED" ? nextExerciseDefault.reps || 10 : nextExerciseDefault.repsMin || 8)
-            : 10,
-          targetRepsMax: nextExerciseDefault && nextExerciseDefault.repsType === "RANGE"
-            ? nextExerciseDefault.repsMax || 12
-            : null,
-          targetRestSeconds: data.restSeconds ?? 60,
+          targetReps,
+          targetRepsMax,
+          targetLoadKg: parsedLoadKg,
+          targetDurationSeconds,
+          durationUnit,
+          targetRestSeconds: parsedRestSeconds,
         })),
       });
       if (res.ok && res.data) {
@@ -2386,6 +2467,8 @@ export function WorkoutBuilder({
                 return (
                   <div
                     key={category.publicId}
+                    id={`category-wrapper-${category.publicId}`}
+                    data-category-index={catIdx}
                     className={isHidden ? "hidden" : "block"}
                   >
                     <WorkoutCategoryCard

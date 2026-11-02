@@ -743,6 +743,31 @@ export function WorkoutCategoryCard({
 
   async function handleCreateCustomAndCombineItem(data: CustomExerciseFormData) {
     if (!consultancySlug) return null;
+
+    const numSets =
+      data.sets && Number(data.sets) > 0
+        ? Math.min(20, Math.max(1, Math.round(Number(data.sets))))
+        : 3;
+
+    const parsedReps = data.reps ? parseRepsInput(data.reps) : null;
+    const targetReps = parsedReps
+      ? (parsedReps.repsMin ?? (parsedReps.durationSeconds ? null : 10))
+      : 10;
+    const targetRepsMax = parsedReps ? (parsedReps.repsMax ?? null) : null;
+    const targetDurationSeconds = parsedReps?.durationSeconds ?? null;
+    const durationUnit = parsedReps?.durationSeconds ? "SECONDS" : undefined;
+
+    const parsedLoadKg = data.load
+      ? parseFloat(String(data.load).replace(",", ".").replace(/[^\d.]/g, "")) || undefined
+      : undefined;
+
+    const parsedRestSeconds =
+      data.restSeconds !== undefined &&
+      data.restSeconds !== null &&
+      !isNaN(Number(data.restSeconds))
+        ? Math.max(0, Math.round(Number(data.restSeconds)))
+        : 60;
+
     const res = await createCustomExerciseAction(consultancySlug, category.publicId, {
       name: data.name,
       muscleGroup: data.muscleGroup,
@@ -755,14 +780,17 @@ export function WorkoutCategoryCard({
       notes: data.notes,
       isSequence: data.isSequence || data.type === "SEQUENCE",
       sequenceMovements: data.sequenceMovements,
-      sets: [
-        {
-          setType: "NORMAL",
-          targetReps: parseInt(data.reps || "10", 10) || 10,
-          targetLoadKg: data.load ? parseFloat(data.load.replace(",", ".")) || undefined : undefined,
-          targetRestSeconds: data.restSeconds ? Number(data.restSeconds) : 60,
-        },
-      ],
+      durationUnit,
+      sets: Array.from({ length: numSets }, (_, i) => ({
+        setNumber: i + 1,
+        setType: "NORMAL",
+        targetReps,
+        targetRepsMax,
+        targetLoadKg: parsedLoadKg,
+        targetDurationSeconds,
+        durationUnit,
+        targetRestSeconds: parsedRestSeconds,
+      })),
     });
     if (res.ok && res.data) {
       return res.data;

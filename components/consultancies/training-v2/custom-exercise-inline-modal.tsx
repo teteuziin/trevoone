@@ -196,6 +196,15 @@ export function CustomExerciseInlineModal({
             .filter(Boolean)
         : undefined;
 
+      const parsedSets =
+        sets !== "" && sets != null && !isNaN(Number(sets)) && Number(sets) > 0
+          ? Math.min(20, Math.max(1, Math.round(Number(sets))))
+          : 3;
+      const parsedRest =
+        restSeconds !== "" && restSeconds != null && !isNaN(Number(restSeconds))
+          ? Math.max(0, Math.round(Number(restSeconds)))
+          : 60;
+
       await onSave({
         type: customType,
         isSequence: customType === "SEQUENCE",
@@ -204,10 +213,10 @@ export function CustomExerciseInlineModal({
         sequenceMovements: parsedMovements,
         muscleGroup: muscleGroup.trim() || undefined,
         equipment: equipment.trim() || undefined,
-        sets: sets ? Number(sets) : 3,
+        sets: parsedSets,
         reps: reps.trim() || "10-12",
         load: load.trim() || undefined,
-        restSeconds: restSeconds ? Number(restSeconds) : 60,
+        restSeconds: parsedRest,
         notes: notes.trim() || undefined,
         saveToMyLibrary,
         videoUrl: videoUrl.trim() || undefined,

@@ -154,7 +154,7 @@ export function GuidedCombinationModal({
   const [customSaveToLibrary, setCustomSaveToLibrary] = useState(false);
 
   const [rounds, setRounds] = useState(() => initialSummary?.seriesCount || 3);
-  const [restSeconds, setRestSeconds] = useState(() => initialSummary?.restSeconds || 60);
+  const [restSeconds, setRestSeconds] = useState(() => initialSummary?.restSeconds ?? 60);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -285,10 +285,16 @@ export function GuidedCombinationModal({
         muscleGroup: customMuscle.trim() || undefined,
         equipment: customEquip.trim() || undefined,
         instructions: customInstructions.trim() || undefined,
-        sets: Number(customSets) || 3,
+        sets:
+          customSets !== "" && customSets != null && !isNaN(Number(customSets)) && Number(customSets) > 0
+            ? Math.min(20, Math.max(1, Math.round(Number(customSets))))
+            : 3,
         reps: customReps.trim() || "10-12",
         load: customLoad.trim() || undefined,
-        restSeconds: Number(customRest) || 60,
+        restSeconds:
+          customRest !== "" && customRest != null && !isNaN(Number(customRest))
+            ? Math.max(0, Math.round(Number(customRest)))
+            : 60,
         videoUrl: customVideoUrl.trim() || undefined,
         notes: customNotes.trim() || undefined,
         saveToMyLibrary: customSaveToLibrary,
@@ -296,12 +302,16 @@ export function GuidedCombinationModal({
 
       if (added) {
         setCreatedItemIdsDuringSession((prev) => [...prev, added.publicId]);
+        const effSets =
+          customSets !== "" && customSets != null && !isNaN(Number(customSets)) && Number(customSets) > 0
+            ? Math.min(20, Math.max(1, Math.round(Number(customSets))))
+            : 3;
         setSelectedItems((prev) => [
           ...prev,
           {
             publicId: added.publicId,
             name: added.exerciseNameSnapshot,
-            prescription: `${customSets} séries · ${customReps}${customLoad ? ` · ${customLoad}kg` : ""}`,
+            prescription: `${effSets} séries · ${customReps.trim() || "10-12"}${customLoad ? ` · ${customLoad}kg` : ""}`,
           },
         ]);
         setViewMode("SELECT");

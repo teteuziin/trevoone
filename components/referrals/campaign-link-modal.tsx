@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { X, Info, CheckSquare, Square } from "@/components/referrals/referral-icons";
 import { UserAvatar } from "@/components/account/user-avatar";
 import type {
   PromotionalCampaignLinkRecord,
@@ -198,10 +199,10 @@ export function CampaignLinkModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-lg font-bold"
+            className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
             aria-label="Fechar"
           >
-            ✕
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -328,7 +329,7 @@ export function CampaignLinkModal({
           {/* ALERTA: CHECKOUT EXTERNO & WHATSAPP */}
           <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[11px] leading-relaxed space-y-1">
             <span className="font-bold flex items-center gap-1.5">
-              <span>ℹ️</span> Informação importante sobre descontos externos:
+              <Info className="w-4 h-4 text-amber-500 shrink-0" /> Informação importante sobre descontos externos:
             </span>
             <p>
               Caso a URL aponte para um <strong>checkout externo</strong> (Hotmart, Kiwify, Eduzz, etc.), o cupom/desconto deve estar previamente criado e aplicado naquele serviço. O Trevo One preserva o endereço colado e não altera preços externos sem integração específica. Se for <strong>WhatsApp</strong>, certifique-se de que a mensagem identifique a indicação para conferência manual da equipe.
@@ -554,7 +555,11 @@ export function CampaignLinkModal({
                           : "border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
                       }`}
                     >
-                      <span className="text-xs">{isChecked ? "☑" : "☐"}</span>
+                      {isChecked ? (
+                        <CheckSquare className="w-4 h-4 text-emerald-500 shrink-0" />
+                      ) : (
+                        <Square className="w-4 h-4 text-zinc-400 shrink-0" />
+                      )}
                       <div className="truncate">
                         <span className="text-xs font-semibold block truncate">{m.title}</span>
                         <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-mono">

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import { Upload, X, CheckCircle2, AlertCircle } from "@/components/referrals/referral-icons";
 import type {
   MediaFormat,
   EligiblePromotionParticipant,
@@ -13,7 +14,7 @@ interface MarketingMaterialModalProps {
   onClose: () => void;
   consultancySlug: string;
   participants: EligiblePromotionParticipant[];
-  links: PromotionalCampaignLinkRecord[];
+  links?: PromotionalCampaignLinkRecord[];
   onSuccess: () => void;
 }
 
@@ -22,23 +23,68 @@ export function MarketingMaterialModal({
   onClose,
   consultancySlug,
   participants,
-  links,
   onSuccess,
 }: MarketingMaterialModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [mediaFormat, setMediaFormat] = useState<MediaFormat>("STORY");
+  const [uploadMode, setUploadMode] = useState<"FILE" | "URL">("FILE");
   const [fileUrl, setFileUrl] = useState("");
+  const [storageKey, setStorageKey] = useState<string | null>(null);
+  const [fileSizeBytes, setFileSizeBytes] = useState<number | null>(null);
+  const [mimeType, setMimeType] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+
   const [suggestedCaption, setSuggestedCaption] = useState(
     "Garanta agora seu acesso exclusivo com desconto pelo meu link oficial! Vagas limitadas para novos alunos."
   );
   const [isGlobal, setIsGlobal] = useState(true);
-  const [targetMemberId, setTargetMemberId] = useState<number>(0);
-  const [campaignLinkId, setCampaignLinkId] = useState<number>(0);
+  const [targetMemberId, setTargetMemberId] = useState<number>(participants[0]?.memberId ?? 0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   if (!isOpen) return null;
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError(null);
+    setIsUploadingFile(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`/api/consultancies/${consultancySlug}/marketing-materials/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Falha ao enviar arquivo.");
+        return;
+      }
+
+      setFileUrl(data.fileUrl);
+      setStorageKey(data.storageKey);
+      setFileSizeBytes(data.fileSizeBytes);
+      setMimeType(data.mimeType);
+      setUploadedFileName(data.originalFileName || file.name);
+
+      if (!title) {
+        setTitle(data.originalFileName ? data.originalFileName.replace(/\.[^/.]+$/, "") : "Material de Divulgação");
+      }
+    } catch {
+      setError("Erro de rede ao fazer upload do arquivo.");
+    } finally {
+      setIsUploadingFile(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,17 +95,25 @@ export function MarketingMaterialModal({
       return;
     }
 
+    if (!isGlobal && (!targetMemberId || targetMemberId <= 0)) {
+      setError("Selecione o participante individual exclusivo.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await createMarketingMaterialAction(consultancySlug, {
-        title,
-        description: description || null,
+        title: title.trim(),
+        description: description.trim() || null,
         mediaFormat,
-        fileUrl: fileUrl || null,
-        suggestedCaption: suggestedCaption || null,
+        fileUrl: fileUrl.trim() || null,
+        storageKey: storageKey || null,
+        fileSizeBytes: fileSizeBytes || null,
+        mimeType: mimeType || null,
+        suggestedCaption: suggestedCaption.trim() || null,
         isGlobal,
         targetMemberId: !isGlobal && targetMemberId > 0 ? targetMemberId : null,
-        campaignLinkId: campaignLinkId > 0 ? campaignLinkId : null,
+        campaignLinkId: null,
       });
 
       if (!res.success) {
@@ -94,7 +148,7 @@ export function MarketingMaterialModal({
               Novo Material de Divulgação
             </h2>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-              Disponibilize artes oficiais, formatos Story/Feed e legendas prontas para seus parceiros.
+              Disponibilize artes oficiais, fotos, vídeos e legendas prontas para seus parceiros.
             </p>
           </div>
           <button
@@ -103,17 +157,72 @@ export function MarketingMaterialModal({
             className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-lg font-bold"
             aria-label="Fechar"
           >
-            ✕
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {error && (
-          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-semibold">
-            {error}
+          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-semibold flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ESCOPO: GERAL OU INDIVIDUAL */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-[var(--text-primary)]">Disponibilidade do Material</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIsGlobal(true)}
+                className={`p-3 rounded-2xl border text-center transition-all cursor-pointer min-h-[44px] ${
+                  isGlobal
+                    ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-foreground)] font-bold shadow-xs"
+                    : "border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                <span className="text-xs block">Para Todos os Parceiros</span>
+                <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Material de campanha geral</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsGlobal(false)}
+                className={`p-3 rounded-2xl border text-center transition-all cursor-pointer min-h-[44px] ${
+                  !isGlobal
+                    ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-foreground)] font-bold shadow-xs"
+                    : "border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                <span className="text-xs block">Individual / Exclusivo</span>
+                <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Exclusivo de um VIP</span>
+              </button>
+            </div>
+          </div>
+
+          {!isGlobal && (
+            <div className="space-y-1.5 p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
+              <label className="text-xs font-bold text-[var(--text-primary)]">
+                Participante Exclusivo <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={targetMemberId}
+                onChange={(e) => setTargetMemberId(Number(e.target.value))}
+                className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] font-medium focus:outline-hidden focus:border-[var(--brand)] min-h-[44px]"
+                required
+              >
+                {participants.map((p) => (
+                  <option key={p.memberId} value={p.memberId}>
+                    {p.name} ({p.role})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
+                Apenas este participante verá este material em sua galeria com o selo &quot;Exclusivo para você&quot;.
+              </p>
+            </div>
+          )}
+
           {/* FORMATO DA ARTE */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[var(--text-primary)]">Formato do Material</label>
@@ -121,9 +230,9 @@ export function MarketingMaterialModal({
               {(
                 [
                   { id: "STORY", label: "Story (9:16)", hint: "Vertical" },
-                  { id: "FEED", label: "Feed / Post (1:1)", hint: "Quadrado" },
+                  { id: "FEED", label: "Feed / Post", hint: "Quadrado" },
                   { id: "BANNER", label: "Banner", hint: "Horizontal" },
-                  { id: "VIDEO", label: "Vídeo", hint: "Reels / TikTok" },
+                  { id: "VIDEO", label: "Vídeo", hint: "Reels / Shorts" },
                 ] as const
               ).map((fmt) => (
                 <button
@@ -143,7 +252,7 @@ export function MarketingMaterialModal({
             </div>
           </div>
 
-          {/* TÍTULO E URL */}
+          {/* TÍTULO E DETALHES */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[var(--text-primary)]">
               Título do Material <span className="text-rose-500">*</span>
@@ -159,143 +268,132 @@ export function MarketingMaterialModal({
             />
           </div>
 
-          {/* DESCRIÇÃO OPCIONAL */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[var(--text-primary)]">
-              Orientações ou Detalhes (opcional)
+              Instruções de Uso (opcional)
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Orientações de divulgação para o participante..."
+              placeholder="Ex: Postar nos Stories marcando o link na figurinha..."
               maxLength={255}
               className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] min-h-[44px]"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
-              <span>URL da Imagem / Arquivo</span>
-              <span className="text-[10px] font-normal text-[var(--text-tertiary)]">Link da imagem ou arquivo</span>
-            </label>
-            <input
-              type="text"
-              value={fileUrl}
-              onChange={(e) => setFileUrl(e.target.value)}
-              placeholder="https://... ou caminho persistente"
-              className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-mono text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] min-h-[44px]"
-            />
-            <p className="text-[10px] text-[var(--text-tertiary)]">
-              Dica: você pode colar um link direto de imagem hospedada ou carregar via storage persistente do servidor.
-            </p>
+          {/* ARQUIVO / UPLOAD */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[var(--text-primary)]">Mídia / Arquivo</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setUploadMode("FILE")}
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                    uploadMode === "FILE"
+                      ? "bg-[var(--brand)] text-white"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+                  }`}
+                >
+                  Upload de Arquivo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadMode("URL")}
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                    uploadMode === "URL"
+                      ? "bg-[var(--brand)] text-white"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+                  }`}
+                >
+                  Link Externo
+                </button>
+              </div>
+            </div>
+
+            {uploadMode === "FILE" ? (
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,application/pdf"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-[var(--border-default)] hover:border-[var(--brand)] rounded-2xl p-5 text-center cursor-pointer transition-colors bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)]"
+                >
+                  {isUploadingFile ? (
+                    <div className="space-y-1">
+                      <div className="text-xs font-bold text-[var(--brand)]">Enviando arquivo...</div>
+                      <p className="text-[10px] text-[var(--text-tertiary)]">Aguarde a validação no servidor</p>
+                    </div>
+                  ) : uploadedFileName ? (
+                    <div className="space-y-1">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto" />
+                      <div className="text-xs font-bold text-[var(--text-primary)]">{uploadedFileName}</div>
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                        Arquivo carregado e armazenado com sucesso! Clique para substituir.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Upload className="w-6 h-6 text-[var(--text-tertiary)] mx-auto" />
+                      <div className="text-xs font-bold text-[var(--text-primary)]">
+                        Clique para enviar imagem, vídeo ou PDF
+                      </div>
+                      <p className="text-[10px] text-[var(--text-tertiary)]">
+                        JPG, PNG, WEBP, MP4, WEBM ou PDF (máx. 25 MB)
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <input
+                  type="text"
+                  value={fileUrl}
+                  onChange={(e) => setFileUrl(e.target.value)}
+                  placeholder="https://... (URL pública de imagem, vídeo ou Drive)"
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-mono text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] min-h-[44px]"
+                />
+              </div>
+            )}
           </div>
 
           {/* LEGENDA SUGERIDA */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
-              <span>Legenda Pronta Sugerida</span>
-              <span className="text-[10px] font-normal text-[var(--text-tertiary)]">
-                O participante poderá copiar com um toque
-              </span>
+              <span>Legenda Pronta (&quot;Copy&quot;)</span>
+              <span className="text-[10px] text-[var(--text-tertiary)]">O parceiro copia com 1 clique</span>
             </label>
             <textarea
               rows={3}
               value={suggestedCaption}
               onChange={(e) => setSuggestedCaption(e.target.value)}
-              placeholder="Texto pronto para o participante colar na publicação ou Story..."
               className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] resize-none"
             />
           </div>
 
-          {/* DISPONIBILIDADE: TODOS OU INDIVIDUAL */}
-          <div className="space-y-2 p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
-            <span className="text-xs font-bold text-[var(--text-primary)] block">Disponibilidade</span>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer text-xs text-[var(--text-primary)] font-medium">
-                <input
-                  type="radio"
-                  name="materialScope"
-                  checked={isGlobal}
-                  onChange={() => setIsGlobal(true)}
-                  className="accent-[var(--brand)]"
-                />
-                <span>Disponível para todos os participantes autorizados</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer text-xs text-[var(--text-primary)] font-medium">
-                <input
-                  type="radio"
-                  name="materialScope"
-                  checked={!isGlobal}
-                  onChange={() => setIsGlobal(false)}
-                  className="accent-[var(--brand)]"
-                />
-                <span>Apenas para pessoa selecionada</span>
-              </label>
-            </div>
-
-            {!isGlobal && (
-              <div className="pt-2">
-                <select
-                  value={targetMemberId}
-                  onChange={(e) => setTargetMemberId(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] min-h-[40px]"
-                >
-                  <option value={0}>Selecione o participante...</option>
-                  {participants.map((p) => (
-                    <option key={p.memberId} value={p.memberId}>
-                      {p.name} ({p.role === "INFLUENCER" ? "Influenciador / VIP" : "Aluno"})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-
-          {/* VINCULAÇÃO A LINK ESPECÍFICO (OPCIONAL) */}
-          {links.length > 0 && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-[var(--text-primary)]">
-                Vincular a um Link Específico (Opcional)
-              </label>
-              <select
-                value={campaignLinkId}
-                onChange={(e) => setCampaignLinkId(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] min-h-[40px]"
-              >
-                <option value={0}>Geral (não restrito a um único link)</option>
-                {links.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.title} (Código: {l.code} · {l.referrerName})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* FOOTER */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
+          {/* BOTÕES DE AÇÃO */}
+          <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              disabled={isSubmitting}
-              className="px-5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-secondary)] transition-colors cursor-pointer min-h-[44px]"
+              disabled={isSubmitting || isUploadingFile}
+              className="px-4 py-2.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer min-h-[44px]"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-2xl bg-[var(--brand)] hover:brightness-110 active:scale-98 text-white text-xs font-bold transition-all cursor-pointer shadow-xs min-h-[44px] flex items-center justify-center gap-2"
+              disabled={isSubmitting || isUploadingFile}
+              className="px-6 py-2.5 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 min-h-[44px] flex items-center gap-2"
             >
-              {isSubmitting ? (
-                <>
-                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Salvando...</span>
-                </>
-              ) : (
-                <span>Cadastrar Material</span>
-              )}
+              {isSubmitting ? "Salvando..." : "Salvar Material"}
             </button>
           </div>
         </form>

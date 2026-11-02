@@ -1182,26 +1182,53 @@ export async function getParticipantPromotionalDashboard(
     }
 
     // 5. Commissions list
-    const [commList] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-         rcm.id,
-         rcm.public_id,
-         rcm.final_amount,
-         rcm.final_amount_cents,
-         rcm.status,
-         rcm.created_at,
-         rcm.paid_at,
-         u_stud.full_name AS student_name,
-         pcl.title AS campaign_title
-       FROM referral_commissions rcm
-       JOIN consultancy_members cm_stud ON cm_stud.id = rcm.referred_member_id
-       JOIN users u_stud ON u_stud.id = cm_stud.user_id
-       LEFT JOIN promotional_campaign_links pcl ON pcl.id = rcm.campaign_link_id
-       WHERE rcm.consultancy_id = ? AND rcm.referrer_member_id = ?
-       ORDER BY rcm.created_at DESC
-       LIMIT 50;`,
-      [consultancyId, memberId]
-    );
+    let commList: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           rcm.id,
+           rcm.public_id,
+           rcm.final_amount,
+           rcm.final_amount_cents,
+           rcm.status,
+           rcm.created_at,
+           rcm.paid_at,
+           COALESCE(u_stud.full_name, rcm.buyer_name, 'Cliente indicado') AS student_name,
+           pcl.title AS campaign_title
+         FROM referral_commissions rcm
+         LEFT JOIN consultancy_members cm_stud ON cm_stud.id = rcm.referred_member_id
+         LEFT JOIN users u_stud ON u_stud.id = cm_stud.user_id
+         LEFT JOIN promotional_campaign_links pcl ON pcl.id = rcm.campaign_link_id
+         WHERE rcm.consultancy_id = ? AND rcm.referrer_member_id = ?
+         ORDER BY rcm.created_at DESC
+         LIMIT 50;`,
+        [consultancyId, memberId]
+      );
+      commList = rows;
+    } catch {
+      // Fallback if buyer_name is missing
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           rcm.id,
+           rcm.public_id,
+           rcm.final_amount,
+           rcm.final_amount_cents,
+           rcm.status,
+           rcm.created_at,
+           rcm.paid_at,
+           COALESCE(u_stud.full_name, 'Cliente indicado') AS student_name,
+           pcl.title AS campaign_title
+         FROM referral_commissions rcm
+         LEFT JOIN consultancy_members cm_stud ON cm_stud.id = rcm.referred_member_id
+         LEFT JOIN users u_stud ON u_stud.id = cm_stud.user_id
+         LEFT JOIN promotional_campaign_links pcl ON pcl.id = rcm.campaign_link_id
+         WHERE rcm.consultancy_id = ? AND rcm.referrer_member_id = ?
+         ORDER BY rcm.created_at DESC
+         LIMIT 50;`,
+        [consultancyId, memberId]
+      );
+      commList = rows;
+    }
 
     const commissions = commList.map((c) => {
       const cents = c.final_amount_cents != null

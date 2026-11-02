@@ -812,6 +812,436 @@ export async function recordReferralConversion(
 }
 
 /**
+ * Register referral lead upon student accepting invitation or joining consultancy.
+ * Updates attribution row to REGISTERED status. NEVER creates a commission or sends
+ * "Contratação confirmada" prematurely without real financial confirmation.
+ */
+export async function registerReferralLeadOnStudentAccept(
+  consultancyId: number,
+  studentMemberId: number,
+  studentUserId: number
+): Promise<{ success: boolean; leadRegistered?: boolean; error?: string }> {
+  const connection = await getDbConnection();
+  try {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT ra.id, ra.referrer_member_id, cm.user_id AS referrer_user_id, c.slug AS consultancy_slug
+       FROM referral_attributions ra
+       JOIN consultancy_members cm ON cm.id = ra.referrer_member_id
+       JOIN consultancies c ON c.id = ra.consultancy_id
+       WHERE ra.consultancy_id = ? AND ra.referred_user_id = ?
+         AND ra.status = 'PENDING'
+         AND (ra.expires_at IS NULL OR ra.expires_at > UTC_TIMESTAMP(3))
+       ORDER BY ra.first_click_at ASC
+       LIMIT 1;`,
+      [consultancyId, studentUserId]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { success: true, leadRegistered: false };
+    }
+
+    const attr = rows[0];
+
+    // Prevent self-referral
+    if (Number(attr.referrer_member_id) === studentMemberId || Number(attr.referrer_user_id) === studentUserId) {
+      return { success: false, error: "Auto-indicação não é permitida." };
+    }
+
+    await connection.execute(
+      `UPDATE referral_attributions
+       SET referred_member_id = ?,
+           registered_at = UTC_TIMESTAMP(3),
+           status = 'REGISTERED',
+           updated_at = UTC_TIMESTAMP(3)
+       WHERE id = ?;`,
+      [studentMemberId, attr.id]
+    );
+
+    try {
+      await createNotificationInTransaction(connection, {
+        userId: Number(attr.referrer_user_id),
+        consultancyId,
+        priority: "NORMAL",
+        eventType: "REFERRAL_IDENTIFIED",
+        title: "Nova indicação identificada",
+        body: "Um novo aluno se cadastrou pelo seu link de indicação.",
+        deepLink: `/consultoria/${attr.consultancy_slug || ""}/indicacoes`,
+        dedupeKey: `ref_registered_${studentUserId}_${consultancyId}`,
+      });
+    } catch {
+      // Non-blocking
+    }
+
+    return { success: true, leadRegistered: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    connection.release();
+  }
+}
+
+export interface RegisterManualSaleParams {
+  consultancyId: number;
+  adminMemberId: number;
+  adminUserId: number;
+  referrerMemberId: number;
+  campaignLinkId?: number | null;
+  buyerStudentMemberId?: number | null;
+  buyerName?: string | null;
+  saleAmountCents: bigint | number;
+  customCommissionAmountCents?: bigint | number | null;
+  notes?: string | null;
+  status?: "APPROVED" | "PENDING";
+  externalReference?: string | null;
+}
+
+/**
+ * Registers an audited, confirmed manual referral sale (e.g. from external checkouts).
+ * Never relies on browser cookies. Strictly validates tenancy, calculates cents exactly,
+ * provides concurrent deduplication on externalReference and logs audit activity.
+ */
+export async function registerManualReferralSale(
+  params: RegisterManualSaleParams
+): Promise<{
+  success: boolean;
+  commissionPublicId?: string;
+  commissionId?: number;
+  amountFormatted?: string;
+  error?: string;
+}> {
+  const {
+    consultancyId,
+    adminMemberId,
+    adminUserId,
+    referrerMemberId,
+    campaignLinkId,
+    buyerStudentMemberId,
+    buyerName,
+    saleAmountCents,
+    customCommissionAmountCents,
+    notes,
+    status = "APPROVED",
+    externalReference,
+  } = params;
+
+  if (!consultancyId || !adminMemberId || !referrerMemberId) {
+    return { success: false, error: "Parâmetros obrigatórios incompletos." };
+  }
+
+  const baseCents = BigInt(saleAmountCents);
+  if (baseCents <= BigInt(0)) {
+    return { success: false, error: "O valor da venda deve ser maior que zero." };
+  }
+
+  const cleanBuyerName = buyerName ? buyerName.trim() : null;
+  if (!buyerStudentMemberId && !cleanBuyerName) {
+    return { success: false, error: "Informe o aluno comprador ou o nome do comprador externo." };
+  }
+
+  const cleanExternalRef = externalReference && typeof externalReference === "string" ? externalReference.trim() : null;
+
+  const connection = await getDbConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 1. Concurrency and Deduplication Lock on external reference if provided
+    if (cleanExternalRef) {
+      try {
+        const [existingRefRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT id, public_id FROM referral_commissions
+           WHERE consultancy_id = ? AND external_reference = ?
+           LIMIT 1 FOR UPDATE;`,
+          [consultancyId, cleanExternalRef]
+        );
+        if (Array.isArray(existingRefRows) && existingRefRows.length > 0) {
+          await connection.rollback();
+          return {
+            success: false,
+            error: `Uma comissão já foi registrada para esta referência externa (${cleanExternalRef}).`,
+          };
+        }
+      } catch {
+        // Non-blocking if column does not exist yet
+      }
+    }
+
+    // 2. Validate Referrer Member belongs to consultancy and is ACTIVE
+    const [referrerRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.id, cm.user_id, cm.status, u.full_name, c.slug AS consultancy_slug
+       FROM consultancy_members cm
+       JOIN users u ON u.id = cm.user_id
+       JOIN consultancies c ON c.id = cm.consultancy_id
+       WHERE cm.id = ? AND cm.consultancy_id = ? AND cm.status = 'ACTIVE'
+       LIMIT 1 FOR UPDATE;`,
+      [referrerMemberId, consultancyId]
+    );
+
+    if (!Array.isArray(referrerRows) || referrerRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Participante indicador não encontrado ou inativo nesta consultoria." };
+    }
+    const referrer = referrerRows[0];
+
+    // 3. Self-referral prevention
+    if (buyerStudentMemberId && Number(buyerStudentMemberId) === Number(referrerMemberId)) {
+      await connection.rollback();
+      return { success: false, error: "Auto-indicação não é permitida." };
+    }
+
+    // 4. Resolve Commission rules and amounts
+    let commType: CommissionType = "FIXED_AMOUNT";
+    let commRateSnapshot = 0;
+    let rateBp: number | null = null;
+    let finalCents: bigint;
+
+    if (
+      customCommissionAmountCents !== undefined &&
+      customCommissionAmountCents !== null &&
+      BigInt(customCommissionAmountCents) >= BigInt(0)
+    ) {
+      finalCents = BigInt(customCommissionAmountCents);
+      commType = "FIXED_AMOUNT";
+      commRateSnapshot = Number(finalCents) / 100;
+    } else if (campaignLinkId) {
+      const [linkRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, commission_type, commission_amount_cents, commission_rate_basis_points
+         FROM promotional_campaign_links
+         WHERE id = ? AND consultancy_id = ?
+         LIMIT 1 FOR UPDATE;`,
+        [campaignLinkId, consultancyId]
+      );
+
+      if (Array.isArray(linkRows) && linkRows.length > 0) {
+        const cLink = linkRows[0];
+        if (cLink.commission_type === "PERCENTAGE" && cLink.commission_rate_basis_points != null) {
+          commType = "PERCENTAGE";
+          rateBp = Number(cLink.commission_rate_basis_points);
+          commRateSnapshot = rateBp / 100;
+          finalCents = calculatePercentageCommissionExact(baseCents, rateBp);
+        } else {
+          commType = "FIXED_AMOUNT";
+          finalCents = BigInt(cLink.commission_amount_cents || 5000);
+          commRateSnapshot = Number(finalCents) / 100;
+        }
+
+        // Increment current uses of link
+        await connection.execute(
+          `UPDATE promotional_campaign_links SET current_uses = current_uses + 1 WHERE id = ?;`,
+          [cLink.id]
+        );
+      } else {
+        finalCents = BigInt(5000);
+      }
+    } else {
+      const settings = await getConsultancyReferralSettings(consultancyId);
+      if (settings.commissionType === "PERCENTAGE") {
+        commType = "PERCENTAGE";
+        rateBp = settings.commissionRateBasisPoints;
+        commRateSnapshot = rateBp / 100;
+        finalCents = calculatePercentageCommissionExact(baseCents, rateBp);
+      } else {
+        commType = "FIXED_AMOUNT";
+        finalCents = settings.commissionAmountCents;
+        commRateSnapshot = Number(finalCents) / 100;
+      }
+    }
+
+    const finalAmountStr = centsToBrl(finalCents);
+    const commissionPublicId = crypto.randomUUID();
+
+    // 5. Attribution lookup or creation
+    let attributionId: number = 0;
+    if (buyerStudentMemberId) {
+      const [attrRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id FROM referral_attributions
+         WHERE consultancy_id = ? AND referrer_member_id = ? AND referred_member_id = ?
+         LIMIT 1;`,
+        [consultancyId, referrerMemberId, buyerStudentMemberId]
+      );
+      if (Array.isArray(attrRows) && attrRows.length > 0) {
+        attributionId = Number(attrRows[0].id);
+        await connection.execute(
+          `UPDATE referral_attributions
+           SET status = 'CONVERTED', converted_at = UTC_TIMESTAMP(3), updated_at = UTC_TIMESTAMP(3)
+           WHERE id = ?;`,
+          [attributionId]
+        );
+      }
+    }
+
+    if (!attributionId) {
+      const attrPublicId = crypto.randomUUID();
+      let referralCodeId: number = 0;
+      const [rcRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id FROM referral_codes WHERE consultancy_id = ? AND referrer_member_id = ? LIMIT 1;`,
+        [consultancyId, referrerMemberId]
+      );
+      if (Array.isArray(rcRows) && rcRows.length > 0) {
+        referralCodeId = Number(rcRows[0].id);
+      } else {
+        const [insCode] = await connection.execute<ResultSetHeader>(
+          `INSERT INTO referral_codes (public_id, consultancy_id, referrer_member_id, code, is_active)
+           VALUES (?, ?, ?, ?, 1);`,
+          [crypto.randomUUID(), consultancyId, referrerMemberId, generateReferralCodeString()]
+        );
+        referralCodeId = insCode.insertId;
+      }
+
+      const [insAttr] = await connection.execute<ResultSetHeader>(
+        `INSERT INTO referral_attributions (
+           public_id, consultancy_id, referral_code_id, campaign_link_id, referrer_member_id,
+           referred_member_id, first_click_at, registered_at, converted_at, status
+         ) VALUES (?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3), UTC_TIMESTAMP(3), 'CONVERTED');`,
+        [
+          attrPublicId,
+          consultancyId,
+          referralCodeId,
+          campaignLinkId || null,
+          referrerMemberId,
+          buyerStudentMemberId || null,
+        ]
+      );
+      attributionId = insAttr.insertId;
+    }
+
+    // 6. Insert Commission with defensive fallback for optional columns
+    const initialStatus = status === "APPROVED" ? "APPROVED" : "PENDING";
+    const paymentNoteVal = notes ? notes.trim() : "Venda manual registrada pelo administrador";
+
+    try {
+      await connection.execute(
+        `INSERT INTO referral_commissions (
+           public_id, consultancy_id, campaign_link_id, attribution_id, referrer_member_id,
+           referred_member_id, buyer_name, external_reference, commission_type_snapshot,
+           commission_rate_snapshot, rate_basis_points, base_amount_cents, final_amount_cents,
+           final_amount, currency, status, approved_at, approved_by_member_id, payment_note
+         ) VALUES (
+           ?, ?, ?, ?, ?,
+           ?, ?, ?, ?,
+           ?, ?, ?, ?,
+           ?, 'BRL', ?, ${initialStatus === "APPROVED" ? "UTC_TIMESTAMP(3)" : "NULL"}, ?, ?
+         );`,
+        [
+          commissionPublicId,
+          consultancyId,
+          campaignLinkId || null,
+          attributionId,
+          referrerMemberId,
+          buyerStudentMemberId || null,
+          cleanBuyerName,
+          cleanExternalRef,
+          commType,
+          commRateSnapshot,
+          rateBp,
+          baseCents.toString(),
+          finalCents.toString(),
+          finalAmountStr,
+          initialStatus,
+          initialStatus === "APPROVED" ? adminMemberId : null,
+          paymentNoteVal,
+        ]
+      );
+    } catch {
+      // Defensive fallback if buyer_name or external_reference columns don't exist in DB schema yet
+      const combinedNote = [
+        paymentNoteVal,
+        cleanBuyerName ? `Comprador: ${cleanBuyerName}` : null,
+        cleanExternalRef ? `Ref: ${cleanExternalRef}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      await connection.execute(
+        `INSERT INTO referral_commissions (
+           public_id, consultancy_id, campaign_link_id, attribution_id, referrer_member_id,
+           referred_member_id, commission_type_snapshot, commission_rate_snapshot,
+           rate_basis_points, base_amount_cents, final_amount_cents, final_amount,
+           currency, status, approved_at, approved_by_member_id, payment_note
+         ) VALUES (
+           ?, ?, ?, ?, ?,
+           ?, ?, ?,
+           ?, ?, ?, ?,
+           'BRL', ?, ${initialStatus === "APPROVED" ? "UTC_TIMESTAMP(3)" : "NULL"}, ?, ?
+         );`,
+        [
+          commissionPublicId,
+          consultancyId,
+          campaignLinkId || null,
+          attributionId,
+          referrerMemberId,
+          buyerStudentMemberId || null,
+          commType,
+          commRateSnapshot,
+          rateBp,
+          baseCents.toString(),
+          finalCents.toString(),
+          finalAmountStr,
+          initialStatus,
+          initialStatus === "APPROVED" ? adminMemberId : null,
+          combinedNote,
+        ]
+      );
+    }
+
+    const [idRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM referral_commissions WHERE public_id = ? LIMIT 1;`,
+      [commissionPublicId]
+    );
+    const commissionId = idRows[0]?.id ? Number(idRows[0].id) : undefined;
+
+    // 7. Audit log
+    await recordConsultancyActivity({
+      consultancyId,
+      actorUserId: adminUserId,
+      actorMembershipId: adminMemberId,
+      actorRole: "CONSULTANCY_ADMIN",
+      action: "MANUAL_REFERRAL_SALE_RECORDED",
+      module: "ADMIN",
+      resourceType: "referral_commission",
+      resourcePublicId: commissionPublicId,
+      summary: `Venda manual registrada (R$ ${centsToBrl(baseCents)}) para parceiro ${referrer.full_name} — Comissão: R$ ${finalAmountStr}`,
+      connection,
+    }).catch(() => {});
+
+    // 8. Notification to Referrer
+    try {
+      await createNotificationInTransaction(connection, {
+        userId: Number(referrer.user_id),
+        consultancyId,
+        priority: "NORMAL",
+        eventType: initialStatus === "APPROVED" ? "REFERRAL_COMMISSION_APPROVED" : "REFERRAL_CONVERSION_CONFIRMED",
+        title: initialStatus === "APPROVED" ? "Comissão aprovada" : "Nova comissão registrada",
+        body: `Uma venda de R$ ${centsToBrl(baseCents)} foi confirmada para seu link. Comissão: R$ ${finalAmountStr}.`,
+        deepLink: `/consultoria/${referrer.consultancy_slug || ""}/indicacoes`,
+        dedupeKey: `comm_manual_${commissionPublicId}`,
+      });
+    } catch {
+      // Non-blocking
+    }
+
+    await connection.commit();
+    return {
+      success: true,
+      commissionPublicId,
+      commissionId,
+      amountFormatted: finalAmountStr,
+    };
+  } catch (err: unknown) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Erro interno ao registrar venda manual.",
+    };
+  } finally {
+    connection.release();
+  }
+}
+
+/**
  * State Machine Transition: PENDING -> APPROVED
  * For PERCENTAGE commissions: baseAmountCents is required to compute exact final amount.
  */
@@ -1530,37 +1960,75 @@ export async function getAdminReferralsData(consultancyId: number): Promise<{
     }));
 
     // Query for commissions: Note that we select mpp.pix_key_type and masked representation, NEVER exposing raw pix_key in the returned structure!
-    const [commissionRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
-         rcm.id,
-         rcm.public_id,
-         rcm.referrer_member_id,
-         u_ref.full_name AS referrer_name,
-         cmr_ref.role AS referrer_role,
-         u_stud.full_name AS student_name,
-         rcm.commission_type_snapshot,
-         rcm.rate_basis_points,
-         rcm.base_amount_cents,
-         rcm.final_amount_cents,
-         rcm.final_amount,
-         rcm.status,
-         rcm.created_at,
-         rcm.approved_at,
-         rcm.paid_at,
-         mpp.pix_key_type,
-         mpp.pix_key
-       FROM referral_commissions rcm
-       JOIN consultancy_members cm_ref ON cm_ref.id = rcm.referrer_member_id
-       JOIN users u_ref ON u_ref.id = cm_ref.user_id
-       JOIN consultancy_member_roles cmr_ref ON cmr_ref.member_id = cm_ref.id
-       JOIN consultancy_members cm_stud ON cm_stud.id = rcm.referred_member_id
-       JOIN users u_stud ON u_stud.id = cm_stud.user_id
-       LEFT JOIN member_payout_profiles mpp ON mpp.consultancy_id = ? AND mpp.member_id = rcm.referrer_member_id
-       WHERE rcm.consultancy_id = ?
-       ORDER BY rcm.created_at DESC
-       LIMIT 100;`,
-      [consultancyId, consultancyId]
-    );
+    let commissionRows: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           rcm.id,
+           rcm.public_id,
+           rcm.referrer_member_id,
+           u_ref.full_name AS referrer_name,
+           cmr_ref.role AS referrer_role,
+           COALESCE(u_stud.full_name, rcm.buyer_name, 'Cliente externo') AS student_name,
+           rcm.commission_type_snapshot,
+           rcm.rate_basis_points,
+           rcm.base_amount_cents,
+           rcm.final_amount_cents,
+           rcm.final_amount,
+           rcm.status,
+           rcm.created_at,
+           rcm.approved_at,
+           rcm.paid_at,
+           mpp.pix_key_type,
+           mpp.pix_key
+         FROM referral_commissions rcm
+         JOIN consultancy_members cm_ref ON cm_ref.id = rcm.referrer_member_id
+         JOIN users u_ref ON u_ref.id = cm_ref.user_id
+         JOIN consultancy_member_roles cmr_ref ON cmr_ref.member_id = cm_ref.id
+         LEFT JOIN consultancy_members cm_stud ON cm_stud.id = rcm.referred_member_id
+         LEFT JOIN users u_stud ON u_stud.id = cm_stud.user_id
+         LEFT JOIN member_payout_profiles mpp ON mpp.consultancy_id = ? AND mpp.member_id = rcm.referrer_member_id
+         WHERE rcm.consultancy_id = ?
+         ORDER BY rcm.created_at DESC
+         LIMIT 100;`,
+        [consultancyId, consultancyId]
+      );
+      commissionRows = rows;
+    } catch {
+      // Fallback if buyer_name column is not present
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           rcm.id,
+           rcm.public_id,
+           rcm.referrer_member_id,
+           u_ref.full_name AS referrer_name,
+           cmr_ref.role AS referrer_role,
+           COALESCE(u_stud.full_name, 'Cliente externo') AS student_name,
+           rcm.commission_type_snapshot,
+           rcm.rate_basis_points,
+           rcm.base_amount_cents,
+           rcm.final_amount_cents,
+           rcm.final_amount,
+           rcm.status,
+           rcm.created_at,
+           rcm.approved_at,
+           rcm.paid_at,
+           mpp.pix_key_type,
+           mpp.pix_key
+         FROM referral_commissions rcm
+         JOIN consultancy_members cm_ref ON cm_ref.id = rcm.referrer_member_id
+         JOIN users u_ref ON u_ref.id = cm_ref.user_id
+         JOIN consultancy_member_roles cmr_ref ON cmr_ref.member_id = cm_ref.id
+         LEFT JOIN consultancy_members cm_stud ON cm_stud.id = rcm.referred_member_id
+         LEFT JOIN users u_stud ON u_stud.id = cm_stud.user_id
+         LEFT JOIN member_payout_profiles mpp ON mpp.consultancy_id = ? AND mpp.member_id = rcm.referrer_member_id
+         WHERE rcm.consultancy_id = ?
+         ORDER BY rcm.created_at DESC
+         LIMIT 100;`,
+        [consultancyId, consultancyId]
+      );
+      commissionRows = rows;
+    }
 
     const commissions = commissionRows.map((c) => {
       // Calculate masked PIX immediately and drop raw key

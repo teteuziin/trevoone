@@ -22,6 +22,8 @@ import {
   getRevealedPayoutProfileForAdmin,
   updateConsultancyReferralSettings,
   getOrCreateReferralCode,
+  registerManualReferralSale,
+  brlToCents,
   PixKeyType,
   CommissionType,
 } from "@/lib/referrals/service";
@@ -375,6 +377,85 @@ export async function archiveMarketingMaterialAction(
   const result = await archiveMarketingMaterial(
     context.consultancyId,
     materialId,
+    context.membershipId,
+    session.userId
+  );
+
+  if (result.success) {
+    revalidatePath(`/consultoria/${slug}/indicacoes`);
+  }
+
+  return result;
+}
+
+export async function registerManualSaleAction(
+  slug: string,
+  input: {
+    referrerMemberId: number;
+    campaignLinkId?: number | null;
+    buyerStudentMemberId?: number | null;
+    buyerName?: string | null;
+    saleAmount: number;
+    customCommissionAmount?: number | null;
+    notes?: string | null;
+    status?: "APPROVED" | "PENDING";
+    externalReference?: string | null;
+  }
+): Promise<{ success: boolean; amountFormatted?: string; error?: string }> {
+  const session = await getCurrentSession();
+  if (!session) return { success: false, error: "Usuário não autenticado." };
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return { success: false, error: "Apenas administradores podem registrar vendas manuais." };
+  }
+
+  const saleAmountCents = brlToCents(input.saleAmount);
+  const customCommissionCents =
+    input.customCommissionAmount !== undefined && input.customCommissionAmount !== null
+      ? brlToCents(input.customCommissionAmount)
+      : null;
+
+  const result = await registerManualReferralSale({
+    consultancyId: context.consultancyId,
+    adminMemberId: context.membershipId,
+    adminUserId: session.userId,
+    referrerMemberId: input.referrerMemberId,
+    campaignLinkId: input.campaignLinkId,
+    buyerStudentMemberId: input.buyerStudentMemberId,
+    buyerName: input.buyerName,
+    saleAmountCents,
+    customCommissionAmountCents: customCommissionCents,
+    notes: input.notes,
+    status: input.status,
+    externalReference: input.externalReference,
+  });
+
+  if (result.success) {
+    revalidatePath(`/consultoria/${slug}/indicacoes`);
+    revalidatePath(`/consultoria/${slug}/financeiro`);
+    revalidatePath(`/consultoria/${slug}/operacoes`);
+  }
+
+  return result;
+}
+
+export async function enrollParticipantAction(
+  slug: string,
+  targetMemberId: number
+): Promise<{ success: boolean; error?: string }> {
+  const session = await getCurrentSession();
+  if (!session) return { success: false, error: "Usuário não autenticado." };
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return { success: false, error: "Apenas administradores podem adicionar participantes." };
+  }
+
+  const result = await toggleParticipantPromotionStatus(
+    context.consultancyId,
+    targetMemberId,
+    true,
     context.membershipId,
     session.userId
   );

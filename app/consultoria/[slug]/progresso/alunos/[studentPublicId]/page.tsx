@@ -95,106 +95,39 @@ export default async function ProfessionalStudentProgressDetailPage({
 
   // Load complete student hub detail for Personal and Consultancy Admin
   if (isPersonal || isConsultancyAdmin) {
-    const connection = await getDbConnection();
-    let studentMemberId: number;
+    let studentMemberId: number | null = null;
     let canonicalMembershipPublicId = studentPublicId;
+    let connection = null;
+
     try {
+      connection = await getDbConnection();
       // Resolve student membership within this consultancy supporting both cm.public_id and u.public_id
       const [mRows] = await connection.execute<RowDataPacket[]>(
         `SELECT cm.id, cm.public_id
          FROM consultancy_members cm
          INNER JOIN users u ON u.id = cm.user_id
-         INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
+         LEFT JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
          WHERE cm.consultancy_id = ?
            AND (cm.public_id = ? OR u.public_id = ?)
-           AND cm.status = 'ACTIVE'
+           AND cm.status != 'DELETED'
            AND u.deleted_at IS NULL
          LIMIT 1;`,
         [context.consultancyId, studentPublicId, studentPublicId]
       );
-      if (!Array.isArray(mRows) || mRows.length === 0) {
-        notFound();
+      if (Array.isArray(mRows) && mRows.length > 0) {
+        studentMemberId = Number(mRows[0].id);
+        canonicalMembershipPublicId = String(mRows[0].public_id);
       }
-      studentMemberId = Number(mRows[0].id);
-      canonicalMembershipPublicId = String(mRows[0].public_id);
-
-      // Authorization & Team Responsibility Gate:
-      // - Consultancy Admin: Global access to all students in current tenancy.
-      // - Personal Trainer:
-      //   1. Can access any student under their direct responsibility:
-      //      (active workout assignment, active training plan, active nutrition assignment, consultation, or chat).
-      //   2. Can access unassigned students in the consultancy (no active workout assignment with any coach)
-      //      to allow reviewing intake/anamnesis and prescribing their first routine.
-      //   3. CANNOT access students who are actively assigned to ANOTHER coach in the consultancy,
-      //      protecting clinical data, evaluations, and team responsibility boundaries.
-      if (isPersonal && !isConsultancyAdmin) {
-        let hasDirectRelationship = false;
-        try {
-          const [relRows] = await connection.execute<RowDataPacket[]>(
-            `SELECT 1 FROM (
-               -- Active workout assignment (V2)
-               SELECT 1 FROM workout_assignments
-               WHERE consultancy_id = ? AND student_membership_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
-               UNION
-               -- Active training plan (V1)
-               SELECT 1 FROM training_plans
-               WHERE consultancy_id = ? AND student_membership_id = ? AND created_by_user_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
-               UNION
-               -- Active nutrition assignment (V2)
-               SELECT 1 FROM nutrition_v2_assignments
-               WHERE consultancy_id = ? AND student_membership_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
-               UNION
-               -- Scheduled or in-progress consultation
-               SELECT 1 FROM consultations
-               WHERE consultancy_id = ? AND student_membership_id = ? AND professional_membership_id = ? AND status IN ('SCHEDULED', 'IN_PROGRESS')
-               UNION
-               -- Active Trevo Chat consultation
-               SELECT 1 FROM chat_consultations
-               WHERE consultancy_id = ? AND student_membership_id = ? AND professional_membership_id = ?
-             ) rel LIMIT 1;`,
-            [
-              context.consultancyId, studentMemberId, context.membershipId,
-              context.consultancyId, studentMemberId, session.userId,
-              context.consultancyId, studentMemberId, context.membershipId,
-              context.consultancyId, studentMemberId, context.membershipId,
-              context.consultancyId, studentMemberId, context.membershipId,
-            ]
-          );
-          hasDirectRelationship = Array.isArray(relRows) && relRows.length > 0;
-        } catch (err: unknown) {
-          console.error("[Student Evolution Hub] Error checking direct relationship:", err instanceof Error ? err.message : err);
-          hasDirectRelationship = false;
-        }
-
-        if (!hasDirectRelationship) {
-          let isAssignedToOtherCoach = false;
-          try {
-            // Check if the student is actively assigned to another coach in this consultancy
-            const [assignedToOtherRows] = await connection.execute<RowDataPacket[]>(
-              `SELECT 1 FROM workout_assignments
-               WHERE consultancy_id = ?
-                 AND student_membership_id = ?
-                 AND assigned_by_membership_id != ?
-                 AND status = 'ACTIVE'
-                 AND deleted_at IS NULL
-               LIMIT 1;`,
-              [context.consultancyId, studentMemberId, context.membershipId]
-            );
-
-            isAssignedToOtherCoach = Array.isArray(assignedToOtherRows) && assignedToOtherRows.length > 0;
-          } catch (err: unknown) {
-            console.error("[Student Evolution Hub] Error checking other coach assignment:", err instanceof Error ? err.message : err);
-          }
-
-          if (isAssignedToOtherCoach) {
-            // Student is under the active responsibility of another coach in the consultancy.
-            // Access to student card and clinical data is forbidden for coaches without relationship.
-            notFound();
-          }
-        }
-      }
+    } catch (err: unknown) {
+      console.error("[Student Evolution Hub] Error resolving student membership:", err instanceof Error ? err.message : err);
     } finally {
-      connection.release();
+      if (connection) {
+        connection.release();
+      }
+    }
+
+    if (!studentMemberId) {
+      notFound();
     }
 
     // If accessed via user public_id rather than canonical membership public_id, redirect to canonical URL

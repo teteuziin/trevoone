@@ -570,6 +570,7 @@ export function ConsultancyNavigation({
   const drawerBusinessIds = new Set([
     "admin-financeiro",
     "student-pagamentos",
+    "student-indicacoes",
     "admin-indicacoes",
     "influencer-indicacoes",
     "influencer-comissoes",
@@ -609,6 +610,7 @@ export function ConsultancyNavigation({
     "nutritionist-planos": "Planos e prescrições alimentares",
     "admin-financeiro": "Cobranças, faturas e fluxo de caixa",
     "student-pagamentos": "Faturas e comprovantes",
+    "student-indicacoes": "Divulgue e ganhe comissões",
     "admin-indicacoes": "Programa de afiliados e comissões",
     "influencer-indicacoes": "Links de divulgação e ganhos",
     "influencer-comissoes": "Histórico de repasses e comissões",
@@ -651,6 +653,7 @@ export function ConsultancyNavigation({
     (item) =>
       item.id === "student-consultas" ||
       item.id === "student-pagamentos" ||
+      item.id === "student-indicacoes" ||
       item.id === "student-formularios"
   );
 

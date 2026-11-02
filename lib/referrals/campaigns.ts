@@ -4,6 +4,7 @@ import { getDbConnection } from "@/lib/db/mysql";
 import { recordConsultancyActivity } from "@/lib/consultancies/activity-log";
 import { brlToCents, centsToBrl, percentToBasisPoints, basisPointsToPercent } from "./service";
 import { createNotificationInTransaction } from "@/services/notification-service";
+import { ensurePromotionalCampaignsSchema } from "./schema-assurance";
 
 export type CampaignLinkStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ENDED";
 export type AnnouncedDiscountType = "PERCENTAGE" | "FIXED" | "CUSTOM_TEXT" | "NONE";
@@ -192,6 +193,7 @@ export async function notifyParticipant(
 export async function listConsultancyParticipantsForPromotion(
   consultancyId: number
 ): Promise<EligiblePromotionParticipant[]> {
+  await ensurePromotionalCampaignsSchema();
   const connection = await getDbConnection();
   try {
     const [rows] = await connection.execute<RowDataPacket[]>(
@@ -367,6 +369,7 @@ export async function createPromotionalCampaignLink(
   adminMemberId: number,
   adminUserId: number
 ): Promise<{ success: boolean; linkId?: number; publicId?: string; code?: string; error?: string }> {
+  await ensurePromotionalCampaignsSchema();
   // 1. Validate destination URL
   const urlCheck = validateDestinationUrl(input.destinationUrl);
   if (!urlCheck.valid || !urlCheck.normalized) {
@@ -562,6 +565,7 @@ export async function updatePromotionalCampaignLink(
   adminMemberId: number,
   adminUserId: number
 ): Promise<{ success: boolean; error?: string }> {
+  await ensurePromotionalCampaignsSchema();
   const urlCheck = validateDestinationUrl(input.destinationUrl);
   if (!urlCheck.valid || !urlCheck.normalized) {
     return { success: false, error: urlCheck.error || "URL de destino inválida." };
@@ -690,6 +694,7 @@ export async function listCampaignLinksForAdmin(
   consultancyId: number,
   memberId?: number
 ): Promise<PromotionalCampaignLinkRecord[]> {
+  await ensurePromotionalCampaignsSchema();
   const connection = await getDbConnection();
   try {
     const params: (number | string)[] = [consultancyId];
@@ -794,6 +799,7 @@ export async function listCampaignLinksForParticipant(
   consultancyId: number,
   memberId: number
 ): Promise<PromotionalCampaignLinkRecord[]> {
+  await ensurePromotionalCampaignsSchema();
   const connection = await getDbConnection();
   try {
     const [rows] = await connection.execute<RowDataPacket[]>(
@@ -893,6 +899,7 @@ export async function createMarketingMaterial(
   adminMemberId: number,
   adminUserId: number
 ): Promise<{ success: boolean; materialId?: number; publicId?: string; error?: string }> {
+  await ensurePromotionalCampaignsSchema();
   if (!input.title || !input.title.trim()) {
     return { success: false, error: "O título do material é obrigatório." };
   }
@@ -971,6 +978,7 @@ export async function listMarketingMaterials(
   memberId?: number,
   campaignLinkId?: number
 ): Promise<PromotionalMarketingMaterialRecord[]> {
+  await ensurePromotionalCampaignsSchema();
   const connection = await getDbConnection();
   try {
     let query = `
@@ -1099,6 +1107,7 @@ export async function getParticipantPromotionalDashboard(
   consultancyId: number,
   memberId: number
 ): Promise<ParticipantPromotionalDashboardData> {
+  await ensurePromotionalCampaignsSchema();
   const connection = await getDbConnection();
   try {
     // 1. Participant info & check enrollment
@@ -1300,6 +1309,7 @@ export async function resolveCampaignRedirect(
   code: string,
   existingToken?: string
 ): Promise<RedirectResolutionResult> {
+  await ensurePromotionalCampaignsSchema();
   if (!code || typeof code !== "string") {
     return { status: "NOT_FOUND" };
   }

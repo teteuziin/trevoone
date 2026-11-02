@@ -109,7 +109,13 @@ export async function evaluateStudentMonitoring(
        WHERE consultancy_id = ? AND member_id = ? LIMIT 1;`,
       [consultancyId, studentMemberId]
     );
-    const lastActiveAt = actRows[0]?.last_active_at ? new Date(actRows[0].last_active_at) : null;
+    let lastActiveAt: Date | null = null;
+    if (actRows[0]?.last_active_at) {
+      const parsed = new Date(actRows[0].last_active_at);
+      if (!isNaN(parsed.getTime())) {
+        lastActiveAt = parsed;
+      }
+    }
 
     // 5. Evaluate deterministic signals
     interface SignalCandidate {

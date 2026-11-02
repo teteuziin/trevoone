@@ -4,6 +4,7 @@ import { getDbConnection } from "@/lib/db/mysql";
 import { recordConsultancyActivity } from "@/lib/consultancies/activity-log";
 import { encryptPixKey, decryptPixKey } from "@/lib/security/encryption";
 import { createNotificationInTransaction } from "@/services/notification-service";
+import { ensurePromotionalCampaignsSchema } from "./schema-assurance";
 
 export type PixKeyType = "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "RANDOM_KEY";
 export type CommissionType = "FIXED_AMOUNT" | "PERCENTAGE";
@@ -576,6 +577,7 @@ export async function recordReferralConversion(
   studentUserId?: number,
   referralCode?: string
 ): Promise<{ success: boolean; commissionCreated?: boolean; commissionId?: number; error?: string }> {
+  await ensurePromotionalCampaignsSchema();
   const connection = await getDbConnection();
   try {
     // 1. Verify student membership in this consultancy
@@ -909,6 +911,7 @@ export async function registerManualReferralSale(
   amountFormatted?: string;
   error?: string;
 }> {
+  await ensurePromotionalCampaignsSchema();
   const {
     consultancyId,
     adminMemberId,
@@ -1778,6 +1781,7 @@ export async function getReferrerDashboardData(
     paidAt: Date | null;
   }>;
 }> {
+  await ensurePromotionalCampaignsSchema();
   const codeResult = await getOrCreateReferralCode(consultancyId, memberId);
   const code = codeResult.code || "";
   const publicId = codeResult.publicId || "";
@@ -1907,6 +1911,7 @@ export async function getAdminReferralsData(consultancyId: number): Promise<{
     paidAt: Date | null;
   }>;
 }> {
+  await ensurePromotionalCampaignsSchema();
   const settings = await getConsultancyReferralSettings(consultancyId);
   const connection = await getDbConnection();
   try {

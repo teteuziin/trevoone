@@ -411,6 +411,7 @@ export async function getPersonalStudentDetail(params: {
 }): Promise<PersonalStudentDetail | null> {
   const { consultancyId, consultancySlug, studentMembershipPublicId } = params;
   let connection: PoolConnection | null = null;
+  let resolvedStudent: PersonalStudentProfile | null = null;
 
   try {
     connection = await getDbConnection();
@@ -428,10 +429,10 @@ export async function getPersonalStudentDetail(params: {
         u.email
        FROM consultancy_members cm
        INNER JOIN users u ON u.id = cm.user_id
-       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
+       LEFT JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
        WHERE cm.consultancy_id = ?
          AND (cm.public_id = ? OR u.public_id = ?)
-         AND cm.status = 'ACTIVE'
+         AND cm.status != 'DELETED'
          AND u.deleted_at IS NULL
        LIMIT 1;`,
       [consultancyId, studentMembershipPublicId, studentMembershipPublicId]
@@ -447,12 +448,13 @@ export async function getPersonalStudentDetail(params: {
     const student: PersonalStudentProfile = {
       membershipPublicId: String(member.membership_public_id),
       userPublicId: String(member.user_public_id),
-      name: String(member.full_name),
-      email: String(member.email),
+      name: String(member.full_name || "Aluno"),
+      email: String(member.email || ""),
       phone: null,
       joinedAt: safeToIsoString(member.joined_at),
-      status: String(member.membership_status),
+      status: String(member.membership_status || "ACTIVE"),
     };
+    resolvedStudent = student;
 
     // 2. Fetch Intake Submissions (Anamnesis & Questionnaires)
     let intakes: RowDataPacket[] = [];
@@ -498,9 +500,12 @@ export async function getPersonalStudentDetail(params: {
       for (const row of intakes) {
         let parsed: Record<string, unknown> = {};
         try {
-          parsed = typeof row.responses_json === "string"
+          const raw = typeof row.responses_json === "string"
             ? JSON.parse(row.responses_json)
             : (row.responses_json || {});
+          if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+            parsed = raw;
+          }
           mergedResponses = { ...parsed, ...mergedResponses };
         } catch {
           // Safe fallback for JSON parse error
@@ -592,12 +597,18 @@ export async function getPersonalStudentDetail(params: {
         let parsedAnswers: Record<string, unknown> = {};
         let parsedFields: StudentFormFieldItem[] = [];
         try {
-          parsedAnswers = typeof row.responses_json === "string"
+          const rawAns = typeof row.responses_json === "string"
             ? JSON.parse(row.responses_json)
             : (row.responses_json || {});
-          parsedFields = typeof row.fields_json === "string"
+          if (rawAns && typeof rawAns === "object" && !Array.isArray(rawAns)) {
+            parsedAnswers = rawAns;
+          }
+          const rawFields = typeof row.fields_json === "string"
             ? JSON.parse(row.fields_json)
             : (row.fields_json || []);
+          if (Array.isArray(rawFields)) {
+            parsedFields = rawFields;
+          }
         } catch {
           // ignore malformed
         }
@@ -742,12 +753,18 @@ export async function getPersonalStudentDetail(params: {
           let parsedAnswers: Record<string, unknown> = {};
           let parsedFields: Array<{ id: string; label: string }> = [];
           try {
-            parsedAnswers = typeof row.responses_json === "string"
+            const rawAns = typeof row.responses_json === "string"
               ? JSON.parse(row.responses_json)
               : (row.responses_json || {});
-            parsedFields = typeof row.fields_json === "string"
+            if (rawAns && typeof rawAns === "object" && !Array.isArray(rawAns)) {
+              parsedAnswers = rawAns;
+            }
+            const rawFields = typeof row.fields_json === "string"
               ? JSON.parse(row.fields_json)
               : (row.fields_json || []);
+            if (Array.isArray(rawFields)) {
+              parsedFields = rawFields;
+            }
           } catch {
             // ignore malformed
           }
@@ -1063,32 +1080,36 @@ export async function getPersonalStudentDetail(params: {
     const sessionSubstitutionsMap = new Map<string, Array<{ originalExerciseName: string; performedExerciseName: string; reason: string }>>();
     if (completedRows && completedRows.length > 0) {
       try {
-        const sessionPublicIds = completedRows.map((r) => String(r.public_id));
-        const [subRows] = await connection.query<RowDataPacket[]>(
-          `SELECT
-            wes.public_id AS session_public_id,
-            wees.reason,
-            orig_ex.name AS original_exercise_name,
-            perf_ex.name AS performed_exercise_name
-           FROM workout_execution_exercise_substitutions wees
-           INNER JOIN workout_execution_sessions wes ON wes.id = wees.execution_session_id
-           INNER JOIN exercises orig_ex ON orig_ex.id = wees.original_exercise_id
-           INNER JOIN exercises perf_ex ON perf_ex.id = wees.performed_exercise_id
-           WHERE wes.public_id IN (?)
-           ORDER BY wees.sequence_number ASC;`,
-          [sessionPublicIds]
-        );
+        const sessionPublicIds = completedRows
+          .map((r) => String(r.public_id))
+          .filter(Boolean);
+        if (sessionPublicIds.length > 0) {
+          const [subRows] = await connection.query<RowDataPacket[]>(
+            `SELECT
+              wes.public_id AS session_public_id,
+              wees.reason,
+              orig_ex.name AS original_exercise_name,
+              perf_ex.name AS performed_exercise_name
+             FROM workout_execution_exercise_substitutions wees
+             INNER JOIN workout_execution_sessions wes ON wes.id = wees.execution_session_id
+             INNER JOIN exercises orig_ex ON orig_ex.id = wees.original_exercise_id
+             INNER JOIN exercises perf_ex ON perf_ex.id = wees.performed_exercise_id
+             WHERE wes.public_id IN (?)
+             ORDER BY wees.sequence_number ASC;`,
+            [sessionPublicIds]
+          );
 
-        for (const sub of subRows) {
-          const sPubId = String(sub.session_public_id);
-          if (!sessionSubstitutionsMap.has(sPubId)) {
-            sessionSubstitutionsMap.set(sPubId, []);
+          for (const sub of subRows) {
+            const sPubId = String(sub.session_public_id);
+            if (!sessionSubstitutionsMap.has(sPubId)) {
+              sessionSubstitutionsMap.set(sPubId, []);
+            }
+            sessionSubstitutionsMap.get(sPubId)!.push({
+              originalExerciseName: String(sub.original_exercise_name),
+              performedExerciseName: String(sub.performed_exercise_name),
+              reason: String(sub.reason),
+            });
           }
-          sessionSubstitutionsMap.get(sPubId)!.push({
-            originalExerciseName: String(sub.original_exercise_name),
-            performedExerciseName: String(sub.performed_exercise_name),
-            reason: String(sub.reason),
-          });
         }
       } catch {
         // Table or records safe fallback
@@ -1358,6 +1379,50 @@ export async function getPersonalStudentDetail(params: {
       nutrition: nutritionPlans,
       draftNutritionPlan,
     };
+  } catch (err: unknown) {
+    console.error("[Personal Student Hub] Error in getPersonalStudentDetail:", err instanceof Error ? err.message : err);
+    if (resolvedStudent) {
+      return {
+        student: resolvedStudent,
+        overview: {
+          objective: null,
+          nutritionGoal: null,
+          allergies: null,
+          intolerances: null,
+          dietaryRestrictions: null,
+          birthDate: null,
+          age: null,
+          sex: null,
+          heightCm: null,
+          weightKg: null,
+          lastWeightRecordedOn: null,
+          latestWorkoutTitle: null,
+          latestWorkoutDifficulty: null,
+          activeWorkoutsCount: 0,
+          completedWorkoutsCount: 0,
+          hasAnamnesis: false,
+          hasPhotos: false,
+          hasForms: false,
+          latestNutritionTitle: null,
+          activeNutritionCount: 0,
+          hasPendingPhotos: false,
+          hasPendingAnamnesis: false,
+          hasPendingAssessment: false,
+        },
+        photos: [],
+        anamnesis: [],
+        forms: [],
+        anamnesisList: [],
+        formsList: [],
+        availableTemplates: [],
+        workouts: [],
+        completedSessions: [],
+        measurements: [],
+        nutrition: [],
+        draftNutritionPlan: null,
+      };
+    }
+    return null;
   } finally {
     if (connection) {
       connection.release();

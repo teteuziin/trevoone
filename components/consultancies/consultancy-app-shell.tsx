@@ -139,10 +139,17 @@ export async function ConsultancyAppShell({
       href: `/consultoria/${consultancySlug}/pagamentos`,
       iconName: "finance",
     });
+    rawItems.push({
+      id: "student-indicacoes",
+      label: "Divulgue e ganhe",
+      mobileLabel: "Indicações",
+      href: `/consultoria/${consultancySlug}/indicacoes`,
+      iconName: "referrals",
+    });
   }
 
   // 2. PARCERIA (Influencer / VIP - Secundário quando há STUDENT)
-  if (isInfluencer) {
+  if (isInfluencer && !isAdmin) {
     rawItems.push({
       id: "influencer-missoes",
       label: "Missões",
@@ -152,7 +159,7 @@ export async function ConsultancyAppShell({
     });
     rawItems.push({
       id: "influencer-indicacoes",
-      label: "Indicações & Ganhos",
+      label: "Divulgue e ganhe",
       mobileLabel: "Indicações",
       href: `/consultoria/${consultancySlug}/indicacoes`,
       iconName: "referrals",
@@ -230,22 +237,20 @@ export async function ConsultancyAppShell({
       href: `/consultoria/${consultancySlug}/operacoes`,
       iconName: "operations",
     });
-    if (!isInfluencer) {
-      rawItems.push({
-        id: "admin-indicacoes",
-        label: "Indicações & Afiliados",
-        mobileLabel: "Indicações",
-        href: `/consultoria/${consultancySlug}/indicacoes`,
-        iconName: "referrals",
-      });
-      rawItems.push({
-        id: "admin-missoes",
-        label: "Gestão de Missões",
-        mobileLabel: "Missões",
-        href: `/consultoria/${consultancySlug}/missoes/gestao`,
-        iconName: "missions",
-      });
-    }
+    rawItems.push({
+      id: "admin-indicacoes",
+      label: "Divulgue e ganhe",
+      mobileLabel: "Indicações",
+      href: `/consultoria/${consultancySlug}/indicacoes`,
+      iconName: "referrals",
+    });
+    rawItems.push({
+      id: "admin-missoes",
+      label: "Gestão de Missões",
+      mobileLabel: "Missões",
+      href: `/consultoria/${consultancySlug}/missoes/gestao`,
+      iconName: "missions",
+    });
     rawItems.push({
       id: "admin-assinatura",
       label: "Assinatura",

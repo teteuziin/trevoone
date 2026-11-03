@@ -75,9 +75,22 @@ export function CampaignLinkModal({
   const isEditing = Boolean(initialData);
 
   // Layer 1: Essenciais
-  const [selectedMemberId, setSelectedMemberId] = useState<number>(
-    initialData?.referrerMemberId || defaultParticipantId || (participants[0]?.memberId ?? 0)
-  );
+  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(() => {
+    if (initialData?.referrerMemberId) return initialData.referrerMemberId;
+    if (defaultParticipantId) return defaultParticipantId;
+    return null;
+  });
+
+  // Derived effective participant ID (garante sincronização instantânea sem cascading renders)
+  const effectiveMemberId = useMemo(() => {
+    if (selectedMemberId && participants.some((p) => p.memberId === selectedMemberId)) {
+      return selectedMemberId;
+    }
+    if (defaultParticipantId && participants.some((p) => p.memberId === defaultParticipantId)) {
+      return defaultParticipantId;
+    }
+    return participants[0]?.memberId ?? 0;
+  }, [selectedMemberId, defaultParticipantId, participants]);
 
   const existingWa = initialData?.destinationUrl ? parseExistingWhatsAppUrl(initialData.destinationUrl) : null;
   const initialIsWa = Boolean(existingWa || (initialData?.destinationUrl && isWhatsAppUrl(initialData.destinationUrl)));
@@ -112,7 +125,7 @@ export function CampaignLinkModal({
 
   // Layer 2: Opções avançadas (Estritamente fechado por padrão na criação; na edição, abre apenas se houver configurações avançadas)
   const [showAdvanced, setShowAdvanced] = useState<boolean>(() => {
-    if (!initialData) return false;
+    if (!initialData || !initialData.id) return false;
     return Boolean(
       (initialData.description && initialData.description.trim()) ||
       (initialData.eligiblePlans && initialData.eligiblePlans.trim()) ||
@@ -124,6 +137,13 @@ export function CampaignLinkModal({
   });
 
   const isMounted = useIsMounted();
+
+  // Log diagnóstico seguro de montagem do modal
+  useEffect(() => {
+    console.log(
+      `[CampaignLinkModal] Mounted: isEditing=${Boolean(initialData)}, showAdvanced=${showAdvanced}, participantsCount=${participants.length}, effectiveMemberId=${effectiveMemberId}`
+    );
+  }, [initialData, showAdvanced, participants.length, effectiveMemberId]);
 
   // Trava scroll da página de fundo enquanto o modal estiver aberto
   useEffect(() => {
@@ -162,7 +182,7 @@ export function CampaignLinkModal({
   // Custom in-app field validation (sem tooltips nativos do browser)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const selectedParticipant = participants.find((p) => p.memberId === selectedMemberId);
+  const selectedParticipant = participants.find((p) => p.memberId === effectiveMemberId);
 
   // Dynamic automatic title default
   const defaultTitle = useMemo(() => {
@@ -233,7 +253,7 @@ export function CampaignLinkModal({
     // Custom controlled validation (substitui tooltip nativo do browser)
     const errors: Record<string, string> = {};
 
-    if (!selectedMemberId) {
+    if (!effectiveMemberId) {
       errors.member = "Selecione o participante responsável.";
     }
 
@@ -301,7 +321,7 @@ export function CampaignLinkModal({
         }
       } else {
         const res = await createCampaignLinkAction(consultancySlug, {
-          referrerMemberId: selectedMemberId,
+          referrerMemberId: effectiveMemberId,
           title: finalTitle,
           destinationUrl: finalDestinationUrl,
           description: description.trim() || null,
@@ -416,26 +436,32 @@ export function CampaignLinkModal({
                 </div>
               ) : (
                 <select
-                  value={selectedMemberId}
+                  value={effectiveMemberId || ""}
                   onChange={(e) => {
                     setSelectedMemberId(Number(e.target.value));
                     if (fieldErrors.member) setFieldErrors((prev) => ({ ...prev, member: "" }));
                   }}
-                  className={`w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-white/5 border text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden transition-colors min-h-[44px] ${
+                  className={`w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-white/5 border text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden transition-colors min-h-[44px] cursor-pointer ${
                     fieldErrors.member
                       ? "border-red-500 ring-1 ring-red-500/20"
                       : "border-slate-200 dark:border-white/10 focus:border-emerald-500"
                   }`}
                 >
-                  {participants.map((p) => (
-                    <option
-                      key={p.memberId}
-                      value={p.memberId}
-                      className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white"
-                    >
-                      {p.name} ({p.role === "INFLUENCER" ? "Influenciador / VIP" : "Aluno"})
+                  {participants.length === 0 ? (
+                    <option value="" disabled className="bg-white dark:bg-[#151619] text-slate-500">
+                      Nenhum participante disponível
                     </option>
-                  ))}
+                  ) : (
+                    participants.map((p) => (
+                      <option
+                        key={p.memberId}
+                        value={p.memberId}
+                        className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white"
+                      >
+                        {p.name} ({p.role === "INFLUENCER" ? "Influenciador / VIP" : "Aluno"})
+                      </option>
+                    ))
+                  )}
                 </select>
               )}
               {fieldErrors.member && (

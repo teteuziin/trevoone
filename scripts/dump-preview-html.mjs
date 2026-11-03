@@ -3,6 +3,7 @@ import path from "node:path";
 
 function getHtml(viewType = "normal") {
   const isError = viewType === "error";
+  const isExpanded = viewType === "expanded";
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -65,13 +66,11 @@ function getHtml(viewType = "normal") {
               Participante Responsável
             </label>
             <div class="relative">
-              <select class="w-full px-3.5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white font-medium focus:outline-none min-h-[44px] appearance-none cursor-pointer">
-                <option selected>Ana Beatriz (Aluno)</option>
-                <option>Rodrigo Personal (Personal Trainer)</option>
+              <select class="w-full px-3.5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white font-medium focus:outline-none min-h-[44px] cursor-pointer">
+                <option value="1" selected class="bg-[#151619] text-white">Ana Beatriz (Aluno)</option>
+                <option value="2" class="bg-[#151619] text-white">Carlos Eduardo (Aluno)</option>
+                <option value="3" class="bg-[#151619] text-white">Juliana Silva (Influenciador / VIP)</option>
               </select>
-              <div class="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-              </div>
             </div>
           </div>
 
@@ -173,10 +172,37 @@ function getHtml(viewType = "normal") {
                 <span>Opções avançadas</span>
               </div>
               <div class="flex items-center gap-1.5 text-[11px] text-zinc-400 font-normal">
-                <span>Mostrar</span>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                <span>${isExpanded ? "Ocultar" : "Mostrar"}</span>
+                ${isExpanded
+                  ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"></polyline></svg>`
+                  : `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>`}
               </div>
             </button>
+
+            ${isExpanded ? `
+              <div class="p-3.5 border-t border-white/10 space-y-4">
+                <div class="space-y-1.5">
+                  <label class="text-xs font-semibold text-zinc-300">
+                    Título de Divulgação (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Link de Ana Beatriz"
+                    class="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white font-medium focus:outline-none min-h-[40px]"
+                  />
+                </div>
+                <div class="space-y-2 p-3 rounded-xl bg-white/5 border border-white/10">
+                  <div class="flex items-center justify-between gap-2">
+                    <label class="text-xs font-semibold text-zinc-300">Mensagem Automática</label>
+                    <span class="text-[10px] text-emerald-400">Restaurar mensagem padrão</span>
+                  </div>
+                  <textarea
+                    rows="2"
+                    class="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white focus:outline-none resize-none"
+                  >Olá! Vim pela indicação de Ana Beatriz (cupom ANA10) e quero saber mais sobre a consultoria com 10% de desconto!</textarea>
+                </div>
+              </div>
+            ` : ""}
           </div>
 
         </div>
@@ -199,5 +225,6 @@ function getHtml(viewType = "normal") {
 
 const outDir = process.env.TEMP || "C:\\temp";
 fs.writeFileSync(path.join(outDir, "modal-preview-normal.html"), getHtml("normal"), "utf-8");
+fs.writeFileSync(path.join(outDir, "modal-preview-expanded.html"), getHtml("expanded"), "utf-8");
 fs.writeFileSync(path.join(outDir, "modal-preview-error.html"), getHtml("error"), "utf-8");
 console.log("HTML files generated successfully.");

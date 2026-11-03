@@ -163,8 +163,8 @@ export async function listConsultancyParticipantsForPromotion(
          cm.status AS member_status,
          u.public_id AS user_public_id,
          u.full_name,
-         u.has_profile_photo,
-         u.profile_photo_updated_at,
+         (up.profile_photo_storage_key IS NOT NULL) AS has_profile_photo,
+         up.profile_photo_updated_at,
          cmr.role,
          rc.code AS default_code,
          rc.is_active AS code_is_active,
@@ -178,12 +178,13 @@ export async function listConsultancyParticipantsForPromotion(
        FROM consultancy_members cm
        JOIN users u ON u.id = cm.user_id
        JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       LEFT JOIN user_profiles up ON up.user_id = u.id
        LEFT JOIN referral_codes rc ON rc.consultancy_id = cm.consultancy_id AND rc.referrer_member_id = cm.id
        LEFT JOIN member_payout_profiles mpp ON mpp.consultancy_id = cm.consultancy_id AND mpp.member_id = cm.id
        WHERE cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
          AND cmr.role IN ('STUDENT', 'INFLUENCER', 'VIP')
-       GROUP BY cm.id, cm.user_id, cm.status, u.public_id, u.full_name, u.has_profile_photo, u.profile_photo_updated_at, cmr.role, rc.code, rc.is_active, mpp.id
+       GROUP BY cm.id, cm.user_id, cm.status, u.public_id, u.full_name, up.profile_photo_storage_key, up.profile_photo_updated_at, cmr.role, rc.code, rc.is_active, mpp.id
        ORDER BY (cmr.role = 'INFLUENCER') DESC, total_conversions DESC, u.full_name ASC;`,
       [consultancyId]
     );
@@ -203,8 +204,8 @@ export async function listConsultancyParticipantsForPromotion(
       activeCampaignLinks: Number(r.active_links || 0),
       totalClicks: Number(r.total_clicks || 0),
       totalConversions: Number(r.total_conversions || 0),
-      pendingAmount: Number(BigInt(r.pending_cents || 0)) / 100,
-      paidAmount: Number(BigInt(r.paid_cents || 0)) / 100,
+      pendingAmount: Math.round(Number(r.pending_cents || 0)) / 100,
+      paidAmount: Math.round(Number(r.paid_cents || 0)) / 100,
       hasPix: Boolean(r.has_pix),
     }));
   } finally {
@@ -691,14 +692,15 @@ export async function listCampaignLinksForAdmin(
          pcl.updated_at,
          u.full_name AS referrer_name,
          u.public_id AS referrer_user_public_id,
-         u.has_profile_photo AS referrer_has_profile_photo,
-         u.profile_photo_updated_at AS referrer_profile_photo_updated_at,
+         (up.profile_photo_storage_key IS NOT NULL) AS referrer_has_profile_photo,
+         up.profile_photo_updated_at AS referrer_profile_photo_updated_at,
          cmr.role AS referrer_role,
          (SELECT COUNT(*) FROM referral_attributions ra WHERE ra.campaign_link_id = pcl.id AND ra.status = 'CONVERTED') AS conversions_count
        FROM promotional_campaign_links pcl
        JOIN consultancy_members cm ON cm.id = pcl.referrer_member_id
        JOIN users u ON u.id = cm.user_id
        JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       LEFT JOIN user_profiles up ON up.user_id = u.id
        WHERE pcl.consultancy_id = ?
          ${memberFilter}
        ORDER BY pcl.created_at DESC;`,

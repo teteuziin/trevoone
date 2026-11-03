@@ -103,6 +103,7 @@ export default async function IndicacoesPage({ params }: PageProps) {
       eligibleParticipants = participantsRes || [];
       campaignLinks = linksRes || [];
       materials = materialsRes || [];
+      console.log(`[IndicacoesPage] Loaded ${eligibleParticipants.length} eligible participants, ${campaignLinks.length} campaign links for consultancy ${context.consultancyId}`);
     } catch (err) {
       console.error("[IndicacoesPage] Fatal error caught in admin loader:", err);
       adminData = {

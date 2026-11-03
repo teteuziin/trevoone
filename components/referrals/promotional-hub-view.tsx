@@ -20,6 +20,7 @@ import {
   X,
   MessageCircle,
 } from "@/components/referrals/referral-icons";
+import { isWhatsAppUrl } from "@/lib/referrals/url-utils";
 import type {
   PromotionalCampaignLinkRecord,
   PromotionalMarketingMaterialRecord,
@@ -176,14 +177,14 @@ export function PromotionalHubView({
   // EMPTY STATE: NOT ENROLLED
   if (!isEnrolled && links.length === 0) {
     return (
-      <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-3xl p-8 sm:p-12 text-center max-w-lg mx-auto shadow-sm space-y-4">
-        <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center mx-auto">
+      <div className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-3xl p-8 sm:p-12 text-center max-w-lg mx-auto shadow-sm space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto">
           <Sparkles className="w-7 h-7" />
         </div>
-        <h2 className="text-xl font-bold text-white">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
           Programa Divulgue e Ganhe
         </h2>
-        <p className="text-xs text-zinc-400 leading-relaxed">
+        <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
           Você ainda não possui campanhas de divulgação ativas nesta consultoria. Entre em contato com a equipe da consultoria para habilitar seus links individuais e materiais de divulgação.
         </p>
       </div>
@@ -195,17 +196,17 @@ export function PromotionalHubView({
       {/* ==================================================================== */}
       {/* TOP HEADER: HIERARQUIA OFICIAL COM BOTÃO PÍLULA DE PIX              */}
       {/* ==================================================================== */}
-      <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-3xl p-6 sm:p-7 shadow-sm">
+      <div className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-3xl p-6 sm:p-7 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500 flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
               Parceria Oficial · Divulgue e Ganhe {participantName ? `· ${participantName}` : ""}
             </span>
-            <h1 className="text-2xl font-bold text-white">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
               Divulgue e ganhe
             </h1>
-            <p className="text-xs text-zinc-400 max-w-xl">
+            <p className="text-xs text-slate-500 dark:text-zinc-400 max-w-xl">
               Compartilhe seus links exclusivos e acompanhe suas comissões.
             </p>
           </div>
@@ -217,8 +218,8 @@ export function PromotionalHubView({
               onClick={() => setIsPixModalOpen(true)}
               className={`px-3.5 py-2 rounded-2xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-2 min-h-[42px] ${
                 pixProfile?.pixKey
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/15"
-                  : "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/15"
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-400 hover:bg-emerald-500/15"
+                  : "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-400 hover:bg-amber-500/15"
               }`}
             >
               <KeyRound className="w-4 h-4 shrink-0" />
@@ -233,11 +234,11 @@ export function PromotionalHubView({
             </button>
 
             {defaultCode && (
-              <div className="px-3 py-2 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-2 min-h-[42px]">
-                <span className="text-[10px] text-zinc-400 uppercase font-semibold">
+              <div className="px-3 py-2 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center gap-2 min-h-[42px]">
+                <span className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase font-semibold">
                   Código:
                 </span>
-                <span className="font-mono font-black text-xs text-emerald-400">
+                <span className="font-mono font-black text-xs text-emerald-600 dark:text-emerald-400">
                   {defaultCode}
                 </span>
               </div>
@@ -246,38 +247,38 @@ export function PromotionalHubView({
         </div>
 
         {/* 4 KPI CARDS COMPACTOS NO TOPO */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-6 border-t border-white/5 mt-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-6 border-t border-slate-100 dark:border-white/5 mt-6">
           {/* KPI 1: Cliques nos links */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col justify-between">
+          <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium text-zinc-400">
+              <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">
                 Cliques nos links
               </span>
-              <MousePointerClick className="w-4 h-4 text-zinc-400" />
+              <MousePointerClick className="w-4 h-4 text-slate-400 dark:text-zinc-400" />
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-bold text-white block">
+              <span className="text-2xl font-bold text-slate-900 dark:text-white block">
                 {results.totalClicks}
               </span>
-              <span className="text-[10px] text-zinc-400 block mt-0.5">
+              <span className="text-[10px] text-slate-500 dark:text-zinc-400 block mt-0.5">
                 Acessos aos seus links
               </span>
             </div>
           </div>
 
           {/* KPI 2: Indicações em análise */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col justify-between">
+          <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium text-zinc-400">
+              <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">
                 Indicações em análise
               </span>
-              <Clock className="w-4 h-4 text-amber-400" />
+              <Clock className="w-4 h-4 text-amber-500 dark:text-amber-400" />
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-bold text-amber-400 block">
+              <span className="text-2xl font-bold text-amber-600 dark:text-amber-400 block">
                 {formatBrl(results.pendingAmount)}
               </span>
-              <span className="text-[10px] text-zinc-400 block mt-0.5">
+              <span className="text-[10px] text-slate-500 dark:text-zinc-400 block mt-0.5">
                 {results.registrationsCount} cadastro(s) identificado(s)
               </span>
             </div>
@@ -286,34 +287,34 @@ export function PromotionalHubView({
           {/* KPI 3: A receber (Aprovado) - DESTAQUE EM ESMERALDA */}
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex flex-col justify-between shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-emerald-400">
+              <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-400">
                 A receber (Aprovado)
               </span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-extrabold text-[#10b981] block">
+              <span className="text-2xl font-extrabold text-emerald-600 dark:text-[#10b981] block">
                 {formatBrl(results.approvedAmount)}
               </span>
-              <span className="text-[10px] text-emerald-400/80 block mt-0.5">
+              <span className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 block mt-0.5">
                 Aprovado pela consultoria
               </span>
             </div>
           </div>
 
           {/* KPI 4: Total já recebido */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col justify-between">
+          <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium text-zinc-400">
+              <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">
                 Total já recebido
               </span>
-              <DollarSign className="w-4 h-4 text-zinc-400" />
+              <DollarSign className="w-4 h-4 text-slate-400 dark:text-zinc-400" />
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-bold text-white block">
+              <span className="text-2xl font-bold text-slate-900 dark:text-white block">
                 {formatBrl(results.paidAmount)}
               </span>
-              <span className="text-[10px] text-zinc-400 block mt-0.5">
+              <span className="text-[10px] text-slate-500 dark:text-zinc-400 block mt-0.5">
                 Comissões pagas via PIX
               </span>
             </div>
@@ -321,19 +322,19 @@ export function PromotionalHubView({
         </div>
 
         {/* NAVIGATION TABS: 3 MAIN CLEAN AREAS */}
-        <div className="flex items-center gap-2 border-b border-white/5 pt-6 overflow-x-auto">
+        <div className="flex items-center gap-2 border-b border-slate-100 dark:border-white/5 pt-6 overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab("links")}
             className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer min-h-[44px] flex items-center gap-2 ${
               activeTab === "links"
-                ? "border-emerald-500 text-emerald-400"
-                : "border-transparent text-zinc-400 hover:text-white"
+                ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                : "border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <Link2 className="w-4 h-4" />
             <span>Meus Links</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-white/5 border border-white/10 text-zinc-300">
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-zinc-300">
               {links.length}
             </span>
           </button>
@@ -343,13 +344,13 @@ export function PromotionalHubView({
             onClick={() => setActiveTab("materials")}
             className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer min-h-[44px] flex items-center gap-2 ${
               activeTab === "materials"
-                ? "border-emerald-500 text-emerald-400"
-                : "border-transparent text-zinc-400 hover:text-white"
+                ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                : "border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <ImageIcon className="w-4 h-4" />
             <span>Materiais de Divulgação</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-white/5 border border-white/10 text-zinc-300">
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-zinc-300">
               {materials.length}
             </span>
           </button>
@@ -359,14 +360,14 @@ export function PromotionalHubView({
             onClick={() => setActiveTab("results")}
             className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer min-h-[44px] flex items-center gap-2 ${
               activeTab === "results"
-                ? "border-emerald-500 text-emerald-400"
-                : "border-transparent text-zinc-400 hover:text-white"
+                ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                : "border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <DollarSign className="w-4 h-4" />
             <span>Minhas Indicações e Comissões</span>
             {commissions.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 font-bold">
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-bold">
                 {commissions.length}
               </span>
             )}
@@ -381,20 +382,20 @@ export function PromotionalHubView({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-white">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
                 Links Exclusivos Ativos
               </h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                 Compartilhe seus links com clientes e seguidores para registrar suas indicações.
               </p>
             </div>
           </div>
 
           {links.length === 0 ? (
-            <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-3xl p-8 text-center text-xs text-zinc-400 space-y-2">
-              <Link2 className="w-8 h-8 text-zinc-400 mx-auto" />
-              <p className="font-semibold text-white">Nenhum link configurado no momento</p>
-              <p className="max-w-sm mx-auto text-zinc-400">
+            <div className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-3xl p-8 text-center text-xs text-slate-500 dark:text-zinc-400 space-y-2">
+              <Link2 className="w-8 h-8 text-slate-400 dark:text-zinc-400 mx-auto" />
+              <p className="font-semibold text-slate-900 dark:text-white">Nenhum link configurado no momento</p>
+              <p className="max-w-sm mx-auto text-slate-500 dark:text-zinc-400">
                 O administrador da sua consultoria ainda não cadastrou links individuais para você. Assim que disponíveis, eles aparecerão aqui.
               </p>
             </div>
@@ -409,35 +410,42 @@ export function PromotionalHubView({
                 return (
                   <div
                     key={link.id}
-                    className={`bg-[var(--surface-primary,#111312)] border rounded-2xl p-4 sm:p-5 shadow-xs transition-all ${
+                    className={`bg-white dark:bg-[#111312] border rounded-2xl p-4 sm:p-5 shadow-xs transition-all ${
                       isPaused
-                        ? "border-white/5 opacity-75"
-                        : "border-white/10 hover:border-emerald-500/40"
+                        ? "border-slate-200 dark:border-white/5 opacity-75"
+                        : "border-slate-200 dark:border-white/10 hover:border-emerald-500/40"
                     }`}
                   >
                     {/* LINHA 1: TÍTULO, STATUS, BADGE DE COMISSÃO E DESCONTO */}
                     <div className="flex flex-wrap items-center justify-between gap-2.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-sm font-bold text-white">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                           {link.title}
                         </h3>
                         {link.status === "ACTIVE" ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                             Ativo
                           </span>
                         ) : (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border border-zinc-500/20">
                             {link.status === "PAUSED" ? "Pausado" : "Encerrado"}
                           </span>
                         )}
                         {/* BADGE DE COMISSÃO EM VERDE SUAVE */}
-                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30">
                           {link.commissionValueFormatted}
                         </span>
                         {/* BADGE NEUTRO DE DESCONTO */}
                         {link.announcedDiscountValue && (
-                          <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-lg bg-white/5 text-zinc-300 border border-white/10">
+                          <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-white/10">
                             Cupom: {link.announcedDiscountValue}
+                          </span>
+                        )}
+                        {/* BADGE DESTINO WHATSAPP */}
+                        {isWhatsAppUrl(link.destinationUrl) && (
+                          <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/25 flex items-center gap-1">
+                            <MessageCircle className="w-3 h-3 text-[#25D366]" />
+                            <span>Destino: WhatsApp</span>
                           </span>
                         )}
                       </div>
@@ -446,7 +454,7 @@ export function PromotionalHubView({
                         <button
                           type="button"
                           onClick={() => setExpandedDetailsId(isExpanded ? null : link.id)}
-                          className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+                          className="text-[11px] text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
                         >
                           <span>{isExpanded ? "Ocultar detalhes" : "Ver regras"}</span>
                           {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -456,32 +464,32 @@ export function PromotionalHubView({
 
                     {/* DETALHES EXPANSÍVEIS (SE HOUVER) */}
                     {isExpanded && (
-                      <div className="mt-3 p-3 rounded-xl bg-white/5 border border-white/5 space-y-1.5 text-xs text-zinc-400">
+                      <div className="mt-3 p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 space-y-1.5 text-xs text-slate-600 dark:text-zinc-400">
                         {link.description && (
-                          <p className="text-zinc-300 leading-relaxed">{link.description}</p>
+                          <p className="text-slate-700 dark:text-zinc-300 leading-relaxed">{link.description}</p>
                         )}
                         {link.commissionConditions && (
                           <div className="flex items-start gap-1.5 text-[11px]">
-                            <span className="text-zinc-400 font-semibold">Condição:</span>
-                            <span className="text-zinc-300">{link.commissionConditions}</span>
+                            <span className="text-slate-500 dark:text-zinc-400 font-semibold">Condição:</span>
+                            <span className="text-slate-700 dark:text-zinc-300">{link.commissionConditions}</span>
                           </div>
                         )}
                         {link.eligiblePlans && (
                           <div className="flex items-start gap-1.5 text-[11px]">
-                            <span className="text-zinc-400 font-semibold">Planos:</span>
-                            <span className="text-zinc-300">{link.eligiblePlans}</span>
+                            <span className="text-slate-500 dark:text-zinc-400 font-semibold">Planos:</span>
+                            <span className="text-slate-700 dark:text-zinc-300">{link.eligiblePlans}</span>
                           </div>
                         )}
                       </div>
                     )}
 
                     {/* LINHA 2: URL AMIGÁVEL + BOTÕES DE AÇÃO */}
-                    <div className="mt-3 pt-3 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                       {/* URL Display */}
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/40 border border-white/10 font-mono text-xs text-zinc-300 flex-1 truncate">
-                        <Link2 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/10 font-mono text-xs text-slate-800 dark:text-zinc-300 flex-1 truncate">
+                        <Link2 className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-400 shrink-0" />
                         <span className="truncate select-all">{fullShareUrl}</span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-zinc-300 shrink-0 ml-auto">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-zinc-300 shrink-0 ml-auto">
                           {link.code}
                         </span>
                       </div>
@@ -491,12 +499,12 @@ export function PromotionalHubView({
                         <button
                           type="button"
                           onClick={() => handleCopyLink(link)}
-                          className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-white border border-white/10 transition-all cursor-pointer min-h-[40px] flex items-center justify-center gap-1.5"
+                          className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-bold text-slate-700 dark:text-white border border-slate-200 dark:border-white/10 transition-all cursor-pointer min-h-[40px] flex items-center justify-center gap-1.5"
                         >
                           {isCopied ? (
                             <>
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
-                              <span className="text-emerald-400">Copiado!</span>
+                              <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                              <span className="text-emerald-600 dark:text-emerald-400">Copiado!</span>
                             </>
                           ) : (
                             <>
@@ -509,7 +517,7 @@ export function PromotionalHubView({
                         <button
                           type="button"
                           onClick={() => handleShareWhatsApp(link)}
-                          className="px-3.5 py-2 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#25D366] border border-[#25D366]/30 text-xs font-bold transition-all cursor-pointer min-h-[40px] flex items-center justify-center gap-1.5"
+                          className="px-3.5 py-2 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#1e8a45] dark:text-[#25D366] border border-[#25D366]/30 text-xs font-bold transition-all cursor-pointer min-h-[40px] flex items-center justify-center gap-1.5"
                         >
                           <MessageCircle className="w-3.5 h-3.5" />
                           <span>WhatsApp</span>
@@ -531,14 +539,14 @@ export function PromotionalHubView({
         <div className="space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-bold text-white">Artes e Legendas Oficiais</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Artes e Legendas Oficiais</h2>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                 Materiais preparados para Stories e publicações. Baixe a arte ou copie a legenda pronta.
               </p>
             </div>
 
             {/* FILTRO DE FORMATO */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/10 overflow-x-auto">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 overflow-x-auto">
               {(
                 [
                   { id: "ALL", label: "Todos" },
@@ -554,8 +562,8 @@ export function PromotionalHubView({
                   onClick={() => setMaterialFilter(f.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap min-h-[36px] ${
                     materialFilter === f.id
-                      ? "bg-white/10 text-emerald-400 shadow-xs"
-                      : "text-zinc-400 hover:text-white"
+                      ? "bg-white dark:bg-white/10 text-emerald-600 dark:text-emerald-400 shadow-xs"
+                      : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
                   {f.label}
@@ -565,10 +573,10 @@ export function PromotionalHubView({
           </div>
 
           {filteredMaterials.length === 0 ? (
-            <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-3xl p-8 text-center text-xs text-zinc-400 space-y-2">
-              <ImageIcon className="w-8 h-8 text-zinc-400 mx-auto" />
-              <p className="font-semibold text-white">Nenhum material encontrado</p>
-              <p className="max-w-sm mx-auto text-zinc-400">
+            <div className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-3xl p-8 text-center text-xs text-slate-500 dark:text-zinc-400 space-y-2">
+              <ImageIcon className="w-8 h-8 text-slate-400 dark:text-zinc-400 mx-auto" />
+              <p className="font-semibold text-slate-900 dark:text-white">Nenhum material encontrado</p>
+              <p className="max-w-sm mx-auto text-slate-500 dark:text-zinc-400">
                 Não há artes disponíveis nesta categoria no momento. Assim que a equipe disponibilizar materiais, eles aparecerão aqui.
               </p>
             </div>
@@ -590,12 +598,12 @@ export function PromotionalHubView({
                 return (
                   <div
                     key={mat.id}
-                    className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-emerald-500/40 transition-all"
+                    className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-emerald-500/40 transition-all"
                   >
                     <div className="space-y-3">
                       {/* PREVIEW CONTAINER */}
                       <div
-                        className={`w-full rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden relative ${
+                        className={`w-full rounded-2xl bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/10 flex items-center justify-center overflow-hidden relative ${
                           isStory ? "aspect-[9/16] max-h-72" : "aspect-square max-h-56"
                         }`}
                       >
@@ -616,8 +624,8 @@ export function PromotionalHubView({
                             />
                           )
                         ) : (
-                          <div className="p-4 text-center text-zinc-400 space-y-1">
-                            <ImageIcon className="w-8 h-8 mx-auto text-zinc-400" />
+                          <div className="p-4 text-center text-slate-400 dark:text-zinc-400 space-y-1">
+                            <ImageIcon className="w-8 h-8 mx-auto text-slate-400 dark:text-zinc-400" />
                             <span className="text-xs font-semibold block">{formatLabel}</span>
                           </div>
                         )}
@@ -636,9 +644,9 @@ export function PromotionalHubView({
                       </div>
 
                       <div>
-                        <h3 className="text-sm font-bold text-white">{mat.title}</h3>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">{mat.title}</h3>
                         {mat.description && (
-                          <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">
+                          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 leading-relaxed">
                             {mat.description}
                           </p>
                         )}
@@ -646,16 +654,16 @@ export function PromotionalHubView({
 
                       {/* LEGENDA PRONTA */}
                       {mat.suggestedCaption && (
-                        <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+                        <div className="p-3 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-2">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center gap-1">
                               <FileText className="w-3 h-3" />
                               Legenda Pronta
                             </span>
                             <button
                               type="button"
                               onClick={() => handleCopyCaption(mat.id, mat.suggestedCaption!)}
-                              className="text-[11px] font-bold text-emerald-400 hover:underline cursor-pointer flex items-center gap-1"
+                              className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer flex items-center gap-1"
                             >
                               {isCaptionCopied ? (
                                 <>
@@ -670,7 +678,7 @@ export function PromotionalHubView({
                               )}
                             </button>
                           </div>
-                          <p className="text-xs text-zinc-300 italic leading-relaxed line-clamp-3">
+                          <p className="text-xs text-slate-700 dark:text-zinc-300 italic leading-relaxed line-clamp-3">
                             &quot;{mat.suggestedCaption}&quot;
                           </p>
                         </div>
@@ -678,14 +686,14 @@ export function PromotionalHubView({
                     </div>
 
                     {/* ACTIONS */}
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-white/5">
                       {downloadUrl ? (
                         <a
                           href={downloadUrl}
                           download
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-3 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white transition-all cursor-pointer min-h-[44px] flex items-center justify-center gap-1.5"
+                          className="px-3 py-2.5 rounded-2xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-white transition-all cursor-pointer min-h-[44px] flex items-center justify-center gap-1.5"
                         >
                           <Download className="w-3.5 h-3.5" />
                           <span>Baixar</span>
@@ -694,7 +702,7 @@ export function PromotionalHubView({
                         <button
                           type="button"
                           disabled
-                          className="px-3 py-2.5 rounded-2xl bg-white/5 text-xs font-bold text-zinc-400 opacity-60 min-h-[44px]"
+                          className="px-3 py-2.5 rounded-2xl bg-slate-100 dark:bg-white/5 text-xs font-bold text-slate-400 dark:text-zinc-400 opacity-60 min-h-[44px]"
                         >
                           Sem arquivo
                         </button>
@@ -745,18 +753,18 @@ export function PromotionalHubView({
       {activeTab === "results" && (
         <div className="space-y-4">
           <div>
-            <h2 className="text-base font-bold text-white">Minhas Indicações e Comissões</h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">Minhas Indicações e Comissões</h2>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
               Histórico de clientes atribuídos e comissões geradas por suas divulgações oficiais.
             </p>
           </div>
 
-          <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
             {commissions.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-400 space-y-2">
-                <DollarSign className="w-8 h-8 text-zinc-400 mx-auto" />
-                <p className="font-semibold text-white">Nenhuma comissão registrada ainda</p>
-                <p className="max-w-sm mx-auto text-zinc-400">
+              <div className="p-8 text-center text-xs text-slate-500 dark:text-zinc-400 space-y-2">
+                <DollarSign className="w-8 h-8 text-slate-400 dark:text-zinc-400 mx-auto" />
+                <p className="font-semibold text-slate-900 dark:text-white">Nenhuma comissão registrada ainda</p>
+                <p className="max-w-sm mx-auto text-slate-500 dark:text-zinc-400">
                   Compartilhe seus links exclusivos para começar a registrar indicações e acumular comissões.
                 </p>
               </div>
@@ -764,7 +772,7 @@ export function PromotionalHubView({
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="border-b border-white/5 text-zinc-400">
+                    <tr className="border-b border-slate-100 dark:border-white/5 text-slate-500 dark:text-zinc-400">
                       <th className="pb-3 font-semibold">Data</th>
                       <th className="pb-3 font-semibold">Cliente Indicado</th>
                       <th className="pb-3 font-semibold">Campanha / Link</th>
@@ -772,26 +780,26 @@ export function PromotionalHubView({
                       <th className="pb-3 font-semibold">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                     {commissions.map((c) => {
                       const badge = statusBadges[c.status] || {
                         label: c.status,
-                        className: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
+                        className: "bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border-zinc-500/20",
                       };
                       const maskedName = maskClientName(c.studentName);
 
                       return (
-                        <tr key={c.id} className="hover:bg-white/5 transition-colors">
-                          <td className="py-3 text-zinc-400">
+                        <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                          <td className="py-3 text-slate-500 dark:text-zinc-400">
                             {new Date(c.createdAt).toLocaleDateString("pt-BR")}
                           </td>
-                          <td className="py-3 font-semibold text-white">
+                          <td className="py-3 font-semibold text-slate-900 dark:text-white">
                             {maskedName}
                           </td>
-                          <td className="py-3 text-zinc-300">
+                          <td className="py-3 text-slate-600 dark:text-zinc-300">
                             {c.campaignTitle || "Indicação Geral"}
                           </td>
-                          <td className="py-3 font-bold text-emerald-400">
+                          <td className="py-3 font-bold text-emerald-600 dark:text-emerald-400">
                             {formatBrl(c.amount)}
                           </td>
                           <td className="py-3">
@@ -815,82 +823,82 @@ export function PromotionalHubView({
       {/* ==================================================================== */}
       {isPixModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#151619] border border-white/10 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="bg-white dark:bg-[#151619] border border-slate-200 dark:border-white/10 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20">
                   <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Chave PIX</h3>
-                  <p className="text-xs text-zinc-400">Para recebimento de comissões aprovadas</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Chave PIX</h3>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">Para recebimento de comissões aprovadas</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsPixModalOpen(false)}
-                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+                className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {pixError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold">
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
                 {pixError}
               </div>
             )}
 
             {pixSuccess && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
                 {pixSuccess}
               </div>
             )}
 
             <form onSubmit={handleSavePix} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-300">Tipo de Chave</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Tipo de Chave</label>
                 <select
                   value={pixKeyType}
                   onChange={(e) => setPixKeyType(e.target.value as PixKeyType)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[44px]"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[44px]"
                 >
-                  <option value="CPF" className="bg-[#151619]">CPF</option>
-                  <option value="CNPJ" className="bg-[#151619]">CNPJ</option>
-                  <option value="EMAIL" className="bg-[#151619]">E-mail</option>
-                  <option value="PHONE" className="bg-[#151619]">Telefone</option>
-                  <option value="RANDOM_KEY" className="bg-[#151619]">Chave Aleatória (EVP)</option>
+                  <option value="CPF" className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white">CPF</option>
+                  <option value="CNPJ" className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white">CNPJ</option>
+                  <option value="EMAIL" className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white">E-mail</option>
+                  <option value="PHONE" className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white">Telefone</option>
+                  <option value="RANDOM_KEY" className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white">Chave Aleatória (EVP)</option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-300">Chave PIX</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Chave PIX</label>
                 <input
                   type="text"
                   value={pixKey}
                   onChange={(e) => setPixKey(e.target.value)}
                   placeholder="Digite sua chave PIX com atenção"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-white focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[44px]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[44px]"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-300">Nome do Titular da Conta (Opcional)</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Nome do Titular da Conta (Opcional)</label>
                 <input
                   type="text"
                   value={receiverName}
                   onChange={(e) => setReceiverName(e.target.value)}
                   placeholder="Nome completo para conferência do PIX"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[44px]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[44px]"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-white/10">
                 <button
                   type="button"
                   onClick={() => setIsPixModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-zinc-300 transition-colors min-h-[42px] cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-semibold text-slate-700 dark:text-zinc-300 transition-colors min-h-[42px] cursor-pointer"
                 >
                   Fechar
                 </button>

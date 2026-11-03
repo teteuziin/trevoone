@@ -23,6 +23,7 @@ import {
   X,
   Sparkles,
   UserPlus,
+  MessageCircle,
 } from "@/components/referrals/referral-icons";
 import { UserAvatar } from "@/components/account/user-avatar";
 import {
@@ -40,6 +41,7 @@ import type {
   CommissionType,
   PixKeyType,
 } from "@/lib/referrals/service";
+import { isWhatsAppUrl } from "@/lib/referrals/url-utils";
 import type {
   PromotionalCampaignLinkRecord,
   EligiblePromotionParticipant,
@@ -332,72 +334,72 @@ export function AdminReferralsView({
       {/* ==================================================================== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {/* KPI 1: Total de Participantes */}
-        <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-zinc-400">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">
               Total de participantes
             </span>
-            <Users className="w-4 h-4 text-zinc-400" />
+            <Users className="w-4 h-4 text-slate-400 dark:text-zinc-400" />
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-bold text-white block">
+            <span className="text-2xl font-bold text-slate-900 dark:text-white block">
               {eligibleParticipants.filter((p) => p.isPromotionEnabled).length}
             </span>
-            <span className="text-[10px] text-zinc-400 block mt-0.5">
+            <span className="text-[10px] text-slate-500 dark:text-zinc-400 block mt-0.5">
               {eligibleParticipants.length} membros elegíveis
             </span>
           </div>
         </div>
 
         {/* KPI 2: Indicações / Cadastros */}
-        <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-zinc-400">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">
               Indicações identificadas
             </span>
-            <MousePointerClick className="w-4 h-4 text-zinc-400" />
+            <MousePointerClick className="w-4 h-4 text-slate-400 dark:text-zinc-400" />
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-bold text-white block">
+            <span className="text-2xl font-bold text-slate-900 dark:text-white block">
               {kpis.totalRegistrations}
             </span>
-            <span className="text-[10px] text-zinc-400 block mt-0.5">
+            <span className="text-[10px] text-slate-500 dark:text-zinc-400 block mt-0.5">
               Cadastros via links oficiais
             </span>
           </div>
         </div>
 
         {/* KPI 3: Vendas Confirmadas */}
-        <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+        <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-zinc-400">
+            <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
               Vendas confirmadas
             </span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-bold text-emerald-400 block">
+            <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 block">
               {kpis.totalConversions}
             </span>
-            <span className="text-[10px] text-zinc-400 block mt-0.5">
+            <span className="text-[10px] text-emerald-600/80 dark:text-zinc-400 block mt-0.5">
               Matrículas e vendas atribuídas
             </span>
           </div>
         </div>
 
         {/* KPI 4: Comissões Pendentes / A Pagar */}
-        <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+        <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-zinc-400">
+            <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
               Comissões a liquidar
             </span>
-            <Clock className="w-4 h-4 text-amber-400" />
+            <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-bold text-amber-400 block">
+            <span className="text-2xl font-bold text-amber-700 dark:text-amber-400 block">
               {formatBrl(kpis.pendingAmount + kpis.approvedAmount)}
             </span>
-            <span className="text-[10px] text-zinc-400 block mt-0.5">
+            <span className="text-[10px] text-amber-600/80 dark:text-zinc-400 block mt-0.5">
               {formatBrl(kpis.approvedAmount)} aprovado para PIX
             </span>
           </div>
@@ -407,7 +409,7 @@ export function AdminReferralsView({
       {/* ==================================================================== */}
       {/* 3 CLEAN TABS DE NAVEGAÇÃO                                            */}
       {/* ==================================================================== */}
-      <div className="flex items-center justify-between border-b border-white/10 overflow-x-auto pb-px">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 overflow-x-auto pb-px">
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -418,13 +420,13 @@ export function AdminReferralsView({
             }}
             className={`px-4 py-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer min-h-[44px] flex items-center gap-2 ${
               activeTab === "participants"
-                ? "border-emerald-500 text-emerald-400"
-                : "border-transparent text-zinc-400 hover:text-white"
+                ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                : "border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <Users className="w-4 h-4" />
             <span>Participantes e Links</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-white/5 border border-white/10 text-zinc-300">
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-zinc-300">
               {eligibleParticipants.length}
             </span>
           </button>
@@ -437,13 +439,13 @@ export function AdminReferralsView({
             }}
             className={`px-4 py-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer min-h-[44px] flex items-center gap-2 ${
               activeTab === "materials"
-                ? "border-emerald-500 text-emerald-400"
-                : "border-transparent text-zinc-400 hover:text-white"
+                ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                : "border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <ImageIcon className="w-4 h-4" />
             <span>Materiais</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-white/5 border border-white/10 text-zinc-300">
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-zinc-300">
               {materials.length}
             </span>
           </button>
@@ -457,8 +459,8 @@ export function AdminReferralsView({
             }}
             className={`px-4 py-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer min-h-[44px] flex items-center gap-2 ${
               activeTab === "commissions"
-                ? "border-emerald-500 text-emerald-400"
-                : "border-transparent text-zinc-400 hover:text-white"
+                ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                : "border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <DollarSign className="w-4 h-4" />
@@ -466,7 +468,7 @@ export function AdminReferralsView({
             {commissions.some((c) => c.status === "PENDING") && (
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
             )}
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-white/5 border border-white/10 text-zinc-300">
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-zinc-300">
               {commissions.length}
             </span>
           </button>
@@ -477,8 +479,8 @@ export function AdminReferralsView({
           onClick={() => setActiveTab("settings")}
           className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
             activeTab === "settings"
-              ? "bg-white/10 text-white"
-              : "text-zinc-400 hover:text-white hover:bg-white/5"
+              ? "bg-slate-200 dark:bg-white/10 text-slate-900 dark:text-white"
+              : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
           }`}
         >
           <Settings className="w-3.5 h-3.5" />
@@ -500,8 +502,8 @@ export function AdminReferralsView({
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-bold text-white">Participantes e Links de Divulgação</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Participantes e Links de Divulgação</h2>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                 Gerencie os membros autorizados e configure URLs específicas com descontos e comissões.
               </p>
             </div>
@@ -510,9 +512,9 @@ export function AdminReferralsView({
               <button
                 type="button"
                 onClick={() => setIsEnrollModalOpen(true)}
-                className="px-3.5 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-bold transition-all cursor-pointer min-h-[42px] flex items-center gap-1.5"
+                className="px-3.5 py-2.5 rounded-2xl border border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold transition-all cursor-pointer min-h-[42px] flex items-center gap-1.5"
               >
-                <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
+                <UserPlus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>+ Adicionar participante</span>
               </button>
 
@@ -534,33 +536,33 @@ export function AdminReferralsView({
           {/* Search Bar */}
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-400 dark:text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Buscar participante por nome ou código..."
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[42px]"
+                className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[42px]"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white focus:outline-hidden focus:border-emerald-500 min-h-[42px]"
+              className="px-3 py-2.5 rounded-2xl bg-white dark:bg-[#151619] border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 min-h-[42px]"
             >
-              <option value="ALL" className="bg-[#151619]">Todos os status</option>
-              <option value="ACTIVE" className="bg-[#151619]">Habilitados</option>
-              <option value="PAUSED" className="bg-[#151619]">Pausados</option>
+              <option value="ALL" className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white">Todos os status</option>
+              <option value="ACTIVE" className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white">Habilitados</option>
+              <option value="PAUSED" className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white">Pausados</option>
             </select>
           </div>
 
           {/* Participants List with Embedded Links */}
           {filteredParticipants.length === 0 ? (
-            <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-3xl p-8 text-center text-xs text-zinc-400 space-y-2">
-              <Users className="w-8 h-8 text-zinc-400 mx-auto" />
-              <p className="font-semibold text-white">Nenhum participante encontrado</p>
-              <p className="max-w-sm mx-auto text-zinc-400">
+            <div className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-3xl p-8 text-center text-xs text-slate-500 dark:text-zinc-400 space-y-2">
+              <Users className="w-8 h-8 text-slate-400 dark:text-zinc-400 mx-auto" />
+              <p className="font-semibold text-slate-900 dark:text-white">Nenhum participante encontrado</p>
+              <p className="max-w-sm mx-auto text-slate-500 dark:text-zinc-400">
                 Adicione alunos ou influenciadores no botão acima para habilitar o programa.
               </p>
             </div>
@@ -574,7 +576,7 @@ export function AdminReferralsView({
                 return (
                   <div
                     key={p.memberId}
-                    className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3"
+                    className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3"
                   >
                     {/* Participant Header Row */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -586,36 +588,36 @@ export function AdminReferralsView({
                         />
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-bold text-white">{p.name}</h3>
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white">{p.name}</h3>
                             <span
                               className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${
                                 p.role === "INFLUENCER"
-                                  ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
-                                  : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                  ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                                  : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
                               }`}
                             >
                               {p.role === "INFLUENCER" ? "Influenciador / VIP" : "Aluno"}
                             </span>
                             {p.hasPix ? (
-                              <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                                 PIX Cadastrado
                               </span>
                             ) : (
-                              <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
                                 Sem PIX
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-zinc-400 mt-1">
+                          <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-zinc-400 mt-1">
                             {p.defaultCode && (
-                              <span className="font-mono text-zinc-300">
-                                Código: <strong className="text-white">{p.defaultCode}</strong>
+                              <span className="font-mono text-slate-600 dark:text-zinc-300">
+                                Código: <strong className="text-slate-900 dark:text-white">{p.defaultCode}</strong>
                               </span>
                             )}
                             <span>•</span>
                             <span>{p.totalClicks} cliques</span>
                             <span>•</span>
-                            <span className="text-emerald-400 font-semibold">{p.totalConversions} vendas</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{p.totalConversions} vendas</span>
                             <span>•</span>
                             <span>Total pago: {formatBrl(p.paidAmount)}</span>
                           </div>
@@ -631,9 +633,9 @@ export function AdminReferralsView({
                             setCampaignModalDefaultMemberId(p.memberId);
                             setIsCampaignModalOpen(true);
                           }}
-                          className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white transition-all cursor-pointer min-h-[38px] flex items-center gap-1.5"
+                          className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-800 dark:text-white transition-all cursor-pointer min-h-[38px] flex items-center gap-1.5"
                         >
-                          <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                          <Plus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                           <span>Criar link</span>
                         </button>
 
@@ -643,8 +645,8 @@ export function AdminReferralsView({
                           onClick={() => handleToggleParticipant(p.memberId, p.isPromotionEnabled)}
                           className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer min-h-[38px] ${
                             p.isPromotionEnabled
-                              ? "bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20"
-                              : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
+                              ? "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
+                              : "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
                           }`}
                         >
                           {isToggling ? "..." : p.isPromotionEnabled ? "Pausar" : "Ativar"}
@@ -653,7 +655,7 @@ export function AdminReferralsView({
                         <button
                           type="button"
                           onClick={() => toggleExpandParticipant(p.memberId)}
-                          className="px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white text-xs font-medium cursor-pointer transition-colors min-h-[38px] flex items-center gap-1"
+                          className="px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white text-xs font-medium cursor-pointer transition-colors min-h-[38px] flex items-center gap-1"
                         >
                           <span>{memberLinks.length} link(s)</span>
                           {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -663,47 +665,54 @@ export function AdminReferralsView({
 
                     {/* Participant Individual Links (Sublist) */}
                     {isExpanded && (
-                      <div className="pt-3 border-t border-white/5 space-y-2">
+                      <div className="pt-3 border-t border-slate-200 dark:border-white/5 space-y-2">
                         {memberLinks.length === 0 ? (
-                          <div className="p-4 rounded-xl bg-white/5 text-center text-xs text-zinc-400">
+                          <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 text-center text-xs text-slate-500 dark:text-zinc-400">
                             Nenhum link cadastrado para este participante ainda. Clique em &quot;Criar link&quot; acima.
                           </div>
                         ) : (
                           <div className="space-y-2">
                             {memberLinks.map((link) => {
                               const isCopied = copiedLinkUrl === link.code;
+                              const isWhatsApp = isWhatsAppUrl(link.destinationUrl);
                               return (
                                 <div
                                   key={link.id}
-                                  className="p-3 rounded-xl bg-black/40 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                                  className="p-3 rounded-xl bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
                                 >
                                   <div className="space-y-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-xs font-bold text-white">
+                                      <span className="text-xs font-bold text-slate-900 dark:text-white">
                                         {link.title}
                                       </span>
-                                      <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-white/10 text-zinc-300">
+                                      <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-zinc-300">
                                         /r/{link.code}
                                       </span>
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                                         {link.commissionValueFormatted}
                                       </span>
                                       {link.announcedDiscountValue && (
-                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-white/5 text-zinc-300 border border-white/10">
+                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-slate-200/70 dark:bg-white/5 text-slate-700 dark:text-zinc-300 border border-slate-300 dark:border-white/10">
                                           Cupom: {link.announcedDiscountValue}
+                                        </span>
+                                      )}
+                                      {isWhatsApp && (
+                                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                                          <MessageCircle className="w-3 h-3 text-[#25D366]" />
+                                          <span>Destino: WhatsApp</span>
                                         </span>
                                       )}
                                       <span
                                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                                           link.status === "ACTIVE"
-                                            ? "text-emerald-400"
-                                            : "text-zinc-500"
+                                            ? "text-emerald-600 dark:text-emerald-400"
+                                            : "text-slate-500 dark:text-zinc-500"
                                         }`}
                                       >
                                         {link.status === "ACTIVE" ? "● Ativo" : "○ Pausado"}
                                       </span>
                                     </div>
-                                    <p className="text-[11px] text-zinc-400 font-mono truncate max-w-lg">
+                                    <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono truncate max-w-lg">
                                       Destino: {link.destinationUrl}
                                     </p>
                                   </div>
@@ -712,12 +721,12 @@ export function AdminReferralsView({
                                     <button
                                       type="button"
                                       onClick={() => handleCopyShareableUrl(link.code)}
-                                      className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1"
+                                      className="px-2.5 py-1.5 rounded-lg bg-slate-200/80 hover:bg-slate-300 dark:bg-white/5 dark:hover:bg-white/10 text-xs text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer flex items-center gap-1"
                                     >
                                       {isCopied ? (
                                         <>
-                                          <Check className="w-3 h-3 text-emerald-400" />
-                                          <span className="text-emerald-400">Copiado</span>
+                                          <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                          <span className="text-emerald-600 dark:text-emerald-400">Copiado</span>
                                         </>
                                       ) : (
                                         <>
@@ -733,7 +742,7 @@ export function AdminReferralsView({
                                         setEditingCampaignLink(link);
                                         setIsCampaignModalOpen(true);
                                       }}
-                                      className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-zinc-300 hover:text-white transition-all cursor-pointer"
+                                      className="px-2.5 py-1.5 rounded-lg bg-slate-200/80 hover:bg-slate-300 dark:bg-white/5 dark:hover:bg-white/10 text-xs text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                                     >
                                       Editar
                                     </button>
@@ -760,8 +769,8 @@ export function AdminReferralsView({
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-bold text-white">Materiais de Divulgação</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Materiais de Divulgação</h2>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                 Disponibilize artes, vídeos, PDFs e legendas oficiais para os parceiros divulgarem.
               </p>
             </div>
@@ -793,8 +802,8 @@ export function AdminReferralsView({
                 onClick={() => setMaterialFormatFilter(f.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap min-h-[36px] ${
                   materialFormatFilter === f.id
-                    ? "bg-white/10 text-emerald-400"
-                    : "text-zinc-400 hover:text-white"
+                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
+                    : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 {f.label}
@@ -804,10 +813,10 @@ export function AdminReferralsView({
 
           {/* Materials Grid */}
           {filteredMaterials.length === 0 ? (
-            <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-3xl p-8 text-center text-xs text-zinc-400 space-y-2">
-              <ImageIcon className="w-8 h-8 text-zinc-400 mx-auto" />
-              <p className="font-semibold text-white">Nenhum material cadastrado</p>
-              <p className="max-w-sm mx-auto text-zinc-400">
+            <div className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-3xl p-8 text-center text-xs text-slate-500 dark:text-zinc-400 space-y-2">
+              <ImageIcon className="w-8 h-8 text-slate-400 dark:text-zinc-400 mx-auto" />
+              <p className="font-semibold text-slate-900 dark:text-white">Nenhum material cadastrado</p>
+              <p className="max-w-sm mx-auto text-slate-500 dark:text-zinc-400">
                 Faça upload de artes ou insira links no botão acima para disponibilizar materiais aos divulgadores.
               </p>
             </div>
@@ -827,7 +836,7 @@ export function AdminReferralsView({
                 return (
                   <div
                     key={mat.id}
-                    className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-emerald-500/40 transition-all"
+                    className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-emerald-500/40 transition-all"
                   >
                     <div className="space-y-3">
                       {/* Media preview */}
@@ -877,21 +886,21 @@ export function AdminReferralsView({
                       </div>
 
                       <div>
-                        <h3 className="text-sm font-bold text-white">{mat.title}</h3>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">{mat.title}</h3>
                         {mat.description && (
-                          <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">
+                          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 leading-relaxed">
                             {mat.description}
                           </p>
                         )}
                       </div>
 
                       {mat.suggestedCaption && (
-                        <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1 text-xs">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
+                        <div className="p-3 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-1 text-xs">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center gap-1">
                             <FileText className="w-3 h-3" />
                             Legenda Pronta
                           </span>
-                          <p className="text-zinc-300 italic line-clamp-2">
+                          <p className="text-slate-700 dark:text-zinc-300 italic line-clamp-2">
                             &quot;{mat.suggestedCaption}&quot;
                           </p>
                         </div>
@@ -899,27 +908,27 @@ export function AdminReferralsView({
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-white/5">
                       {downloadUrl ? (
                         <a
                           href={downloadUrl}
                           download
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-white border border-white/10 transition-colors flex items-center gap-1.5"
+                          className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-xs font-semibold text-slate-800 dark:text-white border border-slate-200 dark:border-white/10 transition-colors flex items-center gap-1.5"
                         >
                           <Download className="w-3.5 h-3.5" />
                           <span>Baixar</span>
                         </a>
                       ) : (
-                        <span className="text-xs text-zinc-500">Sem arquivo</span>
+                        <span className="text-xs text-slate-400 dark:text-zinc-500">Sem arquivo</span>
                       )}
 
                       <button
                         type="button"
                         disabled={isArchiving}
                         onClick={() => handleArchiveMaterial(mat.id)}
-                        className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer flex items-center gap-1"
+                        className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer flex items-center gap-1"
                       >
                         <Archive className="w-3.5 h-3.5" />
                         <span>{isArchiving ? "Arquivando..." : "Arquivar"}</span>
@@ -940,8 +949,8 @@ export function AdminReferralsView({
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-bold text-white">Vendas e Comissões</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Vendas e Comissões</h2>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                 Acompanhe as vendas atribuídas, aprove valores e liquide pagamentos via PIX.
               </p>
             </div>
@@ -974,8 +983,8 @@ export function AdminReferralsView({
                 onClick={() => setStatusFilter(f.id)}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap min-h-[36px] ${
                   statusFilter === f.id
-                    ? "bg-white/10 text-emerald-400"
-                    : "text-zinc-400 hover:text-white"
+                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
+                    : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 {f.label}
@@ -985,23 +994,23 @@ export function AdminReferralsView({
 
           {/* Search bar */}
           <div className="relative">
-            <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 dark:text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Buscar por parceiro ou comprador..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-hidden focus:border-emerald-500 min-h-[42px]"
+              className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-hidden focus:border-emerald-500 min-h-[42px]"
             />
           </div>
 
           {/* Table */}
-          <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
             {filteredCommissions.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-400 space-y-2">
-                <DollarSign className="w-8 h-8 text-zinc-400 mx-auto" />
-                <p className="font-semibold text-white">Nenhuma comissão encontrada</p>
-                <p className="max-w-sm mx-auto text-zinc-400">
+              <div className="p-8 text-center text-xs text-slate-500 dark:text-zinc-400 space-y-2">
+                <DollarSign className="w-8 h-8 text-slate-400 dark:text-zinc-400 mx-auto" />
+                <p className="font-semibold text-slate-900 dark:text-white">Nenhuma comissão encontrada</p>
+                <p className="max-w-sm mx-auto text-slate-500 dark:text-zinc-400">
                   Cadastros ou vendas atribuídas a links oficiais aparecerão listados aqui.
                 </p>
               </div>
@@ -1009,7 +1018,7 @@ export function AdminReferralsView({
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="border-b border-white/5 text-zinc-400">
+                    <tr className="border-b border-slate-200 dark:border-white/5 text-slate-500 dark:text-zinc-400">
                       <th className="pb-3 font-semibold">Data</th>
                       <th className="pb-3 font-semibold">Indicador / VIP</th>
                       <th className="pb-3 font-semibold">Comprador</th>
@@ -1020,7 +1029,7 @@ export function AdminReferralsView({
                       <th className="pb-3 font-semibold text-right">Ações Rápidas</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                     {filteredCommissions.map((c) => {
                       const badge = statusBadges[c.status] || {
                         label: c.status,
@@ -1028,20 +1037,20 @@ export function AdminReferralsView({
                       };
 
                       return (
-                        <tr key={c.id} className="hover:bg-white/5 transition-colors">
-                          <td className="py-3 text-zinc-400 whitespace-nowrap">
+                        <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                          <td className="py-3 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
                             {new Date(c.createdAt).toLocaleDateString("pt-BR")}
                           </td>
-                          <td className="py-3 font-semibold text-white whitespace-nowrap">
+                          <td className="py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                             {c.referrerName}
                           </td>
-                          <td className="py-3 text-zinc-300">
+                          <td className="py-3 text-slate-700 dark:text-zinc-300">
                             {c.studentName}
                           </td>
-                          <td className="py-3 text-zinc-400 font-mono">
+                          <td className="py-3 text-slate-500 dark:text-zinc-400 font-mono">
                             {c.baseAmount ? formatBrl(c.baseAmount) : "-"}
                           </td>
-                          <td className="py-3 font-bold text-emerald-400 font-mono">
+                          <td className="py-3 font-bold text-emerald-600 dark:text-emerald-400 font-mono">
                             {c.amount ? formatBrl(c.amount) : "A calcular"}
                           </td>
                           <td className="py-3">
@@ -1049,14 +1058,14 @@ export function AdminReferralsView({
                               {badge.label}
                             </span>
                           </td>
-                          <td className="py-3 font-mono text-[11px] text-zinc-300 whitespace-nowrap">
+                          <td className="py-3 font-mono text-[11px] text-slate-700 dark:text-zinc-300 whitespace-nowrap">
                             <div className="flex items-center gap-1.5">
                               <span>{c.pixMasked || "Não inf."}</span>
                               {c.pixMasked && (
                                 <button
                                   type="button"
                                   onClick={() => handleRevealPix(c.referrerMemberId)}
-                                  className="p-1 rounded-md bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer"
+                                  className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
                                   title="Ver chave PIX completa"
                                 >
                                   <Eye className="w-3 h-3" />
@@ -1078,7 +1087,7 @@ export function AdminReferralsView({
                                         handleApprove(c.id);
                                       }
                                     }}
-                                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold cursor-pointer"
+                                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 text-[11px] font-bold cursor-pointer"
                                   >
                                     Aprovar
                                   </button>
@@ -1088,7 +1097,7 @@ export function AdminReferralsView({
                                       setSelectedCommission(c);
                                       setActionType("cancel");
                                     }}
-                                    className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-[11px] font-bold cursor-pointer"
+                                    className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[11px] font-bold cursor-pointer"
                                   >
                                     Cancelar
                                   </button>
@@ -1102,7 +1111,7 @@ export function AdminReferralsView({
                                     setSelectedCommission(c);
                                     setActionType("pay");
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-[11px] font-bold cursor-pointer flex items-center gap-1"
+                                  className="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-500/20 text-[11px] font-bold cursor-pointer flex items-center gap-1"
                                 >
                                   <Check className="w-3 h-3" />
                                   <span>Marcar paga</span>
@@ -1110,13 +1119,13 @@ export function AdminReferralsView({
                               )}
 
                               {c.status === "PAID" && (
-                                <span className="text-[10px] text-zinc-500 font-semibold">
+                                <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-semibold">
                                   Liquidada
                                 </span>
                               )}
 
                               {c.status === "CANCELLED" && (
-                                <span className="text-[10px] text-zinc-500 font-semibold">
+                                <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-semibold">
                                   Cancelada
                                 </span>
                               )}
@@ -1137,33 +1146,33 @@ export function AdminReferralsView({
       {/* ABA 4: CONFIGURAÇÕES GERAIS                                          */}
       {/* ==================================================================== */}
       {activeTab === "settings" && (
-        <div className="bg-[var(--surface-primary,#111312)] border border-white/10 rounded-3xl p-6 sm:p-7 shadow-xs space-y-5 max-w-2xl">
-          <div className="border-b border-white/10 pb-4">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Settings className="w-4 h-4 text-emerald-400" />
+        <div className="bg-white dark:bg-[#111312] border border-slate-200 dark:border-white/10 rounded-3xl p-6 sm:p-7 shadow-xs space-y-5 max-w-2xl">
+          <div className="border-b border-slate-200 dark:border-white/10 pb-4">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Settings className="w-4 h-4 text-emerald-500" />
               <span>Configurações Globais do Programa</span>
             </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
               Defina as regras padrão para novos divulgadores quando não houver links individuais configurados.
             </p>
           </div>
 
           {settingsError && (
-            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold">
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-semibold">
               {settingsError}
             </div>
           )}
           {settingsSuccess && (
-            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
               {settingsSuccess}
             </div>
           )}
 
           <form onSubmit={handleSaveSettings} className="space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
               <div>
-                <span className="text-xs font-bold text-white block">Status do Programa</span>
-                <span className="text-[11px] text-zinc-400 block mt-0.5">
+                <span className="text-xs font-bold text-slate-900 dark:text-white block">Status do Programa</span>
+                <span className="text-[11px] text-slate-500 dark:text-zinc-400 block mt-0.5">
                   Permite aos membros visualizarem a aba e seus links exclusivos.
                 </span>
               </div>
@@ -1171,7 +1180,7 @@ export function AdminReferralsView({
                 type="button"
                 onClick={() => setIsEnabled(!isEnabled)}
                 className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
-                  isEnabled ? "bg-emerald-500" : "bg-zinc-700"
+                  isEnabled ? "bg-emerald-500" : "bg-slate-300 dark:bg-zinc-700"
                 }`}
               >
                 <span
@@ -1184,19 +1193,19 @@ export function AdminReferralsView({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-300">Tipo de Comissão Padrão</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Tipo de Comissão Padrão</label>
                 <select
                   value={commissionType}
                   onChange={(e) => setCommissionType(e.target.value as CommissionType)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-hidden focus:border-emerald-500 min-h-[44px]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#151619] border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 min-h-[44px]"
                 >
-                  <option value="PERCENTAGE" className="bg-[#151619]">Percentual (%)</option>
-                  <option value="FIXED" className="bg-[#151619]">Valor Fixo (R$)</option>
+                  <option value="PERCENTAGE" className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white">Percentual (%)</option>
+                  <option value="FIXED" className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white">Valor Fixo (R$)</option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-300">
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
                   {commissionType === "PERCENTAGE" ? "Taxa (%)" : "Valor por Matrícula (R$)"}
                 </label>
                 <input
@@ -1205,13 +1214,13 @@ export function AdminReferralsView({
                   step={commissionType === "PERCENTAGE" ? "0.1" : "1"}
                   value={commissionValue}
                   onChange={(e) => setCommissionValue(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white font-bold focus:outline-hidden focus:border-emerald-500 min-h-[44px]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#151619] border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white font-bold focus:outline-hidden focus:border-emerald-500 min-h-[44px]"
                   required
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end pt-3 border-t border-white/10">
+            <div className="flex items-center justify-end pt-3 border-t border-slate-200 dark:border-white/10">
               <button
                 type="submit"
                 disabled={isSavingSettings}
@@ -1284,11 +1293,11 @@ export function AdminReferralsView({
       {/* MODAL 5: REVEAL PIX */}
       {actionType === "reveal_pix" && revealedPix && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#151619] border border-white/10 rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="bg-white dark:bg-[#151619] border border-slate-200 dark:border-white/10 rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
               <div className="flex items-center gap-2">
-                <KeyRound className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-base font-bold text-white">Chave PIX do Membro</h3>
+                <KeyRound className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Chave PIX do Membro</h3>
               </div>
               <button
                 type="button"
@@ -1297,23 +1306,23 @@ export function AdminReferralsView({
                   setRevealedPix(null);
                   setCopiedPix(false);
                 }}
-                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+                className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-3">
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1">
-                <span className="text-[10px] text-zinc-400 uppercase font-semibold block">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-1">
+                <span className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase font-semibold block">
                   Tipo: {revealedPix.pixKeyType}
                 </span>
-                <span className="font-mono font-bold text-white text-sm select-all block break-all">
+                <span className="font-mono font-bold text-slate-900 dark:text-white text-sm select-all block break-all">
                   {revealedPix.pixKey}
                 </span>
                 {revealedPix.receiverName && (
-                  <span className="text-xs text-zinc-300 block pt-1 border-t border-white/5 mt-1">
-                    Titular: <strong>{revealedPix.receiverName}</strong>
+                  <span className="text-xs text-slate-600 dark:text-zinc-300 block pt-1 border-t border-slate-200 dark:border-white/5 mt-1">
+                    Titular: <strong className="text-slate-900 dark:text-white">{revealedPix.receiverName}</strong>
                   </span>
                 )}
               </div>
@@ -1347,9 +1356,9 @@ export function AdminReferralsView({
       {/* MODAL 6: APPROVE / CANCEL / PAY COMMISSION CONFIRMATION */}
       {(actionType === "approve" || actionType === "cancel" || actionType === "pay") && selectedCommission && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#151619] border border-white/10 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <h3 className="text-base font-bold text-white">
+          <div className="bg-white dark:bg-[#151619] border border-slate-200 dark:border-white/10 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 {actionType === "approve"
                   ? "Aprovar Comissão"
                   : actionType === "cancel"
@@ -1362,38 +1371,38 @@ export function AdminReferralsView({
                   setActionType(null);
                   setSelectedCommission(null);
                 }}
-                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {actionError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold">
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-rose-400 text-xs font-semibold">
                 {actionError}
               </div>
             )}
 
-            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs space-y-1">
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs space-y-1">
               <div>
-                <span className="text-zinc-400">Indicador:</span>{" "}
-                <span className="font-semibold text-white">{selectedCommission.referrerName}</span>
+                <span className="text-slate-500 dark:text-zinc-400">Indicador:</span>{" "}
+                <span className="font-semibold text-slate-900 dark:text-white">{selectedCommission.referrerName}</span>
               </div>
               <div>
-                <span className="text-zinc-400">Comprador:</span>{" "}
-                <span className="font-semibold text-white">{selectedCommission.studentName}</span>
+                <span className="text-slate-500 dark:text-zinc-400">Comprador:</span>{" "}
+                <span className="font-semibold text-slate-900 dark:text-white">{selectedCommission.studentName}</span>
               </div>
               {selectedCommission.amount && (
                 <div>
-                  <span className="text-zinc-400">Valor da Comissão:</span>{" "}
-                  <span className="font-bold text-emerald-400">{formatBrl(selectedCommission.amount)}</span>
+                  <span className="text-slate-500 dark:text-zinc-400">Valor da Comissão:</span>{" "}
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatBrl(selectedCommission.amount)}</span>
                 </div>
               )}
             </div>
 
             {actionType === "approve" && (
               <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-300">
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
                   Valor Base da Venda / Matrícula (R$)
                 </label>
                 <input
@@ -1403,9 +1412,9 @@ export function AdminReferralsView({
                   value={baseAmountInput}
                   onChange={(e) => setBaseAmountInput(e.target.value)}
                   placeholder="Ex: 150.00"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-white focus:outline-hidden focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-emerald-500"
                 />
-                <p className="text-[11px] text-zinc-400">
+                <p className="text-[11px] text-slate-500 dark:text-zinc-400">
                   O valor da comissão será recalculado automaticamente com base na taxa percentual.
                 </p>
               </div>
@@ -1413,7 +1422,7 @@ export function AdminReferralsView({
 
             {actionType === "cancel" && (
               <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-300">
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
                   Motivo do Cancelamento <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -1421,7 +1430,7 @@ export function AdminReferralsView({
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                   placeholder="Ex: Reembolso solicitado ou indicação duplicada"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-hidden focus:border-rose-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-rose-500"
                   required
                 />
               </div>
@@ -1429,7 +1438,7 @@ export function AdminReferralsView({
 
             {actionType === "pay" && (
               <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-300">
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
                   Nota ou Código do Comprovante PIX (Opcional)
                 </label>
                 <input
@@ -1437,12 +1446,12 @@ export function AdminReferralsView({
                   value={paymentNote}
                   onChange={(e) => setPaymentNote(e.target.value)}
                   placeholder="Ex: Comprovante E2E... enviado no WhatsApp"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-hidden focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-emerald-500"
                 />
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-white/10">
               <button
                 type="button"
                 onClick={() => {
@@ -1450,7 +1459,7 @@ export function AdminReferralsView({
                   setSelectedCommission(null);
                 }}
                 disabled={isProcessingAction}
-                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-zinc-300 cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-semibold text-slate-700 dark:text-zinc-300 cursor-pointer"
               >
                 Cancelar
               </button>

@@ -87,59 +87,19 @@ export interface EligiblePromotionParticipant {
   hasPix: boolean;
 }
 
-/**
- * Validates destination URL:
- * - Allows https://, http://, and internal paths starting with /consultoria/
- * - Allows WhatsApp URLs (wa.me, api.whatsapp.com)
- * - Strictly rejects dangerous schemes (javascript:, data:, vbscript:)
- * - Preserves all existing query parameters
- */
-export function validateDestinationUrl(rawUrl: string): { valid: boolean; normalized?: string; error?: string } {
-  if (!rawUrl || typeof rawUrl !== "string") {
-    return { valid: false, error: "A URL de destino é obrigatória." };
-  }
+import {
+  isWhatsAppUrl,
+  buildWhatsAppUrl,
+  validateDestinationUrl,
+  sanitizeCampaignCode,
+} from "./url-utils";
 
-  const trimmed = rawUrl.trim();
-  const lower = trimmed.toLowerCase();
-
-  if (
-    lower.startsWith("javascript:") ||
-    lower.startsWith("data:") ||
-    lower.startsWith("vbscript:") ||
-    lower.startsWith("file:")
-  ) {
-    return { valid: false, error: "Protocolo de URL inválido ou não seguro." };
-  }
-
-  // Internal relative path check
-  if (trimmed.startsWith("/")) {
-    if (trimmed.startsWith("//") || trimmed.startsWith("/\\")) {
-      return { valid: false, error: "Caminho interno inválido." };
-    }
-    return { valid: true, normalized: trimmed };
-  }
-
-  // Full URL validation
-  try {
-    const parsed = new URL(trimmed);
-    if (!["http:", "https:"].includes(parsed.protocol)) {
-      return { valid: false, error: "Apenas endereços HTTP ou HTTPS são permitidos." };
-    }
-    return { valid: true, normalized: trimmed };
-  } catch {
-    return { valid: false, error: "Formato de URL inválido. Informe um endereço completo (ex: https://...)." };
-  }
-}
-
-/**
- * Normalizes custom campaign code: uppercase, letters and digits only, 3 to 32 chars.
- */
-export function sanitizeCampaignCode(rawCode?: string): string {
-  if (!rawCode || typeof rawCode !== "string") {
-    return "";
-  }
-  return rawCode.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 32);
-}
+export {
+  isWhatsAppUrl,
+  buildWhatsAppUrl,
+  validateDestinationUrl,
+  sanitizeCampaignCode,
+};
 
 /**
  * Generates an alphanumeric campaign code if not explicitly given.

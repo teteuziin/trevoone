@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, Info, CheckSquare, Square } from "@/components/referrals/referral-icons";
+import React, { useState, useMemo } from "react";
+import { X, Info, CheckSquare, Square, MessageCircle, Link2 } from "@/components/referrals/referral-icons";
 import { UserAvatar } from "@/components/account/user-avatar";
+import { buildWhatsAppUrl, isWhatsAppUrl } from "@/lib/referrals/url-utils";
 import type {
   PromotionalCampaignLinkRecord,
   EligiblePromotionParticipant,
@@ -27,6 +28,25 @@ interface CampaignLinkModalProps {
   onSuccess: () => void;
 }
 
+function parseExistingWhatsAppUrl(url: string | null | undefined): { phone: string; message: string } | null {
+  if (!url || !isWhatsAppUrl(url)) return null;
+  try {
+    const full = url.startsWith("http") ? url : `https://${url}`;
+    const parsed = new URL(full);
+    let phone = "";
+    const message = parsed.searchParams.get("text") || "";
+
+    if (parsed.hostname.includes("wa.me")) {
+      phone = parsed.pathname.replace(/^\//, "");
+    } else if (parsed.searchParams.get("phone")) {
+      phone = parsed.searchParams.get("phone") || "";
+    }
+    return { phone, message };
+  } catch {
+    return null;
+  }
+}
+
 export function CampaignLinkModal({
   isOpen,
   onClose,
@@ -43,7 +63,20 @@ export function CampaignLinkModal({
     initialData?.referrerMemberId || defaultParticipantId || (participants[0]?.memberId ?? 0)
   );
   const [title, setTitle] = useState(initialData?.title || "");
+
+  // Destination Type: WHATSAPP vs CUSTOM_URL
+  const existingWa = initialData?.destinationUrl ? parseExistingWhatsAppUrl(initialData.destinationUrl) : null;
+  const initialIsWa = Boolean(existingWa || (initialData?.destinationUrl && isWhatsAppUrl(initialData.destinationUrl)));
+
+  const [destinationType, setDestinationType] = useState<"WHATSAPP" | "CUSTOM_URL">(
+    initialIsWa || !initialData ? "WHATSAPP" : "CUSTOM_URL"
+  );
   const [destinationUrl, setDestinationUrl] = useState(initialData?.destinationUrl || "");
+  const [whatsAppPhone, setWhatsAppPhone] = useState(existingWa?.phone || "");
+  const [customWhatsAppMessage, setCustomWhatsAppMessage] = useState<string | null>(
+    existingWa?.message ?? null
+  );
+
   const [description, setDescription] = useState(initialData?.description || "");
   const [customCode, setCustomCode] = useState(initialData?.code || "");
   const [announcedDiscountType, setAnnouncedDiscountType] = useState<AnnouncedDiscountType>(
@@ -80,11 +113,27 @@ export function CampaignLinkModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-
-
-  if (!isOpen) return null;
-
   const selectedParticipant = participants.find((p) => p.memberId === selectedMemberId);
+
+  // Dynamic default template based on selected participant, code, and discount
+  const defaultWhatsAppTemplate = useMemo(() => {
+    const pName = selectedParticipant?.name || "um parceiro oficial";
+    const cCode = customCode || selectedParticipant?.defaultCode || "PROMO";
+    const discPart = announcedDiscountValue ? ` com ${announcedDiscountValue}% de desconto` : "";
+    return `Olá! Vim pela indicação de ${pName} (cupom ${cCode}) e quero saber mais sobre a consultoria${discPart}!`;
+  }, [selectedParticipant?.name, selectedParticipant?.defaultCode, customCode, announcedDiscountValue]);
+
+  const activeWhatsAppMessage = customWhatsAppMessage !== null ? customWhatsAppMessage : defaultWhatsAppTemplate;
+
+  // Compute live WhatsApp URL preview
+  const computedWhatsAppUrl = useMemo(() => {
+    if (destinationType !== "WHATSAPP" || !whatsAppPhone.trim()) return "";
+    return buildWhatsAppUrl(whatsAppPhone, activeWhatsAppMessage);
+  }, [destinationType, whatsAppPhone, activeWhatsAppMessage]);
+
+  function handleResetDefaultWhatsAppMessage() {
+    setCustomWhatsAppMessage(null);
+  }
 
   // Quick preset helpers
   function handlePresetDiscount(val: string) {
@@ -95,6 +144,8 @@ export function CampaignLinkModal({
     }
   }
 
+  if (!isOpen) return null;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -103,10 +154,22 @@ export function CampaignLinkModal({
       setError("Informe o título de divulgação.");
       return;
     }
-    if (!destinationUrl.trim()) {
-      setError("Cole a URL de destino da campanha.");
+
+    let finalDestinationUrl = destinationUrl.trim();
+    if (destinationType === "WHATSAPP") {
+      const cleanPhone = whatsAppPhone.replace(/\D/g, "");
+      if (cleanPhone.length < 10) {
+        setError("Informe um número de WhatsApp válido com DDD (mínimo 10 dígitos).");
+        return;
+      }
+      finalDestinationUrl = buildWhatsAppUrl(whatsAppPhone, activeWhatsAppMessage);
+    }
+
+    if (!finalDestinationUrl) {
+      setError("Informe a URL ou número de destino da campanha.");
       return;
     }
+
     if (!selectedMemberId) {
       setError("Selecione o participante responsável.");
       return;
@@ -119,7 +182,7 @@ export function CampaignLinkModal({
         const res = await updateCampaignLinkAction(consultancySlug, {
           linkId: initialData.id,
           title,
-          destinationUrl,
+          destinationUrl: finalDestinationUrl,
           description,
           announcedDiscountType,
           announcedDiscountValue,
@@ -143,7 +206,7 @@ export function CampaignLinkModal({
         const res = await createCampaignLinkAction(consultancySlug, {
           referrerMemberId: selectedMemberId,
           title,
-          destinationUrl,
+          destinationUrl: finalDestinationUrl,
           description,
           code: customCode || null,
           announcedDiscountType,
@@ -169,7 +232,7 @@ export function CampaignLinkModal({
       onSuccess();
       onClose();
     } catch {
-      setError("Ocorreu uma falha inesperada. Tente novamente.");
+      setError("Ocorreu um erro ao salvar o link. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }
@@ -178,22 +241,22 @@ export function CampaignLinkModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
       <div
-        className="w-full max-w-2xl bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 sm:p-7 shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-2xl bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 sm:p-7 shadow-2xl space-y-5 my-8 max-h-[92vh] overflow-y-auto"
         role="dialog"
         aria-modal="true"
         aria-labelledby="campaign-modal-title"
       >
-        {/* Header */}
+        {/* HEADER */}
         <div className="flex items-start justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
-              {isEditing ? "Edição de Campanha" : "Cadastro Manual de Link"}
+              {isEditing ? "Edição de Campanha" : "Nova Campanha de Divulgação"}
             </span>
-            <h2 id="campaign-modal-title" className="text-xl font-bold text-[var(--text-primary)] mt-1">
-              {isEditing ? `Editar: ${initialData?.title}` : "Novo Link de Divulgação"}
+            <h2 id="campaign-modal-title" className="text-lg font-bold text-[var(--text-primary)] mt-0.5">
+              {isEditing ? `Editar Link /r/${initialData?.code}` : "Criar Link Individual de Divulgação"}
             </h2>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-              O administrador controla manualmente o participante, o destino e as condições deste link.
+            <p className="text-xs text-[var(--text-tertiary)] mt-0.5 leading-relaxed">
+              Direcione para o WhatsApp ou para checkout externo, definindo cupom do cliente e comissão do parceiro.
             </p>
           </div>
           <button
@@ -243,7 +306,7 @@ export function CampaignLinkModal({
                 required
               >
                 {participants.map((p) => (
-                  <option key={p.memberId} value={p.memberId}>
+                  <option key={p.memberId} value={p.memberId} className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white">
                     {p.name} ({p.role === "INFLUENCER" ? "Influenciador / VIP" : "Aluno"})
                   </option>
                 ))}
@@ -260,13 +323,15 @@ export function CampaignLinkModal({
             )}
           </div>
 
-          {/* 2. TÍTULO E URL DE DESTINO (REGRA CENTRAL: COLADA MANUALMENTE) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
-                <span>Título de Divulgação <span className="text-rose-500">*</span></span>
+          {/* 2. TÍTULO E TIPO DE DESTINO (WHATSAPP vs URL EXTERNA) */}
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-bold text-[var(--text-primary)]">
+                  Título de Divulgação <span className="text-rose-500">*</span>
+                </label>
                 <span className="text-[10px] font-normal text-[var(--text-tertiary)]">Ex: Meu desconto de 10%</span>
-              </label>
+              </div>
               <input
                 type="text"
                 value={title}
@@ -278,65 +343,168 @@ export function CampaignLinkModal({
               />
             </div>
 
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
-                <span>URL de Destino (Colada pelo Administrador) <span className="text-rose-500">*</span></span>
-                <span className="text-[10px] font-normal text-[var(--text-tertiary)]">Checkout, WhatsApp ou página</span>
-              </label>
-              <input
-                type="text"
-                value={destinationUrl}
-                onChange={(e) => setDestinationUrl(e.target.value)}
-                placeholder="https://pay.hotmart.com/... ou https://wa.me/55... ou /consultoria/..."
-                className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-mono text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] transition-colors min-h-[44px]"
-                required
-              />
-              <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed pt-0.5">
-                O link de divulgação do Trevo One registrará o clique e encaminhará exatamente para este endereço.
-              </p>
+            {/* SELETOR DE TIPO DE DESTINO */}
+            <div className="space-y-3 p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-[var(--text-primary)]">
+                  Tipo de Destino do Link <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[10px] text-[var(--text-tertiary)]">Onde o cliente cairá</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDestinationType("WHATSAPP")}
+                  className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[42px] flex items-center justify-center gap-2 border ${
+                    destinationType === "WHATSAPP"
+                      ? "bg-[#25D366]/15 border-[#25D366]/50 text-emerald-700 dark:text-[#25D366] shadow-xs"
+                      : "bg-[var(--surface)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--brand)]"
+                  }`}
+                >
+                  <MessageCircle className="w-4 h-4 text-[#25D366]" />
+                  <span>WhatsApp (Atendimento / Fechamento)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDestinationType("CUSTOM_URL")}
+                  className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[42px] flex items-center justify-center gap-2 border ${
+                    destinationType === "CUSTOM_URL"
+                      ? "bg-[var(--brand)] border-[var(--brand)] text-white shadow-xs"
+                      : "bg-[var(--surface)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--brand)]"
+                  }`}
+                >
+                  <Link2 className="w-4 h-4" />
+                  <span>URL Externa / Checkout / Página</span>
+                </button>
+              </div>
+
+              {destinationType === "WHATSAPP" ? (
+                <div className="space-y-3 pt-2">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-xs font-semibold text-[var(--text-primary)]">
+                        Número do WhatsApp de Atendimento (DDD + Número) <span className="text-rose-500">*</span>
+                      </label>
+                      <span className="text-[10px] text-[var(--text-tertiary)]">DDI 55 prefixado se omitido</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={whatsAppPhone}
+                      onChange={(e) => setWhatsAppPhone(e.target.value)}
+                      placeholder="Ex: (71) 99999-9999 ou 5571999999999"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] font-mono focus:outline-hidden focus:border-[var(--brand)] min-h-[42px]"
+                      required={destinationType === "WHATSAPP"}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-xs font-semibold text-[var(--text-primary)]">
+                        Mensagem Automática do Cliente (editável)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleResetDefaultWhatsAppMessage}
+                        className="text-[10px] text-[var(--brand)] hover:underline cursor-pointer"
+                      >
+                        Restaurar mensagem padrão
+                      </button>
+                    </div>
+                    <textarea
+                      value={activeWhatsAppMessage}
+                      onChange={(e) => setCustomWhatsAppMessage(e.target.value)}
+                      placeholder="Ex: Olá! Vim pela indicação..."
+                      rows={3}
+                      className="w-full px-3.5 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] resize-y min-h-[72px]"
+                    />
+                  </div>
+
+                  {/* PREVIEW DA URL FINAL */}
+                  {computedWhatsAppUrl && (
+                    <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/10 space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1">
+                        <MessageCircle className="w-3 h-3 text-[#25D366]" />
+                        URL Gerada para Redirecionamento:
+                      </span>
+                      <p className="text-[11px] font-mono text-[var(--text-secondary)] break-all select-all">
+                        {computedWhatsAppUrl}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1.5 pt-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs font-semibold text-[var(--text-primary)]">
+                      Endereço Completo (URL de Destino) <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[10px] text-[var(--text-tertiary)]">Checkout, Hotmart ou página</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={destinationUrl}
+                    onChange={(e) => setDestinationUrl(e.target.value)}
+                    placeholder="https://pay.hotmart.com/... ou https://wa.me/55..."
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-xs font-mono text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] min-h-[42px]"
+                    required={destinationType === "CUSTOM_URL"}
+                  />
+                  <p className="text-[11px] text-[var(--text-tertiary)]">
+                    Dica: Se colar um link wa.me ou número de telefone diretamente, o sistema também reconhece e valida.
+                  </p>
+                </div>
+              )}
             </div>
 
-            <div className="space-y-1.5 sm:col-span-1">
-              <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
-                <span>Código Personalizado (opcional)</span>
-                <span className="text-[10px] text-[var(--text-tertiary)]">Gerado auto se vazio</span>
-              </label>
-              <input
-                type="text"
-                value={customCode}
-                onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
-                placeholder="Ex: VIPANA10"
-                maxLength={32}
-                className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-mono uppercase text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] transition-colors min-h-[44px]"
-              />
-            </div>
+            {/* CÓDIGO PERSONALIZADO E OBSERVAÇÕES */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5 sm:col-span-1">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-[var(--text-primary)]">
+                    Código Personalizado (opcional)
+                  </label>
+                  <span className="text-[10px] text-[var(--text-tertiary)] font-normal whitespace-nowrap">
+                    Gerado auto se vazio
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  value={customCode}
+                  onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
+                  placeholder="Ex: VIPANA10"
+                  maxLength={32}
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-mono uppercase text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] transition-colors min-h-[44px]"
+                />
+              </div>
 
-            <div className="space-y-1.5 sm:col-span-1">
-              <label className="text-xs font-bold text-[var(--text-primary)]">
-                Observações internas (opcional)
-              </label>
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Ex: Parceria exclusiva com influenciadora"
-                maxLength={255}
-                className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] transition-colors min-h-[44px]"
-              />
+              <div className="space-y-1.5 sm:col-span-1">
+                <label className="text-xs font-bold text-[var(--text-primary)]">
+                  Observações internas (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Ex: Parceria exclusiva com influenciadora"
+                  maxLength={255}
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] transition-colors min-h-[44px]"
+                />
+              </div>
             </div>
           </div>
 
-          {/* ALERTA: CHECKOUT EXTERNO & WHATSAPP */}
-          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[11px] leading-relaxed space-y-1">
+          {/* ALERTA INFORMATIVO */}
+          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-[11px] leading-relaxed space-y-1">
             <span className="font-bold flex items-center gap-1.5">
-              <Info className="w-4 h-4 text-amber-500 shrink-0" /> Informação importante sobre descontos externos:
+              <Info className="w-4 h-4 text-amber-500 shrink-0" /> Informação importante sobre direcionamentos:
             </span>
             <p>
-              Caso a URL aponte para um <strong>checkout externo</strong> (Hotmart, Kiwify, Eduzz, etc.), o cupom/desconto deve estar previamente criado e aplicado naquele serviço. O Trevo One preserva o endereço colado e não altera preços externos sem integração específica. Se for <strong>WhatsApp</strong>, certifique-se de que a mensagem identifique a indicação para conferência manual da equipe.
+              Caso aponte para o <strong>WhatsApp</strong>, a mensagem automática identificará a indicação e o cupom para fechamento direto pela sua equipe. Se for para <strong>checkout externo</strong> (Hotmart, Kiwify, etc.), certifique-se de que o cupom anunciado esteja ativo na plataforma de destino.
             </p>
           </div>
 
-          {/* 3. DESCONTO ANUNCIADO (CONFIGURAÇÃO INDEPENDENTE DA COMISSÃO) */}
+          {/* 3. DESCONTO ANUNCIADO */}
           <div className="space-y-2 p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-[var(--text-primary)]">
@@ -498,73 +666,73 @@ export function CampaignLinkModal({
           </div>
 
           {/* STATUS */}
-          <div className="space-y-1.5 pt-1">
-            <label className="text-xs font-bold text-[var(--text-primary)]">Status da Campanha</label>
-            <div className="grid grid-cols-4 gap-2">
-              {(["ACTIVE", "PAUSED", "DRAFT", "ENDED"] as CampaignLinkStatus[]).map((st) => {
-                const labels: Record<CampaignLinkStatus, string> = {
-                  ACTIVE: "Ativo",
-                  PAUSED: "Pausado",
-                  DRAFT: "Rascunho",
-                  ENDED: "Encerrado",
-                };
-                return (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => setStatus(st)}
-                    className={`py-2 px-2 text-center rounded-xl text-xs font-bold cursor-pointer transition-all min-h-[38px] ${
-                      status === st
-                        ? "bg-[var(--brand)] text-white shadow-xs"
-                        : "bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    }`}
-                  >
-                    {labels[st]}
-                  </button>
-                );
-              })}
+          <div className="space-y-1">
+            <label className="text-[11px] font-semibold text-[var(--text-secondary)]">Status do Link</label>
+            <div className="flex items-center gap-2">
+              {(
+                [
+                  { id: "ACTIVE", label: "Ativo (Divulgável)" },
+                  { id: "PAUSED", label: "Pausado (Temporário)" },
+                  { id: "ENDED", label: "Encerrado" },
+                ] as const
+              ).map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setStatus(s.id)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[40px] flex-1 ${
+                    status === s.id
+                      ? "bg-[var(--brand)] text-white shadow-xs"
+                      : "bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-secondary)]"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* MATERIAIS RELACIONADOS (OPCIONAL) */}
+          {/* 6. VÍNCULO COM MATERIAIS */}
           {materials.length > 0 && (
-            <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
-              <label className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between">
-                <span>Materiais Relacionados a esta Campanha (Opcional)</span>
-                <span className="text-[10px] font-normal text-[var(--text-tertiary)]">
+            <div className="space-y-2 p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[var(--text-primary)]">
+                  Artes e Materiais Vinculados (Opcional)
+                </span>
+                <span className="text-[10px] text-[var(--text-tertiary)]">
                   {selectedMaterialIds.length} selecionado(s)
                 </span>
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-36 overflow-y-auto p-1">
-                {materials.map((m) => {
-                  const isChecked = selectedMaterialIds.includes(m.id);
+              </div>
+              <p className="text-[11px] text-[var(--text-tertiary)]">
+                Selecione as artes que ficarão visíveis para este parceiro ao visualizar este link.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 max-h-48 overflow-y-auto">
+                {materials.map((mat) => {
+                  const isChecked = selectedMaterialIds.includes(mat.id);
                   return (
                     <button
+                      key={mat.id}
                       type="button"
-                      key={m.id}
                       onClick={() => {
-                        if (isChecked) {
-                          setSelectedMaterialIds(selectedMaterialIds.filter((id) => id !== m.id));
-                        } else {
-                          setSelectedMaterialIds([...selectedMaterialIds, m.id]);
-                        }
+                        setSelectedMaterialIds((prev) =>
+                          isChecked ? prev.filter((id) => id !== mat.id) : [...prev, mat.id]
+                        );
                       }}
-                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all flex items-center gap-2 ${
+                      className={`p-2.5 rounded-xl border text-left text-xs transition-all flex items-center gap-2.5 cursor-pointer ${
                         isChecked
-                          ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-foreground)]"
-                          : "border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+                          ? "bg-[var(--brand-soft)] border-[var(--brand)] text-[var(--text-primary)]"
+                          : "bg-[var(--surface)] border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--brand)]"
                       }`}
                     >
                       {isChecked ? (
-                        <CheckSquare className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <CheckSquare className="w-4 h-4 text-[var(--brand)] shrink-0" />
                       ) : (
-                        <Square className="w-4 h-4 text-zinc-400 shrink-0" />
+                        <Square className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
                       )}
                       <div className="truncate">
-                        <span className="text-xs font-semibold block truncate">{m.title}</span>
-                        <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-mono">
-                          {m.mediaFormat}
-                        </span>
+                        <span className="font-semibold block truncate text-[var(--text-primary)]">{mat.title}</span>
+                        <span className="text-[10px] text-[var(--text-tertiary)] uppercase">{mat.mediaFormat}</span>
                       </div>
                     </button>
                   );
@@ -573,29 +741,26 @@ export function CampaignLinkModal({
             </div>
           )}
 
-          {/* Footer Actions */}
+          {/* BOTÕES DE AÇÃO */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-secondary)] transition-colors cursor-pointer min-h-[44px]"
+              className="px-4 py-2.5 rounded-2xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-secondary)] transition-colors cursor-pointer min-h-[44px]"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-2xl bg-[var(--brand)] hover:brightness-110 active:scale-98 text-white text-xs font-bold transition-all cursor-pointer shadow-xs min-h-[44px] flex items-center justify-center gap-2"
+              className="px-6 py-2.5 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 min-h-[44px]"
             >
-              {isSubmitting ? (
-                <>
-                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Salvando...</span>
-                </>
-              ) : (
-                <span>{isEditing ? "Salvar Alterações" : "Cadastrar Link"}</span>
-              )}
+              {isSubmitting
+                ? "Salvando..."
+                : isEditing
+                ? "Salvar Alterações"
+                : "Criar Link de Divulgação"}
             </button>
           </div>
         </form>

@@ -36,7 +36,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       targetUrl = new URL(`/consultoria/${resolution.consultancySlug}`, request.url);
     }
 
-    const response = NextResponse.redirect(targetUrl);
+    const response = NextResponse.redirect(targetUrl, 307);
     const isProd = process.env.NODE_ENV === "production";
     response.cookies.set("trevo_ref_token", resolution.attributionToken, {
       httpOnly: true,

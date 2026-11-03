@@ -7,10 +7,10 @@ import {
   requestStudentPhotos,
   requestStudentAnamnesis,
   requestStudentAssessment,
+  requestFormForStudent,
   listAvailableFormTemplatesForRequest,
   type AvailableFormTemplateOption,
 } from "@/lib/consultancies/student-requests";
-import { requestFormForStudent } from "@/lib/consultancies/custom-forms";
 import {
   getPersonalStudentDetail,
   type PersonalStudentDetail,
@@ -111,7 +111,7 @@ export async function requestStudentCustomFormAction(
     revalidatePath(`/consultoria/${slug}/progresso`);
     revalidatePath(`/consultoria/${slug}/formularios`);
 
-    return { success: true, requestPublicId: req.publicId };
+    return { success: req.success, requestPublicId: req.requestPublicId, error: req.error };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Erro ao solicitar formulário." };
   }
@@ -122,26 +122,26 @@ export async function getAvailableFormTemplatesAction(
 ): Promise<{ success: boolean; templates?: AvailableFormTemplateOption[]; error?: string }> {
   const session = await getCurrentSession();
   if (!session) {
-    return { success: false, error: "Sessão expirada." };
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
   if (!context) {
-    return { success: false, error: "Acesso negado à consultoria." };
+    return { success: false, error: "Acesso negado." };
   }
 
   try {
     const templates = await listAvailableFormTemplatesForRequest(context.consultancyId);
     return { success: true, templates };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Erro ao carregar modelos." };
+    return { success: false, error: err instanceof Error ? err.message : "Erro ao listar formulários." };
   }
 }
 
 export async function getPersonalStudentDetailAction(
   slug: string,
   studentMembershipPublicId: string
-): Promise<{ success: boolean; detail?: PersonalStudentDetail; error?: string }> {
+): Promise<{ success: boolean; detail?: PersonalStudentDetail | null; error?: string }> {
   const session = await getCurrentSession();
   if (!session) {
     return { success: false, error: "Sessão expirada. Faça login novamente." };
@@ -149,15 +149,7 @@ export async function getPersonalStudentDetailAction(
 
   const context = await resolveConsultancyContext(session.userId, slug);
   if (!context) {
-    return { success: false, error: "Acesso negado à consultoria." };
-  }
-
-  const isPersonal = context.roles.includes("PERSONAL");
-  const isNutritionist = context.roles.includes("NUTRITIONIST");
-  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
-
-  if (!isPersonal && !isNutritionist && !isConsultancyAdmin) {
-    return { success: false, error: "Permissão insuficiente para visualizar dados de alunos." };
+    return { success: false, error: "Acesso negado." };
   }
 
   try {
@@ -166,17 +158,8 @@ export async function getPersonalStudentDetailAction(
       consultancySlug: slug,
       studentMembershipPublicId,
     });
-
-    if (!detail) {
-      return { success: false, error: "Aluno não encontrado ou não vinculado a esta consultoria." };
-    }
-
     return { success: true, detail };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Erro ao carregar detalhes do aluno.",
-    };
+    return { success: false, error: err instanceof Error ? err.message : "Erro ao carregar detalhes do aluno." };
   }
 }
-

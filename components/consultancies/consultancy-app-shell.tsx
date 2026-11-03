@@ -146,6 +146,13 @@ export async function ConsultancyAppShell({
       href: `/consultoria/${consultancySlug}/indicacoes`,
       iconName: "referrals",
     });
+    rawItems.push({
+      id: "student-formularios",
+      label: "Formulários",
+      mobileLabel: "Formulários",
+      href: `/consultoria/${consultancySlug}/formularios`,
+      iconName: "forms",
+    });
   }
 
   // 2. PARCERIA (Influencer / VIP - Secundário quando há STUDENT)
@@ -222,6 +229,13 @@ export async function ConsultancyAppShell({
       mobileLabel: "Membros",
       href: `/consultoria/${consultancySlug}/membros`,
       iconName: "members",
+    });
+    rawItems.push({
+      id: "admin-formularios",
+      label: "Formulários",
+      mobileLabel: "Formulários",
+      href: `/consultoria/${consultancySlug}/formularios`,
+      iconName: "forms",
     });
     rawItems.push({
       id: "admin-financeiro",

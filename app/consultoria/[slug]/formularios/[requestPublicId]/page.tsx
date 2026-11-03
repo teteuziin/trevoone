@@ -5,6 +5,6 @@ interface PageProps {
 }
 
 export default async function SingleFormularioPage({ params }: PageProps) {
-  const { slug } = await params;
-  redirect(`/consultoria/${slug}/formularios`);
+  const { slug, requestPublicId } = await params;
+  redirect(`/consultoria/${slug}/formularios?open=${requestPublicId}`);
 }

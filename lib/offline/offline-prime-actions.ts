@@ -13,9 +13,11 @@ import {
 } from "@/lib/training-v2/execution-repository";
 import { getStudentAuthoritativeNutrition } from "@/lib/nutrition-v2/assignment-repository";
 import {
-  listFormTemplates,
-  listFormRequests,
-} from "@/lib/consultancies/custom-forms";
+  listConsultancyForms,
+  listAssignmentsForStudent,
+  type FormQuestionDefinition,
+  type ConsultancyFormAssignmentDto,
+} from "@/lib/consultancies/forms";
 import { getStudentEvolutionHubData } from "@/lib/consultancies/evolution";
 
 import type {
@@ -23,10 +25,6 @@ import type {
   WorkoutExecutionSessionDto,
   WorkoutExecutionHistorySessionDto,
 } from "@/lib/training-v2/types";
-import type {
-  CustomFormFieldDefinition,
-  CustomFormRequestDto,
-} from "@/lib/consultancies/custom-forms";
 import type { EvolutionHubDataDto } from "@/types/evolution";
 
 export type DomainResult<T> =
@@ -65,10 +63,10 @@ export type StudentOfflinePrimeResult = {
         publicId: string;
         title: string;
         description: string | null;
-        fields: CustomFormFieldDefinition[];
+        fields: FormQuestionDefinition[];
         isOnboardingRequired: boolean;
       }>;
-      requests?: CustomFormRequestDto[];
+      requests?: ConsultancyFormAssignmentDto[];
     }>;
     evolution: DomainResult<{
       active: boolean;
@@ -155,26 +153,26 @@ export async function getStudentOfflinePrimeDataAction(
     };
   })();
 
-  // 3. FORMS DOMAIN (assigned form templates and requests)
+  // 3. FORMS DOMAIN (assigned forms and assignments)
   const formsPromise = (async () => {
-    const [templates, requests] = await Promise.all([
-      listFormTemplates(session.userId, consultancySlug),
-      listFormRequests(session.userId, consultancySlug),
+    const [forms, assignments] = await Promise.all([
+      listConsultancyForms(consultancySlug, session.userId).catch(() => []),
+      listAssignmentsForStudent(consultancySlug, session.userId).catch(() => []),
     ]);
 
     // Data bounding: template metadata and questions, zero binary file uploads
-    const boundedTemplates = (templates || []).map((t) => ({
+    const boundedTemplates = (forms || []).map((t) => ({
       publicId: t.publicId,
       title: t.title,
       description: t.description,
-      fields: t.fields,
-      isOnboardingRequired: t.isOnboardingRequired,
+      fields: t.questions,
+      isOnboardingRequired: false,
     }));
 
     return {
       active: true,
       templates: boundedTemplates,
-      requests: requests || [],
+      requests: assignments || [],
     };
   })();
 

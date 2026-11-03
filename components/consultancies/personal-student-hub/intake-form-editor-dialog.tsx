@@ -6,8 +6,27 @@ import type {
   FormTemplateSummary,
   StudentFormFieldItem,
 } from "@/lib/consultancies/personal-student-hub";
-import { saveAndSendOrFillFormAction } from "@/app/consultoria/[slug]/progresso/alunos/[studentPublicId]/actions";
-import type { CustomFormFieldType } from "@/lib/consultancies/custom-forms";
+
+export type CustomFormFieldType =
+  | "TEXT"
+  | "TEXTAREA"
+  | "SELECT"
+  | "MULTISELECT"
+  | "NUMBER"
+  | "DATE"
+  | "BOOLEAN"
+  | "FILE";
+
+async function saveAndSendOrFillFormAction(
+  slug: string,
+  studentPublicId: string,
+  payload: unknown
+): Promise<{ success: boolean; requestPublicId?: string; error?: string }> {
+  void slug;
+  void studentPublicId;
+  void payload;
+  return { success: false, error: "Operação não suportada nesta versão." };
+}
 
 export interface IntakeFormEditorDialogProps {
   isOpen: boolean;

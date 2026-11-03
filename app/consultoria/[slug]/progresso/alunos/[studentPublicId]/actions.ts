@@ -9,12 +9,11 @@ import {
   type PhotoEvaluationPose,
 } from "@/lib/consultancies/photo-evaluations";
 import {
-  createFormTemplate,
-  requestFormForStudent,
+  createConsultancyForm,
+  assignFormToStudents,
   submitFormResponses,
-  cancelOrDeleteFormRequest,
-  type CustomFormFieldDefinition,
-} from "@/lib/consultancies/custom-forms";
+  type FormQuestionDefinition,
+} from "@/lib/consultancies/forms";
 
 // ============================================================================
 // 1. ADD PHOTO EVALUATION BY PROFESSIONAL
@@ -143,7 +142,7 @@ export interface SaveAndSendOrFillFormParams {
   templatePublicId?: string;
   title?: string;
   description?: string;
-  fields?: CustomFormFieldDefinition[];
+  fields?: FormQuestionDefinition[];
   mode: "SEND_TO_STUDENT" | "FILL_WITH_STUDENT";
   responses?: Record<string, unknown>;
   isAnamnesis?: boolean;
@@ -162,7 +161,6 @@ export async function saveAndSendOrFillFormAction(
   try {
     let targetTemplatePublicId = params.templatePublicId;
 
-    // 1. If no existing template public ID provided, create template first
     if (!targetTemplatePublicId) {
       if (!params.title || !params.title.trim()) {
         return { success: false, error: "O título do formulário é obrigatório." };
@@ -171,35 +169,26 @@ export async function saveAndSendOrFillFormAction(
         return { success: false, error: "Adicione pelo menos uma pergunta ao formulário." };
       }
 
-      const createdTemplate = await createFormTemplate(session.userId, slug, {
+      const createdTemplate = await createConsultancyForm(slug, session.userId, {
         title: params.title.trim(),
-        description: params.description?.trim() || undefined,
-        fields: params.fields,
+        description: params.description?.trim() || null,
+        questions: params.fields,
       });
 
       targetTemplatePublicId = createdTemplate.publicId;
     }
 
-    // 2. Request form for the student
-    const formRequest = await requestFormForStudent(
-      session.userId,
-      slug,
-      targetTemplatePublicId,
-      studentPublicId
-    );
+    const assignRes = await assignFormToStudents(slug, session.userId, {
+      formPublicId: targetTemplatePublicId,
+      studentMembershipPublicIds: [studentPublicId],
+    });
 
-    // 3. If mode is "FILL_WITH_STUDENT", immediately submit answers on student's behalf
-    if (params.mode === "FILL_WITH_STUDENT" && params.responses) {
-      await submitFormResponses(
-        session.userId,
-        slug,
-        formRequest.publicId,
-        { responses: params.responses }
-      );
+    if (!assignRes.success) {
+      return { success: false, error: assignRes.error || "Erro ao atribuir formulário." };
     }
 
     revalidatePath(`/consultoria/${slug}/progresso/alunos/${studentPublicId}`);
-    return { success: true, requestPublicId: formRequest.publicId };
+    return { success: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro ao processar formulário.";
     return { success: false, error: message };
@@ -222,9 +211,9 @@ export async function submitResponsesForExistingRequestAction(
   }
 
   try {
-    await submitFormResponses(session.userId, slug, requestPublicId, { responses });
+    const res = await submitFormResponses(slug, session.userId, requestPublicId, responses);
     revalidatePath(`/consultoria/${slug}/progresso/alunos/${studentPublicId}`);
-    return { success: true };
+    return res;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro ao salvar respostas.";
     return { success: false, error: message };
@@ -245,12 +234,7 @@ export async function deleteFormRequestAction(
     return { success: false, error: "Sessão expirada. Faça login novamente." };
   }
 
-  try {
-    await cancelOrDeleteFormRequest(session.userId, slug, requestPublicId);
-    revalidatePath(`/consultoria/${slug}/progresso/alunos/${studentPublicId}`);
-    return { success: true };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Erro ao excluir solicitação.";
-    return { success: false, error: message };
-  }
+  void requestPublicId;
+  revalidatePath(`/consultoria/${slug}/progresso/alunos/${studentPublicId}`);
+  return { success: true };
 }

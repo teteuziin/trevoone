@@ -2,126 +2,199 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/auth/session";
+import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import {
-  createFormTemplate,
-  updateFormTemplate,
-  requestFormForStudent,
+  createConsultancyForm,
+  updateConsultancyForm,
+  publishConsultancyForm,
+  archiveConsultancyForm,
+  assignFormToStudents,
   submitFormResponses,
-  reviewFormRequest,
-  type CreateFormTemplateInput,
-  type UpdateFormTemplateInput,
-  type SubmitFormResponsesInput,
-  type ReviewFormRequestInput,
-} from "@/lib/consultancies/custom-forms";
+  reviewFormAssignment,
+  type CreateConsultancyFormInput,
+  type UpdateConsultancyFormInput,
+  type AssignFormInput,
+  type ReviewFormAssignmentInput,
+} from "@/lib/consultancies/forms";
 
-export async function createFormTemplateAction(
+export async function createFormAction(
   slug: string,
-  input: CreateFormTemplateInput
+  input: CreateConsultancyFormInput
 ) {
-  const session = await getCurrentSession();
-  if (!session) {
-    return { success: false, error: "Não autenticado." };
-  }
-
   try {
-    const template = await createFormTemplate(session.userId, slug, input);
+    const session = await getCurrentSession();
+    if (!session) {
+      return { success: false, error: "Sessão expirada. Faça login novamente." };
+    }
+
+    const context = await resolveConsultancyContext(session.userId, slug);
+    if (!context) {
+      return { success: false, error: "Consultoria não encontrada." };
+    }
+
+    const viewMode = await resolveEffectiveViewMode(slug, context.roles);
+    const isStaff =
+      viewMode.effectiveMode === "ADMIN" ||
+      viewMode.effectiveMode === "PERSONAL" ||
+      viewMode.effectiveMode === "NUTRITIONIST" ||
+      context.roles.some((r) =>
+        ["CONSULTANCY_ADMIN", "PLATFORM_ADMIN", "PERSONAL", "NUTRITIONIST"].includes(r)
+      );
+
+    if (!isStaff) {
+      return { success: false, error: "Permissão negada para criar formulários." };
+    }
+
+    const form = await createConsultancyForm(slug, session.userId, input);
     revalidatePath(`/consultoria/${slug}/formularios`);
-    return { success: true, template };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Erro ao criar formulário." };
+    return { success: true, form };
+  } catch (err: unknown) {
+    console.error("[createFormAction] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Erro ao criar formulário.",
+    };
   }
 }
 
-export async function updateFormTemplateAction(
+export async function updateFormAction(
   slug: string,
-  templatePublicId: string,
-  input: UpdateFormTemplateInput
+  formPublicId: string,
+  input: UpdateConsultancyFormInput
 ) {
-  const session = await getCurrentSession();
-  if (!session) {
-    return { success: false, error: "Não autenticado." };
-  }
-
   try {
-    const ok = await updateFormTemplate(session.userId, slug, templatePublicId, input);
+    const session = await getCurrentSession();
+    if (!session) {
+      return { success: false, error: "Sessão expirada. Faça login novamente." };
+    }
+
+    const context = await resolveConsultancyContext(session.userId, slug);
+    if (!context) {
+      return { success: false, error: "Consultoria não encontrada." };
+    }
+
+    const form = await updateConsultancyForm(slug, session.userId, formPublicId, input);
     revalidatePath(`/consultoria/${slug}/formularios`);
-    return { success: ok };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Erro ao atualizar formulário." };
+    return { success: true, form };
+  } catch (err: unknown) {
+    console.error("[updateFormAction] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Erro ao atualizar formulário.",
+    };
   }
 }
 
-export async function requestFormForStudentAction(
-  slug: string,
-  templatePublicId: string,
-  studentMembershipPublicId: string
-) {
-  const session = await getCurrentSession();
-  if (!session) {
-    return { success: false, error: "Não autenticado." };
-  }
-
+export async function publishFormAction(slug: string, formPublicId: string) {
   try {
-    const req = await requestFormForStudent(
-      session.userId,
-      slug,
-      templatePublicId,
-      studentMembershipPublicId
-    );
+    const session = await getCurrentSession();
+    if (!session) {
+      return { success: false, error: "Sessão expirada. Faça login novamente." };
+    }
+
+    const form = await publishConsultancyForm(slug, session.userId, formPublicId);
     revalidatePath(`/consultoria/${slug}/formularios`);
-    return { success: true, request: req };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Erro ao solicitar formulário." };
+    return { success: true, form };
+  } catch (err: unknown) {
+    console.error("[publishFormAction] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Erro ao publicar formulário.",
+    };
+  }
+}
+
+export async function archiveFormAction(slug: string, formPublicId: string) {
+  try {
+    const session = await getCurrentSession();
+    if (!session) {
+      return { success: false, error: "Sessão expirada. Faça login novamente." };
+    }
+
+    const form = await archiveConsultancyForm(slug, session.userId, formPublicId);
+    revalidatePath(`/consultoria/${slug}/formularios`);
+    return { success: true, form };
+  } catch (err: unknown) {
+    console.error("[archiveFormAction] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Erro ao arquivar formulário.",
+    };
+  }
+}
+
+export async function assignFormAction(slug: string, input: AssignFormInput) {
+  try {
+    const session = await getCurrentSession();
+    if (!session) {
+      return { success: false, error: "Sessão expirada. Faça login novamente." };
+    }
+
+    const result = await assignFormToStudents(slug, session.userId, input);
+    revalidatePath(`/consultoria/${slug}/formularios`);
+    return result;
+  } catch (err: unknown) {
+    console.error("[assignFormAction] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Erro ao atribuir formulário.",
+    };
   }
 }
 
 export async function submitFormResponsesAction(
   slug: string,
-  requestPublicId: string,
-  input: SubmitFormResponsesInput
+  assignmentPublicId: string,
+  responses: Record<string, unknown>
 ) {
-  const session = await getCurrentSession();
-  if (!session) {
-    return { success: false, error: "Não autenticado." };
-  }
-
   try {
-    const ok = await submitFormResponses(session.userId, slug, requestPublicId, input);
-    revalidatePath(`/consultoria/${slug}/formularios`);
-    revalidatePath(`/consultoria/${slug}/formularios/${requestPublicId}`);
-    return { success: ok };
-  } catch (err: unknown) {
-    const isConflict = Boolean((err as { isConflict?: boolean })?.isConflict);
-    const serverStatus = (err as { serverStatus?: string })?.serverStatus;
-    if (isConflict) {
-      return {
-        success: false,
-        conflict: true,
-        serverStatus,
-        error: err instanceof Error ? err.message : "Conflito ao enviar formulário.",
-      };
+    const session = await getCurrentSession();
+    if (!session) {
+      return { success: false, error: "Sessão expirada. Faça login novamente." };
     }
-    return { success: false, error: err instanceof Error ? err.message : "Erro ao enviar respostas." };
+
+    const result = await submitFormResponses(
+      slug,
+      session.userId,
+      assignmentPublicId,
+      responses
+    );
+    revalidatePath(`/consultoria/${slug}/formularios`);
+    return result;
+  } catch (err: unknown) {
+    console.error("[submitFormResponsesAction] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Erro ao enviar respostas.",
+    };
   }
 }
 
-
-export async function reviewFormRequestAction(
+export async function reviewFormAssignmentAction(
   slug: string,
-  requestPublicId: string,
-  input: ReviewFormRequestInput
+  assignmentPublicId: string,
+  input: ReviewFormAssignmentInput
 ) {
-  const session = await getCurrentSession();
-  if (!session) {
-    return { success: false, error: "Não autenticado." };
-  }
-
   try {
-    const ok = await reviewFormRequest(session.userId, slug, requestPublicId, input);
+    const session = await getCurrentSession();
+    if (!session) {
+      return { success: false, error: "Sessão expirada. Faça login novamente." };
+    }
+
+    const result = await reviewFormAssignment(
+      slug,
+      session.userId,
+      assignmentPublicId,
+      input
+    );
     revalidatePath(`/consultoria/${slug}/formularios`);
-    revalidatePath(`/consultoria/${slug}/formularios/${requestPublicId}`);
-    return { success: ok };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Erro ao avaliar formulário." };
+    return result;
+  } catch (err: unknown) {
+    console.error("[reviewFormAssignmentAction] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Erro ao revisar formulário.",
+    };
   }
 }

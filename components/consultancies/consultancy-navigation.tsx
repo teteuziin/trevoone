@@ -29,6 +29,7 @@ import {
   DuotoneOperationsIcon,
   DuotoneReferralsIcon,
   DuotoneAiIcon,
+  DuotoneFormsIcon,
 } from "@/components/ui/icons/duotone-icons";
 
 export interface NavItemConfig {
@@ -52,7 +53,8 @@ export interface NavItemConfig {
     | "activity"
     | "operations"
     | "referrals"
-    | "ai";
+    | "ai"
+    | "forms";
 }
 
 export interface ConsultancyNavigationProps {
@@ -114,6 +116,8 @@ function NavIcon({
       return <DuotoneReferralsIcon className={className} />;
     case "ai":
       return <DuotoneAiIcon className={className} />;
+    case "forms":
+      return <DuotoneFormsIcon className={className} />;
     default:
       return null;
   }
@@ -564,6 +568,7 @@ export function ConsultancyNavigation({
     "personal-rotinas",
     "nutritionist-planos",
     "student-formularios",
+    "admin-formularios",
   ]);
 
   // NEGÓCIO: Financeiro, Pagamentos, Indicações/Afiliados, Assinatura, Comissões, Missões VIP
@@ -596,6 +601,8 @@ export function ConsultancyNavigation({
 
   const drawerItemDescriptions: Record<string, string> = {
     "admin-membros": "Gestão de profissionais e alunos",
+    "admin-formularios": "Modelos, questionários e respostas",
+    "student-formularios": "Questionários e avaliações pendentes",
     "atendimento-consultas": "Agendamentos e salas ao vivo",
     "student-consultas": "Agendamentos e videochamadas",
     "admin-missoes": "Metas, desafios e embaixadores",

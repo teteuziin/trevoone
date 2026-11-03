@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   CheckSquare,
@@ -25,6 +26,11 @@ import {
   createCampaignLinkAction,
   updateCampaignLinkAction,
 } from "@/app/consultoria/[slug]/indicacoes/actions";
+
+const emptySubscribe = () => () => {};
+function useIsMounted() {
+  return React.useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
 
 interface CampaignLinkModalProps {
   isOpen: boolean;
@@ -88,6 +94,10 @@ export function CampaignLinkModal({
   const [announcedDiscountValue, setAnnouncedDiscountValue] = useState(
     initialData?.announcedDiscountValue || "10"
   );
+  const [isCustomDiscount, setIsCustomDiscount] = useState<boolean>(() => {
+    if (!initialData?.announcedDiscountValue) return false;
+    return initialData.announcedDiscountValue !== "10" && initialData.announcedDiscountValue !== "15";
+  });
 
   const [commissionType, setCommissionType] = useState<CampaignCommissionType>(
     initialData?.commissionType || "PERCENTAGE"
@@ -100,7 +110,7 @@ export function CampaignLinkModal({
       : 10
   );
 
-  // Layer 2: Opções avançadas (Fechado por padrão, abre na edição somente se houver dados avançados já cadastrados)
+  // Layer 2: Opções avançadas (Estritamente fechado por padrão na criação; na edição, abre apenas se houver configurações avançadas)
   const [showAdvanced, setShowAdvanced] = useState<boolean>(() => {
     if (!initialData) return false;
     return Boolean(
@@ -112,6 +122,18 @@ export function CampaignLinkModal({
       initialData.maxUses != null
     );
   });
+
+  const isMounted = useIsMounted();
+
+  // Trava scroll da página de fundo enquanto o modal estiver aberto
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
 
   const [title, setTitle] = useState(initialData?.title || "");
   const [customWhatsAppMessage, setCustomWhatsAppMessage] = useState<string | null>(
@@ -202,7 +224,7 @@ export function CampaignLinkModal({
     status,
   ]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !isMounted) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -313,15 +335,15 @@ export function CampaignLinkModal({
     }
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="w-full sm:max-w-md bg-white dark:bg-[#151619] border-t sm:border border-slate-200 dark:border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden m-0"
+        className="w-full sm:max-w-md bg-white dark:bg-[#151619] border-t sm:border border-slate-200 dark:border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[88dvh] sm:max-h-[90vh] overflow-hidden m-0"
         role="dialog"
         aria-modal="true"
         aria-labelledby="campaign-modal-title"
@@ -354,9 +376,9 @@ export function CampaignLinkModal({
         </div>
 
         {/* FORMULÁRIO COM CORPO ROLÁVEL E FOOTER STICKY */}
-        <form noValidate onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+        <form noValidate onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* CORPO ROLÁVEL */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-3.5">
             {error && (
               <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
                 {error}
@@ -520,8 +542,8 @@ export function CampaignLinkModal({
                 <button
                   type="button"
                   onClick={() => handlePresetDiscount("10")}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[40px] ${
-                    announcedDiscountValue === "10" && announcedDiscountType === "PERCENTAGE"
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[40px] ${
+                    !isCustomDiscount && announcedDiscountValue === "10" && announcedDiscountType === "PERCENTAGE"
                       ? "bg-emerald-500 text-white shadow-xs"
                       : "bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-zinc-200 hover:border-emerald-500"
                   }`}
@@ -531,22 +553,31 @@ export function CampaignLinkModal({
                 <button
                   type="button"
                   onClick={() => handlePresetDiscount("15")}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[40px] ${
-                    announcedDiscountValue === "15" && announcedDiscountType === "PERCENTAGE"
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[40px] ${
+                    !isCustomDiscount && announcedDiscountValue === "15" && announcedDiscountType === "PERCENTAGE"
                       ? "bg-emerald-500 text-white shadow-xs"
                       : "bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-zinc-200 hover:border-emerald-500"
                   }`}
                 >
                   15% OFF
                 </button>
-                <div className="flex-1 min-w-[120px]">
+                <div className="relative flex-1 min-w-[110px]">
                   <input
                     type="text"
-                    value={announcedDiscountValue}
-                    onChange={(e) => setAnnouncedDiscountValue(e.target.value)}
-                    placeholder="Outro (ex: 20%)"
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-emerald-500 min-h-[40px]"
+                    inputMode="numeric"
+                    value={isCustomDiscount ? announcedDiscountValue : ""}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      setIsCustomDiscount(true);
+                      setAnnouncedDiscountType("PERCENTAGE");
+                      setAnnouncedDiscountValue(val);
+                    }}
+                    placeholder="Outro"
+                    className="w-full pl-3 pr-7 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-emerald-500 min-h-[40px]"
                   />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 dark:text-zinc-500 pointer-events-none select-none">
+                    %
+                  </span>
                 </div>
               </div>
             </div>
@@ -557,12 +588,13 @@ export function CampaignLinkModal({
                 Comissão do Participante
               </label>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10">
+              <div className="flex items-center gap-2">
+                {/* TOGGLE TIPO DE COMISSÃO */}
+                <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 shrink-0">
                   <button
                     type="button"
                     onClick={() => setCommissionType("PERCENTAGE")}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-bold cursor-pointer transition-all min-h-[36px] ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all min-h-[34px] ${
                       commissionType === "PERCENTAGE"
                         ? "bg-emerald-500 text-white shadow-xs"
                         : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
@@ -573,7 +605,7 @@ export function CampaignLinkModal({
                   <button
                     type="button"
                     onClick={() => setCommissionType("FIXED")}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-bold cursor-pointer transition-all min-h-[36px] ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all min-h-[34px] ${
                       commissionType === "FIXED"
                         ? "bg-emerald-500 text-white shadow-xs"
                         : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
@@ -583,27 +615,37 @@ export function CampaignLinkModal({
                   </button>
                 </div>
 
-                <div className="relative">
+                {/* CAMPO DE VALOR COM ADORNO INTEGRADO DENTRO DO INPUT */}
+                <div className="relative flex-1">
+                  {commissionType === "FIXED" && (
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 dark:text-zinc-400 pointer-events-none select-none">
+                      R$
+                    </span>
+                  )}
                   <input
                     type="number"
                     min="0"
                     max={commissionType === "PERCENTAGE" ? "100" : undefined}
                     step={commissionType === "PERCENTAGE" ? "0.5" : "1"}
-                    value={commissionValue}
+                    value={commissionValue === 0 ? "" : commissionValue}
                     onChange={(e) => {
                       setCommissionValue(parseFloat(e.target.value) || 0);
                       if (fieldErrors.commission) setFieldErrors((prev) => ({ ...prev, commission: "" }));
                     }}
-                    placeholder={commissionType === "PERCENTAGE" ? "10" : "50"}
-                    className={`w-full px-3.5 py-2 rounded-xl bg-white dark:bg-white/5 border text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden min-h-[44px] ${
+                    placeholder={commissionType === "PERCENTAGE" ? "10" : "50,00"}
+                    className={`w-full py-2 rounded-xl bg-white dark:bg-white/5 border text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden min-h-[42px] transition-colors ${
+                      commissionType === "FIXED" ? "pl-9 pr-3.5" : "pl-3.5 pr-8"
+                    } ${
                       fieldErrors.commission
                         ? "border-red-500 ring-1 ring-red-500/20"
                         : "border-slate-200 dark:border-white/10 focus:border-emerald-500"
                     }`}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 dark:text-zinc-400 pointer-events-none">
-                    {commissionType === "PERCENTAGE" ? "%" : "BRL"}
-                  </span>
+                  {commissionType === "PERCENTAGE" && (
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 dark:text-zinc-400 pointer-events-none select-none">
+                      %
+                    </span>
+                  )}
                 </div>
               </div>
               {fieldErrors.commission && (
@@ -856,7 +898,7 @@ export function CampaignLinkModal({
           </div>
 
           {/* RODAPÉ STICKY COM BOTÃO DE AÇÃO (SEMPRE VISÍVEL) */}
-          <div className="sticky bottom-0 shrink-0 bg-white/95 dark:bg-[#151619]/95 backdrop-blur-md border-t border-slate-200 dark:border-white/10 p-4 sm:p-5 flex items-center justify-end gap-2.5 z-10">
+          <div className="sticky bottom-0 shrink-0 bg-white/95 dark:bg-[#151619]/95 backdrop-blur-md border-t border-slate-200 dark:border-white/10 p-4 sm:p-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] flex items-center justify-end gap-2.5 z-10">
             <button
               type="button"
               onClick={onClose}
@@ -879,6 +921,7 @@ export function CampaignLinkModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1251,24 +1251,27 @@ export function AdminReferralsView({
       />
 
       {/* MODAL 2: CAMPAIGN LINK (CRIAR/EDITAR) */}
-      <CampaignLinkModal
-        isOpen={isCampaignModalOpen}
-        onClose={() => {
-          setIsCampaignModalOpen(false);
-          setEditingCampaignLink(null);
-          setCampaignModalDefaultMemberId(null);
-        }}
-        consultancySlug={consultancySlug}
-        participants={eligibleParticipants}
-        materials={materials}
-        initialData={editingCampaignLink}
-        defaultParticipantId={campaignModalDefaultMemberId}
-        onSuccess={() => {
-          setIsCampaignModalOpen(false);
-          setEditingCampaignLink(null);
-          setCampaignModalDefaultMemberId(null);
-        }}
-      />
+      {isCampaignModalOpen && (
+        <CampaignLinkModal
+          key={editingCampaignLink ? `edit-${editingCampaignLink.id}` : `new-${campaignModalDefaultMemberId || "create"}`}
+          isOpen={isCampaignModalOpen}
+          onClose={() => {
+            setIsCampaignModalOpen(false);
+            setEditingCampaignLink(null);
+            setCampaignModalDefaultMemberId(null);
+          }}
+          consultancySlug={consultancySlug}
+          participants={eligibleParticipants}
+          materials={materials}
+          initialData={editingCampaignLink}
+          defaultParticipantId={campaignModalDefaultMemberId}
+          onSuccess={() => {
+            setIsCampaignModalOpen(false);
+            setEditingCampaignLink(null);
+            setCampaignModalDefaultMemberId(null);
+          }}
+        />
+      )}
 
       {/* MODAL 3: MARKETING MATERIAL (COM UPLOAD DIRETO) */}
       <MarketingMaterialModal

@@ -255,12 +255,22 @@ assert.ok(campaignModalContent.includes("rounded-t-3xl sm:rounded-3xl"), "Modal 
 assert.ok(campaignModalContent.includes("sticky bottom-0"), "Modal deve ter footer sticky no rodapé");
 assert.ok(campaignModalContent.includes("defaultTitle"), "Modal deve ter default inteligente de título");
 
-// Assert mobile bottom sheet specifics & custom validation
+// Assert mobile bottom sheet specifics, portal, safe area & custom validation
 assert.ok(campaignModalContent.includes("sm:hidden shrink-0"), "Modal deve ter drag handle no mobile");
 assert.ok(campaignModalContent.includes("hidden sm:flex"), "Botão X deve ficar oculto no mobile");
 assert.ok(campaignModalContent.includes("noValidate"), "Formulário deve usar noValidate para evitar tooltips nativos do navegador");
 assert.ok(campaignModalContent.includes("border-red-500"), "Validação customizada deve aplicar borda vermelha");
 assert.ok(campaignModalContent.includes("text-xs text-red-500"), "Validação customizada deve exibir mensagem de erro abaixo do campo");
+assert.ok(campaignModalContent.includes("createPortal("), "Modal deve usar createPortal para renderizar direto no document.body");
+assert.ok(campaignModalContent.includes("z-[70]"), "Modal overlay deve possuir camada z-[70] acima de qualquer bottom nav");
+assert.ok(campaignModalContent.includes("max-h-[88dvh]"), "Modal deve usar dvh dinâmico para garantir encaixe perfeito em mobile");
+assert.ok(campaignModalContent.includes("safe-area-inset-bottom"), "Footer sticky deve respeitar safe area no mobile");
+assert.ok(campaignModalContent.includes("if (!initialData) return false;"), "showAdvanced deve iniciar estritamente como false no fluxo de criação");
+assert.ok(campaignModalContent.includes("isCustomDiscount"), "Desconto customizado deve ser controlado para não poluir inputs");
+
+// Assert AdminReferralsView keying and conditional mounting
+assert.ok(adminViewContent.includes("{isCampaignModalOpen && ("), "AdminReferralsView deve montar CampaignLinkModal condicionalmente");
+assert.ok(adminViewContent.includes("key={editingCampaignLink ?"), "CampaignLinkModal deve ter key dinâmica para garantir estado limpo");
 
 console.log("  ✓ Componentes UI, Modo Claro e fluxo WhatsApp validados com sucesso!");
 

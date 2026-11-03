@@ -32,7 +32,7 @@ function getHtml(viewType = "normal") {
   <!-- MODAL OVERLAY -->
   <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs">
     <!-- BOTTOM SHEET CONTAINER (FLUSH TO EDGES ON MOBILE: W-FULL, ROUNDED-T-3XL, M-0) -->
-    <div class="w-full sm:max-w-md bg-[#151619] border-t sm:border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden m-0">
+    <div class="w-full sm:max-w-md bg-[#151619] border-t sm:border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[88dvh] sm:max-h-[90vh] overflow-hidden m-0">
       
       <!-- MOBILE DRAG HANDLE (SUBTLE AND CENTERED AT TOP) -->
       <div class="w-full pt-3 pb-1 flex justify-center sm:hidden shrink-0 bg-[#151619]">
@@ -55,9 +55,9 @@ function getHtml(viewType = "normal") {
       </div>
 
       <!-- FORMULÁRIO COM CORPO ROLÁVEL E FOOTER STICKY -->
-      <form class="flex flex-col flex-1 overflow-hidden" onsubmit="return false;">
+      <form class="flex flex-col flex-1 min-h-0 overflow-hidden" onsubmit="return false;">
         <!-- CORPO ROLÁVEL -->
-        <div class="flex-1 overflow-y-auto p-4 space-y-3.5">
+        <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3.5">
           
           <!-- 1. PARTICIPANTE RESPONSÁVEL -->
           <div class="space-y-1.5">
@@ -106,57 +106,60 @@ function getHtml(viewType = "normal") {
             </div>
           </div>
 
-          <!-- 3. DESCONTO ANUNCIADO AO CLIENTE -->
+          <!-- 3. DESCONTO ANUNCIADO AO CLIENTE (CHIPS + CAMPO CUSTOM INTEGRADO) -->
           <div class="space-y-2 p-3.5 rounded-2xl bg-white/5 border border-white/10">
             <label class="text-xs font-bold text-white block">
               Desconto Anunciado ao Cliente
             </label>
             <div class="flex items-center gap-2 pt-0.5">
-              <button type="button" class="px-3 py-2 rounded-xl text-xs font-bold min-h-[40px] bg-emerald-500 text-white shadow-xs">
+              <button type="button" class="px-3.5 py-2 rounded-xl text-xs font-bold min-h-[40px] bg-emerald-500 text-white shadow-xs">
                 10% OFF
               </button>
-              <button type="button" class="px-3 py-2 rounded-xl text-xs font-bold min-h-[40px] bg-white/5 border border-white/10 text-zinc-200">
+              <button type="button" class="px-3.5 py-2 rounded-xl text-xs font-bold min-h-[40px] bg-white/5 border border-white/10 text-zinc-200">
                 15% OFF
               </button>
-              <div class="flex-1 min-w-[120px]">
+              <div class="relative flex-1 min-w-[110px]">
                 <input 
                   type="text" 
-                  value="10" 
-                  placeholder="Outro (ex: 20%)"
-                  class="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-medium text-white placeholder:text-zinc-500 focus:outline-none min-h-[40px]"
+                  placeholder="Outro"
+                  class="w-full pl-3 pr-7 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-white placeholder:text-zinc-500 focus:outline-none min-h-[40px]"
                 />
-              </div>
-            </div>
-          </div>
-
-          <!-- 4. COMISSÃO DO PARTICIPANTE (SEMPRE VISÍVEL) -->
-          <div class="space-y-2 p-3.5 rounded-2xl bg-white/5 border border-white/10">
-            <label class="text-xs font-bold text-white block">
-              Comissão do Participante
-            </label>
-            <div class="grid grid-cols-2 gap-2">
-              <div class="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-white/5 border border-white/10">
-                <button type="button" class="py-1.5 px-2 rounded-lg text-xs font-bold min-h-[36px] bg-emerald-500 text-white shadow-xs">
-                  %
-                </button>
-                <button type="button" class="py-1.5 px-2 rounded-lg text-xs font-bold min-h-[36px] text-zinc-400">
-                  R$
-                </button>
-              </div>
-              <div class="relative">
-                <input 
-                  type="number" 
-                  value="10" 
-                  class="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white focus:outline-none min-h-[44px]"
-                />
-                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400 pointer-events-none">
+                <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-500 pointer-events-none select-none">
                   %
                 </span>
               </div>
             </div>
           </div>
 
-          <!-- CAMADA 2: OPÇÕES AVANÇADAS (COLLAPSIBLE FECHADO POR PADRÃO) -->
+          <!-- 4. COMISSÃO DO PARTICIPANTE (TOGGLE + ADORNO INTEGRADO DENTRO DO INPUT) -->
+          <div class="space-y-2 p-3.5 rounded-2xl bg-white/5 border border-white/10">
+            <label class="text-xs font-bold text-white block">
+              Comissão do Participante
+            </label>
+            <div class="flex items-center gap-2">
+              <div class="inline-flex p-1 rounded-xl bg-white/5 border border-white/10 shrink-0">
+                <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold min-h-[34px] bg-emerald-500 text-white shadow-xs">
+                  %
+                </button>
+                <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold min-h-[34px] text-zinc-400">
+                  R$
+                </button>
+              </div>
+              <div class="relative flex-1">
+                <input 
+                  type="number" 
+                  value="10" 
+                  placeholder="10"
+                  class="w-full py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white focus:outline-none min-h-[42px] pl-3.5 pr-8"
+                />
+                <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400 pointer-events-none select-none">
+                  %
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CAMADA 2: OPÇÕES AVANÇADAS (COLLAPSIBLE ESTRITAMENTE FECHADO POR PADRÃO) -->
           <div class="border border-white/10 rounded-2xl overflow-hidden bg-white/[0.02]">
             <button type="button" class="w-full flex items-center justify-between p-3.5 text-xs font-bold text-zinc-200 hover:bg-white/5 transition-colors min-h-[44px]">
               <div class="flex items-center gap-2">
@@ -178,8 +181,8 @@ function getHtml(viewType = "normal") {
 
         </div>
 
-        <!-- RODAPÉ STICKY COM BOTÃO DE AÇÃO (SEMPRE VISÍVEL) -->
-        <div class="sticky bottom-0 shrink-0 bg-[#151619]/95 backdrop-blur-md border-t border-white/10 p-4 flex items-center justify-end gap-2.5 z-10">
+        <!-- RODAPÉ STICKY COM BOTÃO DE AÇÃO (SEMPRE VISÍVEL NA DOBRA INICIAL) -->
+        <div class="sticky bottom-0 shrink-0 bg-[#151619]/95 backdrop-blur-md border-t border-white/10 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] flex items-center justify-end gap-2.5 z-10">
           <button type="button" class="px-4 py-2.5 rounded-xl bg-white/5 text-xs font-semibold text-zinc-300 min-h-[44px]">
             Cancelar
           </button>

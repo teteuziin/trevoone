@@ -9,6 +9,13 @@ let schemaAssurancePromise: Promise<void> | null = null;
  * Runs idempotently at runtime on the first read/write operation.
  * Ensures all required tables and columns exist in production database
  * without depending on external manual migrations or downtime.
+ *
+ * CRITICAL MYSQL PROTOCOL NOTE:
+ * DDL statements (CREATE TABLE, ALTER TABLE) MUST be executed using `connection.query()`
+ * (text protocol). `connection.execute()` uses prepared statement protocol (COM_STMT_PREPARE),
+ * which MySQL rejects with ER_UNSUPPORTED_PS (error 1295).
+ * Furthermore, this routine NEVER re-throws: any transient DDL error logs a warning
+ * and allows caller queries to proceed gracefully.
  */
 export async function ensurePromotionalCampaignsSchema(): Promise<void> {
   if (schemaAssurancePromise) {
@@ -19,9 +26,10 @@ export async function ensurePromotionalCampaignsSchema(): Promise<void> {
     let connection: PoolConnection | null = null;
     try {
       connection = await getDbConnection();
+      const conn = connection;
 
       // 1. Table: promotional_campaign_links (Migration 072)
-      await connection.execute(`
+      await conn.query(`
         CREATE TABLE IF NOT EXISTS promotional_campaign_links (
           id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
           public_id CHAR(36) NOT NULL,
@@ -53,10 +61,12 @@ export async function ensurePromotionalCampaignsSchema(): Promise<void> {
           KEY idx_pcl_consultancy_member (consultancy_id, referrer_member_id),
           KEY idx_pcl_status (consultancy_id, status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
+      `).catch((err) => {
+        console.warn("[Schema Assurance] Warning creating promotional_campaign_links table:", err?.message || err);
+      });
 
       // 2. Table: promotional_marketing_materials (Migration 072 & 073 storage fields)
-      await connection.execute(`
+      await conn.query(`
         CREATE TABLE IF NOT EXISTS promotional_marketing_materials (
           id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
           public_id CHAR(36) NOT NULL,
@@ -83,10 +93,12 @@ export async function ensurePromotionalCampaignsSchema(): Promise<void> {
           KEY idx_pmm_consultancy_status (consultancy_id, status),
           KEY idx_pmm_member (consultancy_id, target_member_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
+      `).catch((err) => {
+        console.warn("[Schema Assurance] Warning creating promotional_marketing_materials table:", err?.message || err);
+      });
 
       // 3. Table: promotional_campaign_link_materials (Migration 072)
-      await connection.execute(`
+      await conn.query(`
         CREATE TABLE IF NOT EXISTS promotional_campaign_link_materials (
           id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
           campaign_link_id BIGINT UNSIGNED NOT NULL,
@@ -96,9 +108,10 @@ export async function ensurePromotionalCampaignsSchema(): Promise<void> {
           UNIQUE KEY uq_pclm_link_material (campaign_link_id, material_id),
           KEY idx_pclm_link (campaign_link_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-      `);
+      `).catch((err) => {
+        console.warn("[Schema Assurance] Warning creating promotional_campaign_link_materials table:", err?.message || err);
+      });
 
-      const conn = connection;
       // Helper to check column existence safely
       async function columnExists(table: string, column: string): Promise<boolean> {
         if (!conn) return false;
@@ -114,61 +127,94 @@ export async function ensurePromotionalCampaignsSchema(): Promise<void> {
         }
       }
 
+      // Safe column addition helper
+      async function safeAddColumn(table: string, column: string, ddl: string): Promise<void> {
+        if (!conn) return;
+        try {
+          const exists = await columnExists(table, column);
+          if (!exists) {
+            await conn.query(ddl);
+          }
+        } catch (alterErr: unknown) {
+          const err = alterErr as { errno?: number; code?: string; message?: string };
+          if (err?.errno !== 1060 && err?.code !== "ER_DUP_FIELDNAME") {
+            console.warn(`[Schema Assurance] Column add ${table}.${column} notice:`, err?.message || alterErr);
+          }
+        }
+      }
+
       // 4. Check & add columns to promotional_marketing_materials
-      if (!(await columnExists("promotional_marketing_materials", "file_storage_path"))) {
-        await connection.execute("ALTER TABLE promotional_marketing_materials ADD COLUMN file_storage_path VARCHAR(500) NULL;").catch(() => null);
-      }
-      if (!(await columnExists("promotional_marketing_materials", "file_original_name"))) {
-        await connection.execute("ALTER TABLE promotional_marketing_materials ADD COLUMN file_original_name VARCHAR(255) NULL;").catch(() => null);
-      }
-      if (!(await columnExists("promotional_marketing_materials", "file_mime_type"))) {
-        await connection.execute("ALTER TABLE promotional_marketing_materials ADD COLUMN file_mime_type VARCHAR(100) NULL;").catch(() => null);
-      }
-      if (!(await columnExists("promotional_marketing_materials", "file_size_bytes"))) {
-        await connection.execute("ALTER TABLE promotional_marketing_materials ADD COLUMN file_size_bytes BIGINT UNSIGNED NULL;").catch(() => null);
-      }
-      if (!(await columnExists("promotional_marketing_materials", "target_member_id"))) {
-        await connection.execute("ALTER TABLE promotional_marketing_materials ADD COLUMN target_member_id BIGINT UNSIGNED NULL;").catch(() => null);
-      }
+      await safeAddColumn(
+        "promotional_marketing_materials",
+        "file_storage_path",
+        "ALTER TABLE promotional_marketing_materials ADD COLUMN file_storage_path VARCHAR(500) NULL;"
+      );
+      await safeAddColumn(
+        "promotional_marketing_materials",
+        "file_original_name",
+        "ALTER TABLE promotional_marketing_materials ADD COLUMN file_original_name VARCHAR(255) NULL;"
+      );
+      await safeAddColumn(
+        "promotional_marketing_materials",
+        "file_mime_type",
+        "ALTER TABLE promotional_marketing_materials ADD COLUMN file_mime_type VARCHAR(100) NULL;"
+      );
+      await safeAddColumn(
+        "promotional_marketing_materials",
+        "file_size_bytes",
+        "ALTER TABLE promotional_marketing_materials ADD COLUMN file_size_bytes BIGINT UNSIGNED NULL;"
+      );
+      await safeAddColumn(
+        "promotional_marketing_materials",
+        "target_member_id",
+        "ALTER TABLE promotional_marketing_materials ADD COLUMN target_member_id BIGINT UNSIGNED NULL;"
+      );
 
       // 5. Check & add columns to referral_attributions
-      if (!(await columnExists("referral_attributions", "campaign_link_id"))) {
-        await connection.execute("ALTER TABLE referral_attributions ADD COLUMN campaign_link_id BIGINT UNSIGNED NULL;").catch(() => null);
-      }
-      if (!(await columnExists("referral_attributions", "buyer_name"))) {
-        await connection.execute("ALTER TABLE referral_attributions ADD COLUMN buyer_name VARCHAR(191) NULL;").catch(() => null);
-      }
+      await safeAddColumn(
+        "referral_attributions",
+        "campaign_link_id",
+        "ALTER TABLE referral_attributions ADD COLUMN campaign_link_id BIGINT UNSIGNED NULL;"
+      );
+      await safeAddColumn(
+        "referral_attributions",
+        "buyer_name",
+        "ALTER TABLE referral_attributions ADD COLUMN buyer_name VARCHAR(191) NULL;"
+      );
 
       // 6. Check & add columns to referral_commissions
-      if (!(await columnExists("referral_commissions", "campaign_link_id"))) {
-        await connection.execute("ALTER TABLE referral_commissions ADD COLUMN campaign_link_id BIGINT UNSIGNED NULL;").catch(() => null);
-      }
-      if (!(await columnExists("referral_commissions", "buyer_name"))) {
-        await connection.execute("ALTER TABLE referral_commissions ADD COLUMN buyer_name VARCHAR(191) NULL;").catch(() => null);
-      }
-      if (!(await columnExists("referral_commissions", "external_reference"))) {
-        await connection.execute("ALTER TABLE referral_commissions ADD COLUMN external_reference VARCHAR(191) NULL;").catch(() => null);
-      }
+      await safeAddColumn(
+        "referral_commissions",
+        "campaign_link_id",
+        "ALTER TABLE referral_commissions ADD COLUMN campaign_link_id BIGINT UNSIGNED NULL;"
+      );
+      await safeAddColumn(
+        "referral_commissions",
+        "buyer_name",
+        "ALTER TABLE referral_commissions ADD COLUMN buyer_name VARCHAR(191) NULL;"
+      );
+      await safeAddColumn(
+        "referral_commissions",
+        "external_reference",
+        "ALTER TABLE referral_commissions ADD COLUMN external_reference VARCHAR(191) NULL;"
+      );
 
       // 7. Make referred_member_id in referral_commissions nullable
       try {
-        const [nullabilityRows] = await connection.execute<RowDataPacket[]>(
+        const [nullabilityRows] = await conn.execute<RowDataPacket[]>(
           `SELECT IS_NULLABLE FROM information_schema.COLUMNS
            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'referral_commissions' AND COLUMN_NAME = 'referred_member_id' LIMIT 1;`
         );
         if (Array.isArray(nullabilityRows) && nullabilityRows[0]?.IS_NULLABLE === "NO") {
-          await connection.execute(
+          await conn.query(
             "ALTER TABLE referral_commissions MODIFY COLUMN referred_member_id BIGINT UNSIGNED NULL DEFAULT NULL;"
           ).catch(() => null);
         }
       } catch {
         // safe fallback
       }
-    } catch (err) {
-      console.error("[Schema Assurance] Error verifying promotional campaign schema:", err);
-      // Reset promise so subsequent requests can retry
-      schemaAssurancePromise = null;
-      throw err;
+    } catch (err: unknown) {
+      console.error("[Schema Assurance] Notice verifying promotional campaign schema (continuing):", err instanceof Error ? err.message : err);
     } finally {
       if (connection) {
         connection.release();

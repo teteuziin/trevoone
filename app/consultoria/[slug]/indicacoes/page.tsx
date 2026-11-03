@@ -3,12 +3,19 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
-import { getAdminReferralsData, getMemberPayoutProfile } from "@/lib/referrals/service";
+import {
+  getAdminReferralsData,
+  getMemberPayoutProfile,
+  type MemberPayoutProfile,
+} from "@/lib/referrals/service";
 import {
   listConsultancyParticipantsForPromotion,
   listCampaignLinksForAdmin,
   listMarketingMaterials,
   getParticipantPromotionalDashboard,
+  type EligiblePromotionParticipant,
+  type PromotionalCampaignLinkRecord,
+  type PromotionalMarketingMaterialRecord,
 } from "@/lib/referrals/campaigns";
 import { AdminReferralsView } from "@/components/referrals/admin-referrals-view";
 import { PromotionalHubView } from "@/components/referrals/promotional-hub-view";
@@ -41,32 +48,140 @@ export default async function IndicacoesPage({ params }: PageProps) {
   const isAdmin = effectiveMode === "ADMIN" && context.roles.includes("CONSULTANCY_ADMIN");
   const isEligibleParticipant = context.roles.includes("STUDENT") || context.roles.includes("INFLUENCER");
 
-  let adminData = null;
-  let eligibleParticipants = null;
-  let campaignLinks = null;
-  let materials = null;
+  let adminData: Awaited<ReturnType<typeof getAdminReferralsData>> | null = null;
+  let eligibleParticipants: EligiblePromotionParticipant[] = [];
+  let campaignLinks: PromotionalCampaignLinkRecord[] = [];
+  let materials: PromotionalMarketingMaterialRecord[] = [];
 
-  let participantDashboard = null;
-  let pixProfile = null;
+  let participantDashboard: Awaited<ReturnType<typeof getParticipantPromotionalDashboard>> | null = null;
+  let pixProfile: MemberPayoutProfile | null = null;
 
   if (isAdmin) {
-    const [adminRes, participantsRes, linksRes, materialsRes] = await Promise.all([
-      getAdminReferralsData(context.consultancyId),
-      listConsultancyParticipantsForPromotion(context.consultancyId),
-      listCampaignLinksForAdmin(context.consultancyId),
-      listMarketingMaterials(context.consultancyId),
-    ]);
-    adminData = adminRes;
-    eligibleParticipants = participantsRes;
-    campaignLinks = linksRes;
-    materials = materialsRes;
+    try {
+      const [adminRes, participantsRes, linksRes, materialsRes] = await Promise.all([
+        getAdminReferralsData(context.consultancyId).catch((err) => {
+          console.error("[IndicacoesPage] Failed to load admin referrals data:", err);
+          return null;
+        }),
+        listConsultancyParticipantsForPromotion(context.consultancyId).catch((err) => {
+          console.error("[IndicacoesPage] Failed to list participants:", err);
+          return [];
+        }),
+        listCampaignLinksForAdmin(context.consultancyId).catch((err) => {
+          console.error("[IndicacoesPage] Failed to list campaign links:", err);
+          return [];
+        }),
+        listMarketingMaterials(context.consultancyId).catch((err) => {
+          console.error("[IndicacoesPage] Failed to list marketing materials:", err);
+          return [];
+        }),
+      ]);
+
+      adminData = adminRes || {
+        settings: {
+          id: 0,
+          consultancyId: context.consultancyId,
+          isEnabled: false,
+          commissionType: "FIXED_AMOUNT" as const,
+          commissionAmountCents: 5000,
+          commissionRateBasisPoints: 1000,
+          commissionValue: 50.0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        kpis: {
+          totalReferrers: 0,
+          totalRegistrations: 0,
+          totalConversions: 0,
+          pendingAmount: 0,
+          approvedAmount: 0,
+          paidAmount: 0,
+        },
+        referrers: [],
+        commissions: [],
+      };
+      eligibleParticipants = participantsRes || [];
+      campaignLinks = linksRes || [];
+      materials = materialsRes || [];
+    } catch (err) {
+      console.error("[IndicacoesPage] Fatal error caught in admin loader:", err);
+      adminData = {
+        settings: {
+          id: 0,
+          consultancyId: context.consultancyId,
+          isEnabled: false,
+          commissionType: "FIXED_AMOUNT" as const,
+          commissionAmountCents: 5000,
+          commissionRateBasisPoints: 1000,
+          commissionValue: 50.0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        kpis: {
+          totalReferrers: 0,
+          totalRegistrations: 0,
+          totalConversions: 0,
+          pendingAmount: 0,
+          approvedAmount: 0,
+          paidAmount: 0,
+        },
+        referrers: [],
+        commissions: [],
+      };
+      eligibleParticipants = [];
+      campaignLinks = [];
+      materials = [];
+    }
   } else if (isEligibleParticipant) {
-    const [dashboardRes, pixRes] = await Promise.all([
-      getParticipantPromotionalDashboard(context.consultancyId, context.membershipId),
-      getMemberPayoutProfile(context.consultancyId, context.membershipId),
-    ]);
-    participantDashboard = dashboardRes;
-    pixProfile = pixRes;
+    try {
+      const [dashboardRes, pixRes] = await Promise.all([
+        getParticipantPromotionalDashboard(context.consultancyId, context.membershipId).catch((err) => {
+          console.error("[IndicacoesPage] Failed to load participant dashboard:", err);
+          return null;
+        }),
+        getMemberPayoutProfile(context.consultancyId, context.membershipId).catch((err) => {
+          console.error("[IndicacoesPage] Failed to load payout profile:", err);
+          return null;
+        }),
+      ]);
+
+      participantDashboard = dashboardRes || {
+        isEnrolled: false,
+        participantName: session.fullName,
+        defaultCode: "",
+        links: [],
+        materials: [],
+        results: {
+          totalClicks: 0,
+          registrationsCount: 0,
+          conversionsCount: 0,
+          pendingAmount: 0,
+          approvedAmount: 0,
+          paidAmount: 0,
+        },
+        commissions: [],
+      };
+      pixProfile = pixRes;
+    } catch (err) {
+      console.error("[IndicacoesPage] Fatal error caught in participant loader:", err);
+      participantDashboard = {
+        isEnrolled: false,
+        participantName: session.fullName,
+        defaultCode: "",
+        links: [],
+        materials: [],
+        results: {
+          totalClicks: 0,
+          registrationsCount: 0,
+          conversionsCount: 0,
+          pendingAmount: 0,
+          approvedAmount: 0,
+          paidAmount: 0,
+        },
+        commissions: [],
+      };
+      pixProfile = null;
+    }
   }
 
   return (
@@ -102,9 +217,9 @@ export default async function IndicacoesPage({ params }: PageProps) {
             kpis={adminData.kpis}
             referrers={adminData.referrers}
             commissions={adminData.commissions}
-            eligibleParticipants={eligibleParticipants || []}
-            campaignLinks={campaignLinks || []}
-            materials={materials || []}
+            eligibleParticipants={eligibleParticipants}
+            campaignLinks={campaignLinks}
+            materials={materials}
           />
         ) : participantDashboard ? (
           <PromotionalHubView

@@ -30,7 +30,7 @@ export interface PromotionalCampaignLinkRecord {
   announcedDiscountValue: string | null;
   eligiblePlans: string | null;
   commissionType: CampaignCommissionType;
-  commissionAmountCents: bigint | null;
+  commissionAmountCents: number | null;
   commissionRateBasisPoints: number | null;
   commissionValueFormatted: string;
   commissionConditions: string | null;
@@ -747,7 +747,7 @@ export async function listCampaignLinksForAdmin(
 
     return rows.map((r) => {
       const commType = r.commission_type as CampaignCommissionType;
-      const amountCents = r.commission_amount_cents != null ? BigInt(r.commission_amount_cents) : null;
+      const amountCents = r.commission_amount_cents != null ? Number(r.commission_amount_cents) : null;
       const rateBp = r.commission_rate_basis_points != null ? Number(r.commission_rate_basis_points) : null;
       const formattedVal = commType === "FIXED"
         ? (amountCents != null ? `R$ ${centsToBrl(amountCents)}` : "R$ 0,00")
@@ -836,7 +836,7 @@ export async function listCampaignLinksForParticipant(
 
     return rows.map((r) => {
       const commType = r.commission_type as CampaignCommissionType;
-      const amountCents = r.commission_amount_cents != null ? BigInt(r.commission_amount_cents) : null;
+      const amountCents = r.commission_amount_cents != null ? Number(r.commission_amount_cents) : null;
       const rateBp = r.commission_rate_basis_points != null ? Number(r.commission_rate_basis_points) : null;
       const formattedVal = commType === "FIXED"
         ? (amountCents != null ? `R$ ${centsToBrl(amountCents)}` : "R$ 0,00")

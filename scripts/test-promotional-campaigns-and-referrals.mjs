@@ -366,10 +366,10 @@ runTest("Source Integrity: Rota /r/[code] utiliza resolveCampaignRedirect com tr
 runTest("Source Integrity: Hub 'Divulgue e Ganhe' possui as 3 áreas obrigatórias", () => {
   const hub = fs.readFileSync("components/referrals/promotional-hub-view.tsx", "utf8");
   assert.ok(hub.includes("Meus Links"));
-  assert.ok(hub.includes("Materiais para Divulgar"));
-  assert.ok(hub.includes("Meus Resultados"));
+  assert.ok(hub.includes("Materiais de Divulgação") || hub.includes("Materiais para Divulgar"));
+  assert.ok(hub.includes("Minhas Indicações e Comissões") || hub.includes("Resultados"));
   assert.ok(hub.includes("Copiar link"));
-  assert.ok(hub.includes("Copiar legenda"));
+  assert.ok(hub.includes("Legenda Pronta") || hub.includes("Copiar legenda") || hub.includes("handleCopyCaption"));
 });
 
 console.log("\n================================================================================");

@@ -15,7 +15,7 @@ export interface ConsultancyReferralSettings {
   consultancyId: number;
   isEnabled: boolean;
   commissionType: CommissionType;
-  commissionAmountCents: bigint;
+  commissionAmountCents: number;
   commissionRateBasisPoints: number;
   // Preserved for backwards compatibility / UI display
   commissionValue: number;
@@ -170,8 +170,8 @@ export async function getConsultancyReferralSettings(
       const r = rows[0];
       const commType = r.commission_type as CommissionType;
       const amountCents = r.commission_amount_cents != null
-        ? BigInt(r.commission_amount_cents)
-        : brlToCents(Number(r.commission_value || 50));
+        ? Number(r.commission_amount_cents)
+        : Number(brlToCents(Number(r.commission_value || 50)));
       const rateBp = r.commission_rate_basis_points != null
         ? Number(r.commission_rate_basis_points)
         : percentToBasisPoints(Number(r.commission_value || 10));
@@ -184,7 +184,7 @@ export async function getConsultancyReferralSettings(
         commissionAmountCents: amountCents,
         commissionRateBasisPoints: rateBp,
         commissionValue: commType === "FIXED_AMOUNT"
-          ? Number(amountCents) / 100
+          ? amountCents / 100
           : rateBp / 100,
         createdAt: new Date(r.created_at),
         updatedAt: new Date(r.updated_at),
@@ -198,7 +198,7 @@ export async function getConsultancyReferralSettings(
       consultancyId,
       isEnabled: false,
       commissionType: "FIXED_AMOUNT",
-      commissionAmountCents: BigInt(5000), // R$ 50,00
+      commissionAmountCents: 5000, // R$ 50,00
       commissionRateBasisPoints: 1000, // 10.00%
       commissionValue: 50.0,
       createdAt: new Date(),
@@ -704,7 +704,7 @@ export async function recordReferralConversion(
     // 7. Check if attribution came from a specific promotional campaign link
     let commTypeToUse = settings.commissionType;
     let commValueToUse = settings.commissionValue;
-    let commAmountCentsToUse = settings.commissionAmountCents;
+    let commAmountCentsToUse = BigInt(settings.commissionAmountCents);
     let commRateBpToUse = settings.commissionRateBasisPoints;
     let campaignLinkIdToRecord: number | null = null;
 
@@ -1044,7 +1044,7 @@ export async function registerManualReferralSale(
         finalCents = calculatePercentageCommissionExact(baseCents, rateBp);
       } else {
         commType = "FIXED_AMOUNT";
-        finalCents = settings.commissionAmountCents;
+        finalCents = BigInt(settings.commissionAmountCents);
         commRateSnapshot = Number(finalCents) / 100;
       }
     }

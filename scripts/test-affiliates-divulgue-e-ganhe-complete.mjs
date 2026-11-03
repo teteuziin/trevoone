@@ -248,6 +248,13 @@ assert.ok(campaignModalContent.includes("Número do WhatsApp de Atendimento"), "
 assert.ok(campaignModalContent.includes("Mensagem Automática do Cliente"), "Modal deve ter input de mensagem automática");
 assert.ok(campaignModalContent.includes("buildWhatsAppUrl"), "Modal deve usar buildWhatsAppUrl");
 
+// Assert 2-layer architecture & responsiveness
+assert.ok(campaignModalContent.includes("Opções avançadas"), "Modal deve ter accordion de Opções avançadas");
+assert.ok(campaignModalContent.includes("showAdvanced"), "Modal deve ter estado de controle de opções avançadas");
+assert.ok(campaignModalContent.includes("rounded-t-3xl sm:rounded-3xl"), "Modal deve virar bottom sheet em mobile e rounded em desktop");
+assert.ok(campaignModalContent.includes("sticky bottom-0"), "Modal deve ter footer sticky no rodapé");
+assert.ok(campaignModalContent.includes("defaultTitle"), "Modal deve ter default inteligente de título");
+
 console.log("  ✓ Componentes UI, Modo Claro e fluxo WhatsApp validados com sucesso!");
 
 console.log("\n=====================================================================");

@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { X, Info, CheckSquare, Square, MessageCircle, Link2 } from "@/components/referrals/referral-icons";
+import {
+  X,
+  CheckSquare,
+  Square,
+  MessageCircle,
+  Link2,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+} from "@/components/referrals/referral-icons";
 import { UserAvatar } from "@/components/account/user-avatar";
 import { buildWhatsAppUrl, isWhatsAppUrl } from "@/lib/referrals/url-utils";
 import type {
@@ -59,33 +68,27 @@ export function CampaignLinkModal({
 }: CampaignLinkModalProps) {
   const isEditing = Boolean(initialData);
 
+  // Layer 1: Essenciais
   const [selectedMemberId, setSelectedMemberId] = useState<number>(
     initialData?.referrerMemberId || defaultParticipantId || (participants[0]?.memberId ?? 0)
   );
-  const [title, setTitle] = useState(initialData?.title || "");
 
-  // Destination Type: WHATSAPP vs CUSTOM_URL
   const existingWa = initialData?.destinationUrl ? parseExistingWhatsAppUrl(initialData.destinationUrl) : null;
   const initialIsWa = Boolean(existingWa || (initialData?.destinationUrl && isWhatsAppUrl(initialData.destinationUrl)));
 
   const [destinationType, setDestinationType] = useState<"WHATSAPP" | "CUSTOM_URL">(
     initialIsWa || !initialData ? "WHATSAPP" : "CUSTOM_URL"
   );
-  const [destinationUrl, setDestinationUrl] = useState(initialData?.destinationUrl || "");
   const [whatsAppPhone, setWhatsAppPhone] = useState(existingWa?.phone || "");
-  const [customWhatsAppMessage, setCustomWhatsAppMessage] = useState<string | null>(
-    existingWa?.message ?? null
-  );
+  const [destinationUrl, setDestinationUrl] = useState(initialData?.destinationUrl || "");
 
-  const [description, setDescription] = useState(initialData?.description || "");
-  const [customCode, setCustomCode] = useState(initialData?.code || "");
   const [announcedDiscountType, setAnnouncedDiscountType] = useState<AnnouncedDiscountType>(
     initialData?.announcedDiscountType || "PERCENTAGE"
   );
   const [announcedDiscountValue, setAnnouncedDiscountValue] = useState(
     initialData?.announcedDiscountValue || "10"
   );
-  const [eligiblePlans, setEligiblePlans] = useState(initialData?.eligiblePlans || "");
+
   const [commissionType, setCommissionType] = useState<CampaignCommissionType>(
     initialData?.commissionType || "PERCENTAGE"
   );
@@ -96,6 +99,16 @@ export function CampaignLinkModal({
       ? Number(initialData.commissionAmountCents) / 100
       : 10
   );
+
+  // Layer 2: Opções avançadas (Accordion fechado por padrão)
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [title, setTitle] = useState(initialData?.title || "");
+  const [customWhatsAppMessage, setCustomWhatsAppMessage] = useState<string | null>(
+    existingWa?.message ?? null
+  );
+  const [customCode, setCustomCode] = useState(initialData?.code || "");
+  const [description, setDescription] = useState(initialData?.description || "");
+  const [eligiblePlans, setEligiblePlans] = useState(initialData?.eligiblePlans || "");
   const [commissionConditions, setCommissionConditions] = useState(
     initialData?.commissionConditions || "Sobre a primeira contratação confirmada"
   );
@@ -115,7 +128,13 @@ export function CampaignLinkModal({
 
   const selectedParticipant = participants.find((p) => p.memberId === selectedMemberId);
 
-  // Dynamic default template based on selected participant, code, and discount
+  // Dynamic automatic title default
+  const defaultTitle = useMemo(() => {
+    const pName = selectedParticipant?.name || "Divulgação";
+    return `Link de ${pName}`;
+  }, [selectedParticipant?.name]);
+
+  // Dynamic default WhatsApp template based on selected participant, code, and discount
   const defaultWhatsAppTemplate = useMemo(() => {
     const pName = selectedParticipant?.name || "um parceiro oficial";
     const cCode = customCode || selectedParticipant?.defaultCode || "PROMO";
@@ -135,14 +154,39 @@ export function CampaignLinkModal({
     setCustomWhatsAppMessage(null);
   }
 
-  // Quick preset helpers
   function handlePresetDiscount(val: string) {
     setAnnouncedDiscountType("PERCENTAGE");
     setAnnouncedDiscountValue(val);
-    if (!title || title.startsWith("Meu desconto de ")) {
-      setTitle(`Meu desconto de ${val}%`);
-    }
   }
+
+  // Indicator if advanced options contain customizations
+  const hasAdvancedCustomizations = useMemo(() => {
+    return Boolean(
+      title.trim() ||
+      customCode.trim() ||
+      customWhatsAppMessage !== null ||
+      description.trim() ||
+      eligiblePlans.trim() ||
+      commissionConditions !== "Sobre a primeira contratação confirmada" ||
+      startsAt ||
+      endsAt ||
+      maxUses ||
+      selectedMaterialIds.length > 0 ||
+      status !== "ACTIVE"
+    );
+  }, [
+    title,
+    customCode,
+    customWhatsAppMessage,
+    description,
+    eligiblePlans,
+    commissionConditions,
+    startsAt,
+    endsAt,
+    maxUses,
+    selectedMaterialIds,
+    status,
+  ]);
 
   if (!isOpen) return null;
 
@@ -150,23 +194,21 @@ export function CampaignLinkModal({
     e.preventDefault();
     setError(null);
 
-    if (!title.trim()) {
-      setError("Informe o título de divulgação.");
-      return;
-    }
+    // Default title if empty
+    const finalTitle = title.trim() || defaultTitle;
 
     let finalDestinationUrl = destinationUrl.trim();
     if (destinationType === "WHATSAPP") {
       const cleanPhone = whatsAppPhone.replace(/\D/g, "");
       if (cleanPhone.length < 10) {
-        setError("Informe um número de WhatsApp válido com DDD (mínimo 10 dígitos).");
+        setError("Informe um número do WhatsApp de Atendimento válido com DDD (mínimo 10 dígitos).");
         return;
       }
       finalDestinationUrl = buildWhatsAppUrl(whatsAppPhone, activeWhatsAppMessage);
     }
 
     if (!finalDestinationUrl) {
-      setError("Informe a URL ou número de destino da campanha.");
+      setError("Informe a URL de destino da campanha.");
       return;
     }
 
@@ -181,15 +223,15 @@ export function CampaignLinkModal({
       if (isEditing && initialData) {
         const res = await updateCampaignLinkAction(consultancySlug, {
           linkId: initialData.id,
-          title,
+          title: finalTitle,
           destinationUrl: finalDestinationUrl,
-          description,
+          description: description.trim() || null,
           announcedDiscountType,
           announcedDiscountValue,
-          eligiblePlans,
+          eligiblePlans: eligiblePlans.trim() || null,
           commissionType,
           commissionValue: Number(commissionValue),
-          commissionConditions,
+          commissionConditions: commissionConditions.trim() || "Sobre a primeira contratação confirmada",
           startsAt: startsAt || null,
           endsAt: endsAt || null,
           maxUses: maxUses ? parseInt(maxUses, 10) : null,
@@ -205,16 +247,16 @@ export function CampaignLinkModal({
       } else {
         const res = await createCampaignLinkAction(consultancySlug, {
           referrerMemberId: selectedMemberId,
-          title,
+          title: finalTitle,
           destinationUrl: finalDestinationUrl,
-          description,
-          code: customCode || null,
+          description: description.trim() || null,
+          code: customCode.trim() || null,
           announcedDiscountType,
           announcedDiscountValue,
-          eligiblePlans,
+          eligiblePlans: eligiblePlans.trim() || null,
           commissionType,
           commissionValue: Number(commissionValue),
-          commissionConditions,
+          commissionConditions: commissionConditions.trim() || "Sobre a primeira contratação confirmada",
           startsAt: startsAt || null,
           endsAt: endsAt || null,
           maxUses: maxUses ? parseInt(maxUses, 10) : null,
@@ -239,528 +281,532 @@ export function CampaignLinkModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
       <div
-        className="w-full max-w-2xl bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 sm:p-7 shadow-2xl space-y-5 my-8 max-h-[92vh] overflow-y-auto"
+        className="w-full sm:max-w-md bg-white dark:bg-[#151619] border-t sm:border border-slate-200 dark:border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden"
         role="dialog"
         aria-modal="true"
         aria-labelledby="campaign-modal-title"
       >
-        {/* HEADER */}
-        <div className="flex items-start justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
+        {/* HEADER FIXO */}
+        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-white/10 flex items-start justify-between shrink-0 bg-white dark:bg-[#151619]">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
               {isEditing ? "Edição de Campanha" : "Nova Campanha de Divulgação"}
             </span>
-            <h2 id="campaign-modal-title" className="text-lg font-bold text-[var(--text-primary)] mt-0.5">
+            <h2 id="campaign-modal-title" className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5">
               {isEditing ? `Editar Link /r/${initialData?.code}` : "Criar Link Individual de Divulgação"}
             </h2>
-            <p className="text-xs text-[var(--text-tertiary)] mt-0.5 leading-relaxed">
-              Direcione para o WhatsApp ou para checkout externo, definindo cupom do cliente e comissão do parceiro.
-            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+            className="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer shrink-0"
             aria-label="Fechar"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {error && (
-          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-semibold">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* 1. SELEÇÃO DE PARTICIPANTE */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-              <span>Participante Responsável</span>
-              <span className="text-rose-500">*</span>
-            </label>
-            {isEditing ? (
-              <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
-                <UserAvatar
-                  fullName={initialData?.referrerName}
-                  userPublicId={initialData?.referrerUserPublicId}
-                  size="sm"
-                />
-                <div>
-                  <span className="text-xs font-bold text-[var(--text-primary)] block">
-                    {initialData?.referrerName}
-                  </span>
-                  <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold">
-                    {initialData?.referrerRole === "INFLUENCER" ? "Influenciador / VIP" : "Aluno"}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <select
-                value={selectedMemberId}
-                onChange={(e) => setSelectedMemberId(Number(e.target.value))}
-                className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] font-medium focus:outline-hidden focus:border-[var(--brand)] transition-colors min-h-[44px]"
-                required
-              >
-                {participants.map((p) => (
-                  <option key={p.memberId} value={p.memberId} className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white">
-                    {p.name} ({p.role === "INFLUENCER" ? "Influenciador / VIP" : "Aluno"})
-                  </option>
-                ))}
-              </select>
-            )}
-            {selectedParticipant && !isEditing && (
-              <div className="flex items-center gap-2 pt-1 text-[11px] text-[var(--text-tertiary)]">
-                <span>Participante selecionado:</span>
-                <span className="font-semibold text-[var(--text-primary)]">{selectedParticipant.name}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)]">
-                  {selectedParticipant.totalCampaignLinks} link(s) cadastrado(s)
-                </span>
+        {/* FORMULÁRIO COM CORPO ROLÁVEL E FOOTER STICKY */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          {/* CORPO ROLÁVEL */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+            {error && (
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+                {error}
               </div>
             )}
-          </div>
 
-          {/* 2. TÍTULO E TIPO DE DESTINO (WHATSAPP vs URL EXTERNA) */}
-          <div className="space-y-4">
+            {/* ==================================================================== */}
+            {/* CAMADA 1: ESSENCIAIS (SEMPRE VISÍVEIS NO TOPO)                      */}
+            {/* ==================================================================== */}
+
+            {/* 1. PARTICIPANTE RESPONSÁVEL */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-xs font-bold text-[var(--text-primary)]">
-                  Título de Divulgação <span className="text-rose-500">*</span>
-                </label>
-                <span className="text-[10px] font-normal text-[var(--text-tertiary)]">Ex: Meu desconto de 10%</span>
-              </div>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ex: Treino com Desconto de 10%"
-                maxLength={191}
-                className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] font-medium focus:outline-hidden focus:border-[var(--brand)] transition-colors min-h-[44px]"
-                required
-              />
+              <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                <span>Participante Responsável</span>
+                <span className="text-rose-500">*</span>
+              </label>
+              {isEditing ? (
+                <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                  <UserAvatar
+                    fullName={initialData?.referrerName}
+                    userPublicId={initialData?.referrerUserPublicId}
+                    size="sm"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                      {initialData?.referrerName}
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase font-semibold">
+                      {initialData?.referrerRole === "INFLUENCER" ? "Influenciador / VIP" : "Aluno"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <select
+                  value={selectedMemberId}
+                  onChange={(e) => setSelectedMemberId(Number(e.target.value))}
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[44px]"
+                  required
+                >
+                  {participants.map((p) => (
+                    <option
+                      key={p.memberId}
+                      value={p.memberId}
+                      className="bg-white dark:bg-[#151619] text-slate-900 dark:text-white"
+                    >
+                      {p.name} ({p.role === "INFLUENCER" ? "Influenciador / VIP" : "Aluno"})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
-            {/* SELETOR DE TIPO DE DESTINO */}
-            <div className="space-y-3 p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-[var(--text-primary)]">
-                  Tipo de Destino do Link <span className="text-rose-500">*</span>
-                </label>
-                <span className="text-[10px] text-[var(--text-tertiary)]">Onde o cliente cairá</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {/* 2. TIPO DE DESTINO (TOGGLE WHATSAPP vs URL) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block">
+                Tipo de Destino <span className="text-rose-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setDestinationType("WHATSAPP")}
-                  className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[42px] flex items-center justify-center gap-2 border ${
+                  className={`px-3 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center gap-2 border ${
                     destinationType === "WHATSAPP"
-                      ? "bg-[#25D366]/15 border-[#25D366]/50 text-emerald-700 dark:text-[#25D366] shadow-xs"
-                      : "bg-[var(--surface)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--brand)]"
+                      ? "bg-emerald-500/10 border-emerald-500 text-emerald-800 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-500/30"
+                      : "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
-                  <MessageCircle className="w-4 h-4 text-[#25D366]" />
-                  <span>WhatsApp (Atendimento / Fechamento)</span>
+                  <MessageCircle className="w-4 h-4 text-[#25D366] shrink-0" />
+                  <span className="truncate">WhatsApp (Atendimento / Fechamento)</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setDestinationType("CUSTOM_URL")}
-                  className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[42px] flex items-center justify-center gap-2 border ${
+                  className={`px-3 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center gap-2 border ${
                     destinationType === "CUSTOM_URL"
-                      ? "bg-[var(--brand)] border-[var(--brand)] text-white shadow-xs"
-                      : "bg-[var(--surface)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--brand)]"
+                      ? "bg-emerald-500/10 border-emerald-500 text-emerald-800 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-500/30"
+                      : "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
-                  <Link2 className="w-4 h-4" />
-                  <span>URL Externa / Checkout / Página</span>
+                  <Link2 className="w-4 h-4 shrink-0" />
+                  <span className="truncate">URL Externa / Checkout / Página</span>
                 </button>
               </div>
+            </div>
 
-              {destinationType === "WHATSAPP" ? (
-                <div className="space-y-3 pt-2">
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="text-xs font-semibold text-[var(--text-primary)]">
-                        Número do WhatsApp de Atendimento (DDD + Número) <span className="text-rose-500">*</span>
-                      </label>
-                      <span className="text-[10px] text-[var(--text-tertiary)]">DDI 55 prefixado se omitido</span>
-                    </div>
-                    <input
-                      type="text"
-                      value={whatsAppPhone}
-                      onChange={(e) => setWhatsAppPhone(e.target.value)}
-                      placeholder="Ex: (71) 99999-9999 ou 5571999999999"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] font-mono focus:outline-hidden focus:border-[var(--brand)] min-h-[42px]"
-                      required={destinationType === "WHATSAPP"}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="text-xs font-semibold text-[var(--text-primary)]">
-                        Mensagem Automática do Cliente (editável)
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleResetDefaultWhatsAppMessage}
-                        className="text-[10px] text-[var(--brand)] hover:underline cursor-pointer"
-                      >
-                        Restaurar mensagem padrão
-                      </button>
-                    </div>
-                    <textarea
-                      value={activeWhatsAppMessage}
-                      onChange={(e) => setCustomWhatsAppMessage(e.target.value)}
-                      placeholder="Ex: Olá! Vim pela indicação..."
-                      rows={3}
-                      className="w-full px-3.5 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] resize-y min-h-[72px]"
-                    />
-                  </div>
-
-                  {/* PREVIEW DA URL FINAL */}
-                  {computedWhatsAppUrl && (
-                    <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/10 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1">
-                        <MessageCircle className="w-3 h-3 text-[#25D366]" />
-                        URL Gerada para Redirecionamento:
-                      </span>
-                      <p className="text-[11px] font-mono text-[var(--text-secondary)] break-all select-all">
-                        {computedWhatsAppUrl}
-                      </p>
-                    </div>
-                  )}
+            {/* 3. CAMPO DINÂMICO ÚNICO CONFORME O TOGGLE */}
+            {destinationType === "WHATSAPP" ? (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Número do WhatsApp de Atendimento (DDD + Número) <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-slate-500 dark:text-zinc-400">DDI 55 prefixado auto</span>
                 </div>
-              ) : (
-                <div className="space-y-1.5 pt-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="text-xs font-semibold text-[var(--text-primary)]">
-                      Endereço Completo (URL de Destino) <span className="text-rose-500">*</span>
-                    </label>
-                    <span className="text-[10px] text-[var(--text-tertiary)]">Checkout, Hotmart ou página</span>
-                  </div>
+                <input
+                  type="tel"
+                  value={whatsAppPhone}
+                  onChange={(e) => setWhatsAppPhone(e.target.value)}
+                  placeholder="Ex: (71) 99999-9999"
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[44px]"
+                  required
+                />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Endereço Completo (URL de Destino) <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-slate-500 dark:text-zinc-400">Checkout ou página</span>
+                </div>
+                <input
+                  type="url"
+                  value={destinationUrl}
+                  onChange={(e) => setDestinationUrl(e.target.value)}
+                  placeholder="https://pay.hotmart.com/... ou https://..."
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[44px]"
+                  required
+                />
+              </div>
+            )}
+
+            {/* 4. DESCONTO ANUNCIADO AO CLIENTE */}
+            <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  Desconto Anunciado ao Cliente
+                </span>
+                <span className="text-[10px] text-slate-500 dark:text-zinc-400">Oferta divulgada</span>
+              </div>
+
+              <div className="flex items-center gap-2 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => handlePresetDiscount("10")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[40px] ${
+                    announcedDiscountValue === "10" && announcedDiscountType === "PERCENTAGE"
+                      ? "bg-emerald-500 text-white shadow-xs"
+                      : "bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-zinc-200 hover:border-emerald-500"
+                  }`}
+                >
+                  10% OFF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePresetDiscount("15")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[40px] ${
+                    announcedDiscountValue === "15" && announcedDiscountType === "PERCENTAGE"
+                      ? "bg-emerald-500 text-white shadow-xs"
+                      : "bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-zinc-200 hover:border-emerald-500"
+                  }`}
+                >
+                  15% OFF
+                </button>
+                <div className="flex-1 min-w-[120px]">
                   <input
                     type="text"
-                    value={destinationUrl}
-                    onChange={(e) => setDestinationUrl(e.target.value)}
-                    placeholder="https://pay.hotmart.com/... ou https://wa.me/55..."
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-xs font-mono text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] min-h-[42px]"
-                    required={destinationType === "CUSTOM_URL"}
+                    value={announcedDiscountValue}
+                    onChange={(e) => setAnnouncedDiscountValue(e.target.value)}
+                    placeholder="Outro (ex: 20%)"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-emerald-500 min-h-[40px]"
                   />
-                  <p className="text-[11px] text-[var(--text-tertiary)]">
-                    Dica: Se colar um link wa.me ou número de telefone diretamente, o sistema também reconhece e valida.
-                  </p>
                 </div>
-              )}
-            </div>
-
-            {/* CÓDIGO PERSONALIZADO E OBSERVAÇÕES */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5 sm:col-span-1">
-                <div className="flex items-center justify-between gap-2">
-                  <label className="text-xs font-bold text-[var(--text-primary)]">
-                    Código Personalizado (opcional)
-                  </label>
-                  <span className="text-[10px] text-[var(--text-tertiary)] font-normal whitespace-nowrap">
-                    Gerado auto se vazio
-                  </span>
-                </div>
-                <input
-                  type="text"
-                  value={customCode}
-                  onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
-                  placeholder="Ex: VIPANA10"
-                  maxLength={32}
-                  className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-mono uppercase text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] transition-colors min-h-[44px]"
-                />
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-1">
-                <label className="text-xs font-bold text-[var(--text-primary)]">
-                  Observações internas (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Ex: Parceria exclusiva com influenciadora"
-                  maxLength={255}
-                  className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] transition-colors min-h-[44px]"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* ALERTA INFORMATIVO */}
-          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-[11px] leading-relaxed space-y-1">
-            <span className="font-bold flex items-center gap-1.5">
-              <Info className="w-4 h-4 text-amber-500 shrink-0" /> Informação importante sobre direcionamentos:
-            </span>
-            <p>
-              Caso aponte para o <strong>WhatsApp</strong>, a mensagem automática identificará a indicação e o cupom para fechamento direto pela sua equipe. Se for para <strong>checkout externo</strong> (Hotmart, Kiwify, etc.), certifique-se de que o cupom anunciado esteja ativo na plataforma de destino.
-            </p>
-          </div>
-
-          {/* 3. DESCONTO ANUNCIADO */}
-          <div className="space-y-2 p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[var(--text-primary)]">
-                Desconto Anunciado ao Cliente
-              </span>
-              <span className="text-[10px] text-[var(--text-tertiary)]">Configuração da oferta</span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => handlePresetDiscount("10")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
-                  announcedDiscountValue === "10" && announcedDiscountType === "PERCENTAGE"
-                    ? "bg-[var(--brand)] text-white shadow-xs"
-                    : "bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-primary)] hover:border-[var(--brand)]"
-                }`}
-              >
-                10% OFF
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePresetDiscount("15")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
-                  announcedDiscountValue === "15" && announcedDiscountType === "PERCENTAGE"
-                    ? "bg-[var(--brand)] text-white shadow-xs"
-                    : "bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-primary)] hover:border-[var(--brand)]"
-                }`}
-              >
-                15% OFF
-              </button>
-              <div className="flex-1 flex items-center gap-2 min-w-[160px]">
-                <input
-                  type="text"
-                  value={announcedDiscountValue}
-                  onChange={(e) => setAnnouncedDiscountValue(e.target.value)}
-                  placeholder="Outro percentual ou valor (ex: 20%)"
-                  className="w-full px-3 py-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] font-medium focus:outline-hidden focus:border-[var(--brand)] min-h-[36px]"
-                />
               </div>
             </div>
 
-            <div className="pt-2">
-              <label className="text-[11px] font-semibold text-[var(--text-secondary)] block mb-1">
-                Planos ou ofertas elegíveis (opcional)
-              </label>
-              <input
-                type="text"
-                value={eligiblePlans}
-                onChange={(e) => setEligiblePlans(e.target.value)}
-                placeholder="Ex: Válido para Planos Trimestrais e Semestrais"
-                className="w-full px-3 py-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] font-medium focus:outline-hidden focus:border-[var(--brand)] min-h-[36px]"
-              />
-            </div>
-          </div>
+            {/* 5. COMISSÃO DO PARTICIPANTE (DADO CRÍTICO, SEMPRE VISÍVEL) */}
+            <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  Comissão do Participante
+                </span>
+                <span className="text-[10px] text-slate-500 dark:text-zinc-400">Remuneração do parceiro</span>
+              </div>
 
-          {/* 4. CONDIÇÕES E VALOR DA COMISSÃO DO PARTICIPANTE */}
-          <div className="space-y-3 p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[var(--text-primary)]">
-                Comissão do Participante (Separada do Desconto)
-              </span>
-              <span className="text-[10px] text-[var(--text-tertiary)]">Remuneração do parceiro</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-[var(--text-secondary)]">Tipo de Comissão</label>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10">
                   <button
                     type="button"
                     onClick={() => setCommissionType("PERCENTAGE")}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold cursor-pointer transition-all min-h-[40px] ${
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold cursor-pointer transition-all min-h-[36px] ${
                       commissionType === "PERCENTAGE"
-                        ? "bg-[var(--brand)] text-white shadow-xs"
-                        : "bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-primary)]"
+                        ? "bg-emerald-500 text-white shadow-xs"
+                        : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
                     }`}
                   >
-                    Percentual (%)
+                    %
                   </button>
                   <button
                     type="button"
                     onClick={() => setCommissionType("FIXED")}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold cursor-pointer transition-all min-h-[40px] ${
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold cursor-pointer transition-all min-h-[36px] ${
                       commissionType === "FIXED"
-                        ? "bg-[var(--brand)] text-white shadow-xs"
-                        : "bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-primary)]"
+                        ? "bg-emerald-500 text-white shadow-xs"
+                        : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
                     }`}
                   >
-                    Valor Fixo (R$)
+                    R$
                   </button>
                 </div>
+
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max={commissionType === "PERCENTAGE" ? "100" : undefined}
+                    step={commissionType === "PERCENTAGE" ? "0.5" : "1"}
+                    value={commissionValue}
+                    onChange={(e) => setCommissionValue(parseFloat(e.target.value) || 0)}
+                    placeholder={commissionType === "PERCENTAGE" ? "10" : "50"}
+                    className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 min-h-[44px]"
+                    required
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 dark:text-zinc-400 pointer-events-none">
+                    {commissionType === "PERCENTAGE" ? "%" : "BRL"}
+                  </span>
+                </div>
               </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                  {commissionType === "PERCENTAGE" ? "Taxa da Comissão (%)" : "Valor por Matrícula (R$)"}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max={commissionType === "PERCENTAGE" ? "100" : undefined}
-                  step={commissionType === "PERCENTAGE" ? "0.1" : "1"}
-                  value={commissionValue}
-                  onChange={(e) => setCommissionValue(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] font-bold focus:outline-hidden focus:border-[var(--brand)] min-h-[40px]"
-                  required
-                />
-              </div>
             </div>
 
-            <div className="space-y-1 pt-1">
-              <label className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                Base de cálculo e condições da comissão
-              </label>
-              <input
-                type="text"
-                value={commissionConditions}
-                onChange={(e) => setCommissionConditions(e.target.value)}
-                placeholder="Ex: Sobre a primeira mensalidade paga com sucesso"
-                className="w-full px-3 py-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] font-medium focus:outline-hidden focus:border-[var(--brand)] min-h-[36px]"
-              />
-            </div>
-          </div>
+            {/* ==================================================================== */}
+            {/* CAMADA 2: OPÇÕES AVANÇADAS (COLLAPSIBLE FECHADO POR PADRÃO)           */}
+            {/* ==================================================================== */}
+            <div className="border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-white/[0.02]">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="w-full flex items-center justify-between p-3.5 text-xs font-bold text-slate-800 dark:text-zinc-200 hover:bg-slate-100/70 dark:hover:bg-white/5 transition-colors cursor-pointer min-h-[44px]"
+              >
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>Opções avançadas</span>
+                  {hasAdvancedCustomizations && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-400 font-normal">
+                  <span>{showAdvanced ? "Ocultar" : "Mostrar"}</span>
+                  {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </div>
+              </button>
 
-          {/* 5. DATAS, LIMITES E STATUS */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-[var(--text-secondary)]">Início (Opcional)</label>
-              <input
-                type="date"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] min-h-[40px]"
-              />
-            </div>
+              {showAdvanced && (
+                <div className="p-3.5 sm:p-4 border-t border-slate-200 dark:border-white/10 space-y-4 animate-in fade-in duration-150">
+                  {/* 1. TÍTULO DE DIVULGAÇÃO (DEFAULT AUTOMÁTICO SE VAZIO) */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Título de Divulgação (opcional)
+                      </label>
+                      <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                        Padrão: {defaultTitle}
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder={defaultTitle}
+                      maxLength={191}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[40px]"
+                    />
+                  </div>
 
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-[var(--text-secondary)]">Término (Opcional)</label>
-              <input
-                type="date"
-                value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] min-h-[40px]"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-[var(--text-secondary)]">Limite de Usos (Opcional)</label>
-              <input
-                type="number"
-                min="1"
-                placeholder="Sem limite"
-                value={maxUses}
-                onChange={(e) => setMaxUses(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] min-h-[40px]"
-              />
-            </div>
-          </div>
-
-          {/* STATUS */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-[var(--text-secondary)]">Status do Link</label>
-            <div className="flex items-center gap-2">
-              {(
-                [
-                  { id: "ACTIVE", label: "Ativo (Divulgável)" },
-                  { id: "PAUSED", label: "Pausado (Temporário)" },
-                  { id: "ENDED", label: "Encerrado" },
-                ] as const
-              ).map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setStatus(s.id)}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[40px] flex-1 ${
-                    status === s.id
-                      ? "bg-[var(--brand)] text-white shadow-xs"
-                      : "bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-secondary)]"
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 6. VÍNCULO COM MATERIAIS */}
-          {materials.length > 0 && (
-            <div className="space-y-2 p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[var(--text-primary)]">
-                  Artes e Materiais Vinculados (Opcional)
-                </span>
-                <span className="text-[10px] text-[var(--text-tertiary)]">
-                  {selectedMaterialIds.length} selecionado(s)
-                </span>
-              </div>
-              <p className="text-[11px] text-[var(--text-tertiary)]">
-                Selecione as artes que ficarão visíveis para este parceiro ao visualizar este link.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 max-h-48 overflow-y-auto">
-                {materials.map((mat) => {
-                  const isChecked = selectedMaterialIds.includes(mat.id);
-                  return (
-                    <button
-                      key={mat.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedMaterialIds((prev) =>
-                          isChecked ? prev.filter((id) => id !== mat.id) : [...prev, mat.id]
-                        );
-                      }}
-                      className={`p-2.5 rounded-xl border text-left text-xs transition-all flex items-center gap-2.5 cursor-pointer ${
-                        isChecked
-                          ? "bg-[var(--brand-soft)] border-[var(--brand)] text-[var(--text-primary)]"
-                          : "bg-[var(--surface)] border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--brand)]"
-                      }`}
-                    >
-                      {isChecked ? (
-                        <CheckSquare className="w-4 h-4 text-[var(--brand)] shrink-0" />
-                      ) : (
-                        <Square className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
-                      )}
-                      <div className="truncate">
-                        <span className="font-semibold block truncate text-[var(--text-primary)]">{mat.title}</span>
-                        <span className="text-[10px] text-[var(--text-tertiary)] uppercase">{mat.mediaFormat}</span>
+                  {/* 2. MENSAGEM AUTOMÁTICA DO WHATSAPP (SE DESTINO FOR WHATSAPP) */}
+                  {destinationType === "WHATSAPP" && (
+                    <div className="space-y-2 p-3 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                          Mensagem Automática do Cliente (editável)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleResetDefaultWhatsAppMessage}
+                          className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                        >
+                          Restaurar mensagem padrão
+                        </button>
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+                      <textarea
+                        value={activeWhatsAppMessage}
+                        onChange={(e) => setCustomWhatsAppMessage(e.target.value)}
+                        placeholder="Ex: Olá! Vim pela indicação..."
+                        rows={3}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 resize-y min-h-[68px]"
+                      />
 
-          {/* BOTÕES DE AÇÃO */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
+                      {/* PREVIEW DA URL FINAL */}
+                      {computedWhatsAppUrl && (
+                        <div className="p-2 rounded-lg bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/10 space-y-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center gap-1">
+                            <MessageCircle className="w-3 h-3 text-[#25D366]" />
+                            URL Gerada para Redirecionamento:
+                          </span>
+                          <p className="text-[11px] font-mono text-slate-700 dark:text-zinc-300 break-all select-all">
+                            {computedWhatsAppUrl}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 3. CÓDIGO PERSONALIZADO (CUPOM / SLUG) */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Código Personalizado (opcional)
+                      </label>
+                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                        Gerado automaticamente se vazio
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      value={customCode}
+                      onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
+                      placeholder="Ex: VIPANA10"
+                      maxLength={32}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono uppercase text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[40px]"
+                    />
+                  </div>
+
+                  {/* 4. OBSERVAÇÕES INTERNAS */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Observações internas (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Ex: Parceria exclusiva com influenciadora"
+                      maxLength={255}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[40px]"
+                    />
+                  </div>
+
+                  {/* 5. PLANOS OU OFERTAS ELEGÍVEIS */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Planos ou ofertas elegíveis (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={eligiblePlans}
+                      onChange={(e) => setEligiblePlans(e.target.value)}
+                      placeholder="Ex: Válido para Planos Trimestrais e Semestrais"
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[40px]"
+                    />
+                  </div>
+
+                  {/* 6. CONDIÇÃO DA COMISSÃO */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Condição da comissão
+                    </label>
+                    <input
+                      type="text"
+                      value={commissionConditions}
+                      onChange={(e) => setCommissionConditions(e.target.value)}
+                      placeholder="Ex: Sobre a primeira contratação confirmada"
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[40px]"
+                    />
+                  </div>
+
+                  {/* 7. DATAS E LIMITES */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-slate-600 dark:text-zinc-400">Início</label>
+                      <input
+                        type="date"
+                        value={startsAt}
+                        onChange={(e) => setStartsAt(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white min-h-[38px]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-slate-600 dark:text-zinc-400">Término</label>
+                      <input
+                        type="date"
+                        value={endsAt}
+                        onChange={(e) => setEndsAt(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white min-h-[38px]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-slate-600 dark:text-zinc-400">Limite de Usos</label>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Ilimitado"
+                        value={maxUses}
+                        onChange={(e) => setMaxUses(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white min-h-[38px]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 8. STATUS DO LINK */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600 dark:text-zinc-400">Status do Link</label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(
+                        [
+                          { id: "ACTIVE", label: "Ativo" },
+                          { id: "PAUSED", label: "Pausado" },
+                          { id: "ENDED", label: "Encerrado" },
+                        ] as const
+                      ).map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => setStatus(s.id)}
+                          className={`px-2 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[36px] ${
+                            status === s.id
+                              ? "bg-emerald-500 text-white shadow-xs"
+                              : "bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-zinc-300"
+                          }`}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 9. VÍNCULO COM MATERIAIS */}
+                  {materials.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-white/10">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">
+                          Artes e Materiais Vinculados
+                        </span>
+                        <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                          {selectedMaterialIds.length} selecionado(s)
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                        {materials.map((mat) => {
+                          const isChecked = selectedMaterialIds.includes(mat.id);
+                          return (
+                            <button
+                              key={mat.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedMaterialIds((prev) =>
+                                  isChecked ? prev.filter((id) => id !== mat.id) : [...prev, mat.id]
+                                );
+                              }}
+                              className={`p-2 rounded-xl border text-left text-xs transition-all flex items-center gap-2 cursor-pointer ${
+                                isChecked
+                                  ? "bg-emerald-500/10 border-emerald-500 text-emerald-800 dark:text-emerald-300"
+                                  : "bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-700 dark:text-zinc-300 hover:border-emerald-500"
+                              }`}
+                            >
+                              {isChecked ? (
+                                <CheckSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              ) : (
+                                <Square className="w-4 h-4 text-slate-400 dark:text-zinc-500 shrink-0" />
+                              )}
+                              <div className="truncate">
+                                <span className="font-semibold block truncate text-slate-900 dark:text-white">{mat.title}</span>
+                                <span className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase">{mat.mediaFormat}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* RODAPÉ STICKY COM BOTÃO DE AÇÃO */}
+          <div className="sticky bottom-0 shrink-0 bg-white/95 dark:bg-[#151619]/95 backdrop-blur-md border-t border-slate-200 dark:border-white/10 p-4 sm:p-5 flex items-center justify-end gap-2.5 z-10">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2.5 rounded-2xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-secondary)] transition-colors cursor-pointer min-h-[44px]"
+              className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-semibold text-slate-700 dark:text-zinc-300 transition-colors cursor-pointer min-h-[44px]"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 min-h-[44px]"
+              className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-2"
             >
               {isSubmitting
                 ? "Salvando..."
                 : isEditing
                 ? "Salvar Alterações"
-                : "Criar Link de Divulgação"}
+                : "Criar Link"}
             </button>
           </div>
         </form>

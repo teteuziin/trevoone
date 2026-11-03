@@ -238,3 +238,28 @@ CREATE TABLE IF NOT EXISTS asaas_webhook_events (
 ENGINE=InnoDB
 DEFAULT CHARACTER SET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================================
+-- 7. ALTER TABLE student_payments
+-- Supports automated gateway payments where receipt_id is null and confirmed_by_user_id is null.
+-- Adds asaas_payment_id for direct lookup.
+-- ============================================================================
+ALTER TABLE student_payments
+    MODIFY COLUMN receipt_id BIGINT UNSIGNED NULL DEFAULT NULL,
+    MODIFY COLUMN payment_method VARCHAR(50) NOT NULL DEFAULT 'PIX_MANUAL',
+    MODIFY COLUMN confirmed_by_user_id BIGINT UNSIGNED NULL DEFAULT NULL,
+    ADD COLUMN asaas_payment_id VARCHAR(50) NULL DEFAULT NULL AFTER receipt_id,
+    ADD INDEX idx_student_payments_asaas (asaas_payment_id);
+
+-- ============================================================================
+-- 8. EXPLICIT PILOT ACTIVATION FOR SAIYA SHAPE (SANDBOX ONLY)
+-- ============================================================================
+ALTER TABLE consultancy_finance_settings
+    ADD COLUMN asaas_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER payment_instructions;
+
+UPDATE consultancy_finance_settings cfs
+INNER JOIN consultancies c ON c.id = cfs.consultancy_id
+SET cfs.asaas_enabled = 1,
+    cfs.asaas_environment = 'SANDBOX'
+WHERE c.slug = 'saiya-shape';

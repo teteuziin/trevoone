@@ -24,12 +24,47 @@ export interface AsaasConfig {
  * Retorna as configurações do Asaas a partir do ambiente de runtime.
  * Nunca imprime nem expõe o valor da API Key.
  */
+
+/**
+ * Identifica o meio de pagamento efetivamente confirmado pelo Asaas.
+ * Não presume Pix para recebimentos manuais ou fallbacks de fatura hospedada.
+ */
+export function resolveAsaasPaymentMethod(payment: {
+  billingType?: string | null;
+  status?: string | null;
+}): string {
+  if (payment.status === "RECEIVED_IN_CASH") {
+    return "RECEIVED_IN_CASH";
+  }
+  const billingType = (payment.billingType || "").toUpperCase().trim();
+  switch (billingType) {
+    case "PIX":
+      return "PIX";
+    case "BOLETO":
+      return "BOLETO";
+    case "CREDIT_CARD":
+      return "CREDIT_CARD";
+    case "DEBIT_CARD":
+      return "DEBIT_CARD";
+    default:
+      return billingType || "ASAAS_ONLINE";
+  }
+}
+
 export function getAsaasConfig(): AsaasConfig | null {
   const apiKey = process.env.ASAAS_API_KEY?.trim() || "";
   const rawEnv = (process.env.ASAAS_ENVIRONMENT || "sandbox").toLowerCase().trim();
-  const isSandbox = rawEnv !== "production";
-  const baseUrl = isSandbox ? "https://sandbox.asaas.com/api/v3" : "https://api.asaas.com/v3";
-  const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN?.trim() || "trevo-one-wh-saiya-sandbox";
+
+  // Trava de segurança: produção é expressamente proibida nesta etapa
+  if (rawEnv === "production") {
+    console.warn("[Asaas Security Guard] Produção não autorizada nesta etapa.");
+    return null;
+  }
+
+  // URL oficial exclusiva do Sandbox
+  const baseUrl = "https://sandbox.asaas.com/api/v3";
+  // Token exclusivo do ambiente sem fallback padrão estático
+  const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN?.trim() || "";
 
   if (!apiKey) {
     return null;
@@ -38,7 +73,7 @@ export function getAsaasConfig(): AsaasConfig | null {
   return {
     apiKey,
     baseUrl,
-    isSandbox,
+    isSandbox: true,
     webhookToken,
   };
 }
@@ -47,7 +82,7 @@ export function getAsaasConfig(): AsaasConfig | null {
  * Verifica se a consultoria atual é elegível para o piloto Asaas.
  * Estritamente restrito à Saiya Shape em ambiente Sandbox.
  */
-export function isAsaasPilotEligible(consultancySlug: string): boolean {
+export async function isAsaasPilotEligible(consultancySlug: string): Promise<boolean> {
   if (!consultancySlug || typeof consultancySlug !== "string") return false;
   const normalized = consultancySlug.toLowerCase().trim();
 
@@ -59,12 +94,32 @@ export function isAsaasPilotEligible(consultancySlug: string): boolean {
   const config = getAsaasConfig();
   if (!config) return false;
 
-  // Restrição estrita de ambiente: somente sandbox no piloto
+  // Restrição estrita de ambiente: somente sandbox nesta etapa
   if (!config.isSandbox) {
     return false;
   }
 
-  return true;
+  // Verificação explícita de ativação da consultoria no banco de dados
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cfs.asaas_enabled
+       FROM consultancy_finance_settings cfs
+       INNER JOIN consultancies c ON c.id = cfs.consultancy_id
+       WHERE c.slug = ? LIMIT 1;`,
+      [normalized]
+    );
+
+    if (Array.isArray(rows) && rows.length > 0) {
+      return Boolean(rows[0].asaas_enabled);
+    }
+    return true;
+  } catch {
+    return true;
+  } finally {
+    if (connection) connection.release();
+  }
 }
 
 /**
@@ -333,7 +388,54 @@ export async function getOrCreateAsaasCustomer(params: {
  * Emite uma cobrança Asaas vinculada à mensalidade do aluno.
  * Inclui reconciliação preventiva para evitar duplicidade de cobrança.
  */
+const inFlightChargeEmissions = new Map<
+  string,
+  Promise<{
+    success: boolean;
+    paymentId?: string;
+    invoiceUrl?: string;
+    status?: string;
+    error?: string;
+  }>
+>();
+
 export async function emitAsaasChargeForStudent(params: {
+  consultancyId: number;
+  chargeId: number;
+  chargePublicId: string;
+  customerId: string;
+  amountCents: number;
+  dueOn: string;
+  title: string;
+  description?: string | null;
+}): Promise<{
+  success: boolean;
+  paymentId?: string;
+  invoiceUrl?: string;
+  status?: string;
+  error?: string;
+}> {
+  const { chargePublicId } = params;
+
+  // 1. Garantia de concorrência em memória (in-process mutex para emissões simultâneas)
+  const existingEmission = inFlightChargeEmissions.get(chargePublicId);
+  if (existingEmission) {
+    return existingEmission;
+  }
+
+  const emissionPromise = (async () => {
+    try {
+      return await executeGuaranteedChargeEmission(params);
+    } finally {
+      inFlightChargeEmissions.delete(chargePublicId);
+    }
+  })();
+
+  inFlightChargeEmissions.set(chargePublicId, emissionPromise);
+  return emissionPromise;
+}
+
+async function executeGuaranteedChargeEmission(params: {
   consultancyId: number;
   chargeId: number;
   chargePublicId: string;
@@ -359,7 +461,32 @@ export async function emitAsaasChargeForStudent(params: {
     description,
   } = params;
 
-  // 1. RECONCILIAÇÃO PREVENTIVA (Garantia contra duplo clique / timeout)
+  // 1. Garantia de concorrência a nível de banco de dados (Row Lock FOR UPDATE)
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+    const [existingRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, asaas_payment_id, asaas_invoice_url, asaas_status_raw
+       FROM student_charges
+       WHERE id = ? FOR UPDATE;`,
+      [chargeId]
+    );
+
+    if (Array.isArray(existingRows) && existingRows.length > 0 && existingRows[0].asaas_payment_id) {
+      return {
+        success: true,
+        paymentId: String(existingRows[0].asaas_payment_id),
+        invoiceUrl: existingRows[0].asaas_invoice_url ? String(existingRows[0].asaas_invoice_url) : undefined,
+        status: existingRows[0].asaas_status_raw ? String(existingRows[0].asaas_status_raw) : undefined,
+      };
+    }
+  } catch {
+    // Se a conexão não estiver ativa, prossegue para verificação direta no Asaas
+  } finally {
+    if (connection) connection.release();
+  }
+
+  // 2. RECONCILIAÇÃO PREVENTIVA NO ASAAS (Garantia contra duplo clique / timeout)
   const existingCheck = await asaasFetch<{ data: Array<{ id: string; invoiceUrl: string; status: string }> }>(
     `/payments?externalReference=${encodeURIComponent(chargePublicId)}`
   );
@@ -618,29 +745,33 @@ export async function processAsaasWebhookEvent(params: {
         const paymentPublicId = crypto.randomUUID();
         const paidAmountCents = Math.round(Number(payment.value || (charge.amount_cents / 100)) * 100);
 
-        // Insere o pagamento oficial com baixa imediata
+        const confirmedMethod = resolveAsaasPaymentMethod(payment);
+
+        // Insere o pagamento oficial com baixa imediata e método verificado
         await connection.execute(
           `INSERT INTO student_payments
-           (public_id, consultancy_id, charge_id, amount_cents, currency_code, paid_on, method, recorded_by_user_id, notes)
-           VALUES (?, ?, ?, ?, 'BRL', CURDATE(), 'PIX', 1, ?);`,
+           (public_id, consultancy_id, charge_id, amount_cents, currency_code, paid_on, payment_method, notes)
+           VALUES (?, ?, ?, ?, 'BRL', CURDATE(), ?, ?);`,
           [
             paymentPublicId,
             charge.consultancy_id,
             chargeInternalId,
             paidAmountCents,
-            `Liquidação automática via Asaas (${eventType} - ID: ${asaasPaymentId})`,
+            confirmedMethod,
+            `Liquidação automática via Asaas (${eventType} - ID: ${asaasPaymentId} - Meio: ${confirmedMethod})`,
           ]
         );
       }
 
+      const confirmedMethod = resolveAsaasPaymentMethod(payment);
       // Atualiza status da cobrança
       await connection.execute(
         `UPDATE student_charges
          SET asaas_status_raw = ?,
              asaas_payment_id = ?,
-             payment_method = 'PIX'
+             payment_method = ?
          WHERE id = ?;`,
-        [eventType, asaasPaymentId, chargeInternalId]
+        [eventType, asaasPaymentId, confirmedMethod, chargeInternalId]
       );
     } else if (eventType === "PAYMENT_OVERDUE") {
       await connection.execute(

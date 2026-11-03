@@ -156,7 +156,7 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
   const canSubmitReceipt = charge.state === "OPEN" && !charge.isPaid && !charge.hasSubmittedReceipt;
   const badgeStyle = getStatusBadgeConfig(charge.derivedStatus);
 
-  const isAsaasEligible = isAsaasPilotEligible(slug) && Boolean(charge.asaasPaymentId);
+  const isAsaasEligible = (await isAsaasPilotEligible(slug)) && Boolean(charge.asaasPaymentId);
   let asaasPixData: {
     encodedImage: string | null;
     payload: string | null;

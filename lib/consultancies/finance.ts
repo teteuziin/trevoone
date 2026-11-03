@@ -759,7 +759,7 @@ export async function createStudentCharge(
     let asaasPaymentId: string | null = null;
     let asaasInvoiceUrl: string | null = null;
 
-    if (isAsaasPilotEligible(consultancySlug)) {
+    if (await isAsaasPilotEligible(consultancySlug)) {
       try {
         const studentName = String(memberRows[0].full_name || "Aluno").trim();
         const studentEmail = String(memberRows[0].email || "").trim().toLowerCase();

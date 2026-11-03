@@ -189,25 +189,36 @@ export async function listConsultancyParticipantsForPromotion(
       [consultancyId]
     );
 
-    return rows.map((r) => ({
-      memberId: Number(r.member_id),
-      userId: Number(r.user_id),
-      userPublicId: r.user_public_id,
-      name: r.full_name,
-      role: r.role,
-      status: r.member_status,
-      hasProfilePhoto: Boolean(r.has_profile_photo),
-      profilePhotoUpdatedAt: r.profile_photo_updated_at ? new Date(r.profile_photo_updated_at) : null,
-      defaultCode: r.default_code || null,
-      isPromotionEnabled: r.code_is_active === 1 || r.code_is_active === true,
-      totalCampaignLinks: Number(r.total_links || 0),
-      activeCampaignLinks: Number(r.active_links || 0),
-      totalClicks: Number(r.total_clicks || 0),
-      totalConversions: Number(r.total_conversions || 0),
-      pendingAmount: Math.round(Number(r.pending_cents || 0)) / 100,
-      paidAmount: Math.round(Number(r.paid_cents || 0)) / 100,
-      hasPix: Boolean(r.has_pix),
-    }));
+    // Deduplicate participants by memberId if a user has multiple roles (preferring INFLUENCER over STUDENT)
+    const participantsMap = new Map<number, EligiblePromotionParticipant>();
+    for (const r of rows) {
+      const memberId = Number(r.member_id);
+      const existing = participantsMap.get(memberId);
+      const item: EligiblePromotionParticipant = {
+        memberId,
+        userId: Number(r.user_id),
+        userPublicId: r.user_public_id,
+        name: r.full_name,
+        role: r.role,
+        status: r.member_status,
+        hasProfilePhoto: Boolean(r.has_profile_photo),
+        profilePhotoUpdatedAt: r.profile_photo_updated_at ? new Date(r.profile_photo_updated_at) : null,
+        defaultCode: r.default_code || null,
+        isPromotionEnabled: r.code_is_active === 1 || r.code_is_active === true,
+        totalCampaignLinks: Number(r.total_links || 0),
+        activeCampaignLinks: Number(r.active_links || 0),
+        totalClicks: Number(r.total_clicks || 0),
+        totalConversions: Number(r.total_conversions || 0),
+        pendingAmount: Math.round(Number(r.pending_cents || 0)) / 100,
+        paidAmount: Math.round(Number(r.paid_cents || 0)) / 100,
+        hasPix: Boolean(r.has_pix),
+      };
+      if (!existing || (existing.role !== "INFLUENCER" && item.role === "INFLUENCER")) {
+        participantsMap.set(memberId, item);
+      }
+    }
+
+    return Array.from(participantsMap.values());
   } finally {
     connection.release();
   }

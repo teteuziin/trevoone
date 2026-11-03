@@ -125,7 +125,6 @@ export function AdminReferralsView({
 
   // Modals state
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
-  const [campaignModalSessionKey, setCampaignModalSessionKey] = useState(0);
   const [editingCampaignLink, setEditingCampaignLink] = useState<PromotionalCampaignLinkRecord | null>(null);
   const [campaignModalDefaultMemberId, setCampaignModalDefaultMemberId] = useState<number | null>(null);
 
@@ -524,7 +523,6 @@ export function AdminReferralsView({
                 onClick={() => {
                   setEditingCampaignLink(null);
                   setCampaignModalDefaultMemberId(null);
-                  setCampaignModalSessionKey((k) => k + 1);
                   setIsCampaignModalOpen(true);
                 }}
                 className="px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all cursor-pointer min-h-[42px] flex items-center gap-1.5 shadow-xs"
@@ -633,7 +631,6 @@ export function AdminReferralsView({
                           onClick={() => {
                             setEditingCampaignLink(null);
                             setCampaignModalDefaultMemberId(p.memberId);
-                            setCampaignModalSessionKey((k) => k + 1);
                             setIsCampaignModalOpen(true);
                           }}
                           className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-800 dark:text-white transition-all cursor-pointer min-h-[38px] flex items-center gap-1.5"
@@ -744,7 +741,6 @@ export function AdminReferralsView({
                                       onClick={() => {
                                         setEditingCampaignLink(link);
                                         setCampaignModalDefaultMemberId(link.referrerMemberId);
-                                        setCampaignModalSessionKey((k) => k + 1);
                                         setIsCampaignModalOpen(true);
                                       }}
                                       className="px-2.5 py-1.5 rounded-lg bg-slate-200/80 hover:bg-slate-300 dark:bg-white/5 dark:hover:bg-white/10 text-xs text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
@@ -1251,7 +1247,6 @@ export function AdminReferralsView({
         onSuccess={(enrolledMemberId) => {
           // Open link creation modal directly for this newly enrolled participant
           setCampaignModalDefaultMemberId(enrolledMemberId);
-          setCampaignModalSessionKey((k) => k + 1);
           setIsCampaignModalOpen(true);
         }}
       />
@@ -1259,7 +1254,7 @@ export function AdminReferralsView({
       {/* MODAL 2: CAMPAIGN LINK (CRIAR/EDITAR) */}
       {isCampaignModalOpen && (
         <CampaignLinkModal
-          key={`campaign-modal-${campaignModalSessionKey}`}
+          key={editingCampaignLink ? `campaign-modal-edit-${editingCampaignLink.id}` : `campaign-modal-new-${campaignModalDefaultMemberId ?? "create"}`}
           isOpen={isCampaignModalOpen}
           onClose={() => {
             setIsCampaignModalOpen(false);

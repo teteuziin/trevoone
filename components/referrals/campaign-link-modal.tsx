@@ -125,7 +125,8 @@ export function CampaignLinkModal({
 
   // Layer 2: Opções avançadas (Estritamente fechado por padrão na criação; na edição, abre apenas se houver configurações avançadas)
   const [showAdvanced, setShowAdvanced] = useState<boolean>(() => {
-    if (!initialData || !initialData.id) return false;
+    if (!initialData) return false;
+    if (!initialData.id) return false;
     return Boolean(
       (initialData.description && initialData.description.trim()) ||
       (initialData.eligiblePlans && initialData.eligiblePlans.trim()) ||

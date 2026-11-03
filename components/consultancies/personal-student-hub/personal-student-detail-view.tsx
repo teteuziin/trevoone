@@ -1549,18 +1549,23 @@ export function PersonalStudentDetailView({
           consultancySlug={consultancySlug}
           studentPublicId={student.membershipPublicId}
           studentName={student.name}
+          studentEmail={student.email}
           forms={
-            detail.formsList ||
-            forms.filter(
-              (f) =>
-                !f.title.toLowerCase().includes("anamnes") &&
-                !f.title.toLowerCase().includes("saúde") &&
-                !f.title.toLowerCase().includes("saude") &&
-                !f.title.toLowerCase().includes("histórico") &&
-                !f.title.toLowerCase().includes("historico")
-            )
+            (detail.formsList && detail.formsList.length > 0)
+              ? detail.formsList
+              : (forms && forms.length > 0)
+              ? forms.filter(
+                  (f) =>
+                    !f.title.toLowerCase().includes("anamnes") &&
+                    !f.title.toLowerCase().includes("saúde") &&
+                    !f.title.toLowerCase().includes("saude") &&
+                    !f.title.toLowerCase().includes("histórico") &&
+                    !f.title.toLowerCase().includes("historico")
+                )
+              : (detail.formsList || [])
           }
           availableTemplates={detail.availableTemplates || []}
+          publishedForms={detail.publishedForms || []}
           onRequestFormClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
         />
       )}

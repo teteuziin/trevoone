@@ -468,9 +468,9 @@ export async function listConsultancyForms(
 }
 
 export interface ActiveStudentOption {
-  membershipId: number;
+  membershipId?: number;
   membershipPublicId: string;
-  userId: number;
+  userId?: number;
   name: string;
   email: string;
   phone?: string | null;

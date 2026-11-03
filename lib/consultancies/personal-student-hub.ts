@@ -3,6 +3,12 @@ import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { COMPLETE_ANAMNESIS_FORM_V1, PHYSICAL_ASSESSMENT_FORM_V1 } from "./intake-schemas";
 import { resolveWorkoutAssignmentTitle } from "../training-v2/title-resolver";
 import { isMissingColumnError } from "../training-v2/schema-resilience";
+import type {
+  ConsultancyFormDto,
+  ConsultancyFormAssignmentDto,
+  FormQuestionDefinition,
+} from "./forms";
+import { ensureConsultancyFormsSchema } from "./forms-schema-assurance";
 
 export function formatDateYmd(val: unknown): string {
   if (!val) return "";
@@ -134,6 +140,8 @@ export interface StudentFormAnswer {
   submittedAt: string | null;
   requestedAt?: string | null;
   reviewedAt?: string | null;
+  dueDate?: string | null;
+  reviewerNotes?: string | null;
   questions: Array<{
     id?: string;
     question: string;
@@ -141,6 +149,7 @@ export interface StudentFormAnswer {
     fieldType?: string;
   }>;
   fields?: StudentFormFieldItem[];
+  assignmentDto?: ConsultancyFormAssignmentDto;
 }
 
 export interface FormTemplateSummary {
@@ -216,6 +225,7 @@ export interface PersonalStudentDetail {
   anamnesisList?: StudentFormAnswer[];
   formsList?: StudentFormAnswer[];
   availableTemplates?: FormTemplateSummary[];
+  publishedForms?: ConsultancyFormDto[];
   workouts: StudentWorkoutItem[];
   completedSessions: CompletedWorkoutSession[];
   measurements: PhysicalMeasurement[];
@@ -562,7 +572,171 @@ export async function getPersonalStudentDetail(params: {
       }
     }
 
-    // 3. Fetch Custom Forms (consultancy_custom_form_requests)
+    // 3. Fetch Modern Form Assignments (consultancy_form_assignments & consultancy_forms)
+    try {
+      await ensureConsultancyFormsSchema();
+    } catch {
+      // safe fallback
+    }
+
+    let modernAssignments: RowDataPacket[] = [];
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           cfa.id,
+           cfa.public_id,
+           cfa.form_id,
+           cfa.status,
+           cfa.due_date,
+           cfa.responses_json,
+           cfa.reviewer_notes,
+           cfa.submitted_at,
+           cfa.reviewed_at,
+           cfa.created_at,
+           cfa.updated_at,
+           cf.public_id AS form_public_id,
+           cf.title AS form_title,
+           cf.description AS form_description,
+           cf.questions_json,
+           u_assign.full_name AS assigned_by_name,
+           u_rev.full_name AS reviewed_by_name
+         FROM consultancy_form_assignments cfa
+         INNER JOIN consultancy_forms cf ON cf.id = cfa.form_id
+         LEFT JOIN users u_assign ON u_assign.id = cfa.assigned_by_user_id
+         LEFT JOIN users u_rev ON u_rev.id = cfa.reviewed_by_user_id
+         WHERE cfa.consultancy_id = ?
+           AND cfa.student_membership_id = ?
+         ORDER BY (cfa.status = 'SUBMITTED') DESC, (cfa.status = 'PENDING') DESC, cfa.created_at DESC;`,
+        [consultancyId, membershipId]
+      );
+      modernAssignments = rows;
+    } catch (err: unknown) {
+      console.warn("[Personal Student Hub] Warning querying consultancy_form_assignments:", err instanceof Error ? err.message : err);
+      modernAssignments = [];
+    }
+
+    if (Array.isArray(modernAssignments) && modernAssignments.length > 0) {
+      for (const row of modernAssignments) {
+        let parsedQuestions: FormQuestionDefinition[] = [];
+        let parsedResponses: Record<string, unknown> | null = null;
+        try {
+          parsedQuestions = typeof row.questions_json === "string" ? JSON.parse(row.questions_json) : (row.questions_json || []);
+        } catch {
+          parsedQuestions = [];
+        }
+        try {
+          parsedResponses = typeof row.responses_json === "string" ? JSON.parse(row.responses_json) : row.responses_json;
+        } catch {
+          parsedResponses = null;
+        }
+
+        const questionsList: Array<{ id?: string; question: string; answer: string; fieldType?: string }> = [];
+        for (const q of parsedQuestions) {
+          const val = parsedResponses ? parsedResponses[q.id] : undefined;
+          let answerText = "Não respondido";
+          if (val !== undefined && val !== null && val !== "") {
+            if (Array.isArray(val)) {
+              answerText = val.join(", ");
+            } else if (typeof val === "object") {
+              const fileObj = val as { name?: string; url?: string };
+              answerText = fileObj.name || JSON.stringify(val);
+            } else {
+              answerText = String(val);
+            }
+          }
+          questionsList.push({
+            id: q.id,
+            question: q.title,
+            answer: answerText,
+            fieldType: q.type,
+          });
+        }
+
+        let statusLabel = "Aguardando resposta";
+        if (row.status === "SUBMITTED") {
+          statusLabel = "Respondido";
+        } else if (row.status === "REVIEWED") {
+          statusLabel = "Revisado";
+        }
+
+        const authorOrigin: "STUDENT" | "PROFESSIONAL" =
+          row.status === "REVIEWED" || row.reviewed_at
+            ? "PROFESSIONAL"
+            : "STUDENT";
+
+        const titleLower = String(row.form_title).toLowerCase();
+        const isCustomAnamnesis =
+          titleLower.includes("anamnes") ||
+          titleLower.includes("saúde") ||
+          titleLower.includes("saude") ||
+          titleLower.includes("histórico") ||
+          titleLower.includes("historico");
+
+        const assignmentDto: ConsultancyFormAssignmentDto = {
+          id: Number(row.id),
+          publicId: String(row.public_id),
+          consultancyId,
+          formId: Number(row.form_id),
+          formPublicId: String(row.form_public_id),
+          formTitle: String(row.form_title),
+          formDescription: row.form_description ? String(row.form_description) : null,
+          questions: parsedQuestions,
+          studentMembershipId: membershipId,
+          studentMembershipPublicId: student.membershipPublicId,
+          studentUserId: 0,
+          studentName: student.name,
+          studentEmail: student.email,
+          studentPhone: student.phone,
+          assignedByUserId: 0,
+          assignedByName: row.assigned_by_name ? String(row.assigned_by_name) : null,
+          status: row.status as "PENDING" | "SUBMITTED" | "REVIEWED",
+          dueDate: row.due_date ? String(row.due_date).slice(0, 10) : null,
+          responses: parsedResponses,
+          reviewerNotes: row.reviewer_notes ? String(row.reviewer_notes) : null,
+          reviewedByUserId: null,
+          reviewedByName: row.reviewed_by_name ? String(row.reviewed_by_name) : null,
+          submittedAt: row.submitted_at ? safeToIsoString(row.submitted_at) : null,
+          reviewedAt: row.reviewed_at ? safeToIsoString(row.reviewed_at) : null,
+          createdAt: safeToIsoString(row.created_at),
+          updatedAt: safeToIsoString(row.updated_at || row.created_at),
+        };
+
+        const formItem: StudentFormAnswer = {
+          id: String(row.id),
+          publicId: String(row.public_id),
+          templatePublicId: String(row.form_public_id),
+          title: String(row.form_title),
+          description: row.form_description ? String(row.form_description) : null,
+          formType: "CUSTOM",
+          status: statusLabel,
+          rawStatus: String(row.status),
+          authorOrigin,
+          submittedAt: row.submitted_at ? safeToIsoString(row.submitted_at) : null,
+          requestedAt: row.created_at ? safeToIsoString(row.created_at) : null,
+          reviewedAt: row.reviewed_at ? safeToIsoString(row.reviewed_at) : null,
+          dueDate: row.due_date ? String(row.due_date).slice(0, 10) : null,
+          reviewerNotes: row.reviewer_notes ? String(row.reviewer_notes) : null,
+          questions: questionsList,
+          fields: parsedQuestions.map((q) => ({
+            id: q.id,
+            label: q.title,
+            type: q.type,
+            required: q.required,
+            options: q.options?.map((o) => o.label),
+            placeholder: q.placeholder,
+          })),
+          assignmentDto,
+        };
+
+        forms.push(formItem);
+        formsList.push(formItem);
+        if (isCustomAnamnesis) {
+          anamnesisList.push(formItem);
+        }
+      }
+    }
+
+    // 3.1. Fetch Legacy Custom Forms (consultancy_custom_form_requests) as fallback
     let customForms: RowDataPacket[] = [];
     try {
       const [rows] = await connection.execute<RowDataPacket[]>(
@@ -587,13 +761,15 @@ export async function getPersonalStudentDetail(params: {
         [consultancyId, membershipId]
       );
       customForms = rows;
-    } catch (err: unknown) {
-      console.error("[Personal Student Hub] Error fetching custom forms:", err instanceof Error ? err.message : err);
+    } catch {
+      // Legacy table may not exist
       customForms = [];
     }
 
     if (Array.isArray(customForms) && customForms.length > 0) {
       for (const row of customForms) {
+        if (forms.some((f) => f.publicId === String(row.public_id))) continue;
+
         let parsedAnswers: Record<string, unknown> = {};
         let parsedFields: StudentFormFieldItem[] = [];
         try {
@@ -691,30 +867,31 @@ export async function getPersonalStudentDetail(params: {
       }
     }
 
-    // 3.4. Fetch Available Templates for Quick Selection
-    let templateRows: RowDataPacket[] = [];
+    // 3.4. Fetch Available Published Templates from consultancy_forms
+    let publishedFormRows: RowDataPacket[] = [];
     try {
       const [rows] = await connection.execute<RowDataPacket[]>(
-        `SELECT public_id, title, description, fields_json
-         FROM consultancy_custom_form_templates
-         WHERE consultancy_id = ? AND is_active = 1 AND deleted_at IS NULL
+        `SELECT id, public_id, title, description, questions_json, status, created_by_user_id, created_at, updated_at
+         FROM consultancy_forms
+         WHERE consultancy_id = ? AND status = 'PUBLISHED' AND deleted_at IS NULL
          ORDER BY created_at DESC;`,
         [consultancyId]
       );
-      templateRows = rows;
-    } catch (err: unknown) {
-      console.error("[Personal Student Hub] Error fetching form templates:", err instanceof Error ? err.message : err);
-      templateRows = [];
+      publishedFormRows = rows;
+    } catch {
+      publishedFormRows = [];
     }
 
     const availableTemplates: FormTemplateSummary[] = [];
-    if (Array.isArray(templateRows)) {
-      for (const t of templateRows) {
-        let fields: StudentFormFieldItem[] = [];
+    const publishedForms: ConsultancyFormDto[] = [];
+
+    if (Array.isArray(publishedFormRows) && publishedFormRows.length > 0) {
+      for (const t of publishedFormRows) {
+        let questions: FormQuestionDefinition[] = [];
         try {
-          fields = typeof t.fields_json === "string" ? JSON.parse(t.fields_json) : (t.fields_json || []);
+          questions = typeof t.questions_json === "string" ? JSON.parse(t.questions_json) : (t.questions_json || []);
         } catch {
-          fields = [];
+          questions = [];
         }
         const titleLower = String(t.title).toLowerCase();
         const isAnamnesis =
@@ -729,10 +906,72 @@ export async function getPersonalStudentDetail(params: {
           title: String(t.title),
           description: t.description ? String(t.description) : null,
           isAnamnesis,
-          fieldsCount: fields.length,
-          fields,
+          fieldsCount: questions.length,
+          fields: questions.map((q) => ({
+            id: q.id,
+            label: q.title,
+            type: q.type,
+            required: q.required,
+            options: q.options?.map((o) => o.label),
+            placeholder: q.placeholder,
+          })),
+        });
+
+        publishedForms.push({
+          id: Number(t.id),
+          publicId: String(t.public_id),
+          consultancyId,
+          title: String(t.title),
+          description: t.description ? String(t.description) : null,
+          questions,
+          status: "PUBLISHED",
+          isRecurring: false,
+          recurrenceRule: null,
+          createdByUserId: Number(t.created_by_user_id || 0),
+          createdAt: safeToIsoString(t.created_at),
+          updatedAt: safeToIsoString(t.updated_at || t.created_at),
         });
       }
+    }
+
+    // 3.5. Fallback templates from consultancy_custom_form_templates (if any)
+    try {
+      const [legacyTemplates] = await connection.execute<RowDataPacket[]>(
+        `SELECT public_id, title, description, fields_json
+         FROM consultancy_custom_form_templates
+         WHERE consultancy_id = ? AND is_active = 1 AND deleted_at IS NULL
+         ORDER BY created_at DESC;`,
+        [consultancyId]
+      );
+      if (Array.isArray(legacyTemplates)) {
+        for (const t of legacyTemplates) {
+          if (availableTemplates.some((at) => at.publicId === String(t.public_id))) continue;
+          let fields: StudentFormFieldItem[] = [];
+          try {
+            fields = typeof t.fields_json === "string" ? JSON.parse(t.fields_json) : (t.fields_json || []);
+          } catch {
+            fields = [];
+          }
+          const titleLower = String(t.title).toLowerCase();
+          const isAnamnesis =
+            titleLower.includes("anamnes") ||
+            titleLower.includes("saúde") ||
+            titleLower.includes("saude") ||
+            titleLower.includes("histórico") ||
+            titleLower.includes("historico");
+
+          availableTemplates.push({
+            publicId: String(t.public_id),
+            title: String(t.title),
+            description: t.description ? String(t.description) : null,
+            isAnamnesis,
+            fieldsCount: fields.length,
+            fields,
+          });
+        }
+      }
+    } catch {
+      // ignore
     }
 
     // 3.5. Detect submitted custom anamnesis forms to populate anamnesis sections and biometrics if not set by intake
@@ -1373,6 +1612,7 @@ export async function getPersonalStudentDetail(params: {
       anamnesisList,
       formsList,
       availableTemplates,
+      publishedForms,
       workouts,
       completedSessions,
       measurements,
@@ -1415,6 +1655,7 @@ export async function getPersonalStudentDetail(params: {
         anamnesisList: [],
         formsList: [],
         availableTemplates: [],
+        publishedForms: [],
         workouts: [],
         completedSessions: [],
         measurements: [],

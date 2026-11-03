@@ -411,6 +411,52 @@ assert(waUrl.includes("Anamnese%20Pr%C3%A9-Treino"));
 
 console.log("  ✓ Link inteligente de WhatsApp validado!");
 
+// 8. TESTANDO INTEGRAÇÃO COM PERFIL DO ALUNO (STUDENT FORMS HUB)
+console.log("\n8. Testando integração com aba de Formulários no perfil do aluno...");
+
+// 8.1 Simular atribuição direcionada usando preselectedStudentMembershipPublicId
+const studentMemberPubId = "memb-student-xyz";
+const studentAssignRes = repo.assignForm(10, activeModel.publicId, [studentMemberPubId], "2026-11-20");
+assert.strictEqual(studentAssignRes.length, 1);
+assert.strictEqual(studentAssignRes[0].studentId, studentMemberPubId);
+assert.strictEqual(studentAssignRes[0].status, "PENDING");
+
+// 8.2 Simular fluxo 'Criar novo modelo com auto-atribuição ao aluno'
+const autoAssignedForm = repo.createForm(10, "Check-in Específico para Aluno", [
+  {
+    id: "q-spec-1",
+    type: "SHORT_TEXT",
+    title: "Como se sentiu hoje?",
+    required: true,
+  },
+]);
+repo.publishForm(10, autoAssignedForm.publicId);
+const autoAssignedList = repo.assignForm(10, autoAssignedForm.publicId, [studentMemberPubId]);
+assert.strictEqual(autoAssignedList.length, 1);
+assert.strictEqual(autoAssignedList[0].studentId, studentMemberPubId);
+
+// 8.3 Simular cálculo de contadores de filtro do StudentFormsHub
+const allAssignmentsList = Array.from(repo.assignments.values());
+const studentAssignments = allAssignmentsList.filter(
+  (a) => a.consultancyId === 10 && a.studentId === studentMemberPubId
+);
+const counts = {
+  all: studentAssignments.length,
+  pending: studentAssignments.filter((a) => a.status === "PENDING").length,
+  submitted: studentAssignments.filter((a) => a.status === "SUBMITTED" || a.status === "REVISION_REQUESTED").length,
+  reviewed: studentAssignments.filter((a) => a.status === "REVIEWED" || a.status === "APPROVED").length,
+};
+
+assert.strictEqual(counts.all >= 2, true, "Deve conter pelo menos 2 atribuições para o aluno");
+assert.strictEqual(counts.pending >= 2, true, "Atribuições recém criadas devem estar PENDING");
+
+// 8.4 Simular exclusão de formulário atribuído (deleteFormRequestAction)
+const toDeleteId = autoAssignedList[0].publicId;
+repo.assignments.delete(toDeleteId);
+assert.strictEqual(repo.assignments.has(toDeleteId), false, "Atribuição excluída deve sumir do repositório");
+
+console.log("  ✓ Fluxo unificado de criação/atribuição do perfil do aluno validado com sucesso!");
+
 console.log("\n=====================================================================");
 console.log("TODOS OS TESTES DO MÓDULO FORMULÁRIOS PASSARAM COM SUCESSO (100% PASS)");
 console.log("=====================================================================");

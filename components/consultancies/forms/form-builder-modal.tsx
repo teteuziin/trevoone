@@ -11,6 +11,7 @@ import {
   createFormAction,
   updateFormAction,
   publishFormAction,
+  assignFormAction,
 } from "@/app/consultoria/[slug]/formularios/actions";
 
 const emptySubscribe = () => () => {};
@@ -23,6 +24,10 @@ interface FormBuilderModalProps {
   onClose: () => void;
   consultancySlug: string;
   initialForm?: ConsultancyFormDto | null;
+  autoAssignStudent?: {
+    membershipPublicId: string;
+    name: string;
+  } | null;
   onSuccess: () => void;
 }
 
@@ -41,6 +46,7 @@ export function FormBuilderModal({
   onClose,
   consultancySlug,
   initialForm,
+  autoAssignStudent,
   onSuccess,
 }: FormBuilderModalProps) {
   const isMounted = useIsMounted();
@@ -200,6 +206,13 @@ export function FormBuilderModal({
           if (publishImmediately) {
             await publishFormAction(consultancySlug, createRes.form.publicId);
           }
+
+          if (autoAssignStudent) {
+            await assignFormAction(consultancySlug, {
+              formPublicId: createRes.form.publicId,
+              studentMembershipPublicIds: [autoAssignStudent.membershipPublicId],
+            });
+          }
         }
 
         onSuccess();
@@ -241,6 +254,11 @@ export function FormBuilderModal({
             >
               {isEditing ? `Editar: ${initialForm?.title}` : "Criar Modelo de Formulário"}
             </h2>
+            {autoAssignStudent && (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                ● Atribuindo automaticamente para: <span className="font-bold underline">{autoAssignStudent.name}</span>
+              </p>
+            )}
           </div>
           <button
             type="button"

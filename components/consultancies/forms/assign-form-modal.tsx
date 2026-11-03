@@ -20,6 +20,7 @@ interface AssignFormModalProps {
   forms: ConsultancyFormDto[];
   students: ActiveStudentOption[];
   preselectedFormPublicId?: string;
+  preselectedStudentMembershipPublicId?: string;
   onSuccess: () => void;
 }
 
@@ -30,6 +31,7 @@ export function AssignFormModal({
   forms,
   students,
   preselectedFormPublicId,
+  preselectedStudentMembershipPublicId,
   onSuccess,
 }: AssignFormModalProps) {
   const isMounted = useIsMounted();
@@ -43,7 +45,10 @@ export function AssignFormModal({
     preselectedFormPublicId || publishedForms[0]?.publicId || ""
   );
   const [assignToAll, setAssignToAll] = useState(false);
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(() => {
+    if (preselectedStudentMembershipPublicId) return [preselectedStudentMembershipPublicId];
+    return [];
+  });
   const [studentSearch, setStudentSearch] = useState("");
   const [dueDate, setDueDate] = useState("");
 
@@ -253,101 +258,122 @@ export function AssignFormModal({
               </div>
 
               {/* 3. TARGET RECIPIENTS */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                  <div>
-                    <span className="text-sm sm:text-xs font-bold text-slate-900 dark:text-white block">
-                      Enviar para todos os alunos ativos
-                    </span>
-                    <span className="text-xs sm:text-[11px] text-slate-500 dark:text-zinc-400">
-                      Dispara para a base inteira ({students.length} alunos) de uma vez
+              {preselectedStudentMembershipPublicId ? (
+                <div className="space-y-1.5 pt-1">
+                  <label className="text-sm sm:text-xs font-bold text-slate-800 dark:text-zinc-200 block">
+                    Aluno Destinatário
+                  </label>
+                  <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                    <div>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white block">
+                        {students.find((s) => s.membershipPublicId === preselectedStudentMembershipPublicId)?.name || "Aluno Selecionado"}
+                      </span>
+                      <span className="text-xs text-slate-500 dark:text-zinc-400 block">
+                        {students.find((s) => s.membershipPublicId === preselectedStudentMembershipPublicId)?.email || ""}
+                      </span>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500 text-white shadow-xs">
+                      Confirmado
                     </span>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={assignToAll}
-                    onChange={(e) => setAssignToAll(e.target.checked)}
-                    className="w-5 h-5 rounded-md text-emerald-500 focus:ring-emerald-500 border-slate-300 dark:border-white/20 bg-white dark:bg-zinc-800 cursor-pointer"
-                  />
                 </div>
-
-                {!assignToAll && (
-                  <div className="space-y-2.5 animate-in fade-in">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm sm:text-xs font-bold text-slate-800 dark:text-zinc-200">
-                        Selecionar Alunos ({selectedStudentIds.length} selecionado{selectedStudentIds.length !== 1 ? "s" : ""})
-                      </label>
-                      {students.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (selectedStudentIds.length === students.length) {
-                              setSelectedStudentIds([]);
-                            } else {
-                              setSelectedStudentIds(students.map((s) => s.membershipPublicId));
-                            }
-                          }}
-                          className="text-xs sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
-                        >
-                          {selectedStudentIds.length === students.length ? "Desmarcar todos" : "Selecionar todos"}
-                        </button>
-                      )}
+              ) : (
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                    <div>
+                      <span className="text-sm sm:text-xs font-bold text-slate-900 dark:text-white block">
+                        Enviar para todos os alunos ativos
+                      </span>
+                      <span className="text-xs sm:text-[11px] text-slate-500 dark:text-zinc-400">
+                        Dispara para a base inteira ({students.length} alunos) de uma vez
+                      </span>
                     </div>
-
                     <input
-                      type="text"
-                      value={studentSearch}
-                      onChange={(e) => setStudentSearch(e.target.value)}
-                      placeholder="Buscar aluno por nome ou email..."
-                      className="w-full px-4 py-3 sm:py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-base sm:text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 font-medium focus:outline-hidden focus:border-emerald-500 min-h-[48px]"
+                      type="checkbox"
+                      checked={assignToAll}
+                      onChange={(e) => setAssignToAll(e.target.checked)}
+                      className="w-5 h-5 rounded-md text-emerald-500 focus:ring-emerald-500 border-slate-300 dark:border-white/20 bg-white dark:bg-zinc-800 cursor-pointer"
                     />
+                  </div>
 
-                    <div className="max-h-56 overflow-y-auto space-y-1.5 border border-slate-200 dark:border-white/10 rounded-2xl p-2 bg-slate-50/50 dark:bg-white/[0.02]">
-                      {filteredStudents.length === 0 ? (
-                        <p className="text-xs text-slate-500 dark:text-zinc-400 text-center py-4">
-                          Nenhum aluno encontrado.
-                        </p>
-                      ) : (
-                        filteredStudents.map((s) => {
-                          const isSelected = selectedStudentIds.includes(s.membershipPublicId);
-                          return (
-                            <button
-                              type="button"
-                              key={s.membershipPublicId}
-                              onClick={() => toggleStudent(s.membershipPublicId)}
-                              className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition-colors cursor-pointer min-h-[48px] ${
-                                isSelected
-                                  ? "bg-emerald-500/10 border-emerald-500/40 text-slate-900 dark:text-white"
-                                  : "bg-white dark:bg-white/5 border-slate-200/80 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/15 text-slate-700 dark:text-zinc-300"
-                              }`}
-                            >
-                              <div className="truncate pr-2">
-                                <span className="text-sm sm:text-xs font-bold block truncate">{s.name}</span>
-                                <span className="text-xs sm:text-[11px] text-slate-500 dark:text-zinc-400 truncate block">
-                                  {s.email}
-                                </span>
-                              </div>
-                              <div
-                                className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${
+                  {!assignToAll && (
+                    <div className="space-y-2.5 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm sm:text-xs font-bold text-slate-800 dark:text-zinc-200">
+                          Selecionar Alunos ({selectedStudentIds.length} selecionado{selectedStudentIds.length !== 1 ? "s" : ""})
+                        </label>
+                        {students.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (selectedStudentIds.length === students.length) {
+                                setSelectedStudentIds([]);
+                              } else {
+                                setSelectedStudentIds(students.map((s) => s.membershipPublicId));
+                              }
+                            }}
+                            className="text-xs sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                          >
+                            {selectedStudentIds.length === students.length ? "Desmarcar todos" : "Selecionar todos"}
+                          </button>
+                        )}
+                      </div>
+
+                      <input
+                        type="text"
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                        placeholder="Buscar aluno por nome ou email..."
+                        className="w-full px-4 py-3 sm:py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-base sm:text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 font-medium focus:outline-hidden focus:border-emerald-500 min-h-[48px]"
+                      />
+
+                      <div className="max-h-56 overflow-y-auto space-y-1.5 border border-slate-200 dark:border-white/10 rounded-2xl p-2 bg-slate-50/50 dark:bg-white/[0.02]">
+                        {filteredStudents.length === 0 ? (
+                          <p className="text-xs text-slate-500 dark:text-zinc-400 text-center py-4">
+                            Nenhum aluno encontrado.
+                          </p>
+                        ) : (
+                          filteredStudents.map((s) => {
+                            const isSelected = selectedStudentIds.includes(s.membershipPublicId);
+                            return (
+                              <button
+                                type="button"
+                                key={s.membershipPublicId}
+                                onClick={() => toggleStudent(s.membershipPublicId)}
+                                className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition-colors cursor-pointer min-h-[48px] ${
                                   isSelected
-                                    ? "bg-emerald-500 border-emerald-500 text-white"
-                                    : "border-slate-300 dark:border-white/20"
+                                    ? "bg-emerald-500/10 border-emerald-500/40 text-slate-900 dark:text-white"
+                                    : "bg-white dark:bg-white/5 border-slate-200/80 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/15 text-slate-700 dark:text-zinc-300"
                                 }`}
                               >
-                                {isSelected && (
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
-                              </div>
-                            </button>
-                          );
-                        })
-                      )}
+                                <div className="truncate pr-2">
+                                  <span className="text-sm sm:text-xs font-bold block truncate">{s.name}</span>
+                                  <span className="text-xs sm:text-[11px] text-slate-500 dark:text-zinc-400 truncate block">
+                                    {s.email}
+                                  </span>
+                                </div>
+                                <div
+                                  className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${
+                                    isSelected
+                                      ? "bg-emerald-500 border-emerald-500 text-white"
+                                      : "border-slate-300 dark:border-white/20"
+                                  }`}
+                                >
+                                  {isSelected && (
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/auth/session";
+import { getDbConnection } from "@/lib/db/mysql";
+import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import {
   createPhotoEvaluationWithImagesByProfessional,
   deletePhotoEvaluationByProfessional,
@@ -234,7 +236,24 @@ export async function deleteFormRequestAction(
     return { success: false, error: "Sessão expirada. Faça login novamente." };
   }
 
-  void requestPublicId;
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context) {
+    return { success: false, error: "Consultoria não encontrada." };
+  }
+
+  const connection = await getDbConnection();
+  try {
+    await connection.execute(
+      `DELETE FROM consultancy_form_assignments WHERE public_id = ? AND consultancy_id = ?`,
+      [requestPublicId, context.consultancyId]
+    );
+  } catch (err: unknown) {
+    console.error("[deleteFormRequestAction] Error:", err);
+  } finally {
+    connection.release();
+  }
+
   revalidatePath(`/consultoria/${slug}/progresso/alunos/${studentPublicId}`);
+  revalidatePath(`/consultoria/${slug}/formularios`);
   return { success: true };
 }

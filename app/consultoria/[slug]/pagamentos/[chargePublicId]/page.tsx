@@ -14,6 +14,8 @@ import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-
 import { Alert } from "@/components/ui/alert";
 import { CopyPixButton } from "@/components/finance/copy-pix-button";
 import { ReceiptUploadForm } from "@/components/finance/receipt-upload-form";
+import { isAsaasPilotEligible, getAsaasPixQrCode } from "@/lib/consultancies/asaas";
+import { AsaasPaymentCard } from "@/components/finance/asaas-payment-card";
 
 export const dynamic = "force-dynamic";
 
@@ -153,6 +155,21 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
 
   const canSubmitReceipt = charge.state === "OPEN" && !charge.isPaid && !charge.hasSubmittedReceipt;
   const badgeStyle = getStatusBadgeConfig(charge.derivedStatus);
+
+  const isAsaasEligible = isAsaasPilotEligible(slug) && Boolean(charge.asaasPaymentId);
+  let asaasPixData: {
+    encodedImage: string | null;
+    payload: string | null;
+    expirationDate: string | null;
+  } | null = null;
+
+  if (isAsaasEligible && charge.state === "OPEN" && !charge.isPaid && charge.asaasPaymentId) {
+    try {
+      asaasPixData = await getAsaasPixQrCode(charge.asaasPaymentId);
+    } catch {
+      // Best effort in case Asaas API is temporarily unreachable
+    }
+  }
 
   return (
     <ConsultancyAppShell
@@ -372,9 +389,23 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
         )}
 
         {/* ===================================================================== */}
-        {/* E. DADOS PIX E FORMULÁRIO DE COMPROVANTE (Quando em Aberto)           */}
+        {/* E. PAGAMENTO AUTOMATIZADO ASAAS (PILOTO SANDBOX SAIYA SHAPE)          */}
         {/* ===================================================================== */}
-        {canSubmitReceipt && (
+        {isAsaasEligible && (
+          <AsaasPaymentCard
+            invoiceUrl={charge.asaasInvoiceUrl || null}
+            pixQrCodeImage={asaasPixData?.encodedImage || null}
+            pixCopiaECola={asaasPixData?.payload || null}
+            amountFormatted={formatCentsToBrl(charge.amountCents)}
+            dueOnFormatted={formattedDueDate}
+            isPaid={charge.isPaid}
+          />
+        )}
+
+        {/* ===================================================================== */}
+        {/* F. DADOS PIX E FORMULÁRIO DE COMPROVANTE (Fluxo Manual Não-Asaas)     */}
+        {/* ===================================================================== */}
+        {!isAsaasEligible && canSubmitReceipt && (
           <div className="space-y-6">
             {/* Card com Chave Pix Oficial da Consultoria */}
             {charge.pixSettings ? (

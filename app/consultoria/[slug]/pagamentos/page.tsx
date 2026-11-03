@@ -325,6 +325,12 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
                           {badgeStyle.icon}
                           <span>{badgeStyle.label}</span>
                         </span>
+                        {charge.isAsaas && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span>Asaas</span>
+                          </span>
+                        )}
                       </div>
 
                       {/* Competência estruturada (quando existir) */}

@@ -1,0 +1,678 @@
+import { getDbConnection } from "@/lib/db/mysql";
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import crypto from "node:crypto";
+
+/**
+ * TREVO ONE — PILOTO ASAAS SANDBOX EXCLUSIVO PARA SAIYA SHAPE
+ *
+ * Regras estritas de segurança e isolamento:
+ * 1. Habilitado exclusivamente se consultancySlug === "saiya-shape"
+ * 2. Ambiente obrigatoriamente restrito ao sandbox (process.env.ASAAS_ENVIRONMENT === "sandbox")
+ * 3. Token e credenciais nunca são expostos em logs ou respostas de erro
+ * 4. Idempotência estrita: não cria cobranças duplicadas no Asaas
+ * 5. Outras consultorias permanecem 100% no fluxo manual de Pix
+ */
+
+export interface AsaasConfig {
+  apiKey: string;
+  baseUrl: string;
+  isSandbox: boolean;
+  webhookToken: string;
+}
+
+/**
+ * Retorna as configurações do Asaas a partir do ambiente de runtime.
+ * Nunca imprime nem expõe o valor da API Key.
+ */
+export function getAsaasConfig(): AsaasConfig | null {
+  const apiKey = process.env.ASAAS_API_KEY?.trim() || "";
+  const rawEnv = (process.env.ASAAS_ENVIRONMENT || "sandbox").toLowerCase().trim();
+  const isSandbox = rawEnv !== "production";
+  const baseUrl = isSandbox ? "https://sandbox.asaas.com/api/v3" : "https://api.asaas.com/v3";
+  const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN?.trim() || "trevo-one-wh-saiya-sandbox";
+
+  if (!apiKey) {
+    return null;
+  }
+
+  return {
+    apiKey,
+    baseUrl,
+    isSandbox,
+    webhookToken,
+  };
+}
+
+/**
+ * Verifica se a consultoria atual é elegível para o piloto Asaas.
+ * Estritamente restrito à Saiya Shape em ambiente Sandbox.
+ */
+export function isAsaasPilotEligible(consultancySlug: string): boolean {
+  if (!consultancySlug || typeof consultancySlug !== "string") return false;
+  const normalized = consultancySlug.toLowerCase().trim();
+
+  // Restrição estrita de tenancy: somente 'saiya-shape'
+  if (normalized !== "saiya-shape") {
+    return false;
+  }
+
+  const config = getAsaasConfig();
+  if (!config) return false;
+
+  // Restrição estrita de ambiente: somente sandbox no piloto
+  if (!config.isSandbox) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Executa uma chamada autenticada segura à API do Asaas v3.
+ * Trata erros sem expor segredos.
+ */
+async function asaasFetch<T = unknown>(
+  endpoint: string,
+  options: {
+    method?: string;
+    body?: unknown;
+  } = {}
+): Promise<{ ok: boolean; status: number; data?: T; error?: string }> {
+  const config = getAsaasConfig();
+  if (!config) {
+    return { ok: false, status: 500, error: "Asaas não configurado no servidor." };
+  }
+
+  const url = `${config.baseUrl}${endpoint}`;
+  try {
+    const res = await fetch(url, {
+      method: options.method || "GET",
+      headers: {
+        access_token: config.apiKey,
+        "User-Agent": "Trevo-One-Pilot/1.0",
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      let sanitizedError = "Erro na requisição ao Asaas.";
+      const errPayload = data as { errors?: Array<{ description?: string; code?: string }> } | null;
+      if (errPayload && Array.isArray(errPayload.errors) && errPayload.errors.length > 0) {
+        sanitizedError = errPayload.errors.map((e) => e.description || e.code || "").filter(Boolean).join("; ");
+      }
+      return { ok: false, status: res.status, data, error: sanitizedError };
+    }
+
+    return { ok: true, status: res.status, data };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Timeout";
+    return {
+      ok: false,
+      status: 500,
+      error: `Falha na conexão com gateway Asaas: ${msg}`,
+    };
+  }
+}
+
+/**
+ * Chamada somente de leitura para testar e validar autenticação no Asaas.
+ */
+export async function validateAsaasAuthentication(): Promise<{
+  success: boolean;
+  isSandbox: boolean;
+  status: number;
+  tradingName?: string;
+  error?: string;
+}> {
+  const config = getAsaasConfig();
+  if (!config) {
+    return {
+      success: false,
+      isSandbox: true,
+      status: 500,
+      error: "Variáveis ASAAS_API_KEY ou ASAAS_ENVIRONMENT não configuradas.",
+    };
+  }
+
+  const res = await asaasFetch<{ tradingName?: string; name?: string; status?: string }>("/myAccount");
+  if (!res.ok) {
+    return {
+      success: false,
+      isSandbox: config.isSandbox,
+      status: res.status,
+      error: res.error,
+    };
+  }
+
+  return {
+    success: true,
+    isSandbox: config.isSandbox,
+    status: res.status,
+    tradingName: res.data?.tradingName || res.data?.name || "Conta Asaas Ativa",
+  };
+}
+
+/**
+ * Garante as colunas e tabelas necessárias para o Asaas de forma defensiva (Schema Assurance).
+ */
+export async function ensureAsaasSchemaAssurance(): Promise<void> {
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+
+    // 1. Asaas customers table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS asaas_customers (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        public_id CHAR(36) NOT NULL UNIQUE,
+        consultancy_id BIGINT UNSIGNED NOT NULL,
+        student_membership_id BIGINT UNSIGNED NOT NULL,
+        asaas_customer_id VARCHAR(50) NOT NULL,
+        name VARCHAR(150) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        cpf_cnpj VARCHAR(20) NULL DEFAULT NULL,
+        phone VARCHAR(20) NULL DEFAULT NULL,
+        created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        UNIQUE KEY uq_asaas_customers_tenant_member (consultancy_id, student_membership_id),
+        INDEX idx_asaas_customers_asaas_id (asaas_customer_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    // 2. Asaas webhook events table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS asaas_webhook_events (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        public_id CHAR(36) NOT NULL UNIQUE,
+        asaas_event_id VARCHAR(100) NULL DEFAULT NULL,
+        event_type VARCHAR(50) NOT NULL,
+        asaas_payment_id VARCHAR(50) NULL DEFAULT NULL,
+        raw_payload JSON NOT NULL,
+        processed TINYINT(1) NOT NULL DEFAULT 0,
+        processed_at DATETIME(3) NULL DEFAULT NULL,
+        processing_error VARCHAR(500) NULL DEFAULT NULL,
+        received_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        INDEX idx_asaas_webhooks_payment_id (asaas_payment_id),
+        INDEX idx_asaas_webhooks_event_type (event_type),
+        INDEX idx_asaas_webhooks_idempotency (asaas_event_id, event_type),
+        INDEX idx_asaas_webhooks_processing (processed, received_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    // 3. Defensive checks for student_charges columns
+    const [cols] = await connection.execute<RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'student_charges'`
+    );
+    const existingCols = new Set(cols.map((c) => c.COLUMN_NAME));
+
+    if (!existingCols.has("asaas_payment_id")) {
+      await connection.execute(
+        `ALTER TABLE student_charges ADD COLUMN asaas_payment_id VARCHAR(50) NULL DEFAULT NULL`
+      );
+    }
+    if (!existingCols.has("asaas_subscription_id")) {
+      await connection.execute(
+        `ALTER TABLE student_charges ADD COLUMN asaas_subscription_id VARCHAR(50) NULL DEFAULT NULL`
+      );
+    }
+    if (!existingCols.has("payment_method")) {
+      await connection.execute(
+        `ALTER TABLE student_charges ADD COLUMN payment_method VARCHAR(32) NULL DEFAULT NULL`
+      );
+    }
+    if (!existingCols.has("asaas_invoice_url")) {
+      await connection.execute(
+        `ALTER TABLE student_charges ADD COLUMN asaas_invoice_url VARCHAR(500) NULL DEFAULT NULL`
+      );
+    }
+    if (!existingCols.has("asaas_status_raw")) {
+      await connection.execute(
+        `ALTER TABLE student_charges ADD COLUMN asaas_status_raw VARCHAR(50) NULL DEFAULT NULL`
+      );
+    }
+  } catch (err: unknown) {
+    // Se a tabela ou coluna já existir, ignora erro benigno
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[Asaas Schema Assurance]", msg);
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Cria ou recupera o cliente correspondente no Asaas para o aluno.
+ */
+export async function getOrCreateAsaasCustomer(params: {
+  consultancyId: number;
+  studentMembershipId: number;
+  studentName: string;
+  studentEmail: string;
+  cpfCnpj?: string | null;
+  phone?: string | null;
+}): Promise<{ customerId: string | null; error?: string }> {
+  const { consultancyId, studentMembershipId, studentName, studentEmail, cpfCnpj, phone } = params;
+
+  let connection: PoolConnection | null = null;
+  try {
+    await ensureAsaasSchemaAssurance();
+    connection = await getDbConnection();
+
+    // 1. Busca localmente na tabela asaas_customers
+    const [localRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT asaas_customer_id FROM asaas_customers
+       WHERE consultancy_id = ? AND student_membership_id = ? LIMIT 1;`,
+      [consultancyId, studentMembershipId]
+    );
+
+    if (Array.isArray(localRows) && localRows.length > 0) {
+      return { customerId: String(localRows[0].asaas_customer_id) };
+    }
+
+    // 2. Não encontrado localmente. Busca no Asaas por email
+    const searchRes = await asaasFetch<{ data: Array<{ id: string; email: string }> }>(
+      `/customers?email=${encodeURIComponent(studentEmail.trim().toLowerCase())}`
+    );
+
+    let asaasCustomerId: string | null = null;
+
+    if (searchRes.ok && searchRes.data && Array.isArray(searchRes.data.data) && searchRes.data.data.length > 0) {
+      asaasCustomerId = searchRes.data.data[0].id;
+    } else {
+      // 3. Cria novo cliente no Asaas
+      const createRes = await asaasFetch<{ id: string }>("/customers", {
+        method: "POST",
+        body: {
+          name: studentName.trim(),
+          email: studentEmail.trim().toLowerCase(),
+          cpfCnpj: cpfCnpj?.replace(/\D/g, "") || undefined,
+          mobilePhone: phone?.replace(/\D/g, "") || undefined,
+          externalReference: `member-${studentMembershipId}`,
+          notificationDisabled: true, // No piloto, desabilita envio de e-mails diretos pelo Asaas
+        },
+      });
+
+      if (!createRes.ok || !createRes.data?.id) {
+        return { customerId: null, error: createRes.error || "Falha ao registrar cliente no Asaas." };
+      }
+      asaasCustomerId = createRes.data.id;
+    }
+
+    // 4. Salva vínculo local
+    const publicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO asaas_customers
+       (public_id, consultancy_id, student_membership_id, asaas_customer_id, name, email, cpf_cnpj, phone)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE asaas_customer_id = VALUES(asaas_customer_id), updated_at = CURRENT_TIMESTAMP(3);`,
+      [
+        publicId,
+        consultancyId,
+        studentMembershipId,
+        asaasCustomerId,
+        studentName.trim(),
+        studentEmail.trim().toLowerCase(),
+        cpfCnpj || null,
+        phone || null,
+      ]
+    );
+
+    return { customerId: asaasCustomerId };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Erro no gerenciamento de cliente Asaas.";
+    return { customerId: null, error: msg };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Emite uma cobrança Asaas vinculada à mensalidade do aluno.
+ * Inclui reconciliação preventiva para evitar duplicidade de cobrança.
+ */
+export async function emitAsaasChargeForStudent(params: {
+  consultancyId: number;
+  chargeId: number;
+  chargePublicId: string;
+  customerId: string;
+  amountCents: number;
+  dueOn: string;
+  title: string;
+  description?: string | null;
+}): Promise<{
+  success: boolean;
+  paymentId?: string;
+  invoiceUrl?: string;
+  status?: string;
+  error?: string;
+}> {
+  const {
+    chargeId,
+    chargePublicId,
+    customerId,
+    amountCents,
+    dueOn,
+    title,
+    description,
+  } = params;
+
+  // 1. RECONCILIAÇÃO PREVENTIVA (Garantia contra duplo clique / timeout)
+  const existingCheck = await asaasFetch<{ data: Array<{ id: string; invoiceUrl: string; status: string }> }>(
+    `/payments?externalReference=${encodeURIComponent(chargePublicId)}`
+  );
+
+  if (existingCheck.ok && existingCheck.data && Array.isArray(existingCheck.data.data) && existingCheck.data.data.length > 0) {
+    const existing = existingCheck.data.data[0];
+    await updateLocalChargeWithAsaas(chargeId, {
+      paymentId: existing.id,
+      invoiceUrl: existing.invoiceUrl,
+      status: existing.status,
+    });
+    return {
+      success: true,
+      paymentId: existing.id,
+      invoiceUrl: existing.invoiceUrl,
+      status: existing.status,
+    };
+  }
+
+  // 2. Emissão no Asaas
+  const valueNumber = Number((amountCents / 100).toFixed(2));
+
+  // Tenta emitir primeiramente como PIX; se o Sandbox exigir ativação de conta para PIX direto, usa UNDEFINED
+  let createRes = await asaasFetch<{ id: string; invoiceUrl: string; status: string }>("/payments", {
+    method: "POST",
+    body: {
+      customer: customerId,
+      billingType: "PIX",
+      value: valueNumber,
+      dueDate: dueOn,
+      description: description ? `${title} - ${description}` : `${title} - Saiya Shape`,
+      externalReference: chargePublicId,
+      postalService: false,
+    },
+  });
+
+  if (!createRes.ok && (createRes.error?.includes("Pix não está disponível") || createRes.error?.includes("conta precisa estar aprovada"))) {
+    // Fallback gracioso no sandbox para BOLETO (gera fatura hospedada com checkout ativo para conta pendente)
+    createRes = await asaasFetch<{ id: string; invoiceUrl: string; status: string }>("/payments", {
+      method: "POST",
+      body: {
+        customer: customerId,
+        billingType: "BOLETO",
+        value: valueNumber,
+        dueDate: dueOn,
+        description: description ? `${title} - ${description}` : `${title} - Saiya Shape`,
+        externalReference: chargePublicId,
+        postalService: false,
+      },
+    });
+  }
+
+  if (!createRes.ok || !createRes.data?.id) {
+    return {
+      success: false,
+      error: createRes.error || "Falha ao emitir cobrança no Asaas.",
+    };
+  }
+
+  const payment = createRes.data;
+
+  // 3. Atualiza registro financeiro local
+  await updateLocalChargeWithAsaas(chargeId, {
+    paymentId: payment.id,
+    invoiceUrl: payment.invoiceUrl,
+    status: payment.status,
+  });
+
+  return {
+    success: true,
+    paymentId: payment.id,
+    invoiceUrl: payment.invoiceUrl,
+    status: payment.status,
+  };
+}
+
+/**
+ * Atualiza o registro em student_charges com os identificadores do Asaas.
+ */
+async function updateLocalChargeWithAsaas(
+  chargeId: number,
+  data: { paymentId: string; invoiceUrl: string; status: string }
+): Promise<void> {
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+    await connection.execute(
+      `UPDATE student_charges
+       SET asaas_payment_id = ?,
+           asaas_invoice_url = ?,
+           payment_method = 'PIX',
+           asaas_status_raw = ?
+       WHERE id = ?;`,
+      [data.paymentId, data.invoiceUrl, data.status, chargeId]
+    );
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[Asaas] Erro ao sincronizar cobrança local:", msg);
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Obtém o QR Code e linha Copia-e-Cola do Pix da cobrança no Asaas.
+ */
+export async function getAsaasPixQrCode(paymentId: string): Promise<{
+  encodedImage: string | null;
+  payload: string | null;
+  expirationDate: string | null;
+}> {
+  if (!paymentId || !paymentId.startsWith("pay_")) {
+    return { encodedImage: null, payload: null, expirationDate: null };
+  }
+
+  const res = await asaasFetch<{
+    encodedImage?: string;
+    payload?: string;
+    expirationDate?: string;
+  }>(`/payments/${paymentId}/pixQrCode`);
+
+  if (!res.ok || !res.data) {
+    return { encodedImage: null, payload: null, expirationDate: null };
+  }
+
+  return {
+    encodedImage: res.data.encodedImage || null,
+    payload: res.data.payload || null,
+    expirationDate: res.data.expirationDate || null,
+  };
+}
+
+/**
+ * Processa eventos de Webhook enviados pelo Asaas.
+ * Garante idempotência, validação de token e baixa automática sem duplicação.
+ */
+export async function processAsaasWebhookEvent(params: {
+  payload: Record<string, unknown>;
+  receivedToken: string | null;
+}): Promise<{
+  success: boolean;
+  message: string;
+  alreadyProcessed?: boolean;
+}> {
+  const { payload, receivedToken } = params;
+  const config = getAsaasConfig();
+
+  if (!config) {
+    return { success: false, message: "Asaas não configurado no servidor." };
+  }
+
+  // 1. Validação do cabeçalho asaas-access-token
+  if (!receivedToken || receivedToken !== config.webhookToken) {
+    return { success: false, message: "Acesso não autorizado: token de webhook inválido." };
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return { success: false, message: "Payload de webhook inválido." };
+  }
+
+  const eventType = String(payload.event || "").trim();
+  const payment = (payload.payment || null) as {
+    id?: string;
+    externalReference?: string;
+    status?: string;
+    value?: number;
+  } | null;
+  const eventId = payload.id ? String(payload.id) : null;
+  const asaasPaymentId = payment?.id ? String(payment.id) : null;
+
+  if (!eventType || !payment || !asaasPaymentId) {
+    return { success: false, message: "Dados incompletos no evento do Asaas." };
+  }
+
+  let connection: PoolConnection | null = null;
+  try {
+    await ensureAsaasSchemaAssurance();
+    connection = await getDbConnection();
+
+    // 2. DEDUPLICAÇÃO E IDEMPOTÊNCIA via asaas_webhook_events
+    if (eventId) {
+      const [existing] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, processed FROM asaas_webhook_events
+         WHERE asaas_event_id = ? AND event_type = ? LIMIT 1;`,
+        [eventId, eventType]
+      );
+      if (Array.isArray(existing) && existing.length > 0 && existing[0].processed === 1) {
+        return {
+          success: true,
+          message: "Evento já processado anteriormente (Idempotente).",
+          alreadyProcessed: true,
+        };
+      }
+    }
+
+    // Registra o evento recebido
+    const eventPublicId = crypto.randomUUID();
+    const [insertEventRes] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO asaas_webhook_events
+       (public_id, asaas_event_id, event_type, asaas_payment_id, raw_payload, processed, received_at)
+       VALUES (?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP(3))
+       ON DUPLICATE KEY UPDATE raw_payload = VALUES(raw_payload);`,
+      [eventPublicId, eventId, eventType, asaasPaymentId, JSON.stringify(payload)]
+    );
+    const recordedEventId = insertEventRes?.insertId || 0;
+
+    // 3. Localiza a cobrança interna correspondente no Trevo One
+    // Busca por asaas_payment_id ou externalReference (que é o public_id da cobrança)
+    const externalRef = payment.externalReference ? String(payment.externalReference) : "";
+
+    const [chargeRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT sc.id, sc.public_id, sc.consultancy_id, sc.amount_cents, sc.state, c.slug as consultancy_slug
+       FROM student_charges sc
+       JOIN consultancies c ON c.id = sc.consultancy_id
+       WHERE sc.asaas_payment_id = ? OR sc.public_id = ?
+       LIMIT 1;`,
+      [asaasPaymentId, externalRef]
+    );
+
+    if (!Array.isArray(chargeRows) || chargeRows.length === 0) {
+      if (recordedEventId) {
+        await connection.execute(
+          `UPDATE asaas_webhook_events SET processing_error = 'Cobrança não encontrada no sistema' WHERE id = ?;`,
+          [recordedEventId]
+        );
+      }
+      return { success: false, message: `Cobrança ${asaasPaymentId} não encontrada no Trevo One.` };
+    }
+
+    const charge = chargeRows[0];
+    const consultancySlug = String(charge.consultancy_slug);
+
+    // Validação estrita de Tenancy do Piloto
+    if (consultancySlug !== "saiya-shape") {
+      return { success: false, message: "Piloto Asaas restrito exclusivamente à Saiya Shape." };
+    }
+
+    const chargeInternalId = Number(charge.id);
+
+    // 4. PROCESSAMENTO DO EVENTO DE LIQUIDAÇÃO (PAGAMENTO CONFIRMADO)
+    const isPaidEvent =
+      eventType === "PAYMENT_RECEIVED" ||
+      eventType === "PAYMENT_CONFIRMED" ||
+      payment.status === "RECEIVED" ||
+      payment.status === "CONFIRMED" ||
+      payment.status === "RECEIVED_IN_CASH";
+
+    if (isPaidEvent) {
+      // Verifica se o pagamento já foi registrado em student_payments
+      const [existingPayments] = await connection.execute<RowDataPacket[]>(
+        `SELECT id FROM student_payments WHERE charge_id = ? LIMIT 1;`,
+        [chargeInternalId]
+      );
+
+      if (!Array.isArray(existingPayments) || existingPayments.length === 0) {
+        const paymentPublicId = crypto.randomUUID();
+        const paidAmountCents = Math.round(Number(payment.value || (charge.amount_cents / 100)) * 100);
+
+        // Insere o pagamento oficial com baixa imediata
+        await connection.execute(
+          `INSERT INTO student_payments
+           (public_id, consultancy_id, charge_id, amount_cents, currency_code, paid_on, method, recorded_by_user_id, notes)
+           VALUES (?, ?, ?, ?, 'BRL', CURDATE(), 'PIX', 1, ?);`,
+          [
+            paymentPublicId,
+            charge.consultancy_id,
+            chargeInternalId,
+            paidAmountCents,
+            `Liquidação automática via Asaas (${eventType} - ID: ${asaasPaymentId})`,
+          ]
+        );
+      }
+
+      // Atualiza status da cobrança
+      await connection.execute(
+        `UPDATE student_charges
+         SET asaas_status_raw = ?,
+             asaas_payment_id = ?,
+             payment_method = 'PIX'
+         WHERE id = ?;`,
+        [eventType, asaasPaymentId, chargeInternalId]
+      );
+    } else if (eventType === "PAYMENT_OVERDUE") {
+      await connection.execute(
+        `UPDATE student_charges SET asaas_status_raw = 'OVERDUE' WHERE id = ?;`,
+        [chargeInternalId]
+      );
+    } else {
+      // Outros eventos (ex: PAYMENT_CREATED, PAYMENT_UPDATED)
+      await connection.execute(
+        `UPDATE student_charges SET asaas_status_raw = ? WHERE id = ?;`,
+        [eventType, chargeInternalId]
+      );
+    }
+
+    // Marca o evento como processado com sucesso
+    if (recordedEventId) {
+      await connection.execute(
+        `UPDATE asaas_webhook_events
+         SET processed = 1, processed_at = CURRENT_TIMESTAMP(3), processing_error = NULL
+         WHERE id = ?;`,
+        [recordedEventId]
+      );
+    }
+
+    return {
+      success: true,
+      message: `Evento ${eventType} processado com sucesso para cobrança ${charge.public_id}.`,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, message: `Erro ao processar webhook: ${msg}` };
+  } finally {
+    if (connection) connection.release();
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,11 @@ const DEFAULT_FORM_FIELDS: StudentFormFieldItem[] = [
   { id: "q4", label: "Comentários e dúvidas para o treinador", type: "LONG_TEXT", required: false },
 ];
 
+const emptySubscribe = () => () => {};
+function useIsMounted() {
+  return React.useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
+
 export function StudentFormsHub({
   consultancySlug,
   studentPublicId,
@@ -70,6 +76,7 @@ export function StudentFormsHub({
   publishedForms = [],
 }: StudentFormsHubProps) {
   const router = useRouter();
+  const isMounted = useIsMounted();
   const [activeFilter, setActiveFilter] = useState<FilterKey>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -440,24 +447,27 @@ export function StudentFormsHub({
 
       {/* =========================================================================
           MODAL: CHOOSER SIMPLIFICADO (ESCOLHER MODELO VS CRIAR NOVO MODELO)
+          Montado via createPortal no document.body com z-[70] para cobrir
+          completamente a barra de navegação inferior mobile (z-30) e drawers (z-50).
           ========================================================================= */}
-      {isChooserModalOpen && (
+      {isChooserModalOpen && isMounted && typeof document !== "undefined" && createPortal(
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in"
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150"
           onClick={() => setIsChooserModalOpen(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full sm:max-w-lg bg-white dark:bg-[#151619] border-t sm:border border-slate-200 dark:border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden m-0 p-5 sm:p-6 space-y-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
+            className="w-full sm:max-w-lg bg-white dark:bg-[#151619] border-t sm:border border-slate-200 dark:border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden m-0"
           >
             {/* MOBILE DRAG HANDLE */}
-            <div className="w-full pt-1 pb-2 flex justify-center sm:hidden shrink-0">
+            <div className="w-full pt-3 pb-1 flex justify-center sm:hidden shrink-0 bg-white dark:bg-[#151619]">
               <div className="w-12 h-1.5 bg-slate-300 dark:bg-zinc-700 rounded-full" />
             </div>
 
-            <div className="flex items-start justify-between border-b border-slate-200 dark:border-white/10 pb-3">
+            {/* HEADER */}
+            <div className="flex items-start justify-between border-b border-slate-200 dark:border-white/10 px-5 sm:px-6 py-4 shrink-0">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
                   ● Atribuição de Formulário
@@ -473,6 +483,7 @@ export function StudentFormsHub({
                 type="button"
                 onClick={() => setIsChooserModalOpen(false)}
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer shrink-0"
+                aria-label="Fechar"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -480,7 +491,8 @@ export function StudentFormsHub({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 pt-1">
+            {/* BODY WITH VERTICAL SCROLL IF NEEDED */}
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-6 py-4 space-y-3">
               {/* OPÇÃO 1: ESCOLHER MODELO EXISTENTE (RECOMENDADO / RÁPIDO) */}
               <button
                 type="button"
@@ -536,8 +548,20 @@ export function StudentFormsHub({
                 </div>
               </button>
             </div>
+
+            {/* FOOTER ACTION (48px TOUCH TARGET & SAFE AREA PADDING) */}
+            <div className="p-4 sm:p-6 pt-2 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:pb-5 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsChooserModalOpen(false)}
+                className="w-full min-h-[48px] px-4 py-2.5 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-zinc-300 font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer active:scale-[0.99]"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* =========================================================================

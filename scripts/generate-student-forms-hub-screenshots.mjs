@@ -20,7 +20,7 @@ function getHtml(view = "hub", isMobile = false) {
     body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0b0c0e; margin: 0; padding: 0; }
   </style>
 </head>
-<body class="bg-[#0b0c0e] text-slate-100 antialiased ${isMobile ? "p-3" : "p-8 max-w-6xl mx-auto"}">
+<body class="bg-[#0b0c0e] text-slate-100 antialiased ${isMobile ? "p-3 pb-24" : "p-8 max-w-6xl mx-auto"}">
 
   <!-- TOP HEADER / NAV CONTEXT -->
   <div class="mb-6 pb-4 border-b border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -149,57 +149,107 @@ function getHtml(view = "hub", isMobile = false) {
     </div>
   </div>
 
+  <!-- MOBILE BOTTOM NAVIGATION (z-30) IN APP SHELL -->
+  <nav class="md:hidden fixed bottom-0 inset-x-0 z-30 h-16 bg-[#111315] border-t border-white/10 flex items-center justify-around px-2 text-zinc-400 text-[10px]">
+    <div class="flex flex-col items-center gap-1">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      <span>Início</span>
+    </div>
+    <div class="flex flex-col items-center gap-1 text-emerald-400 font-bold">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+      <span>Alunos</span>
+    </div>
+    <div class="flex flex-col items-center gap-1">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+      <span>Treinos</span>
+    </div>
+    <div class="flex flex-col items-center gap-1">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      <span>Consultas</span>
+    </div>
+    <div class="flex flex-col items-center gap-1">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      <span>Mais</span>
+    </div>
+  </nav>
+
   ${view === "chooser" ? `
-  <!-- OVERLAY CHOOSER MODAL -->
-  <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-xs">
-    <div class="w-full max-w-lg bg-[#151619] border border-white/10 rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl flex flex-col">
+  <!-- OVERLAY CHOOSER MODAL (PORTALED AT ROOT WITH z-[70] - COVERS BOTTOM NAV BAR z-30) -->
+  <div class="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-xs">
+    <div class="w-full sm:max-w-lg bg-[#151619] border-t sm:border border-white/10 rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden m-0">
+      
       <!-- MOBILE DRAG HANDLE -->
-      <div class="sm:hidden w-full pb-3 flex justify-center">
+      <div class="w-full pt-3 pb-1 flex justify-center sm:hidden shrink-0 bg-[#151619]">
         <div class="w-12 h-1.5 bg-zinc-700 rounded-full"></div>
       </div>
-      <div class="flex items-start justify-between pb-4 border-b border-white/10">
+
+      <!-- HEADER -->
+      <div class="flex items-start justify-between border-b border-white/10 px-5 sm:px-6 py-4 shrink-0">
         <div>
-          <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 block">Novo Formulário</span>
-          <h2 class="text-lg font-bold text-white mt-1">Atribuir Formulário ao Aluno</h2>
-          <p class="text-xs text-zinc-400 mt-0.5">Escolha como deseja prosseguir para Pedro Santos:</p>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
+            ● Atribuição de Formulário
+          </span>
+          <h3 class="text-base sm:text-lg font-bold text-white mt-0.5">
+            Adicionar para Pedro Santos
+          </h3>
+          <p class="text-xs text-zinc-400 mt-0.5">
+            Como você deseja disponibilizar este questionário para o aluno?
+          </p>
         </div>
-        <button class="text-zinc-400 hover:text-white p-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        <button class="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 cursor-pointer shrink-0">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </div>
 
-      <div class="py-5 space-y-3">
+      <!-- SCROLLABLE BODY (ZERO CLIPPING / FULL ACCESSIBILITY) -->
+      <div class="flex-1 min-h-0 overflow-y-auto px-5 sm:px-6 py-4 space-y-3">
         <!-- OPTION 1: EXISTING TEMPLATE -->
-        <button class="w-full text-left p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 transition group flex items-start gap-3 min-h-[56px]">
-          <div class="w-10 h-10 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        <button class="w-full p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-emerald-500/50 bg-white/[0.03] hover:bg-emerald-500/[0.04] text-left transition-all cursor-pointer group flex items-start gap-4 min-h-[96px]">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 group-hover:scale-105 transition-transform">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
           </div>
           <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-              <h4 class="text-sm font-bold text-white group-hover:text-emerald-400 transition">Escolher modelo existente</h4>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">2 disponíveis</span>
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">
+                Escolher modelo existente
+              </span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                2 disponíveis
+              </span>
             </div>
-            <p class="text-xs text-zinc-400 mt-1">Selecione um questionário já pronto da biblioteca da consultoria e defina o prazo de entrega.</p>
+            <p class="text-xs text-zinc-400 mt-1 leading-relaxed">
+              Selecione um questionário já pronto da biblioteca (check-in, avaliação, rotina) e envie com 1 clique.
+            </p>
           </div>
         </button>
 
         <!-- OPTION 2: CREATE NEW MODEL -->
-        <button class="w-full text-left p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition group flex items-start gap-3 min-h-[56px]">
-          <div class="w-10 h-10 rounded-lg bg-white/10 text-white flex items-center justify-center shrink-0 mt-0.5">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        <button class="w-full p-4 sm:p-5 rounded-2xl border border-white/10 hover:border-emerald-500/50 bg-white/[0.03] hover:bg-emerald-500/[0.04] text-left transition-all cursor-pointer group flex items-start gap-4 min-h-[96px]">
+          <div class="w-12 h-12 rounded-xl bg-white/5 text-zinc-300 flex items-center justify-center shrink-0 border border-white/10 group-hover:scale-105 transition-transform">
+            <svg class="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
           </div>
           <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-              <h4 class="text-sm font-bold text-white group-hover:text-white transition">Criar novo modelo do zero</h4>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-zinc-300">Auto-atribui</span>
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">
+                Criar novo modelo do zero
+              </span>
             </div>
-            <p class="text-xs text-zinc-400 mt-1">Crie perguntas personalizadas, salve na biblioteca e atribua instantaneamente a este aluno.</p>
+            <p class="text-xs text-zinc-400 mt-1 leading-relaxed">
+              Construa um modelo com perguntas sob medida (escalas, escolhas, textos). Ficará salvo na biblioteca e já atribuído ao aluno.
+            </p>
           </div>
         </button>
       </div>
 
-      <div class="pt-3 border-t border-white/10 flex justify-end">
-        <button class="w-full sm:w-auto min-h-[48px] px-5 py-2.5 rounded-xl bg-white/5 text-zinc-300 font-semibold text-xs hover:bg-white/10 transition">
+      <!-- FOOTER DISMISS ACTION (48px TOUCH TARGET & SAFE AREA PADDING) -->
+      <div class="p-4 sm:p-6 pt-2 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:pb-5 border-t border-white/10 bg-white/[0.02] shrink-0">
+        <button class="w-full min-h-[48px] px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer active:scale-[0.99]">
           Cancelar
         </button>
       </div>

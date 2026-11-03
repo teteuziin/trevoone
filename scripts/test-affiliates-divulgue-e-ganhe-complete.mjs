@@ -255,6 +255,13 @@ assert.ok(campaignModalContent.includes("rounded-t-3xl sm:rounded-3xl"), "Modal 
 assert.ok(campaignModalContent.includes("sticky bottom-0"), "Modal deve ter footer sticky no rodapé");
 assert.ok(campaignModalContent.includes("defaultTitle"), "Modal deve ter default inteligente de título");
 
+// Assert mobile bottom sheet specifics & custom validation
+assert.ok(campaignModalContent.includes("sm:hidden shrink-0"), "Modal deve ter drag handle no mobile");
+assert.ok(campaignModalContent.includes("hidden sm:flex"), "Botão X deve ficar oculto no mobile");
+assert.ok(campaignModalContent.includes("noValidate"), "Formulário deve usar noValidate para evitar tooltips nativos do navegador");
+assert.ok(campaignModalContent.includes("border-red-500"), "Validação customizada deve aplicar borda vermelha");
+assert.ok(campaignModalContent.includes("text-xs text-red-500"), "Validação customizada deve exibir mensagem de erro abaixo do campo");
+
 console.log("  ✓ Componentes UI, Modo Claro e fluxo WhatsApp validados com sucesso!");
 
 console.log("\n=====================================================================");

@@ -12,7 +12,7 @@ import {
   ChevronUp,
 } from "@/components/referrals/referral-icons";
 import { UserAvatar } from "@/components/account/user-avatar";
-import { buildWhatsAppUrl, isWhatsAppUrl } from "@/lib/referrals/url-utils";
+import { buildWhatsAppUrl, isWhatsAppUrl, validateDestinationUrl } from "@/lib/referrals/url-utils";
 import type {
   PromotionalCampaignLinkRecord,
   EligiblePromotionParticipant,
@@ -100,8 +100,19 @@ export function CampaignLinkModal({
       : 10
   );
 
-  // Layer 2: Opções avançadas (Accordion fechado por padrão)
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  // Layer 2: Opções avançadas (Fechado por padrão, abre na edição somente se houver dados avançados já cadastrados)
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(() => {
+    if (!initialData) return false;
+    return Boolean(
+      (initialData.description && initialData.description.trim()) ||
+      (initialData.eligiblePlans && initialData.eligiblePlans.trim()) ||
+      (initialData.commissionConditions && initialData.commissionConditions !== "Sobre a primeira contratação confirmada") ||
+      initialData.startsAt ||
+      initialData.endsAt ||
+      initialData.maxUses != null
+    );
+  });
+
   const [title, setTitle] = useState(initialData?.title || "");
   const [customWhatsAppMessage, setCustomWhatsAppMessage] = useState<string | null>(
     existingWa?.message ?? null
@@ -125,6 +136,9 @@ export function CampaignLinkModal({
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Custom in-app field validation (sem tooltips nativos do browser)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const selectedParticipant = participants.find((p) => p.memberId === selectedMemberId);
 
@@ -194,28 +208,47 @@ export function CampaignLinkModal({
     e.preventDefault();
     setError(null);
 
-    // Default title if empty
-    const finalTitle = title.trim() || defaultTitle;
+    // Custom controlled validation (substitui tooltip nativo do browser)
+    const errors: Record<string, string> = {};
+
+    if (!selectedMemberId) {
+      errors.member = "Selecione o participante responsável.";
+    }
 
     let finalDestinationUrl = destinationUrl.trim();
     if (destinationType === "WHATSAPP") {
-      const cleanPhone = whatsAppPhone.replace(/\D/g, "");
-      if (cleanPhone.length < 10) {
-        setError("Informe um número do WhatsApp de Atendimento válido com DDD (mínimo 10 dígitos).");
-        return;
+      const digits = whatsAppPhone.replace(/\D/g, "");
+      if (!digits) {
+        errors.phone = "Informe o número do WhatsApp com DDD.";
+      } else if (digits.length < 10) {
+        errors.phone = "O WhatsApp deve conter DDD e número válido (mínimo 10 dígitos).";
+      } else {
+        finalDestinationUrl = buildWhatsAppUrl(whatsAppPhone, activeWhatsAppMessage);
       }
-      finalDestinationUrl = buildWhatsAppUrl(whatsAppPhone, activeWhatsAppMessage);
+    } else {
+      if (!destinationUrl.trim()) {
+        errors.url = "Informe a URL de destino da campanha.";
+      } else {
+        const validated = validateDestinationUrl(destinationUrl);
+        if (!validated.valid) {
+          errors.url = validated.error || "Endereço de URL inválido.";
+        }
+      }
     }
 
-    if (!finalDestinationUrl) {
-      setError("Informe a URL de destino da campanha.");
+    if (isNaN(commissionValue) || commissionValue < 0) {
+      errors.commission = "Informe um valor de comissão válido.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
-    if (!selectedMemberId) {
-      setError("Selecione o participante responsável.");
-      return;
-    }
+    setFieldErrors({});
+
+    // Default title if empty
+    const finalTitle = title.trim() || defaultTitle;
 
     setIsSubmitting(true);
 
@@ -281,15 +314,26 @@ export function CampaignLinkModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
-        className="w-full sm:max-w-md bg-white dark:bg-[#151619] border-t sm:border border-slate-200 dark:border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden"
+        className="w-full sm:max-w-md bg-white dark:bg-[#151619] border-t sm:border border-slate-200 dark:border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden m-0"
         role="dialog"
         aria-modal="true"
         aria-labelledby="campaign-modal-title"
+        onClick={(e) => e.stopPropagation()}
       >
+        {/* MOBILE DRAG HANDLE */}
+        <div className="w-full pt-3 pb-1 flex justify-center sm:hidden shrink-0 bg-white dark:bg-[#151619]">
+          <div className="w-12 h-1.5 bg-slate-300 dark:bg-zinc-700 rounded-full" />
+        </div>
+
         {/* HEADER FIXO */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-white/10 flex items-start justify-between shrink-0 bg-white dark:bg-[#151619]">
+        <div className="px-4 py-3 sm:p-5 border-b border-slate-200 dark:border-white/10 flex items-start justify-between shrink-0 bg-white dark:bg-[#151619]">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
               {isEditing ? "Edição de Campanha" : "Nova Campanha de Divulgação"}
@@ -298,10 +342,11 @@ export function CampaignLinkModal({
               {isEditing ? `Editar Link /r/${initialData?.code}` : "Criar Link Individual de Divulgação"}
             </h2>
           </div>
+          {/* Botão X exibido apenas em desktop/tablet; mobile fecha tocando no overlay */}
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer shrink-0"
+            className="hidden sm:flex w-9 h-9 rounded-xl items-center justify-center bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer shrink-0"
             aria-label="Fechar"
           >
             <X className="w-5 h-5" />
@@ -309,24 +354,27 @@ export function CampaignLinkModal({
         </div>
 
         {/* FORMULÁRIO COM CORPO ROLÁVEL E FOOTER STICKY */}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+        <form noValidate onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           {/* CORPO ROLÁVEL */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
             {error && (
-              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+              <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
                 {error}
               </div>
             )}
 
             {/* ==================================================================== */}
-            {/* CAMADA 1: ESSENCIAIS (SEMPRE VISÍVEIS NO TOPO)                      */}
+            {/* CAMADA 1: ESSENCIAIS (ORDEM ESTRITA, SEM RUÍDO VISUAL)               */}
+            {/* 1. Participante Responsável                                         */}
+            {/* 2. Tipo de Destino + Campo Dinâmico Único                            */}
+            {/* 3. Desconto                                                         */}
+            {/* 4. Comissão                                                         */}
             {/* ==================================================================== */}
 
             {/* 1. PARTICIPANTE RESPONSÁVEL */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
-                <span>Participante Responsável</span>
-                <span className="text-rose-500">*</span>
+              <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                Participante Responsável
               </label>
               {isEditing ? (
                 <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
@@ -347,9 +395,15 @@ export function CampaignLinkModal({
               ) : (
                 <select
                   value={selectedMemberId}
-                  onChange={(e) => setSelectedMemberId(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[44px]"
-                  required
+                  onChange={(e) => {
+                    setSelectedMemberId(Number(e.target.value));
+                    if (fieldErrors.member) setFieldErrors((prev) => ({ ...prev, member: "" }));
+                  }}
+                  className={`w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-white/5 border text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden transition-colors min-h-[44px] ${
+                    fieldErrors.member
+                      ? "border-red-500 ring-1 ring-red-500/20"
+                      : "border-slate-200 dark:border-white/10 focus:border-emerald-500"
+                  }`}
                 >
                   {participants.map((p) => (
                     <option
@@ -362,17 +416,23 @@ export function CampaignLinkModal({
                   ))}
                 </select>
               )}
+              {fieldErrors.member && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.member}</p>
+              )}
             </div>
 
-            {/* 2. TIPO DE DESTINO (TOGGLE WHATSAPP vs URL) */}
-            <div className="space-y-1.5">
+            {/* 2. TIPO DE DESTINO + CAMPO DINÂMICO ÚNICO */}
+            <div className="space-y-2">
               <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 block">
-                Tipo de Destino <span className="text-rose-500">*</span>
+                Tipo de Destino
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => setDestinationType("WHATSAPP")}
+                  onClick={() => {
+                    setDestinationType("WHATSAPP");
+                    setFieldErrors((prev) => ({ ...prev, url: "", phone: "" }));
+                  }}
                   className={`px-3 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center gap-2 border ${
                     destinationType === "WHATSAPP"
                       ? "bg-emerald-500/10 border-emerald-500 text-emerald-800 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-500/30"
@@ -385,7 +445,10 @@ export function CampaignLinkModal({
 
                 <button
                   type="button"
-                  onClick={() => setDestinationType("CUSTOM_URL")}
+                  onClick={() => {
+                    setDestinationType("CUSTOM_URL");
+                    setFieldErrors((prev) => ({ ...prev, url: "", phone: "" }));
+                  }}
                   className={`px-3 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center gap-2 border ${
                     destinationType === "CUSTOM_URL"
                       ? "bg-emerald-500/10 border-emerald-500 text-emerald-800 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-500/30"
@@ -396,53 +459,62 @@ export function CampaignLinkModal({
                   <span className="truncate">URL Externa / Checkout / Página</span>
                 </button>
               </div>
+
+              {/* CAMPO DINÂMICO ÚNICO (WHATSAPP OU URL) */}
+              {destinationType === "WHATSAPP" ? (
+                <div className="space-y-1 pt-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Número do WhatsApp de Atendimento
+                  </label>
+                  <input
+                    type="tel"
+                    value={whatsAppPhone}
+                    onChange={(e) => {
+                      setWhatsAppPhone(e.target.value);
+                      if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: "" }));
+                    }}
+                    placeholder="Ex: (71) 99999-9999"
+                    className={`w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-white/5 border text-xs font-mono text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden transition-colors min-h-[44px] ${
+                      fieldErrors.phone
+                        ? "border-red-500 ring-1 ring-red-500/20"
+                        : "border-slate-200 dark:border-white/10 focus:border-emerald-500"
+                    }`}
+                  />
+                  {fieldErrors.phone && (
+                    <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.phone}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1 pt-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    URL de Destino
+                  </label>
+                  <input
+                    type="url"
+                    value={destinationUrl}
+                    onChange={(e) => {
+                      setDestinationUrl(e.target.value);
+                      if (fieldErrors.url) setFieldErrors((prev) => ({ ...prev, url: "" }));
+                    }}
+                    placeholder="https://pay.hotmart.com/... ou https://..."
+                    className={`w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-white/5 border text-xs font-mono text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden transition-colors min-h-[44px] ${
+                      fieldErrors.url
+                        ? "border-red-500 ring-1 ring-red-500/20"
+                        : "border-slate-200 dark:border-white/10 focus:border-emerald-500"
+                    }`}
+                  />
+                  {fieldErrors.url && (
+                    <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.url}</p>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* 3. CAMPO DINÂMICO ÚNICO CONFORME O TOGGLE */}
-            {destinationType === "WHATSAPP" ? (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                    Número do WhatsApp de Atendimento (DDD + Número) <span className="text-rose-500">*</span>
-                  </label>
-                  <span className="text-[10px] text-slate-500 dark:text-zinc-400">DDI 55 prefixado auto</span>
-                </div>
-                <input
-                  type="tel"
-                  value={whatsAppPhone}
-                  onChange={(e) => setWhatsAppPhone(e.target.value)}
-                  placeholder="Ex: (71) 99999-9999"
-                  className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[44px]"
-                  required
-                />
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                    Endereço Completo (URL de Destino) <span className="text-rose-500">*</span>
-                  </label>
-                  <span className="text-[10px] text-slate-500 dark:text-zinc-400">Checkout ou página</span>
-                </div>
-                <input
-                  type="url"
-                  value={destinationUrl}
-                  onChange={(e) => setDestinationUrl(e.target.value)}
-                  placeholder="https://pay.hotmart.com/... ou https://..."
-                  className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[44px]"
-                  required
-                />
-              </div>
-            )}
-
-            {/* 4. DESCONTO ANUNCIADO AO CLIENTE */}
+            {/* 3. DESCONTO ANUNCIADO AO CLIENTE */}
             <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  Desconto Anunciado ao Cliente
-                </span>
-                <span className="text-[10px] text-slate-500 dark:text-zinc-400">Oferta divulgada</span>
-              </div>
+              <label className="text-xs font-bold text-slate-900 dark:text-white block">
+                Desconto Anunciado ao Cliente
+              </label>
 
               <div className="flex items-center gap-2 pt-0.5">
                 <button
@@ -479,14 +551,11 @@ export function CampaignLinkModal({
               </div>
             </div>
 
-            {/* 5. COMISSÃO DO PARTICIPANTE (DADO CRÍTICO, SEMPRE VISÍVEL) */}
+            {/* 4. COMISSÃO DO PARTICIPANTE (DADO FINANCEIRO CRÍTICO - SEMPRE VISÍVEL) */}
             <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-900 dark:text-white">
-                  Comissão do Participante
-                </span>
-                <span className="text-[10px] text-slate-500 dark:text-zinc-400">Remuneração do parceiro</span>
-              </div>
+              <label className="text-xs font-bold text-slate-900 dark:text-white block">
+                Comissão do Participante
+              </label>
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10">
@@ -521,16 +590,25 @@ export function CampaignLinkModal({
                     max={commissionType === "PERCENTAGE" ? "100" : undefined}
                     step={commissionType === "PERCENTAGE" ? "0.5" : "1"}
                     value={commissionValue}
-                    onChange={(e) => setCommissionValue(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      setCommissionValue(parseFloat(e.target.value) || 0);
+                      if (fieldErrors.commission) setFieldErrors((prev) => ({ ...prev, commission: "" }));
+                    }}
                     placeholder={commissionType === "PERCENTAGE" ? "10" : "50"}
-                    className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 min-h-[44px]"
-                    required
+                    className={`w-full px-3.5 py-2 rounded-xl bg-white dark:bg-white/5 border text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden min-h-[44px] ${
+                      fieldErrors.commission
+                        ? "border-red-500 ring-1 ring-red-500/20"
+                        : "border-slate-200 dark:border-white/10 focus:border-emerald-500"
+                    }`}
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 dark:text-zinc-400 pointer-events-none">
                     {commissionType === "PERCENTAGE" ? "%" : "BRL"}
                   </span>
                 </div>
               </div>
+              {fieldErrors.commission && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.commission}</p>
+              )}
             </div>
 
             {/* ==================================================================== */}
@@ -559,14 +637,9 @@ export function CampaignLinkModal({
                 <div className="p-3.5 sm:p-4 border-t border-slate-200 dark:border-white/10 space-y-4 animate-in fade-in duration-150">
                   {/* 1. TÍTULO DE DIVULGAÇÃO (DEFAULT AUTOMÁTICO SE VAZIO) */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                        Título de Divulgação (opcional)
-                      </label>
-                      <span className="text-[10px] text-slate-500 dark:text-zinc-400">
-                        Padrão: {defaultTitle}
-                      </span>
-                    </div>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Título de Divulgação (opcional)
+                    </label>
                     <input
                       type="text"
                       value={title}
@@ -582,7 +655,7 @@ export function CampaignLinkModal({
                     <div className="space-y-2 p-3 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10">
                       <div className="flex items-center justify-between gap-2">
                         <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                          Mensagem Automática do Cliente (editável)
+                          Mensagem Automática do Cliente
                         </label>
                         <button
                           type="button"
@@ -617,19 +690,14 @@ export function CampaignLinkModal({
 
                   {/* 3. CÓDIGO PERSONALIZADO (CUPOM / SLUG) */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                        Código Personalizado (opcional)
-                      </label>
-                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 whitespace-nowrap">
-                        Gerado automaticamente se vazio
-                      </span>
-                    </div>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Código Personalizado (opcional)
+                    </label>
                     <input
                       type="text"
                       value={customCode}
                       onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
-                      placeholder="Ex: VIPANA10"
+                      placeholder="Ex: VIPANA10 (gerado automaticamente se vazio)"
                       maxLength={32}
                       className="w-full px-3 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono uppercase text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[40px]"
                     />
@@ -673,7 +741,7 @@ export function CampaignLinkModal({
                       type="text"
                       value={commissionConditions}
                       onChange={(e) => setCommissionConditions(e.target.value)}
-                      placeholder="Ex: Sobre a primeira contratação confirmada"
+                      placeholder="Ex: Sobre a primeira mensalidade paga"
                       className="w-full px-3 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[40px]"
                     />
                   </div>
@@ -787,7 +855,7 @@ export function CampaignLinkModal({
             </div>
           </div>
 
-          {/* RODAPÉ STICKY COM BOTÃO DE AÇÃO */}
+          {/* RODAPÉ STICKY COM BOTÃO DE AÇÃO (SEMPRE VISÍVEL) */}
           <div className="sticky bottom-0 shrink-0 bg-white/95 dark:bg-[#151619]/95 backdrop-blur-md border-t border-slate-200 dark:border-white/10 p-4 sm:p-5 flex items-center justify-end gap-2.5 z-10">
             <button
               type="button"

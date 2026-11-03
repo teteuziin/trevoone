@@ -14,7 +14,7 @@ import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-
 import { Alert } from "@/components/ui/alert";
 import { CopyPixButton } from "@/components/finance/copy-pix-button";
 import { ReceiptUploadForm } from "@/components/finance/receipt-upload-form";
-import { isAsaasPilotEligible, getAsaasPixQrCode } from "@/lib/consultancies/asaas";
+import { getAsaasPixQrCode } from "@/lib/consultancies/asaas";
 import { AsaasPaymentCard } from "@/components/finance/asaas-payment-card";
 
 export const dynamic = "force-dynamic";
@@ -153,10 +153,12 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
     ? `${formatDateBr(charge.referencePeriodStart!)} a ${formatDateBr(charge.referencePeriodEnd!)}`
     : null;
 
-  const canSubmitReceipt = charge.state === "OPEN" && !charge.isPaid && !charge.hasSubmittedReceipt;
+  const isAsaasCharge = Boolean(charge.asaasPaymentId);
+  const canSubmitReceipt = !isAsaasCharge && charge.state === "OPEN" && !charge.isPaid && !charge.hasSubmittedReceipt;
   const badgeStyle = getStatusBadgeConfig(charge.derivedStatus);
 
-  const isAsaasEligible = (await isAsaasPilotEligible(slug)) && Boolean(charge.asaasPaymentId);
+  // Cobrança já emitida via Asaas permanece no fluxo do gateway mesmo se novas emissões forem desativadas
+  const isAsaasEligible = isAsaasCharge;
   let asaasPixData: {
     encodedImage: string | null;
     payload: string | null;

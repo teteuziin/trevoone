@@ -698,7 +698,7 @@ export async function processAsaasWebhookEvent(params: {
     const externalRef = payment.externalReference ? String(payment.externalReference) : "";
 
     const [chargeRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT sc.id, sc.public_id, sc.consultancy_id, sc.amount_cents, sc.state, c.slug as consultancy_slug
+      `SELECT sc.id, sc.public_id, sc.consultancy_id, sc.student_membership_id, sc.amount_cents, sc.state, c.slug as consultancy_slug
        FROM student_charges sc
        JOIN consultancies c ON c.id = sc.consultancy_id
        WHERE sc.asaas_payment_id = ? OR sc.public_id = ?
@@ -733,6 +733,11 @@ export async function processAsaasWebhookEvent(params: {
       payment.status === "RECEIVED" ||
       payment.status === "CONFIRMED" ||
       payment.status === "RECEIVED_IN_CASH";
+
+    const isRefundEvent =
+      eventType === "PAYMENT_REFUNDED" ||
+      eventType === "PAYMENT_RECEIVED_IN_CASH_UNDONE" ||
+      eventType === "PAYMENT_CHARGEBACK_REQUESTED";
 
     if (isPaidEvent) {
       // Verifica se o pagamento já foi registrado em student_payments
@@ -773,6 +778,46 @@ export async function processAsaasWebhookEvent(params: {
          WHERE id = ?;`,
         [eventType, asaasPaymentId, confirmedMethod, chargeInternalId]
       );
+
+      // Recalcula acesso financeiro do aluno após a liquidação
+      try {
+        if (charge.student_membership_id && charge.consultancy_id) {
+          const { getStudentFinancialAccessState } = await import("./finance");
+          await getStudentFinancialAccessState({
+            consultancyId: Number(charge.consultancy_id),
+            studentMembershipId: Number(charge.student_membership_id),
+          });
+        }
+      } catch (accessErr: unknown) {
+        console.warn("[Asaas Webhook] Aviso ao recalcular acesso pós-baixa:", accessErr);
+      }
+    } else if (isRefundEvent) {
+      // Estorno / Chargeback: desfaz a baixa no banco de dados
+      await connection.execute(
+        `DELETE FROM student_payments WHERE charge_id = ?;`,
+        [chargeInternalId]
+      );
+
+      await connection.execute(
+        `UPDATE student_charges
+         SET asaas_status_raw = ?,
+             payment_method = 'ASAAS_REFUNDED'
+         WHERE id = ?;`,
+        [eventType, chargeInternalId]
+      );
+
+      // Recalcula acesso financeiro do aluno (se houver pendências bloqueantes vencidas, bloqueia o acesso)
+      try {
+        if (charge.student_membership_id && charge.consultancy_id) {
+          const { getStudentFinancialAccessState } = await import("./finance");
+          await getStudentFinancialAccessState({
+            consultancyId: Number(charge.consultancy_id),
+            studentMembershipId: Number(charge.student_membership_id),
+          });
+        }
+      } catch (accessErr: unknown) {
+        console.warn("[Asaas Webhook] Aviso ao recalcular acesso pós-estorno:", accessErr);
+      }
     } else if (eventType === "PAYMENT_OVERDUE") {
       await connection.execute(
         `UPDATE student_charges SET asaas_status_raw = 'OVERDUE' WHERE id = ?;`,

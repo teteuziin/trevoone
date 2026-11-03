@@ -288,8 +288,8 @@ export function FormReviewModal({
           </div>
 
           {/* REVIEWER NOTES */}
-          <div className="space-y-1.5 p-4 rounded-2xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10">
-            <label className="text-xs font-bold text-slate-800 dark:text-zinc-200 block">
+          <div className="space-y-1.5 p-4 sm:p-5 rounded-2xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10">
+            <label className="text-sm sm:text-xs font-bold text-slate-800 dark:text-zinc-200 block mb-1">
               Observações do Profissional / Feedback
             </label>
             <textarea
@@ -297,41 +297,41 @@ export function FormReviewModal({
               onChange={(e) => setReviewerNotes(e.target.value)}
               rows={3}
               placeholder="Adicione um parecer, recomendações ou motivos caso solicite ajustes..."
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 font-medium focus:outline-hidden focus:border-emerald-500 transition-colors"
+              className="w-full px-4 py-3 sm:py-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-base sm:text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 font-medium focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[96px]"
             />
           </div>
         </div>
 
-        {/* STICKY FOOTER */}
-        <div className="sticky bottom-0 shrink-0 bg-white/95 dark:bg-[#151619]/95 backdrop-blur-md border-t border-slate-200 dark:border-white/10 p-4 sm:p-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] flex items-center justify-end gap-2.5 z-10">
+        {/* STICKY FOOTER (EMPILHADO EM MOBILE COM AÇÃO PRIMÁRIA NO TOPO) */}
+        <div className="sticky bottom-0 shrink-0 bg-white/95 dark:bg-[#151619]/95 backdrop-blur-md border-t border-slate-200 dark:border-white/10 p-4 sm:p-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2.5 z-10">
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => handleDecision("APPROVE")}
             disabled={isSubmitting}
-            className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-semibold text-slate-700 dark:text-zinc-300 transition-colors cursor-pointer min-h-[44px]"
+            className="w-full sm:w-auto sm:order-3 px-5 py-3 sm:py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm sm:text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 min-h-[48px] flex items-center justify-center gap-2 whitespace-nowrap"
           >
-            Fechar
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span>{isSubmitting ? "Salvando..." : isReviewed ? "Atualizar Avaliação" : "Aprovar Formulário"}</span>
           </button>
 
           <button
             type="button"
             onClick={() => handleDecision("REQUEST_CHANGES")}
             disabled={isSubmitting}
-            className="px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer min-h-[44px] disabled:opacity-50"
+            className="w-full sm:w-auto sm:order-2 px-4 py-3 sm:py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 text-sm sm:text-xs font-bold transition-all cursor-pointer min-h-[48px] disabled:opacity-50 flex items-center justify-center whitespace-nowrap"
           >
             {isSubmitting ? "Processando..." : "Solicitar Ajustes"}
           </button>
 
           <button
             type="button"
-            onClick={() => handleDecision("APPROVE")}
+            onClick={onClose}
             disabled={isSubmitting}
-            className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-2"
+            className="w-full sm:w-auto sm:order-1 px-4 py-3 sm:py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-sm sm:text-xs font-semibold text-slate-700 dark:text-zinc-300 transition-colors cursor-pointer min-h-[48px] flex items-center justify-center whitespace-nowrap"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>{isSubmitting ? "Salvando..." : isReviewed ? "Atualizar Avaliação" : "Aprovar Formulário"}</span>
+            Fechar
           </button>
         </div>
       </div>

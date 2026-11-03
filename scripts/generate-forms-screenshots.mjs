@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import http from "node:http";
 import os from "node:os";
 import { execSync } from "node:child_process";
 
@@ -24,7 +23,7 @@ function getHtml(view = "builder") {
 <body class="bg-black/90 antialiased overflow-hidden select-none text-slate-100">
 
   <!-- BACKGROUND BEHIND MODAL -->
-  <div class="fixed inset-0 p-4 opacity-25 pointer-events-none">
+  <div class="fixed inset-0 p-4 opacity-20 pointer-events-none">
     <div class="h-8 bg-emerald-500/20 rounded-xl mb-4 w-48"></div>
     <div class="grid grid-cols-2 gap-3 mb-4">
       <div class="h-16 bg-white/10 rounded-2xl"></div>
@@ -37,9 +36,9 @@ function getHtml(view = "builder") {
   <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs">
 
     ${view === "builder" ? `
-    <!-- SCREEN (A): FORM BUILDER MODAL -->
+    <!-- SCREEN (A): FORM BUILDER MODAL (TRUE MOBILE-FIRST REDESIGN) -->
     <div class="w-full bg-[#151619] border-t border-white/10 rounded-t-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden m-0">
-      <!-- DRAG HANDLE -->
+      <!-- MOBILE DRAG HANDLE -->
       <div class="w-full pt-3 pb-1 flex justify-center shrink-0">
         <div class="w-12 h-1.5 bg-zinc-700 rounded-full"></div>
       </div>
@@ -57,75 +56,121 @@ function getHtml(view = "builder") {
       </div>
 
       <!-- BODY -->
-      <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3.5">
-        <!-- INFO -->
-        <div class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2.5">
+      <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+        <!-- BASIC INFORMATION -->
+        <div class="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4">
           <div>
-            <label class="text-[11px] font-bold text-zinc-300 block mb-1">Título do Formulário *</label>
-            <input type="text" value="Check-in Semanal de Evolução" class="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white font-medium focus:outline-none" readonly />
+            <label class="text-sm font-bold text-zinc-200 block mb-1.5">
+              Título do Formulário <span class="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              value="Check-in Semanal de Evolução"
+              class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-base text-white font-medium focus:outline-none min-h-[48px]"
+              readonly
+            />
           </div>
           <div>
-            <label class="text-[11px] font-bold text-zinc-300 block mb-1">Descrição / Instruções</label>
-            <textarea rows="2" class="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white font-medium focus:outline-none" readonly>Preencha todas as sextas-feiras antes de enviar suas fotos de evolução.</textarea>
+            <label class="text-sm font-bold text-zinc-200 block mb-1.5">
+              Instruções / Descrição (opcional)
+            </label>
+            <textarea
+              rows="2"
+              class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-base text-white font-medium focus:outline-none min-h-[80px]"
+              readonly
+            >Preencha todas as sextas-feiras antes de enviar suas fotos de evolução.</textarea>
           </div>
         </div>
 
         <!-- QUESTIONS LIST -->
-        <div class="space-y-2.5">
-          <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-white">Perguntas (3)</span>
-            <span class="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">+ Adicionar</span>
+        <div class="space-y-3.5">
+          <!-- SECTION HEADER EMPILHADO EM MOBILE COM BOTÃO LARGURA TOTAL -->
+          <div class="flex flex-col gap-3">
+            <div>
+              <h3 class="text-sm font-bold text-white uppercase tracking-wider">
+                Perguntas (2)
+              </h3>
+              <p class="text-xs text-zinc-400 mt-0.5">
+                Configure as perguntas e o tipo de resposta esperado.
+              </p>
+            </div>
+            <button class="w-full min-h-[48px] rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-sm flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+              </svg>
+              <span>+ Adicionar Pergunta</span>
+            </button>
           </div>
 
-          <!-- Q1: SCALE -->
-          <div class="p-3.5 rounded-2xl bg-[#1a1c20] border border-white/10 space-y-2">
+          <!-- QUESTION CARD 1 (SCALE COM LABELS EMPILHADOS) -->
+          <div class="p-4 rounded-2xl bg-[#1a1c20] border border-white/10 space-y-4">
             <div class="flex items-center justify-between">
-              <span class="text-[11px] font-bold text-emerald-400">#1 • Escala (0 a 10)</span>
-              <span class="text-[10px] font-semibold text-zinc-400">Obrigatória</span>
+              <span class="text-xs font-bold text-emerald-400">#1 • Escala de 0 a 10</span>
+              <span class="px-2 py-0.5 rounded-md bg-white/5 text-[11px] font-semibold text-zinc-400">Obrigatória</span>
             </div>
-            <p class="text-xs font-semibold text-white">Como você avalia seu nível de energia e cansaço nos treinos?</p>
-            <div class="flex justify-between text-[10px] text-zinc-400 pt-1">
-              <span>0 (Muito cansado)</span>
-              <span>10 (Muito disposto)</span>
-            </div>
-          </div>
 
-          <!-- Q2: SINGLE CHOICE -->
-          <div class="p-3.5 rounded-2xl bg-[#1a1c20] border border-white/10 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] font-bold text-emerald-400">#2 • Escolha única</span>
-              <span class="text-[10px] font-semibold text-zinc-400">Obrigatória</span>
+            <div>
+              <label class="text-xs font-semibold text-zinc-300 block mb-1">Enunciado da pergunta</label>
+              <input
+                type="text"
+                value="Nível de energia e disposição nos treinos desta semana"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-base text-white font-medium min-h-[48px]"
+                readonly
+              />
             </div>
-            <p class="text-xs font-semibold text-white">Conseguiu bater a meta diária de água (3L+)?</p>
-            <div class="space-y-1 pt-1">
-              <div class="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/5 text-[11px] text-zinc-300">1. Sim, todos os dias</div>
-              <div class="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/5 text-[11px] text-zinc-300">2. Na maioria dos dias</div>
-              <div class="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/5 text-[11px] text-zinc-300">3. Menos de 2L por dia</div>
-            </div>
-          </div>
 
-          <!-- Q3: LONG TEXT -->
-          <div class="p-3.5 rounded-2xl bg-[#1a1c20] border border-white/10 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] font-bold text-emerald-400">#3 • Texto longo</span>
-              <span class="text-[10px] text-zinc-500">Opcional</span>
+            <div>
+              <label class="text-xs font-semibold text-zinc-300 block mb-1">Tipo de resposta</label>
+              <select class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-base text-white font-medium min-h-[48px]">
+                <option>Escala de 0 a 10</option>
+              </select>
             </div>
-            <p class="text-xs font-semibold text-white">Observações ou dificuldades encontradas na dieta?</p>
+
+            <!-- LABELS EMPILHADOS VERTICALMENTE (GRID-COLS-1) -->
+            <div class="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-3.5">
+              <div class="space-y-1">
+                <label class="text-xs font-semibold text-zinc-300 block">Rótulo nota mínima (0)</label>
+                <input
+                  type="text"
+                  value="Muito cansado / Sem energia"
+                  class="w-full px-3.5 py-3 rounded-xl bg-white/5 border border-white/10 text-base text-white font-medium min-h-[48px]"
+                  readonly
+                />
+              </div>
+              <div class="space-y-1">
+                <label class="text-xs font-semibold text-zinc-300 block">Rótulo nota máxima (10)</label>
+                <input
+                  type="text"
+                  value="Excelente / Muito disposto"
+                  class="w-full px-3.5 py-3 rounded-xl bg-white/5 border border-white/10 text-base text-white font-medium min-h-[48px]"
+                  readonly
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- STICKY FOOTER -->
-      <div class="sticky bottom-0 bg-[#151619]/95 backdrop-blur-md border-t border-white/10 p-4 pb-6 flex items-center justify-end gap-2.5">
-        <button class="px-3.5 py-2.5 rounded-xl bg-white/5 text-xs font-semibold text-zinc-300">Cancelar</button>
-        <button class="px-3.5 py-2.5 rounded-xl bg-white/10 text-xs font-bold text-white">Salvar Rascunho</button>
-        <button class="px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-xs font-bold shadow-md">Publicar Modelo</button>
+      <!-- STICKY FOOTER (EMPILHADO EM MOBILE COM AÇÃO PRIMÁRIA NO TOPO E SEM QUEBRA DE LINHA) -->
+      <div class="sticky bottom-0 bg-[#151619]/95 backdrop-blur-md border-t border-white/10 p-4 pb-6 flex flex-col gap-2.5 z-10">
+        <button class="w-full min-h-[48px] rounded-xl bg-emerald-500 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          <span>Publicar Modelo</span>
+        </button>
+        <button class="w-full min-h-[48px] rounded-xl bg-white/10 text-white font-bold text-sm flex items-center justify-center whitespace-nowrap">
+          Salvar Rascunho
+        </button>
+        <button class="w-full min-h-[48px] rounded-xl bg-transparent text-zinc-400 font-semibold text-sm flex items-center justify-center whitespace-nowrap">
+          Cancelar
+        </button>
       </div>
     </div>
     ` : view === "assign" ? `
     <!-- SCREEN (B): ASSIGN FORM MODAL -->
     <div class="w-full bg-[#151619] border-t border-white/10 rounded-t-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden m-0">
-      <!-- DRAG HANDLE -->
+      <!-- MOBILE DRAG HANDLE -->
       <div class="w-full pt-3 pb-1 flex justify-center shrink-0">
         <div class="w-12 h-1.5 bg-zinc-700 rounded-full"></div>
       </div>
@@ -146,68 +191,59 @@ function getHtml(view = "builder") {
       <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
         <!-- FORM SELECT -->
         <div class="space-y-1.5">
-          <label class="text-xs font-bold text-zinc-200 block">Modelo do Formulário *</label>
-          <div class="w-full px-3.5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white font-medium flex items-center justify-between">
+          <label class="text-sm font-bold text-zinc-200 block">Modelo do Formulário *</label>
+          <div class="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-base text-white font-medium flex items-center justify-between min-h-[48px]">
             <span>Check-in Semanal de Evolução (3 perguntas)</span>
-            <span class="text-emerald-400 text-xs">▼</span>
+            <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
           </div>
         </div>
 
         <!-- DUE DATE -->
         <div class="space-y-1.5">
-          <label class="text-xs font-bold text-zinc-200 block">Prazo para Resposta (opcional)</label>
-          <div class="w-full px-3.5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-white font-medium">
-            10/11/2026
-          </div>
+          <label class="text-sm font-bold text-zinc-200 block">Prazo para Resposta (opcional)</label>
+          <input type="text" value="08/11/2026" class="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-base text-white font-medium min-h-[48px]" readonly />
         </div>
 
-        <!-- BULK TOGGLE -->
-        <div class="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 border border-white/10">
-          <div>
-            <span class="text-xs font-bold text-white block">Enviar para todos os alunos ativos</span>
-            <span class="text-[11px] text-zinc-400">Dispara para a base inteira (42 alunos)</span>
-          </div>
-          <div class="w-5 h-5 rounded-md border border-white/20 bg-zinc-800"></div>
-        </div>
-
-        <!-- STUDENT SEARCH & LIST -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <label class="text-xs font-bold text-zinc-200">Selecionar Alunos (1 selecionado)</label>
-            <span class="text-[11px] font-bold text-emerald-400">Selecionar todos</span>
-          </div>
-          <input type="text" placeholder="Buscar aluno por nome..." value="Patricia Ramos" class="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white" readonly />
+        <!-- TARGET RECIPIENTS -->
+        <div class="space-y-2.5 pt-1">
+          <label class="text-sm font-bold text-zinc-200 block">Selecionar Aluno (1 selecionado)</label>
+          <input type="text" placeholder="Buscar aluno por nome ou email..." class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-base text-white min-h-[48px]" />
 
           <div class="space-y-1.5 border border-white/10 rounded-2xl p-2 bg-white/[0.02]">
-            <div class="w-full flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/40 text-white">
+            <div class="w-full flex items-center justify-between p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 min-h-[48px]">
               <div>
-                <span class="text-xs font-bold block">Patricia Ramos</span>
-                <span class="text-[10px] text-zinc-400 block">patricia.ramos@email.com • (11) 98765-4321</span>
+                <span class="text-sm font-bold text-white block">Patricia Ramos</span>
+                <span class="text-xs text-zinc-400 block">patricia.ramos@email.com</span>
               </div>
-              <div class="w-4 h-4 rounded-md bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold">✓</div>
-            </div>
-
-            <div class="w-full flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5 text-zinc-300">
-              <div>
-                <span class="text-xs font-bold block">Carlos Alberto Silva</span>
-                <span class="text-[10px] text-zinc-500 block">carlos.silva@email.com</span>
+              <div class="w-5 h-5 rounded-md bg-emerald-500 text-white flex items-center justify-center">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                </svg>
               </div>
-              <div class="w-4 h-4 rounded-md border border-white/20"></div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- STICKY FOOTER -->
-      <div class="sticky bottom-0 bg-[#151619]/95 backdrop-blur-md border-t border-white/10 p-4 pb-6 flex items-center justify-end gap-2.5">
-        <button class="px-4 py-2.5 rounded-xl bg-white/5 text-xs font-semibold text-zinc-300">Cancelar</button>
-        <button class="px-5 py-2.5 rounded-xl bg-emerald-500 text-white text-xs font-bold shadow-md">Atribuir Formulário</button>
+      <div class="sticky bottom-0 bg-[#151619]/95 backdrop-blur-md border-t border-white/10 p-4 pb-6 flex flex-col gap-2.5 z-10">
+        <button class="w-full min-h-[48px] rounded-xl bg-emerald-500 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+          <span>Atribuir Formulário</span>
+        </button>
+        <button class="w-full min-h-[48px] rounded-xl bg-white/5 text-zinc-300 font-semibold text-sm flex items-center justify-center whitespace-nowrap">
+          Cancelar
+        </button>
       </div>
     </div>
     ` : view === "runner" ? `
     <!-- SCREEN (C): STUDENT FORM RUNNER -->
     <div class="w-full bg-[#151619] border-t border-white/10 rounded-t-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden m-0">
-      <!-- DRAG HANDLE -->
+      <!-- MOBILE DRAG HANDLE -->
       <div class="w-full pt-3 pb-1 flex justify-center shrink-0">
         <div class="w-12 h-1.5 bg-zinc-700 rounded-full"></div>
       </div>
@@ -215,14 +251,9 @@ function getHtml(view = "builder") {
       <!-- HEADER -->
       <div class="px-4 py-3 border-b border-white/10 flex items-start justify-between shrink-0">
         <div>
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
-              Preenchimento de Formulário
-            </span>
-            <span class="text-[9px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">
-              Rascunho salvo
-            </span>
-          </div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
+            Preenchimento de Formulário
+          </span>
           <h2 class="text-base font-bold text-white mt-0.5">
             Check-in Semanal de Evolução
           </h2>
@@ -231,73 +262,69 @@ function getHtml(view = "builder") {
 
       <!-- BODY -->
       <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-        <!-- Q1: SCALE -->
-        <div class="p-4 rounded-2xl bg-[#1a1c20] border border-white/10 space-y-3">
+        <!-- QUESTION 1: SCALE -->
+        <div class="p-4 rounded-2xl bg-[#1a1c20] border border-white/10 space-y-3.5">
           <div class="flex items-start gap-2.5">
-            <span class="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
-            <label class="text-xs font-bold text-white">Como você avalia seu nível de energia e cansaço nos treinos? *</label>
+            <span class="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+            <label class="text-sm font-bold text-white block">
+              Como avalia seu nível de energia e cansaço nos treinos? <span class="text-rose-500">*</span>
+            </label>
           </div>
-          <div class="pl-7 space-y-2">
-            <div class="flex items-center gap-1 overflow-x-auto pb-1">
-              ${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `
-                <div class="flex-1 min-w-[24px] h-8 rounded-lg text-xs font-bold flex items-center justify-center ${n === 8 ? 'bg-emerald-500 text-white shadow-xs' : 'bg-white/10 text-zinc-300'}">${n}</div>
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between gap-1 overflow-x-auto pb-1">
+              ${[0,1,2,3,4,5,6,7,8,9,10].map(n => `
+                <button class="flex-1 min-w-[28px] h-11 rounded-lg text-sm font-bold ${n === 8 ? 'bg-emerald-500 text-white' : 'bg-white/10 text-zinc-300'}">
+                  ${n}
+                </button>
               `).join('')}
             </div>
-            <div class="flex justify-between text-[10px] text-zinc-400">
-              <span>Muito cansado</span>
-              <span>Muito disposto</span>
+            <div class="flex justify-between text-xs text-zinc-400 px-1">
+              <span>0 (Muito cansado)</span>
+              <span>10 (Muito disposto)</span>
             </div>
           </div>
         </div>
 
-        <!-- Q2: SINGLE CHOICE -->
-        <div class="p-4 rounded-2xl bg-[#1a1c20] border border-white/10 space-y-3">
+        <!-- QUESTION 2: SINGLE CHOICE -->
+        <div class="p-4 rounded-2xl bg-[#1a1c20] border border-white/10 space-y-3.5">
           <div class="flex items-start gap-2.5">
-            <span class="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
-            <label class="text-xs font-bold text-white">Conseguiu bater a meta diária de água (3L+)? *</label>
+            <span class="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+            <label class="text-sm font-bold text-white block">
+              Bateu a meta diária de água (3L+)? <span class="text-rose-500">*</span>
+            </label>
           </div>
-          <div class="pl-7 space-y-1.5">
-            <div class="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/50 text-white font-semibold text-xs">
-              <span>Sim, todos os dias</span>
-              <div class="w-4 h-4 rounded-full border border-emerald-500 bg-emerald-500 flex items-center justify-center">
-                <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+          <div class="space-y-2">
+            <button class="w-full flex items-center justify-between p-3.5 rounded-xl border border-emerald-500/50 bg-emerald-500/10 text-white font-semibold min-h-[48px]">
+              <span class="text-sm">Sim, todos os dias</span>
+              <div class="w-5 h-5 rounded-full border border-emerald-500 bg-emerald-500 flex items-center justify-center">
+                <div class="w-2 h-2 rounded-full bg-white"></div>
               </div>
-            </div>
-            <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-xs">
-              <span>Na maioria dos dias</span>
-              <div class="w-4 h-4 rounded-full border border-white/20"></div>
-            </div>
-            <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-300 text-xs">
-              <span>Menos de 2L por dia</span>
-              <div class="w-4 h-4 rounded-full border border-white/20"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Q3: LONG TEXT -->
-        <div class="p-4 rounded-2xl bg-[#1a1c20] border border-white/10 space-y-3">
-          <div class="flex items-start gap-2.5">
-            <span class="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold flex items-center justify-center shrink-0">3</span>
-            <label class="text-xs font-bold text-white">Observações ou dificuldades encontradas na dieta?</label>
-          </div>
-          <div class="pl-7">
-            <div class="w-full p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white">
-              Senti um pouco de fome no meio da tarde na quarta-feira, mas consegui manter 100% o plano alimentar. Treinos foram ótimos!
-            </div>
+            </button>
+            <button class="w-full flex items-center justify-between p-3.5 rounded-xl border border-white/10 bg-white/5 text-zinc-300 min-h-[48px]">
+              <span class="text-sm">Na maioria dos dias</span>
+              <div class="w-5 h-5 rounded-full border border-white/20"></div>
+            </button>
           </div>
         </div>
       </div>
 
       <!-- STICKY FOOTER -->
-      <div class="sticky bottom-0 bg-[#151619]/95 backdrop-blur-md border-t border-white/10 p-4 pb-6 flex items-center justify-end gap-2.5">
-        <button class="px-4 py-2.5 rounded-xl bg-white/5 text-xs font-semibold text-zinc-300">Salvar Rascunho</button>
-        <button class="px-6 py-2.5 rounded-xl bg-emerald-500 text-white text-xs font-bold shadow-md">Enviar Respostas</button>
+      <div class="sticky bottom-0 bg-[#151619]/95 backdrop-blur-md border-t border-white/10 p-4 pb-6 flex flex-col gap-2.5 z-10">
+        <button class="w-full min-h-[48px] rounded-xl bg-emerald-500 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          <span>Enviar Respostas</span>
+        </button>
+        <button class="w-full min-h-[48px] rounded-xl bg-white/5 text-zinc-300 font-semibold text-sm flex items-center justify-center whitespace-nowrap">
+          Cancelar
+        </button>
       </div>
     </div>
     ` : `
-    <!-- SCREEN (D): ADMIN REVIEW MODAL -->
+    <!-- SCREEN (D): FORM REVIEW MODAL -->
     <div class="w-full bg-[#151619] border-t border-white/10 rounded-t-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden m-0">
-      <!-- DRAG HANDLE -->
+      <!-- MOBILE DRAG HANDLE -->
       <div class="w-full pt-3 pb-1 flex justify-center shrink-0">
         <div class="w-12 h-1.5 bg-zinc-700 rounded-full"></div>
       </div>
@@ -325,8 +352,8 @@ function getHtml(view = "builder") {
         <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
           <div>
             <span class="text-[10px] text-zinc-400 uppercase font-semibold block">Aluno</span>
-            <span class="text-xs font-bold text-white block">Patricia Ramos</span>
-            <span class="text-[10px] text-zinc-400">patricia.ramos@email.com • (11) 98765-4321</span>
+            <span class="text-sm font-bold text-white block">Patricia Ramos</span>
+            <span class="text-xs text-zinc-400">patricia.ramos@email.com</span>
           </div>
           <div class="text-right">
             <span class="text-[10px] text-zinc-400 uppercase font-semibold block">Enviado em</span>
@@ -334,47 +361,27 @@ function getHtml(view = "builder") {
           </div>
         </div>
 
-        <!-- RESPONSES -->
-        <div class="space-y-2.5">
-          <span class="text-[11px] font-bold uppercase tracking-wider text-white">Respostas do Aluno</span>
-
-          <div class="p-3.5 rounded-2xl bg-[#1a1c20] border border-white/10 space-y-2">
-            <span class="text-[11px] font-bold text-white block">1. Nível de energia e cansaço nos treinos</span>
-            <div class="pl-2">
-              <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 inline-block">
-                Nota 8 / 10 (Muito disposto)
-              </span>
-            </div>
-          </div>
-
-          <div class="p-3.5 rounded-2xl bg-[#1a1c20] border border-white/10 space-y-2">
-            <span class="text-[11px] font-bold text-white block">2. Meta diária de água (3L+)</span>
-            <div class="pl-2">
-              <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-white/10 text-white border border-white/10 inline-block">
-                Sim, todos os dias
-              </span>
-            </div>
-          </div>
-
-          <div class="p-3.5 rounded-2xl bg-[#1a1c20] border border-white/10 space-y-2">
-            <span class="text-[11px] font-bold text-white block">3. Observações ou dificuldades</span>
-            <div class="pl-2 text-xs text-zinc-300 leading-relaxed">
-              "Senti um pouco de fome no meio da tarde na quarta-feira, mas consegui manter 100% o plano alimentar. Treinos foram ótimos!"
-            </div>
-          </div>
-        </div>
-
         <!-- REVIEWER NOTES -->
-        <div class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1.5">
-          <label class="text-xs font-bold text-zinc-200 block">Feedback / Parecer do Profissional</label>
-          <textarea rows="2" class="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white" readonly>Excelente consistência, Patricia! Vamos manter o volume de água e incluir um lanche proteico extra na quarta.</textarea>
+        <div class="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
+          <label class="text-sm font-bold text-zinc-200 block">Feedback / Parecer do Profissional</label>
+          <textarea rows="3" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-base text-white min-h-[96px]" readonly>Excelente consistência, Patricia! Vamos manter o volume de água e incluir um lanche proteico extra na quarta.</textarea>
         </div>
       </div>
 
       <!-- STICKY FOOTER -->
-      <div class="sticky bottom-0 bg-[#151619]/95 backdrop-blur-md border-t border-white/10 p-4 pb-6 flex items-center justify-end gap-2.5">
-        <button class="px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-bold">Solicitar Ajustes</button>
-        <button class="px-5 py-2.5 rounded-xl bg-emerald-500 text-white text-xs font-bold shadow-md">Aprovar Formulário</button>
+      <div class="sticky bottom-0 bg-[#151619]/95 backdrop-blur-md border-t border-white/10 p-4 pb-6 flex flex-col gap-2.5 z-10">
+        <button class="w-full min-h-[48px] rounded-xl bg-emerald-500 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          <span>Aprovar Formulário</span>
+        </button>
+        <button class="w-full min-h-[48px] rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold text-sm flex items-center justify-center whitespace-nowrap">
+          Solicitar Ajustes
+        </button>
+        <button class="w-full min-h-[48px] rounded-xl bg-white/5 text-zinc-300 font-semibold text-sm flex items-center justify-center whitespace-nowrap">
+          Fechar
+        </button>
       </div>
     </div>
     `}
@@ -387,22 +394,24 @@ function getHtml(view = "builder") {
 async function run() {
   const browserPath = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
 
-  const views = [
-    { name: "builder", filename: "admin-forms-builder-375px.png", label: "A (Builder)" },
-    { name: "assign", filename: "admin-forms-assign-375px.png", label: "B (Assign)" },
-    { name: "runner", filename: "student-form-runner-375px.png", label: "C (Runner)" },
-    { name: "review", filename: "admin-form-review-375px.png", label: "D (Review)" },
+  const targets = [
+    { view: "builder", filename: "form-builder-modal-375x667.png", w: 375, h: 667 },
+    { view: "builder", filename: "form-builder-modal-390x844.png", w: 390, h: 844 },
+    { view: "builder", filename: "admin-forms-builder-375px.png", w: 375, h: 812 },
+    { view: "assign", filename: "admin-forms-assign-375px.png", w: 375, h: 812 },
+    { view: "runner", filename: "student-form-runner-375px.png", w: 375, h: 812 },
+    { view: "review", filename: "admin-form-review-375px.png", w: 375, h: 812 },
   ];
 
-  for (const v of views) {
-    const tmpHtml = path.join(os.tmpdir(), `forms_${v.name}_${Date.now()}.html`);
-    fs.writeFileSync(tmpHtml, getHtml(v.name), "utf8");
-    const outPath = path.join(ARTIFACT_DIR, v.filename);
+  for (const t of targets) {
+    const tmpHtml = path.join(os.tmpdir(), `forms_${t.view}_${Date.now()}.html`);
+    fs.writeFileSync(tmpHtml, getHtml(t.view), "utf8");
+    const outPath = path.join(ARTIFACT_DIR, t.filename);
     const fileUrl = `file:///${tmpHtml.replace(/\\/g, "/")}`;
 
     try {
-      execSync(`"${browserPath}" --headless=new --disable-gpu --window-size=375,812 --screenshot="${outPath}" "${fileUrl}"`);
-      console.log(`✓ Screenshot ${v.label} gerado:`, outPath);
+      execSync(`"${browserPath}" --headless=new --disable-gpu --window-size=${t.w},${t.h} --screenshot="${outPath}" "${fileUrl}"`);
+      console.log(`✓ Screenshot [${t.w}x${t.h}] gerado:`, outPath);
     } finally {
       try {
         fs.unlinkSync(tmpHtml);
@@ -410,7 +419,7 @@ async function run() {
     }
   }
 
-  console.log("Todos os 4 screenshots mobile foram gerados com sucesso!");
+  console.log("Todos os screenshots mobile foram gerados com sucesso!");
 }
 
 run().catch(console.error);

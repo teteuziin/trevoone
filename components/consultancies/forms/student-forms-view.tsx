@@ -195,7 +195,7 @@ export function StudentFormsView({
                   <button
                     type="button"
                     onClick={() => setActiveAssignment(assignment)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[40px] flex items-center gap-1.5 ${
+                    className={`px-4 py-2.5 sm:py-2 rounded-xl text-sm sm:text-xs font-bold transition-all cursor-pointer min-h-[48px] sm:min-h-[40px] flex items-center gap-1.5 ${
                       isPending
                         ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-xs"
                         : "bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-white/10"

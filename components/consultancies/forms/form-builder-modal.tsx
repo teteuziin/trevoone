@@ -263,9 +263,9 @@ export function FormBuilderModal({
           )}
 
           {/* BASIC INFORMATION */}
-          <div className="space-y-3 p-4 rounded-2xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10">
+          <div className="space-y-4 p-4 sm:p-5 rounded-2xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10">
             <div>
-              <label className="text-xs font-bold text-slate-800 dark:text-zinc-200 block mb-1">
+              <label className="text-sm sm:text-xs font-bold text-slate-800 dark:text-zinc-200 block mb-1.5">
                 Título do Formulário <span className="text-rose-500">*</span>
               </label>
               <input
@@ -276,19 +276,19 @@ export function FormBuilderModal({
                   if (fieldErrors.title) setFieldErrors((p) => ({ ...p, title: undefined }));
                 }}
                 placeholder="Ex: Check-in Semanal de Evolução, Anamnese Inicial..."
-                className={`w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-white/5 border text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 font-medium focus:outline-hidden transition-colors ${
+                className={`w-full px-4 py-3 sm:py-2.5 rounded-xl bg-white dark:bg-white/5 border text-base sm:text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 font-medium focus:outline-hidden transition-colors min-h-[48px] ${
                   fieldErrors.title
                     ? "border-rose-500 ring-1 ring-rose-500/20"
                     : "border-slate-200 dark:border-white/10 focus:border-emerald-500"
                 }`}
               />
               {fieldErrors.title && (
-                <p className="text-[11px] text-rose-500 mt-1 font-semibold">{fieldErrors.title}</p>
+                <p className="text-xs text-rose-500 mt-1 font-semibold">{fieldErrors.title}</p>
               )}
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-800 dark:text-zinc-200 block mb-1">
+              <label className="text-sm sm:text-xs font-bold text-slate-800 dark:text-zinc-200 block mb-1.5">
                 Instruções / Descrição (opcional)
               </label>
               <textarea
@@ -296,26 +296,26 @@ export function FormBuilderModal({
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
                 placeholder="Explique o objetivo deste formulário ou dê orientações para o preenchimento..."
-                className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 font-medium focus:outline-hidden focus:border-emerald-500 transition-colors"
+                className="w-full px-4 py-3 sm:py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-base sm:text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 font-medium focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[80px]"
               />
             </div>
           </div>
 
           {/* QUESTIONS LIST */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                <h3 className="text-sm sm:text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                   Perguntas ({questions.length})
                 </h3>
-                <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                <p className="text-xs sm:text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
                   Configure as perguntas e o tipo de resposta esperado.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleAddQuestion}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-3 sm:py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-sm sm:text-xs font-bold transition-all cursor-pointer min-h-[48px] sm:min-h-[38px] shrink-0"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -325,22 +325,22 @@ export function FormBuilderModal({
             </div>
 
             {fieldErrors.questions && (
-              <p className="text-[11px] text-rose-500 font-semibold">{fieldErrors.questions}</p>
+              <p className="text-xs text-rose-500 font-semibold">{fieldErrors.questions}</p>
             )}
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {questions.map((q, idx) => (
                 <div
                   key={q.id || idx}
-                  className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#1a1c20] border border-slate-200 dark:border-white/10 shadow-xs space-y-3 transition-all"
+                  className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#1a1c20] border border-slate-200 dark:border-white/10 shadow-xs space-y-4 transition-all"
                 >
                   {/* QUESTION TOP BAR */}
-                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-white/5 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold flex items-center justify-center shrink-0">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-white/5 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-6 h-6 sm:w-5 sm:h-5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs sm:text-[10px] font-bold flex items-center justify-center shrink-0">
                         {idx + 1}
                       </span>
-                      <span className="text-[11px] font-bold text-slate-700 dark:text-zinc-300">
+                      <span className="text-xs sm:text-[11px] font-bold text-slate-700 dark:text-zinc-300">
                         Pergunta #{idx + 1}
                       </span>
                     </div>
@@ -351,7 +351,7 @@ export function FormBuilderModal({
                         onClick={() => handleMoveQuestion(idx, "up")}
                         disabled={idx === 0}
                         title="Mover para cima"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                        className="p-2 sm:p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -362,7 +362,7 @@ export function FormBuilderModal({
                         onClick={() => handleMoveQuestion(idx, "down")}
                         disabled={idx === questions.length - 1}
                         title="Mover para baixo"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                        className="p-2 sm:p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -372,7 +372,7 @@ export function FormBuilderModal({
                         type="button"
                         onClick={() => handleRemoveQuestion(idx)}
                         title="Remover pergunta"
-                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 cursor-pointer transition-colors"
+                        className="p-2 sm:p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 cursor-pointer transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -381,10 +381,10 @@ export function FormBuilderModal({
                     </div>
                   </div>
 
-                  {/* QUESTION TITLE & TYPE */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    <div className="sm:col-span-2 space-y-1">
-                      <label className="text-[11px] font-semibold text-slate-700 dark:text-zinc-300 block">
+                  {/* QUESTION TITLE & TYPE (GRID EMPILHADO NO MOBILE) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-2.5">
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 block">
                         Enunciado da pergunta
                       </label>
                       <input
@@ -392,12 +392,12 @@ export function FormBuilderModal({
                         value={q.title}
                         onChange={(e) => handleUpdateQuestion(idx, { title: e.target.value })}
                         placeholder="Digite o texto da pergunta..."
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 font-medium focus:outline-hidden focus:border-emerald-500"
+                        className="w-full px-4 py-3 sm:py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-base sm:text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 font-medium focus:outline-hidden focus:border-emerald-500 min-h-[48px] sm:min-h-[40px]"
                       />
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-slate-700 dark:text-zinc-300 block">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 block">
                         Tipo de resposta
                       </label>
                       <select
@@ -420,7 +420,7 @@ export function FormBuilderModal({
                           }
                           handleUpdateQuestion(idx, updates);
                         }}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden focus:border-emerald-500 cursor-pointer min-h-[38px]"
+                        className="w-full px-4 py-3 sm:py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-base sm:text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden focus:border-emerald-500 cursor-pointer min-h-[48px] sm:min-h-[40px]"
                       >
                         {QUESTION_TYPES.map((t) => (
                           <option key={t.id} value={t.id}>
@@ -432,34 +432,34 @@ export function FormBuilderModal({
                   </div>
 
                   {/* REQUIRED TOGGLE */}
-                  <div className="flex items-center justify-between pt-1">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pt-1">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none min-h-[32px]">
                       <input
                         type="checkbox"
                         checked={q.required}
                         onChange={(e) => handleUpdateQuestion(idx, { required: e.target.checked })}
-                        className="w-4 h-4 rounded-md text-emerald-500 focus:ring-emerald-500 border-slate-300 dark:border-white/20 bg-slate-50 dark:bg-white/5 cursor-pointer"
+                        className="w-5 h-5 rounded-md text-emerald-500 focus:ring-emerald-500 border-slate-300 dark:border-white/20 bg-slate-50 dark:bg-white/5 cursor-pointer"
                       />
-                      <span className="text-xs font-medium text-slate-700 dark:text-zinc-300">
+                      <span className="text-sm sm:text-xs font-medium text-slate-700 dark:text-zinc-300">
                         Resposta obrigatória
                       </span>
                     </label>
 
-                    <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                    <span className="text-xs sm:text-[10px] text-slate-500 dark:text-zinc-400">
                       {QUESTION_TYPES.find((t) => t.id === q.type)?.desc}
                     </span>
                   </div>
 
                   {/* EXTRA CONFIG: CHOICES */}
                   {(q.type === "SINGLE_CHOICE" || q.type === "MULTIPLE_CHOICE") && (
-                    <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5 space-y-2 mt-2">
-                      <span className="text-[11px] font-bold text-slate-700 dark:text-zinc-300 block">
+                    <div className="p-4 rounded-xl sm:rounded-2xl bg-slate-50/80 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5 space-y-3 mt-3">
+                      <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 block">
                         Opções de seleção:
                       </span>
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         {(q.options || []).map((opt, optIdx) => (
                           <div key={opt.id || optIdx} className="flex items-center gap-2">
-                            <span className="w-4 text-center text-[10px] text-slate-400 dark:text-zinc-500">
+                            <span className="w-5 text-center text-xs sm:text-[10px] text-slate-400 dark:text-zinc-500 font-semibold shrink-0">
                               {optIdx + 1}.
                             </span>
                             <input
@@ -467,15 +467,15 @@ export function FormBuilderModal({
                               value={opt.label}
                               onChange={(e) => handleUpdateChoiceOption(idx, optIdx, e.target.value)}
                               placeholder={`Opção ${optIdx + 1}`}
-                              className="flex-1 px-3 py-1.5 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden focus:border-emerald-500"
+                              className="flex-1 px-3.5 py-3 sm:py-1.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-base sm:text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden focus:border-emerald-500 min-h-[48px] sm:min-h-[38px]"
                             />
                             {(q.options?.length || 0) > 1 && (
                               <button
                                 type="button"
                                 onClick={() => handleRemoveChoiceOption(idx, optIdx)}
-                                className="p-1 text-slate-400 hover:text-rose-500 cursor-pointer"
+                                className="p-2.5 text-slate-400 hover:text-rose-500 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
                               >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                               </button>
@@ -486,9 +486,9 @@ export function FormBuilderModal({
                       <button
                         type="button"
                         onClick={() => handleAddChoiceOption(idx)}
-                        className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 mt-1 cursor-pointer"
+                        className="text-sm sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1.5 mt-1 cursor-pointer min-h-[40px]"
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
                         <span>Adicionar opção</span>
@@ -496,11 +496,11 @@ export function FormBuilderModal({
                     </div>
                   )}
 
-                  {/* EXTRA CONFIG: SCALE */}
+                  {/* EXTRA CONFIG: SCALE (EMPILHADO NO MOBILE) */}
                   {q.type === "SCALE" && (
-                    <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-slate-50/80 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5 mt-2">
-                      <div>
-                        <label className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400 block mb-0.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-4 rounded-xl sm:rounded-2xl bg-slate-50/80 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5 mt-3">
+                      <div className="space-y-1">
+                        <label className="text-xs sm:text-[10px] font-semibold text-slate-700 dark:text-zinc-300 block">
                           Rótulo nota mínima (0)
                         </label>
                         <input
@@ -508,11 +508,11 @@ export function FormBuilderModal({
                           value={q.scaleMinLabel || ""}
                           onChange={(e) => handleUpdateQuestion(idx, { scaleMinLabel: e.target.value })}
                           placeholder="Ex: Péssimo / Fraco"
-                          className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden"
+                          className="w-full px-3.5 py-3 sm:py-1.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-base sm:text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden min-h-[48px] sm:min-h-[38px]"
                         />
                       </div>
-                      <div>
-                        <label className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400 block mb-0.5">
+                      <div className="space-y-1">
+                        <label className="text-xs sm:text-[10px] font-semibold text-slate-700 dark:text-zinc-300 block">
                           Rótulo nota máxima (10)
                         </label>
                         <input
@@ -520,7 +520,7 @@ export function FormBuilderModal({
                           value={q.scaleMaxLabel || ""}
                           onChange={(e) => handleUpdateQuestion(idx, { scaleMaxLabel: e.target.value })}
                           placeholder="Ex: Excelente / Forte"
-                          className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden"
+                          className="w-full px-3.5 py-3 sm:py-1.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-base sm:text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden min-h-[48px] sm:min-h-[38px]"
                         />
                       </div>
                     </div>
@@ -531,34 +531,34 @@ export function FormBuilderModal({
           </div>
         </div>
 
-        {/* STICKY FOOTER */}
-        <div className="sticky bottom-0 shrink-0 bg-white/95 dark:bg-[#151619]/95 backdrop-blur-md border-t border-slate-200 dark:border-white/10 p-4 sm:p-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] flex items-center justify-end gap-2.5 z-10">
+        {/* STICKY FOOTER (EMPILHADO EM MOBILE COM AÇÃO PRIMÁRIA NO TOPO) */}
+        <div className="sticky bottom-0 shrink-0 bg-white/95 dark:bg-[#151619]/95 backdrop-blur-md border-t border-slate-200 dark:border-white/10 p-4 sm:p-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2.5 z-10">
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => handleSave(true)}
             disabled={isSubmitting}
-            className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-semibold text-slate-700 dark:text-zinc-300 transition-colors cursor-pointer min-h-[44px]"
+            className="w-full sm:w-auto sm:order-3 px-5 py-3 sm:py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm sm:text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 min-h-[48px] flex items-center justify-center gap-2 whitespace-nowrap"
           >
-            Cancelar
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span>{isSubmitting ? "Publicando..." : isEditing ? "Salvar e Publicar" : "Publicar Modelo"}</span>
           </button>
           <button
             type="button"
             onClick={() => handleSave(false)}
             disabled={isSubmitting}
-            className="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-xs font-bold text-slate-900 dark:text-white transition-all cursor-pointer min-h-[44px] disabled:opacity-50"
+            className="w-full sm:w-auto sm:order-2 px-4 py-3 sm:py-2.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-sm sm:text-xs font-bold text-slate-900 dark:text-white transition-all cursor-pointer min-h-[48px] disabled:opacity-50 flex items-center justify-center whitespace-nowrap"
           >
             {isSubmitting ? "Salvando..." : "Salvar Rascunho"}
           </button>
           <button
             type="button"
-            onClick={() => handleSave(true)}
+            onClick={onClose}
             disabled={isSubmitting}
-            className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-2"
+            className="w-full sm:w-auto sm:order-1 px-4 py-3 sm:py-2.5 rounded-xl bg-transparent sm:bg-slate-100 sm:dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-sm sm:text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer min-h-[48px] flex items-center justify-center whitespace-nowrap"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>{isSubmitting ? "Publicando..." : isEditing ? "Salvar e Publicar" : "Publicar Modelo"}</span>
+            Cancelar
           </button>
         </div>
       </div>

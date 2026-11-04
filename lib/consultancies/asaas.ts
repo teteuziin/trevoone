@@ -726,12 +726,68 @@ export async function processAsaasWebhookEvent(params: {
 
     const chargeInternalId = Number(charge.id);
 
-    // 4. PROCESSAMENTO DO EVENTO DE LIQUIDAÇÃO (PAGAMENTO CONFIRMADO)
-    const isPaidEvent =
+    // 4. VERIFICAÇÃO DE ESTORNO PRÉVIO (Segurança de Auditoria)
+    // Se a cobrança já estiver estornada, um evento antigo reenviado NÃO pode reativar a baixa
+    const [existingRefunded] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM student_payments WHERE charge_id = ? AND refunded_at IS NOT NULL LIMIT 1;`,
+      [chargeInternalId]
+    );
+    const isAlreadyRefunded =
+      (Array.isArray(existingRefunded) && existingRefunded.length > 0) ||
+      charge.asaas_status_raw === "PAYMENT_REFUNDED" ||
+      charge.asaas_status_raw === "REFUNDED";
+
+    if (
+      isAlreadyRefunded &&
+      (eventType === "PAYMENT_CONFIRMED" ||
+        eventType === "PAYMENT_RECEIVED" ||
+        payment.status === "RECEIVED" ||
+        payment.status === "CONFIRMED")
+    ) {
+      return {
+        success: true,
+        message: "Cobrança com estorno registrado. Eventos antigos não podem reativar a baixa.",
+        alreadyProcessed: true,
+      };
+    }
+
+    // 5. EVENTO DE CONFIRMAÇÃO (Aguardando Recebimento)
+    // No piloto, CONFIRMED fica como "Pagamento confirmado, aguardando recebimento"
+    // Não insere em student_payments ainda
+    const isConfirmedOnly =
+      (eventType === "PAYMENT_CONFIRMED" || payment.status === "CONFIRMED") &&
+      eventType !== "PAYMENT_RECEIVED" &&
+      payment.status !== "RECEIVED" &&
+      payment.status !== "RECEIVED_IN_CASH";
+
+    if (isConfirmedOnly) {
+      await connection.execute(
+        `UPDATE student_charges
+         SET asaas_status_raw = 'PAYMENT_CONFIRMED',
+             asaas_payment_id = ?
+         WHERE id = ?;`,
+        [asaasPaymentId, chargeInternalId]
+      );
+
+      if (recordedEventId) {
+        await connection.execute(
+          `UPDATE asaas_webhook_events
+           SET processed = 1, processed_at = CURRENT_TIMESTAMP(3), processing_error = NULL
+           WHERE id = ?;`,
+          [recordedEventId]
+        );
+      }
+
+      return {
+        success: true,
+        message: `Evento PAYMENT_CONFIRMED registrado para cobrança ${charge.public_id}: Pagamento confirmado, aguardando recebimento.`,
+      };
+    }
+
+    // 6. EVENTO DE LIQUIDAÇÃO REAL (RECEIVED autoriza a baixa automática)
+    const isReceivedEvent =
       eventType === "PAYMENT_RECEIVED" ||
-      eventType === "PAYMENT_CONFIRMED" ||
       payment.status === "RECEIVED" ||
-      payment.status === "CONFIRMED" ||
       payment.status === "RECEIVED_IN_CASH";
 
     const isRefundEvent =
@@ -739,10 +795,10 @@ export async function processAsaasWebhookEvent(params: {
       eventType === "PAYMENT_RECEIVED_IN_CASH_UNDONE" ||
       eventType === "PAYMENT_CHARGEBACK_REQUESTED";
 
-    if (isPaidEvent) {
-      // Verifica se o pagamento já foi registrado em student_payments
+    if (isReceivedEvent) {
+      // Verifica se o pagamento ativo (não estornado) já foi registrado em student_payments
       const [existingPayments] = await connection.execute<RowDataPacket[]>(
-        `SELECT id FROM student_payments WHERE charge_id = ? LIMIT 1;`,
+        `SELECT id FROM student_payments WHERE charge_id = ? AND refunded_at IS NULL LIMIT 1;`,
         [chargeInternalId]
       );
 
@@ -755,8 +811,8 @@ export async function processAsaasWebhookEvent(params: {
         // Insere o pagamento oficial com baixa imediata e método verificado
         await connection.execute(
           `INSERT INTO student_payments
-           (public_id, consultancy_id, charge_id, amount_cents, currency_code, paid_on, payment_method, notes)
-           VALUES (?, ?, ?, ?, 'BRL', CURDATE(), ?, ?);`,
+           (public_id, consultancy_id, charge_id, amount_cents, currency_code, paid_on, payment_method, confirmed_at, notes)
+           VALUES (?, ?, ?, ?, 'BRL', CURDATE(), ?, CURRENT_TIMESTAMP(3), ?);`,
           [
             paymentPublicId,
             charge.consultancy_id,
@@ -772,11 +828,11 @@ export async function processAsaasWebhookEvent(params: {
       // Atualiza status da cobrança
       await connection.execute(
         `UPDATE student_charges
-         SET asaas_status_raw = ?,
+         SET asaas_status_raw = 'PAYMENT_RECEIVED',
              asaas_payment_id = ?,
              payment_method = ?
          WHERE id = ?;`,
-        [eventType, asaasPaymentId, confirmedMethod, chargeInternalId]
+        [asaasPaymentId, confirmedMethod, chargeInternalId]
       );
 
       // Recalcula acesso financeiro do aluno após a liquidação
@@ -792,18 +848,20 @@ export async function processAsaasWebhookEvent(params: {
         console.warn("[Asaas Webhook] Aviso ao recalcular acesso pós-baixa:", accessErr);
       }
     } else if (isRefundEvent) {
-      // Estorno / Chargeback: desfaz a baixa no banco de dados
+      // Estorno / Chargeback: PRESERVA o pagamento original em student_payments para auditoria
+      // Marcando refunded_at com o timestamp do estorno
       await connection.execute(
-        `DELETE FROM student_payments WHERE charge_id = ?;`,
+        `UPDATE student_payments
+         SET refunded_at = CURRENT_TIMESTAMP(3)
+         WHERE charge_id = ? AND refunded_at IS NULL;`,
         [chargeInternalId]
       );
 
       await connection.execute(
         `UPDATE student_charges
-         SET asaas_status_raw = ?,
-             payment_method = 'ASAAS_REFUNDED'
+         SET asaas_status_raw = 'PAYMENT_REFUNDED'
          WHERE id = ?;`,
-        [eventType, chargeInternalId]
+        [chargeInternalId]
       );
 
       // Recalcula acesso financeiro do aluno (se houver pendências bloqueantes vencidas, bloqueia o acesso)

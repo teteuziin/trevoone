@@ -852,7 +852,7 @@ export async function cancelStudentCharge(
     const [rows] = await connection.execute<RowDataPacket[]>(
       `SELECT sc.id, sc.consultancy_id, sc.state, sp.id AS payment_id
        FROM student_charges sc
-       LEFT JOIN student_payments sp ON sp.charge_id = sc.id
+       LEFT JOIN student_payments sp ON sp.charge_id = sc.id AND sp.refunded_at IS NULL
        WHERE sc.public_id = ?
          AND sc.consultancy_id = ?
        FOR UPDATE;`,
@@ -998,7 +998,7 @@ export async function getStudentFinancialAccessState(params: {
          AND sc.blocks_access = 1
          AND sc.due_on < ?
          AND NOT EXISTS (
-           SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id
+           SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL
          )
        ORDER BY sc.due_on ASC, sc.id ASC;`,
       [consultancyId, studentMembershipId, localToday]
@@ -1092,7 +1092,7 @@ export async function getConsultancyFinanceDashboard(
        WHERE sc.consultancy_id = ?
          AND sc.state = 'OPEN'
          AND NOT EXISTS (
-           SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id
+           SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL
          );`,
       [localToday, consultancyId]
     );
@@ -1268,17 +1268,17 @@ export async function listConsultancyCharges(
     if (filter === "CANCELED") {
       whereConditions.push("sc.state = 'CANCELED'");
     } else if (filter === "PAID") {
-      whereConditions.push("EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)");
+      whereConditions.push("EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL)");
     } else if (filter === "UNDER_REVIEW") {
       whereConditions.push(
         "sc.state = 'OPEN'",
-        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)",
+        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL)",
         "EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED')"
       );
     } else if (filter === "OVERDUE") {
       whereConditions.push(
         "sc.state = 'OPEN'",
-        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)",
+        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL)",
         "NOT EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED')",
         "sc.due_on < ?"
       );
@@ -1286,7 +1286,7 @@ export async function listConsultancyCharges(
     } else if (filter === "PENDING") {
       whereConditions.push(
         "sc.state = 'OPEN'",
-        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)",
+        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL)",
         "NOT EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED')",
         "sc.due_on >= ?"
       );
@@ -1342,7 +1342,7 @@ export async function listConsultancyCharges(
         sc.asaas_invoice_url,
         sc.payment_method,
         sc.asaas_status_raw,
-        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id) AS has_payment,
+        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL) AS has_payment,
         EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED') AS has_submitted_receipt
       FROM student_charges sc
       INNER JOIN consultancy_members cm ON cm.id = sc.student_membership_id
@@ -1472,7 +1472,7 @@ export async function getStudentChargeDetail(params: {
         sc.canceled_at,
         u_canceler.full_name AS canceled_by_user_name,
         sc.cancel_reason,
-        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id) AS has_payment,
+        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL) AS has_payment,
         EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED') AS has_submitted_receipt
        FROM student_charges sc
        INNER JOIN consultancy_members cm ON cm.id = sc.student_membership_id
@@ -1627,12 +1627,12 @@ export async function getStudentChargesPage(
 
     if (isHistory) {
       whereConditions.push(
-        "(sc.state = 'CANCELED' OR EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id))"
+        "(sc.state = 'CANCELED' OR EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL))"
       );
     } else {
       whereConditions.push(
         "sc.state = 'OPEN'",
-        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)"
+        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL)"
       );
     }
 
@@ -1671,7 +1671,7 @@ export async function getStudentChargesPage(
         sc.created_at,
         sc.asaas_payment_id,
         sc.asaas_invoice_url,
-        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id) AS has_payment,
+        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL) AS has_payment,
         EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED') AS has_submitted_receipt
       FROM student_charges sc
       WHERE ${whereSql}
@@ -1836,7 +1836,7 @@ export async function getStudentChargePaymentDetail(params: {
           WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED'
         ) AS has_submitted_receipt
        FROM student_charges sc
-       LEFT JOIN student_payments sp ON sp.charge_id = sc.id
+       LEFT JOIN student_payments sp ON sp.charge_id = sc.id AND sp.refunded_at IS NULL
        WHERE sc.public_id = ?
          AND sc.consultancy_id = ?
          AND sc.student_membership_id = ?
@@ -2127,7 +2127,7 @@ export async function submitStudentPaymentReceipt(
         sc.state,
         sc.consultancy_id,
         sc.student_membership_id,
-        (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id LIMIT 1) AS payment_exists,
+        (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL LIMIT 1) AS payment_exists,
         (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED' LIMIT 1) AS submitted_exists
        FROM student_charges sc
        WHERE sc.public_id = ?

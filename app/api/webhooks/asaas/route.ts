@@ -34,9 +34,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.success) {
+      const isAuthError =
+        result.message.toLowerCase().includes("não autorizado") ||
+        result.message.toLowerCase().includes("token");
       return NextResponse.json(
         { error: result.message },
-        { status: 400 }
+        { status: isAuthError ? 401 : 400 }
       );
     }
 

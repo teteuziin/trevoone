@@ -250,6 +250,7 @@ ALTER TABLE student_payments
     MODIFY COLUMN payment_method VARCHAR(50) NOT NULL DEFAULT 'PIX_MANUAL',
     MODIFY COLUMN confirmed_by_user_id BIGINT UNSIGNED NULL DEFAULT NULL,
     ADD COLUMN asaas_payment_id VARCHAR(50) NULL DEFAULT NULL AFTER receipt_id,
+    ADD COLUMN refunded_at DATETIME(3) NULL DEFAULT NULL AFTER confirmed_at,
     ADD INDEX idx_student_payments_asaas (asaas_payment_id);
 
 -- ============================================================================

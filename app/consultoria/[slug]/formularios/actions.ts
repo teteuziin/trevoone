@@ -18,6 +18,20 @@ import {
   type ReviewFormAssignmentInput,
 } from "@/lib/consultancies/forms";
 
+function sanitizeFormActionError(err: unknown, defaultMessage: string): string {
+  if (err instanceof Error && err.message) {
+    const msg = err.message;
+    const isTechnicalSqlError =
+      /SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|JOIN|ER_|SQL|column|table|database|syntax|deadlock|foreign key|constraint|handshake|packet|ECONNREFUSED|PROTOCOL_/i.test(
+        msg
+      );
+    if (!isTechnicalSqlError && msg.trim().length > 0 && msg.length < 250) {
+      return msg;
+    }
+  }
+  return defaultMessage;
+}
+
 export async function createFormAction(
   slug: string,
   input: CreateConsultancyFormInput
@@ -53,7 +67,7 @@ export async function createFormAction(
     console.error("[createFormAction] Error:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Erro ao criar formulário.",
+      error: sanitizeFormActionError(err, "Não foi possível criar o formulário. Tente novamente."),
     };
   }
 }
@@ -81,7 +95,7 @@ export async function updateFormAction(
     console.error("[updateFormAction] Error:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Erro ao atualizar formulário.",
+      error: sanitizeFormActionError(err, "Não foi possível atualizar o formulário. Tente novamente."),
     };
   }
 }
@@ -100,7 +114,7 @@ export async function publishFormAction(slug: string, formPublicId: string) {
     console.error("[publishFormAction] Error:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Erro ao publicar formulário.",
+      error: sanitizeFormActionError(err, "Não foi possível publicar o formulário. Tente novamente."),
     };
   }
 }
@@ -119,7 +133,7 @@ export async function archiveFormAction(slug: string, formPublicId: string) {
     console.error("[archiveFormAction] Error:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Erro ao arquivar formulário.",
+      error: sanitizeFormActionError(err, "Não foi possível arquivar o formulário. Tente novamente."),
     };
   }
 }
@@ -133,12 +147,20 @@ export async function assignFormAction(slug: string, input: AssignFormInput) {
 
     const result = await assignFormToStudents(slug, session.userId, input);
     revalidatePath(`/consultoria/${slug}/formularios`);
+
+    if (!result.success && result.error) {
+      return {
+        ...result,
+        error: sanitizeFormActionError(new Error(result.error), "Não foi possível atribuir o formulário. Tente novamente."),
+      };
+    }
+
     return result;
   } catch (err: unknown) {
     console.error("[assignFormAction] Error:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Erro ao atribuir formulário.",
+      error: sanitizeFormActionError(err, "Não foi possível atribuir o formulário. Tente novamente."),
     };
   }
 }
@@ -161,12 +183,20 @@ export async function submitFormResponsesAction(
       responses
     );
     revalidatePath(`/consultoria/${slug}/formularios`);
+
+    if (!result.success && result.error) {
+      return {
+        ...result,
+        error: sanitizeFormActionError(new Error(result.error), "Não foi possível enviar as respostas. Tente novamente."),
+      };
+    }
+
     return result;
   } catch (err: unknown) {
     console.error("[submitFormResponsesAction] Error:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Erro ao enviar respostas.",
+      error: sanitizeFormActionError(err, "Não foi possível enviar as respostas do formulário. Tente novamente."),
     };
   }
 }
@@ -189,12 +219,20 @@ export async function reviewFormAssignmentAction(
       input
     );
     revalidatePath(`/consultoria/${slug}/formularios`);
+
+    if (!result.success && result.error) {
+      return {
+        ...result,
+        error: sanitizeFormActionError(new Error(result.error), "Não foi possível revisar o formulário. Tente novamente."),
+      };
+    }
+
     return result;
   } catch (err: unknown) {
     console.error("[reviewFormAssignmentAction] Error:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Erro ao revisar formulário.",
+      error: sanitizeFormActionError(err, "Não foi possível revisar o formulário. Tente novamente."),
     };
   }
 }

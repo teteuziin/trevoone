@@ -483,37 +483,41 @@ export async function listActiveStudentsForForms(
   consultancySlug: string,
   userId: number
 ): Promise<ActiveStudentOption[]> {
-  await ensureConsultancyFormsSchema();
-  const context = await resolveConsultancyContext(userId, consultancySlug);
-  if (!context) {
-    throw new Error("Acesso negado à consultoria.");
-  }
-
-  const connection = await getDbConnection();
   try {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT cm.id AS membership_id, cm.public_id AS membership_public_id, u.id AS user_id, u.full_name, u.email, up.phone
-       FROM consultancy_members cm
-       JOIN users u ON u.id = cm.user_id
-       JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
-       LEFT JOIN user_profiles up ON up.user_id = u.id
-       WHERE cm.consultancy_id = ? AND cm.status = 'ACTIVE'
-         AND cmr.role IN ('STUDENT', 'INFLUENCER')
-       GROUP BY cm.id, cm.public_id, u.id, u.full_name, u.email, up.phone
-       ORDER BY u.full_name ASC;`,
-      [context.consultancyId]
-    );
+    await ensureConsultancyFormsSchema();
+    const context = await resolveConsultancyContext(userId, consultancySlug);
+    if (!context) {
+      return [];
+    }
 
-    return rows.map((s) => ({
-      membershipId: Number(s.membership_id),
-      membershipPublicId: String(s.membership_public_id),
-      userId: Number(s.user_id),
-      name: String(s.full_name),
-      email: String(s.email),
-      phone: s.phone ? String(s.phone) : null,
-    }));
-  } finally {
-    connection.release();
+    const connection = await getDbConnection();
+    try {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        `SELECT cm.id AS membership_id, cm.public_id AS membership_public_id, u.id AS user_id, u.full_name, u.email
+         FROM consultancy_members cm
+         JOIN users u ON u.id = cm.user_id
+         JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+         WHERE cm.consultancy_id = ? AND cm.status = 'ACTIVE'
+           AND cmr.role IN ('STUDENT', 'INFLUENCER')
+         GROUP BY cm.id, cm.public_id, u.id, u.full_name, u.email
+         ORDER BY u.full_name ASC;`,
+        [context.consultancyId]
+      );
+
+      return rows.map((s) => ({
+        membershipId: Number(s.membership_id),
+        membershipPublicId: String(s.membership_public_id),
+        userId: Number(s.user_id),
+        name: String(s.full_name),
+        email: String(s.email),
+        phone: null,
+      }));
+    } finally {
+      connection.release();
+    }
+  } catch (err: unknown) {
+    console.error("[forms:listActiveStudentsForForms] Erro ao listar alunos ativos:", err);
+    return [];
   }
 }
 
@@ -569,14 +573,13 @@ export async function assignFormToStudents(
 
     if (input.assignToAllActiveStudents) {
       const [allStudents] = await connection.execute<RowDataPacket[]>(
-        `SELECT cm.id AS membership_id, cm.public_id AS membership_public_id, u.id AS user_id, u.full_name, u.email, up.phone
+        `SELECT cm.id AS membership_id, cm.public_id AS membership_public_id, u.id AS user_id, u.full_name, u.email
          FROM consultancy_members cm
          JOIN users u ON u.id = cm.user_id
          JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
-         LEFT JOIN user_profiles up ON up.user_id = u.id
          WHERE cm.consultancy_id = ? AND cm.status = 'ACTIVE'
            AND cmr.role IN ('STUDENT', 'INFLUENCER')
-         GROUP BY cm.id, cm.public_id, u.id, u.full_name, u.email, up.phone
+         GROUP BY cm.id, cm.public_id, u.id, u.full_name, u.email
          ORDER BY u.full_name ASC;`,
         [context.consultancyId]
       );
@@ -587,7 +590,7 @@ export async function assignFormToStudents(
         userId: Number(s.user_id),
         name: String(s.full_name),
         email: String(s.email),
-        phone: s.phone ? String(s.phone) : null,
+        phone: null,
       }));
     } else {
       if (!input.studentMembershipPublicIds || input.studentMembershipPublicIds.length === 0) {
@@ -596,15 +599,14 @@ export async function assignFormToStudents(
 
       const placeholders = input.studentMembershipPublicIds.map(() => "?").join(",");
       const [selStudents] = await connection.execute<RowDataPacket[]>(
-        `SELECT cm.id AS membership_id, cm.public_id AS membership_public_id, u.id AS user_id, u.full_name, u.email, up.phone
+        `SELECT cm.id AS membership_id, cm.public_id AS membership_public_id, u.id AS user_id, u.full_name, u.email
          FROM consultancy_members cm
          JOIN users u ON u.id = cm.user_id
          JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
-         LEFT JOIN user_profiles up ON up.user_id = u.id
          WHERE cm.consultancy_id = ? AND cm.status = 'ACTIVE'
            AND cmr.role IN ('STUDENT', 'INFLUENCER')
            AND cm.public_id IN (${placeholders})
-         GROUP BY cm.id, cm.public_id, u.id, u.full_name, u.email, up.phone;`,
+         GROUP BY cm.id, cm.public_id, u.id, u.full_name, u.email;`,
         [context.consultancyId, ...input.studentMembershipPublicIds]
       );
 
@@ -614,7 +616,7 @@ export async function assignFormToStudents(
         userId: Number(s.user_id),
         name: String(s.full_name),
         email: String(s.email),
-        phone: s.phone ? String(s.phone) : null,
+        phone: null,
       }));
     }
 
@@ -687,6 +689,13 @@ export async function assignFormToStudents(
     });
 
     return { success: true, assignedCount, whatsappLinks };
+  } catch (err: unknown) {
+    console.error("[forms:assignFormToStudents] Erro ao atribuir formulário aos alunos:", err);
+    return {
+      success: false,
+      assignedCount: 0,
+      error: "Não foi possível atribuir o formulário aos alunos. Tente novamente mais tarde.",
+    };
   } finally {
     connection.release();
   }
@@ -736,7 +745,6 @@ export async function listAssignmentsForAdmin(
          cfa.student_user_id,
          u_stud.full_name AS student_name,
          u_stud.email AS student_email,
-         up.phone AS student_phone,
          cfa.assigned_by_user_id,
          u_assign.full_name AS assigned_by_name,
          cfa.status,
@@ -753,7 +761,6 @@ export async function listAssignmentsForAdmin(
        JOIN consultancy_forms cf ON cf.id = cfa.form_id
        JOIN consultancy_members cm ON cm.id = cfa.student_membership_id
        JOIN users u_stud ON u_stud.id = cfa.student_user_id
-       LEFT JOIN user_profiles up ON up.user_id = u_stud.id
        JOIN users u_assign ON u_assign.id = cfa.assigned_by_user_id
        LEFT JOIN users u_rev ON u_rev.id = cfa.reviewed_by_user_id
        WHERE cfa.consultancy_id = ?
@@ -791,7 +798,7 @@ export async function listAssignmentsForAdmin(
         studentUserId: Number(r.student_user_id),
         studentName: String(r.student_name),
         studentEmail: String(r.student_email),
-        studentPhone: r.student_phone ? String(r.student_phone) : null,
+        studentPhone: null,
         assignedByUserId: Number(r.assigned_by_user_id),
         assignedByName: r.assigned_by_name ? String(r.assigned_by_name) : null,
         status: r.status as ConsultancyFormAssignmentStatus,
@@ -806,6 +813,9 @@ export async function listAssignmentsForAdmin(
         updatedAt: new Date(r.updated_at).toISOString(),
       };
     });
+  } catch (err: unknown) {
+    console.error("[forms:listAssignmentsForAdmin] Erro ao listar atribuições:", err);
+    return [];
   } finally {
     connection.release();
   }
@@ -938,7 +948,6 @@ export async function getAssignmentByPublicId(
          cfa.student_user_id,
          u_stud.full_name AS student_name,
          u_stud.email AS student_email,
-         up.phone AS student_phone,
          cfa.assigned_by_user_id,
          u_assign.full_name AS assigned_by_name,
          cfa.status,
@@ -955,7 +964,6 @@ export async function getAssignmentByPublicId(
        JOIN consultancy_forms cf ON cf.id = cfa.form_id
        JOIN consultancy_members cm ON cm.id = cfa.student_membership_id
        JOIN users u_stud ON u_stud.id = cfa.student_user_id
-       LEFT JOIN user_profiles up ON up.user_id = u_stud.id
        JOIN users u_assign ON u_assign.id = cfa.assigned_by_user_id
        LEFT JOIN users u_rev ON u_rev.id = cfa.reviewed_by_user_id
        WHERE cfa.public_id = ? AND cfa.consultancy_id = ? LIMIT 1;`,
@@ -1004,7 +1012,7 @@ export async function getAssignmentByPublicId(
       studentUserId: Number(r.student_user_id),
       studentName: String(r.student_name),
       studentEmail: String(r.student_email),
-      studentPhone: r.student_phone ? String(r.student_phone) : null,
+      studentPhone: null,
       assignedByUserId: Number(r.assigned_by_user_id),
       assignedByName: r.assigned_by_name ? String(r.assigned_by_name) : null,
       status: r.status as ConsultancyFormAssignmentStatus,
@@ -1018,6 +1026,9 @@ export async function getAssignmentByPublicId(
       createdAt: new Date(r.created_at).toISOString(),
       updatedAt: new Date(r.updated_at).toISOString(),
     };
+  } catch (err: unknown) {
+    console.error("[forms:getAssignmentByPublicId] Erro ao buscar atribuição:", err);
+    return null;
   } finally {
     connection.release();
   }

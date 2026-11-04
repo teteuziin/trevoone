@@ -650,7 +650,7 @@ export async function createStudentCharge(
     }
 
     const [memberRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT cm.id, cm.user_id, cm.status, u.status AS user_status, u.deleted_at, c.slug AS consultancy_slug, u.full_name, u.email, u.phone, u.cpf
+      `SELECT cm.id, cm.user_id, cm.status, u.status AS user_status, u.deleted_at, c.slug AS consultancy_slug, u.full_name, u.email
        FROM consultancy_members cm
        INNER JOIN consultancies c ON c.id = cm.consultancy_id
        INNER JOIN users u ON u.id = cm.user_id
@@ -763,8 +763,8 @@ export async function createStudentCharge(
       try {
         const studentName = String(memberRows[0].full_name || "Aluno").trim();
         const studentEmail = String(memberRows[0].email || "").trim().toLowerCase();
-        const studentPhone = memberRows[0].phone ? String(memberRows[0].phone).trim() : null;
-        const studentCpf = memberRows[0].cpf ? String(memberRows[0].cpf).trim() : null;
+        const studentPhone = null;
+        const studentCpf = null;
 
         const custRes = await getOrCreateAsaasCustomer({
           consultancyId,

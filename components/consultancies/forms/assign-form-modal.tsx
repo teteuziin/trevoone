@@ -116,7 +116,8 @@ export function AssignFormModal({
         });
         onSuccess();
       } catch (err: unknown) {
-        setGlobalError(err instanceof Error ? err.message : "Erro inesperado.");
+        console.error("[AssignFormModal] Erro ao atribuir formulário:", err);
+        setGlobalError("Não foi possível atribuir o formulário aos alunos. Tente novamente mais tarde.");
       }
     });
   }

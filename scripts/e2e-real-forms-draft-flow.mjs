@@ -527,13 +527,13 @@ async function runE2E() {
     // -------------------------------------------------------------------------
     console.log("\n[6/6] Verificando persistência e regras de negócio no banco de dados...");
 
-    // 6.1 O formulário antes em DRAFT agora deve estar 'PUBLISHED'
+    // 6.1 O formulário de modelo DEVE CONTINUAR EM 'DRAFT' (não promovido globalmente para não vazar a outros alunos)
     const [updatedFormRows] = await pool.query(
       "SELECT id, public_id, title, status FROM consultancy_forms WHERE public_id = ?;",
       [draftFormPublicId]
     );
-    assert.equal(updatedFormRows[0].status, "PUBLISHED", "Modelo deve ser promovido de DRAFT para PUBLISHED ao ser atribuído");
-    console.log(`[PASS] consultancy_forms: status atualizado para '${updatedFormRows[0].status}'.`);
+    assert.equal(updatedFormRows[0].status, "DRAFT", "Modelo de rascunho deve continuar DRAFT para não vazar globalmente para a consultoria");
+    console.log(`[PASS] consultancy_forms: status preservado como '${updatedFormRows[0].status}' (não publicado globalmente).`);
 
     // 6.2 A atribuição para o aluno Daien Silva deve existir em status 'PENDING'
     const [assignRows] = await pool.query(
@@ -557,7 +557,7 @@ async function runE2E() {
     console.log("\n==================================================================");
     console.log("✓ TESTE E2E REAL CONCLUÍDO COM 100% DE SUCESSO NO RUNTIME DO NEXT!");
     console.log("  - Zero ocorrências de 'Unknown column up.phone'");
-    console.log("  - Rascunho selecionado e promovido para publicado perfeitamente");
+    console.log("  - Rascunho selecionado e atribuído mantendo status DRAFT na consultoria");
     console.log("  - Atribuição para Daien Silva gerada e confirmada na UI e no BD");
     console.log("==================================================================\n");
   } finally {

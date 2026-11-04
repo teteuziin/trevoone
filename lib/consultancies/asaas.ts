@@ -1079,3 +1079,61 @@ export async function processAsaasWebhookEvent(params: {
     if (connection) connection.release();
   }
 }
+/**
+ * Reprocessa eventos marcados como IGNORED_ORPHAN nas últimas 24 horas.
+ * Salvaguarda contra eventuais atrasos de sincronização, timeouts de emissão ou concorrência.
+ */
+export async function reprocessOrphanAsaasWebhookEvents(): Promise<{
+  totalOrphans: number;
+  reprocessed: number;
+  errors: number;
+}> {
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+    const [orphanRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, asaas_payment_id, raw_payload
+       FROM asaas_webhook_events
+       WHERE status = 'IGNORED_ORPHAN'
+         AND received_at >= DATE_SUB(NOW(3), INTERVAL 24 HOUR)
+       ORDER BY id ASC
+       LIMIT 50;`
+    );
+
+    if (!Array.isArray(orphanRows) || orphanRows.length === 0) {
+      return { totalOrphans: 0, reprocessed: 0, errors: 0 };
+    }
+
+    const config = getAsaasConfig();
+    const token = config?.webhookToken || null;
+    let reprocessed = 0;
+    let errors = 0;
+
+    for (const row of orphanRows) {
+      try {
+        const payload = typeof row.raw_payload === 'string'
+          ? JSON.parse(row.raw_payload)
+          : row.raw_payload;
+
+        const result = await processAsaasWebhookEvent({
+          payload,
+          receivedToken: token,
+        });
+
+        if (result.status === 'PROCESSED') {
+          reprocessed++;
+        }
+      } catch (itemErr) {
+        errors++;
+        console.warn(`[Asaas Webhook Reprocess] Falha ao reprocessar evento órfão #${row.id}:`, itemErr);
+      }
+    }
+
+    return { totalOrphans: orphanRows.length, reprocessed, errors };
+  } catch (err) {
+    console.error('[Asaas Pilot] Erro ao reprocessar webhooks órfãos:', err);
+    return { totalOrphans: 0, reprocessed: 0, errors: 1 };
+  } finally {
+    if (connection) connection.release();
+  }
+}

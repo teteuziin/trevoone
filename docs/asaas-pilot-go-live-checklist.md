@@ -141,7 +141,10 @@ Durante os primeiros dias de operação do piloto na Hostinger:
    WHERE status = 'IGNORED_ORPHAN'
    ORDER BY received_at DESC;
    ```
-   *Ação em caso de retorno:* Se houver registros com `status = 'IGNORED_ORPHAN'`, inspecione se a cobrança foi emitida manualmente no painel do Asaas (fora do Trevo One) ou se decorre de alguma falha de sincronização de ID no cadastro da mensalidade. O webhook retorna HTTP 200 com `{ acknowledged: true, status: "ignored_orphan" }` para não bloquear a fila do gateway, mas registra o erro e gera aviso em log (`[Asaas Webhook WARN - ORPHAN]`).
+   - **Garantia contra Race Condition:** No fluxo normal da aplicação ([`lib/consultancies/finance.ts`](file:///c:/Users/User/trevo-one/lib/consultancies/finance.ts)), a cobrança é inserida e comitada no MariaDB (`await connection.commit()`) **antes** de enviar a chamada HTTP para criar a cobrança no Asaas. Além disso, o Asaas recebe `externalReference = charge.public_id`, e o webhook busca por `WHERE sc.asaas_payment_id = ? OR sc.public_id = ?`. Portanto, a cobrança já existe no banco no instante em que o Asaas gera a fatura.
+   - **Salvaguarda de Reprocessamento Automático:** Caso ocorra uma anomalia (ex: timeout de rede no retorno da criação ou cobrança gerada avulsa), foi implementado o endpoint:
+     `POST /api/internal/asaas-reprocess-orphans` (autenticado com `x-cron-secret` ou `asaas-access-token`) que reavalia eventos órfãos das últimas 24h e dá baixa automática assim que a cobrança estiver disponível no banco.
+   - **Frequência Mínima no MVP:** Nos primeiros 3 dias de operação com alunos reais da Saiya Shape, executar a query acima manualmente **a cada 4 a 6 horas** (ou 2x ao dia). Caso algum registro seja retornado, acionar o endpoint de reprocessamento ou verificar se foi criado link avulso no painel do Asaas.
 
 3. **Conciliação de Cobranças Emitidas e Liquidadas:**
    Conferir cobranças que possam ter divergência entre gateway e banco:

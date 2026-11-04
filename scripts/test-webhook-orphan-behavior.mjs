@@ -236,6 +236,32 @@ assert.equal(route5.httpStatus, 200);
 assert.equal(route5.body.success, true);
 console.log("✓ Replay idempotente reconhecido com sucesso e sem duplicação");
 
+// TESTE 6: Reprocessamento de cobrança criada com atraso
+console.log("\n[Teste 6: Reprocessamento de cobrança criada com atraso]");
+const earlyArrival = simulateProcessWebhook({
+  receivedToken: "token_secreto_valido",
+  expectedToken: "token_secreto_valido",
+  payload: { event: "PAYMENT_RECEIVED", payment: { id: "pay_delayed_123", externalReference: "charge_delayed_uuid" } },
+  chargeExists: false,
+  consultancySlug: null,
+});
+assert.equal(earlyArrival.status, "IGNORED_ORPHAN");
+assert.equal(earlyArrival.dbRecord.status, "IGNORED_ORPHAN");
+assert.equal(earlyArrival.dbRecord.processed, 0);
+
+// Cobrança é commitada no banco e o reprocessamento roda
+const reprocessResult = simulateProcessWebhook({
+  receivedToken: "token_secreto_valido",
+  expectedToken: "token_secreto_valido",
+  payload: { event: "PAYMENT_RECEIVED", payment: { id: "pay_delayed_123", externalReference: "charge_delayed_uuid" } },
+  chargeExists: true,
+  consultancySlug: "saiya-shape",
+});
+assert.equal(reprocessResult.status, "PROCESSED");
+assert.equal(reprocessResult.dbRecord.status, "PROCESSED");
+assert.equal(reprocessResult.dbRecord.processed, 1);
+console.log("✓ Evento órfão reprocessado com sucesso para PROCESSED após criação tardia da cobrança!");
+
 console.log("\n=================================================================");
-console.log("TODOS OS 5 TESTES DE TRATAMENTO DE WEBHOOK PASSARAM COM SUCESSO!");
+console.log("TODOS OS 6 TESTES DE TRATAMENTO DE WEBHOOK PASSARAM COM SUCESSO!");
 console.log("=================================================================\n");

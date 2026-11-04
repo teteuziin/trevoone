@@ -605,9 +605,9 @@ export async function assignFormToStudents(
          JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
          WHERE cm.consultancy_id = ? AND cm.status = 'ACTIVE'
            AND cmr.role IN ('STUDENT', 'INFLUENCER')
-           AND cm.public_id IN (${placeholders})
+           AND (cm.public_id IN (${placeholders}) OR u.public_id IN (${placeholders}))
          GROUP BY cm.id, cm.public_id, u.id, u.full_name, u.email;`,
-        [context.consultancyId, ...input.studentMembershipPublicIds]
+        [context.consultancyId, ...input.studentMembershipPublicIds, ...input.studentMembershipPublicIds]
       );
 
       targetStudents = selStudents.map((s) => ({

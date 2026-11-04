@@ -867,14 +867,14 @@ export async function getPersonalStudentDetail(params: {
       }
     }
 
-    // 3.4. Fetch Available Published Templates from consultancy_forms
+    // 3.4. Fetch Available Published and Draft Templates from consultancy_forms
     let publishedFormRows: RowDataPacket[] = [];
     try {
       const [rows] = await connection.execute<RowDataPacket[]>(
         `SELECT id, public_id, title, description, questions_json, status, created_by_user_id, created_at, updated_at
          FROM consultancy_forms
-         WHERE consultancy_id = ? AND status = 'PUBLISHED' AND deleted_at IS NULL
-         ORDER BY created_at DESC;`,
+         WHERE consultancy_id = ? AND status IN ('PUBLISHED', 'DRAFT') AND deleted_at IS NULL
+         ORDER BY (status = 'PUBLISHED') DESC, created_at DESC;`,
         [consultancyId]
       );
       publishedFormRows = rows;
@@ -924,7 +924,7 @@ export async function getPersonalStudentDetail(params: {
           title: String(t.title),
           description: t.description ? String(t.description) : null,
           questions,
-          status: "PUBLISHED",
+          status: (t.status as ConsultancyFormStatus) || "PUBLISHED",
           isRecurring: false,
           recurrenceRule: null,
           createdByUserId: Number(t.created_by_user_id || 0),

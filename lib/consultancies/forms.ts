@@ -560,14 +560,6 @@ export async function assignFormToStudents(
       return { success: false, assignedCount: 0, error: "Não é possível atribuir um formulário arquivado." };
     }
 
-    // Auto-publish if draft
-    if (form.status === "DRAFT") {
-      await connection.execute(
-        `UPDATE consultancy_forms SET status = 'PUBLISHED', updated_at = NOW(3) WHERE id = ?;`,
-        [form.id]
-      );
-    }
-
     // 2. Resolve target students
     let targetStudents: Array<{ membershipId: number; membershipPublicId: string; userId: number; name: string; email: string; phone?: string | null }> = [];
 

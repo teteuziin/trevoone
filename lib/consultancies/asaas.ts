@@ -315,16 +315,29 @@ export async function ensureAsaasSchemaAssurance(): Promise<void> {
         event_type VARCHAR(50) NOT NULL,
         asaas_payment_id VARCHAR(50) NULL DEFAULT NULL,
         raw_payload JSON NOT NULL,
+        status ENUM('PENDING', 'PROCESSED', 'IGNORED_ORPHAN', 'OUT_OF_SCOPE', 'FAILED') NOT NULL DEFAULT 'PENDING',
         processed TINYINT(1) NOT NULL DEFAULT 0,
         processed_at DATETIME(3) NULL DEFAULT NULL,
         processing_error VARCHAR(500) NULL DEFAULT NULL,
         received_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
         INDEX idx_asaas_webhooks_payment_id (asaas_payment_id),
         INDEX idx_asaas_webhooks_event_type (event_type),
+        INDEX idx_asaas_webhooks_status (status),
         INDEX idx_asaas_webhooks_idempotency (asaas_event_id, event_type),
         INDEX idx_asaas_webhooks_processing (processed, received_at)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    // Defensive check for status column in asaas_webhook_events
+    const [webhookCols] = await connection.execute<RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'asaas_webhook_events'`
+    );
+    const existingWebhookCols = new Set(webhookCols.map((c) => c.COLUMN_NAME));
+    if (!existingWebhookCols.has("status")) {
+      await connection.execute(
+        `ALTER TABLE asaas_webhook_events ADD COLUMN status ENUM('PENDING', 'PROCESSED', 'IGNORED_ORPHAN', 'OUT_OF_SCOPE', 'FAILED') NOT NULL DEFAULT 'PENDING' AFTER raw_payload`
+      );
+    }
 
     // 3. Defensive checks for student_charges columns
     const [cols] = await connection.execute<RowDataPacket[]>(
@@ -687,6 +700,21 @@ export async function getAsaasPixQrCode(paymentId: string): Promise<{
   };
 }
 
+export type AsaasWebhookStatus =
+  | "PROCESSED"
+  | "IGNORED_ORPHAN"
+  | "OUT_OF_SCOPE"
+  | "FAILED"
+  | "IDEMPOTENT_DUPLICATE";
+
+export interface AsaasWebhookProcessResult {
+  success: boolean;
+  acknowledged: boolean;
+  status: AsaasWebhookStatus;
+  message: string;
+  alreadyProcessed?: boolean;
+}
+
 /**
  * Processa eventos de Webhook enviados pelo Asaas.
  * Garante idempotência, validação de token e baixa automática sem duplicação.
@@ -694,25 +722,36 @@ export async function getAsaasPixQrCode(paymentId: string): Promise<{
 export async function processAsaasWebhookEvent(params: {
   payload: Record<string, unknown>;
   receivedToken: string | null;
-}): Promise<{
-  success: boolean;
-  message: string;
-  alreadyProcessed?: boolean;
-}> {
+}): Promise<AsaasWebhookProcessResult> {
   const { payload, receivedToken } = params;
   const config = getAsaasConfig();
 
   if (!config) {
-    return { success: false, message: "Asaas não configurado no servidor." };
+    return {
+      success: false,
+      acknowledged: false,
+      status: "FAILED",
+      message: "Asaas não configurado no servidor.",
+    };
   }
 
   // 1. Validação do cabeçalho asaas-access-token
   if (!receivedToken || receivedToken !== config.webhookToken) {
-    return { success: false, message: "Acesso não autorizado: token de webhook inválido." };
+    return {
+      success: false,
+      acknowledged: false,
+      status: "FAILED",
+      message: "Acesso não autorizado: token de webhook inválido.",
+    };
   }
 
   if (!payload || typeof payload !== "object") {
-    return { success: false, message: "Payload de webhook inválido." };
+    return {
+      success: false,
+      acknowledged: false,
+      status: "FAILED",
+      message: "Payload de webhook inválido.",
+    };
   }
 
   const eventType = String(payload.event || "").trim();
@@ -726,7 +765,12 @@ export async function processAsaasWebhookEvent(params: {
   const asaasPaymentId = payment?.id ? String(payment.id) : null;
 
   if (!eventType || !payment || !asaasPaymentId) {
-    return { success: false, message: "Dados incompletos no evento do Asaas." };
+    return {
+      success: false,
+      acknowledged: false,
+      status: "FAILED",
+      message: "Dados incompletos no evento do Asaas.",
+    };
   }
 
   let connection: PoolConnection | null = null;
@@ -737,13 +781,15 @@ export async function processAsaasWebhookEvent(params: {
     // 2. DEDUPLICAÇÃO E IDEMPOTÊNCIA via asaas_webhook_events
     if (eventId) {
       const [existing] = await connection.execute<RowDataPacket[]>(
-        `SELECT id, processed FROM asaas_webhook_events
+        `SELECT id, status, processed FROM asaas_webhook_events
          WHERE asaas_event_id = ? AND event_type = ? LIMIT 1;`,
         [eventId, eventType]
       );
       if (Array.isArray(existing) && existing.length > 0 && existing[0].processed === 1) {
         return {
           success: true,
+          acknowledged: true,
+          status: "IDEMPOTENT_DUPLICATE",
           message: "Evento já processado anteriormente (Idempotente).",
           alreadyProcessed: true,
         };
@@ -754,8 +800,8 @@ export async function processAsaasWebhookEvent(params: {
     const eventPublicId = crypto.randomUUID();
     const [insertEventRes] = await connection.execute<ResultSetHeader>(
       `INSERT INTO asaas_webhook_events
-       (public_id, asaas_event_id, event_type, asaas_payment_id, raw_payload, processed, received_at)
-       VALUES (?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP(3))
+       (public_id, asaas_event_id, event_type, asaas_payment_id, raw_payload, status, processed, received_at)
+       VALUES (?, ?, ?, ?, ?, 'PENDING', 0, CURRENT_TIMESTAMP(3))
        ON DUPLICATE KEY UPDATE raw_payload = VALUES(raw_payload);`,
       [eventPublicId, eventId, eventType, asaasPaymentId, JSON.stringify(payload)]
     );
@@ -777,11 +823,24 @@ export async function processAsaasWebhookEvent(params: {
     if (!Array.isArray(chargeRows) || chargeRows.length === 0) {
       if (recordedEventId) {
         await connection.execute(
-          `UPDATE asaas_webhook_events SET processing_error = 'Cobrança não encontrada no sistema' WHERE id = ?;`,
+          `UPDATE asaas_webhook_events
+           SET status = 'IGNORED_ORPHAN',
+               processed = 0,
+               processed_at = CURRENT_TIMESTAMP(3),
+               processing_error = 'Cobrança não encontrada no Trevo One (órfão)'
+           WHERE id = ?;`,
           [recordedEventId]
         );
       }
-      return { success: true, message: `Cobrança ${asaasPaymentId} não encontrada no Trevo One (reconhecido e arquivado).` };
+      console.warn(
+        `[Asaas Webhook WARN - ORPHAN] Cobrança ${asaasPaymentId} (externalReference: '${externalRef || "nenhuma"}') não encontrada no Trevo One. Evento: ${eventType}. Gravado em asaas_webhook_events como IGNORED_ORPHAN para investigação financeira.`
+      );
+      return {
+        success: false,
+        acknowledged: true,
+        status: "IGNORED_ORPHAN",
+        message: `Cobrança ${asaasPaymentId} não encontrada no Trevo One (evento registrado como órfão para auditoria).`,
+      };
     }
 
     const charge = chargeRows[0];
@@ -789,7 +848,26 @@ export async function processAsaasWebhookEvent(params: {
 
     // Validação estrita de Tenancy do Piloto
     if (consultancySlug !== "saiya-shape") {
-      return { success: false, message: "Piloto Asaas restrito exclusivamente à Saiya Shape." };
+      if (recordedEventId) {
+        await connection.execute(
+          `UPDATE asaas_webhook_events
+           SET status = 'OUT_OF_SCOPE',
+               processed = 0,
+               processed_at = CURRENT_TIMESTAMP(3),
+               processing_error = 'Piloto Asaas restrito exclusivamente à Saiya Shape'
+           WHERE id = ?;`,
+          [recordedEventId]
+        );
+      }
+      console.warn(
+        `[Asaas Webhook WARN - OUT_OF_SCOPE] Cobrança ${asaasPaymentId} pertence à consultoria '${consultancySlug}', fora do escopo do piloto Asaas. Gravado em asaas_webhook_events como OUT_OF_SCOPE.`
+      );
+      return {
+        success: false,
+        acknowledged: true,
+        status: "OUT_OF_SCOPE",
+        message: "Piloto Asaas restrito exclusivamente à Saiya Shape.",
+      };
     }
 
     const chargeInternalId = Number(charge.id);
@@ -812,8 +890,21 @@ export async function processAsaasWebhookEvent(params: {
         payment.status === "RECEIVED" ||
         payment.status === "CONFIRMED")
     ) {
+      if (recordedEventId) {
+        await connection.execute(
+          `UPDATE asaas_webhook_events
+           SET status = 'PROCESSED',
+               processed = 1,
+               processed_at = CURRENT_TIMESTAMP(3),
+               processing_error = 'Cobrança com estorno registrado. Eventos antigos ignorados com segurança.'
+           WHERE id = ?;`,
+          [recordedEventId]
+        );
+      }
       return {
         success: true,
+        acknowledged: true,
+        status: "PROCESSED",
         message: "Cobrança com estorno registrado. Eventos antigos não podem reativar a baixa.",
         alreadyProcessed: true,
       };
@@ -840,7 +931,7 @@ export async function processAsaasWebhookEvent(params: {
       if (recordedEventId) {
         await connection.execute(
           `UPDATE asaas_webhook_events
-           SET processed = 1, processed_at = CURRENT_TIMESTAMP(3), processing_error = NULL
+           SET status = 'PROCESSED', processed = 1, processed_at = CURRENT_TIMESTAMP(3), processing_error = NULL
            WHERE id = ?;`,
           [recordedEventId]
         );
@@ -848,6 +939,8 @@ export async function processAsaasWebhookEvent(params: {
 
       return {
         success: true,
+        acknowledged: true,
+        status: "PROCESSED",
         message: `Evento PAYMENT_CONFIRMED registrado para cobrança ${charge.public_id}: Pagamento confirmado, aguardando recebimento.`,
       };
     }
@@ -961,7 +1054,7 @@ export async function processAsaasWebhookEvent(params: {
     if (recordedEventId) {
       await connection.execute(
         `UPDATE asaas_webhook_events
-         SET processed = 1, processed_at = CURRENT_TIMESTAMP(3), processing_error = NULL
+         SET status = 'PROCESSED', processed = 1, processed_at = CURRENT_TIMESTAMP(3), processing_error = NULL
          WHERE id = ?;`,
         [recordedEventId]
       );
@@ -969,11 +1062,19 @@ export async function processAsaasWebhookEvent(params: {
 
     return {
       success: true,
+      acknowledged: true,
+      status: "PROCESSED",
       message: `Evento ${eventType} processado com sucesso para cobrança ${charge.public_id}.`,
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { success: false, message: `Erro ao processar webhook: ${msg}` };
+    console.error("[Asaas Webhook Error] Falha inesperada ao processar evento:", err);
+    return {
+      success: false,
+      acknowledged: false,
+      status: "FAILED",
+      message: `Erro ao processar webhook: ${msg}`,
+    };
   } finally {
     if (connection) connection.release();
   }

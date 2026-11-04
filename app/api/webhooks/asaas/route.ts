@@ -42,6 +42,20 @@ export async function POST(request: NextRequest) {
       receivedToken,
     });
 
+    // Se o evento foi reconhecido mas classificado como órfão ou fora do escopo:
+    // Retorna HTTP 200 para o Asaas (evitando retentativas contínuas e travamento de fila),
+    // mas com status explícito e sem mascarar como processamento de pagamento.
+    if (result.status === "IGNORED_ORPHAN" || result.status === "OUT_OF_SCOPE") {
+      return NextResponse.json(
+        {
+          acknowledged: true,
+          status: result.status.toLowerCase(),
+          message: result.message,
+        },
+        { status: 200 }
+      );
+    }
+
     if (!result.success) {
       const isAuthError =
         result.message.toLowerCase().includes("não autorizado") ||
@@ -53,7 +67,11 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: true, message: result.message },
+      {
+        success: true,
+        status: "processed",
+        message: result.message,
+      },
       { status: 200 }
     );
   } catch {

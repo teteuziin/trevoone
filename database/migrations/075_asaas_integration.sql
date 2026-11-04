@@ -207,6 +207,7 @@ CREATE TABLE IF NOT EXISTS asaas_webhook_events (
     event_type VARCHAR(50) NOT NULL,
     asaas_payment_id VARCHAR(50) NULL DEFAULT NULL,
     raw_payload JSON NOT NULL,
+    status ENUM('PENDING', 'PROCESSED', 'IGNORED_ORPHAN', 'OUT_OF_SCOPE', 'FAILED') NOT NULL DEFAULT 'PENDING',
     processed TINYINT(1) NOT NULL DEFAULT 0,
     processed_at DATETIME(3) NULL DEFAULT NULL,
     processing_error VARCHAR(500) NULL DEFAULT NULL,
@@ -223,6 +224,10 @@ CREATE TABLE IF NOT EXISTS asaas_webhook_events (
 
     INDEX idx_asaas_webhooks_event_type (
         event_type
+    ),
+
+    INDEX idx_asaas_webhooks_status (
+        status
     ),
 
     INDEX idx_asaas_webhooks_idempotency (

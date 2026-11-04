@@ -126,14 +126,24 @@ Durante os primeiros dias de operação do piloto na Hostinger:
 1. **Auditoria de Eventos de Webhook:**
    Executar periodicamente para monitorar a taxa de processamento:
    ```sql
-   SELECT id, asaas_payment_id, event_type, processed, processing_error, received_at
+   SELECT id, asaas_payment_id, event_type, status, processed, processing_error, received_at
    FROM asaas_webhook_events
    ORDER BY id DESC
    LIMIT 30;
    ```
-   *Objetivo:* Garantir `processed = 1` e `processing_error IS NULL` para todos os eventos da Saiya Shape.
+   *Objetivo:* Garantir `status = 'PROCESSED'`, `processed = 1` e `processing_error IS NULL` para todos os eventos da Saiya Shape.
 
-2. **Detecção de Cobranças Órfãs:**
+2. **Detecção e Alerta de Cobranças Órfãs (`IGNORED_ORPHAN`):**
+   Conferir se algum evento recebido do Asaas não encontrou correspondência no Trevo One:
+   ```sql
+   SELECT id, asaas_payment_id, event_type, status, processing_error, received_at
+   FROM asaas_webhook_events
+   WHERE status = 'IGNORED_ORPHAN'
+   ORDER BY received_at DESC;
+   ```
+   *Ação em caso de retorno:* Se houver registros com `status = 'IGNORED_ORPHAN'`, inspecione se a cobrança foi emitida manualmente no painel do Asaas (fora do Trevo One) ou se decorre de alguma falha de sincronização de ID no cadastro da mensalidade. O webhook retorna HTTP 200 com `{ acknowledged: true, status: "ignored_orphan" }` para não bloquear a fila do gateway, mas registra o erro e gera aviso em log (`[Asaas Webhook WARN - ORPHAN]`).
+
+3. **Conciliação de Cobranças Emitidas e Liquidadas:**
    Conferir cobranças que possam ter divergência entre gateway e banco:
    ```sql
    SELECT sc.id, sc.public_id, sc.asaas_payment_id, sc.state, sc.asaas_status_raw, sp.id AS payment_id
@@ -142,8 +152,8 @@ Durante os primeiros dias de operação do piloto na Hostinger:
    WHERE sc.asaas_payment_id IS NOT NULL;
    ```
 
-3. **Logs da Aplicação:**
-   Acompanhar no painel da Hostinger para identificar eventuais respostas `401 Unauthorized` (indicação de token incorreto) ou `500 Internal Server Error`.
+4. **Logs da Aplicação:**
+   Acompanhar no painel da Hostinger para identificar eventuais respostas `401 Unauthorized` (indicação de token incorreto), `[Asaas Webhook WARN - ORPHAN]` ou `500 Internal Server Error`.
 
 ---
 

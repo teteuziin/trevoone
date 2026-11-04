@@ -15,7 +15,7 @@ Como este é um processo 100% manual, entender os pontos de falha evita desastre
 | Ponto de Risco Crítico | O que acontece se errar? | Como evitar? |
 |---|---|---|
 | **Deploy de código ANTES da migration** | 💥 **Falha Geral Imediata:** O código novo tenta ler/escrever em colunas ou tabelas que ainda não existem (`ER_NO_SUCH_TABLE`, `ER_BAD_FIELD_ERROR`). Alunos e administradores veem telas de erro 500 no carregamento. | **SEMPRE execute e confirme as migrations do banco ANTES de dar o pull/build do código novo.** |
-| **Esquecer o backup prévio do banco** | 💥 **Sem Contingência:** Se uma migration travar no meio (ex: timeout de rede no phpMyAdmin) e corromper uma tabela, não há como voltar atrás sem perda de dados. | **Exporte o dump SQL no phpMyAdmin ou Hostinger Backups antes de qualquer `ALTER TABLE`.** |
+| **Esquecer o backup prévio do banco** | 💥 **Sem Contingência:** Se uma migration travar no meio (ex: timeout de rede no phpMyAdmin) e corromper uma tabela, não há como voltar atrás sem perda de dados. | **Exporte o dump SQL no phpMyAdmin antes de qualquer `ALTER TABLE`.** |
 | **Ambiente Asaas Incompatível (`ASAAS_ENVIRONMENT`)** | 💥 **Rejeição de Pagamento:** Se a chave de API cadastrada for do ambiente de produção mas a variável estiver como `sandbox` (ou vice-versa), o Asaas rejeita com `401 Unauthorized`. Se ficar em `sandbox` na virada real, pagamentos reais não serão processados. | **Conferir paridade estrita: chave de Sandbox com `ASAAS_ENVIRONMENT=sandbox`; chave de Produção com `ASAAS_ENVIRONMENT=production`.** |
 | **Não reiniciar o processo Node na Hostinger** | ⚠️ **Ilusão de Deploy:** O Git atualiza os arquivos em disco, o build roda, mas o processo Node.js anterior continua rodando em memória com a versão velha. O usuário acha que o bug não foi corrigido. | **SEMPRE clicar no botão "Reiniciar Aplicação" (Restart) no painel Node.js da Hostinger após o build.** |
 | **Reaproveitamento de segredos de autenticação** | ⚠️ **Vulnerabilidade de Segurança:** Usar o mesmo token para Webhook e Reprocessamento de Órfãos permite que um webhook forje rotas internas administrativas. | **Gere segredos independentes para `ASAAS_WEBHOOK_TOKEN` e `ASAAS_REPROCESS_CRON_SECRET`.** |
@@ -28,14 +28,16 @@ A estratégia adotada pelo Trevo One é **Expand and Contract (Banco Primeiro, C
 
 ```mermaid
 flowchart TD
-    A["1. Pré-Requisitos Locais e Git"] --> B["2. Backup Completo do Banco de Produção"]
+    A["1. Pré-Requisitos Locais e Merge no GitHub (main)"] --> B["2. Backup Completo do Banco de Produção (phpMyAdmin)"]
     B --> C["3. Execução das Migrations Pendentes no Banco"]
-    C --> D["4. Cadastro das Variáveis de Ambiente no Painel"]
-    D --> E["5. Atualização do Código no Painel Hostinger (Git Pull)"]
-    E --> F["6. Instalação e Build de Produção (npm run build)"]
-    F --> G["7. Reinício do Processo Node.js"]
-    G --> H["8. Bateria de Testes de Fumaça (Smoke Tests)"]
-    H --> I["9. Deploy Concluído com Sucesso"]
+    C --> D["4. Cadastro das Variáveis no Painel Node.js da Hostinger"]
+    D --> E["5. Atualização do Código e Build (Git Pull + npm run build)"]
+    E --> F["6. Reinício da Aplicação Node.js (Restart)"]
+    F --> G["7. Cadastro do Webhook no Painel do Asaas"]
+    G --> H["8. Ativação Controlada da Consultoria no Banco (asaas_enabled = 1)"]
+    H --> I["9. Bateria de Testes de Fumaça (Smoke Tests no Navegador)"]
+    I -->|Se tudo OK| J["10. Deploy Finalizado com Sucesso"]
+    I -->|Se falhar| K["11. Acionamento do Plano de Rollback"]
 ```
 
 ### Por que as Migrations DEVEM rodar ANTES do Código?
@@ -54,7 +56,7 @@ Não inicie o deploy na Hostinger sem confirmar cada um dos itens abaixo:
   - `npm run qa:full` (todos os 215+ testes passando)
   - `npm run build` (Next.js compilando sem falhas)
 - [ ] **Branch de trabalho mergeada na `main`:**
-  - A Hostinger puxa o código da branch de produção (geralmente `main`).
+  - A Hostinger puxa o código da branch de produção (`main`).
   - Faça o merge de `feat/asaas-pilot-saiya-shape` para `main` no GitHub e faça o push (`git push origin main`).
 - [ ] **Janela de manutenção definida:**
   - Dê preferência a horários de menor atividade (ex: após as 22h ou início da manhã).
@@ -86,7 +88,7 @@ Não inicie o deploy na Hostinger sem confirmar cada um dos itens abaixo:
 - `075_asaas_integration.sql`
 
 ### Como rodar as migrations com segurança no phpMyAdmin:
-1. No **phpMyAdmin**, certifique-se de que o banco de dados correto está selecionado na barra lateral esquerda.
+1. No **phpMyAdmin**, certifique-se de que o banco de dados de produção está selecionado na barra lateral esquerda.
 2. Clique na aba **Importar** (*Import*).
 3. Em *Arquivo a importar*, clique em **Escolher arquivo** e selecione `database/migrations/075_asaas_integration.sql`.
 4. Deixe as opções padrão de charset (`utf-8`) e clique em **Executar** (*Go*).
@@ -114,73 +116,81 @@ SHOW COLUMNS FROM consultancy_finance_settings LIKE 'asaas_%';
 
 ## 6. Etapa 3: Cadastro de Variáveis de Ambiente no Painel da Hostinger
 
-Acesse o **hPanel da Hostinger** -> Gerenciador de Hospedagem -> **Node.js** -> **Environment Variables** (ou edite o arquivo seguro `.env.local` na raiz do projeto via Gerenciador de Arquivos):
+> [!IMPORTANT]
+> **MÉTODO ÚNICO E OFICIAL DE CONFIGURAÇÃO**:
+> O Trevo One em produção na Hostinger utiliza **exclusivamente o painel da Hostinger (hPanel -> Node.js -> aba Environment Variables)**. Não utilize arquivos `.env.local` manuais no servidor remoto (arquivos `.env.local` são estritamente locais de desenvolvimento e ignorados pelo Git). O painel da Hostinger injeta os valores diretamente no `process.env` do runtime Node.js com total isolamento e segurança.
 
-Cadastre/atualize as variáveis abaixo:
+No **hPanel da Hostinger** -> **Aplicações / Gerenciador Node.js** -> aba **Environment Variables**, cadastre as seguintes variáveis:
 
 | Variável | Valor para Piloto (Sandbox) | Valor para Virada Real (Produção) | Observações |
 |---|---|---|---|
-| `ASAAS_API_KEY` | `$aact_...` *(chave do Asaas Sandbox)* | `$aact_...` *(chave do Asaas Produção)* | Chave da API Asaas. O Trevo One protege chaves com `$` contra expansão indevida. |
-| `ASAAS_ENVIRONMENT` | `sandbox` | `production` | **Crítico:** Controla a URL base da API Asaas. |
-| `ASAAS_WEBHOOK_TOKEN` | *Token secreto aleatório 64 chars* | *Token secreto aleatório 64 chars* | O mesmo token que será cadastrado no webhook do painel Asaas. |
-| `ASAAS_REPROCESS_CRON_SECRET` | *Segredo alfanumérico 64 chars* | *Segredo alfanumérico 64 chars* | Segredo exclusivo para a rota `POST /api/internal/asaas-reprocess-orphans`. **Nunca** reutilizar o token do webhook. |
+| `ASAAS_API_KEY` | `$aact_...` *(chave do Asaas Sandbox)* | `$aact_...` *(chave do Asaas Produção)* | Chave da API Asaas. O Trevo One protege chaves que iniciam com `$` contra expansão indevida. |
+| `ASAAS_ENVIRONMENT` | `sandbox` | `production` | **Crítico:** Controla se as chamadas apontam para sandbox ou produção. |
+| `ASAAS_WEBHOOK_TOKEN` | *Token secreto aleatório 64 chars* | *Token secreto aleatório 64 chars* | Token exclusivo que deve bater exatamente com o que for cadastrado no Asaas. |
+| `ASAAS_REPROCESS_CRON_SECRET` | *Segredo alfanumérico 64 chars* | *Segredo alfanumérico 64 chars* | Segredo dedicado para a rota `POST /api/internal/asaas-reprocess-orphans`. **Nunca** reaproveitar o token do webhook. |
 | `APP_URL` | `https://app.trevoone.com.br` | `https://app.trevoone.com.br` | URL canônica do domínio HTTPS do Trevo One. |
 
-> [!WARNING]
-> Salve as variáveis no painel da Hostinger. Se estiver editando o arquivo `.env.local` diretamente na Hostinger, garanta que o arquivo possui quebras de linha padrão Unix (LF) e não contém espaços em volta do sinal `=`.
+Clique em **Salvar Variáveis** no painel da Hostinger.
 
 ---
 
-## 7. Etapa 4: Atualização do Código, Build e Reinício (hPanel)
+## 7. Etapa 4: Atualização do Código e Build de Produção
 
-### Passo a passo no painel da Hostinger:
-1. Acesse **hPanel** -> **Aplicações / Node.js** (ou aba **Git**).
-2. **Puxar o código atualizado:**
-   - Na seção **Git**, confirme que o repositório aponta para a branch `main`.
-   - Clique em **"Puxar alterações" / "Pull"** (ou faça o deploy do commit mais recente).
-   - Confirme que o commit exibido na tela bate com o commit de merge da branch `feat/asaas-pilot-saiya-shape`.
-3. **Instalação e Build de Produção:**
+1. No **hPanel** -> **Aplicações / Node.js** -> seção **Git**:
+   - Confirme que o repositório está configurado para a branch `main`.
+   - Clique no botão **"Puxar alterações" / "Pull"** para baixar o código atualizado do GitHub.
+   - Verifique se o hash do commit bate com o commit de merge da branch `feat/asaas-pilot-saiya-shape`.
+2. **Executar a instalação e o build:**
    - No terminal SSH da Hostinger (ou painel de comandos do Node.js):
      ```bash
      npm install
      npm run build
      ```
-   - Aguarde o build terminar com a mensagem `Compiled successfully` e `Generating static pages (25/25)`.
-4. **Reiniciar a Aplicação Node.js:**
-   - No topo do painel Node.js da Hostinger, localize o botão **"Reiniciar Aplicação"** (*Restart*).
-   - Clique em **Reiniciar** e aguarde o status voltar para `Online / Running` (verde).
+   - Aguarde o build terminar com a mensagem `Compiled successfully` e geração das páginas estáticas.
 
 ---
 
-## 8. Etapa 5: Configuração do Webhook no Painel do Asaas
+## 8. Etapa 5: Reiniciar a Aplicação Node.js (Restart)
 
-Com a aplicação no ar na Hostinger:
-1. Acesse o painel do Asaas (Sandbox para o piloto, ou Produção na virada real).
+1. No topo da página de gerenciamento do Node.js no hPanel, clique no botão **"Reiniciar Aplicação"** (*Restart*).
+2. Aguarde alguns segundos até o indicador de status confirmar que a aplicação está ativa (`Online / Running` em verde).
+
+> [!NOTE]
+> **Por que reiniciar agora?**
+> A aplicação precisa estar online e reiniciada neste ponto para que a nova rota `/api/webhooks/asaas` passe a existir e responder a requisições com o novo `ASAAS_WEBHOOK_TOKEN`. Isso é obrigatório para a etapa seguinte.
+
+---
+
+## 9. Etapa 6: Cadastro do Webhook no Painel do Asaas
+
+Agora que a aplicação está rodando na Hostinger e a rota do webhook existe:
+
+1. Acesse o painel do Asaas (Sandbox para testes ou Produção na virada real).
 2. Vá em **Configurações da Conta** -> **Integrações** -> **Webhooks para Cobranças**.
-3. Configure os campos:
-   - **URL do Webhook:** `https://app.trevoone.com.br/api/webhooks/asaas` *(substitua pelo seu domínio oficial HTTPS)*
+3. Preencha os campos exatamente como abaixo:
+   - **URL do Webhook:** `https://app.trevoone.com.br/api/webhooks/asaas` *(ou a sua URL oficial de produção)*
    - **Versão da API:** `v3`
-   - **Tipo de Envio:** `Não Sequencial` (Paralelo)
-   - **Token de Autenticação:** Cole exatamente o mesmo valor cadastrado na variável `ASAAS_WEBHOOK_TOKEN` no painel da Hostinger.
+   - **Tipo de Envio:** `Não Sequencial` (Paralelo / Assíncrono)
+   - **Token de Autenticação:** Cole o mesmo valor cadastrado na variável `ASAAS_WEBHOOK_TOKEN` no painel da Hostinger.
    - **Eventos Selecionados:**
      - `PAYMENT_RECEIVED`
      - `PAYMENT_CONFIRMED`
      - `PAYMENT_REFUNDED`
 4. Clique em **Salvar**.
-5. Clique em **"Testar Webhook"** no painel do Asaas e confirme se o Asaas recebeu status `200 OK`.
+5. Clique no botão **"Testar Webhook"** no Asaas e confirme que o status retornado foi `200 OK`.
 
 ---
 
-## 9. Etapa 6: Ativação Controlada da Consultoria Saiya Shape no Banco
+## 10. Etapa 7: Ativação Controlada da Consultoria Saiya Shape no Banco
 
-Por segurança, todas as consultorias nascem com o Asaas desativado (`asaas_enabled = 0`).
-Para ligar o piloto exclusivamente na **Saiya Shape**:
+Por padrão, a migration 075 define `asaas_enabled = 0` para todas as consultorias.
+Para ativar o piloto exclusivamente na **Saiya Shape**:
 
 No **phpMyAdmin**, execute:
 ```sql
 UPDATE consultancy_finance_settings
 SET asaas_enabled = 1,
-    asaas_environment = 'SANDBOX', -- Alterar para 'PRODUCTION' no dia da virada real
+    asaas_environment = 'SANDBOX', -- Alterar para 'PRODUCTION' no dia da virada com dinheiro real
     updated_at = CURRENT_TIMESTAMP(3)
 WHERE consultancy_id = (SELECT id FROM consultancies WHERE slug = 'saiya-shape');
 ```
@@ -191,57 +201,70 @@ SELECT c.slug, c.name, cfs.asaas_enabled, cfs.asaas_environment
 FROM consultancies c
 LEFT JOIN consultancy_finance_settings cfs ON cfs.consultancy_id = c.id;
 ```
-*Critério de Aceite:* Apenas `saiya-shape` deve retornar `asaas_enabled = 1`. Todas as demais devem estar em `0` ou `NULL`.
+*Critério de Aceite:* Apenas `saiya-shape` deve retornar `asaas_enabled = 1`. Todas as outras devem permanecer em `0` ou `NULL`.
 
 ---
 
-## 10. Etapa 7: Bateria de Testes de Fumaça (Smoke Tests Pós-Deploy)
+## 11. Etapa 8: Bateria de Testes de Fumaça (Smoke Tests no Navegador)
 
-Abra o navegador em modo anônimo (para evitar cache residual de sessões anteriores) e siga a lista de verificação:
+Abra o navegador em **janela anônima** e execute a verificação sequencial:
 
-- [ ] **1. Disponibilidade Global:** Acessar a home `https://app.trevoone.com.br/login` — carregar sem tela em branco (HTTP 200).
-- [ ] **2. Login e Autenticação:** Fazer login com conta administrativa e confirmar redirecionamento correto.
-- [ ] **3. Teste do Bug Corrigido (Formulários em Rascunho / up.phone):**
-  - Acessar `Saiya Shape` -> `Membros & Alunos` -> Selecionar um aluno (ex: Daien Silva) -> Aba **Formulários**.
+- [ ] **1. Disponibilidade do Sistema:** Acessar a home `https://app.trevoone.com.br/login` — tela carrega com status 200 sem travamentos.
+- [ ] **2. Login Administrativo:** Realizar login com credenciais de personal/admin da Saiya Shape.
+- [ ] **3. Validação do Bug Corrigido (Formulários em Rascunho / up.phone):**
+  - Acessar `Saiya Shape` -> `Membros & Alunos` -> Selecionar o aluno Daien Silva -> Aba **Formulários**.
   - Clicar em **"Novo formulário"** -> **"Escolher modelo existente"**.
-  - Verificar se modelos em rascunho aparecem com rótulo `— (Rascunho)` e podem ser selecionados.
+  - Confirmar que modelos em rascunho aparecem com o rótulo `— (Rascunho)` e podem ser selecionados.
   - Clicar em **"Atribuir Formulário"**.
-  - **Critério de Sucesso:** A atribuição é realizada com sucesso, o modal fecha, a lista de formulários do aluno atualiza e **nenhum erro de `Unknown column 'up.phone'` aparece na tela**.
-- [ ] **4. Teste de Cobrança Asaas (Financeiro):**
+  - **Critério de Sucesso:** A atribuição ocorre sem erros, o modal fecha, o card do formulário aparece na lista do aluno e **zero erros de `Unknown column 'up.phone'` aparecem na tela**.
+- [ ] **4. Teste de Emissão de Cobrança Pix Asaas:**
   - Acessar o Financeiro da Saiya Shape.
-  - Criar uma nova cobrança de teste de R$ 5,00 para um aluno teste via Pix.
-  - Confirmar que o sistema exibe o QR Code Pix e o botão "Copiar código Pix".
-  - Conferir no painel do Asaas se a cobrança foi registrada na lista de cobranças.
-- [ ] **5. Teste de Webhook em Tempo Real:**
-  - No painel do Asaas Sandbox, acionar a simulação de pagamento ("Confirmar Pagamento").
-  - Atualizar a tela no Trevo One e confirmar que o status da cobrança mudou automaticamente para **Pago / Confirmado**.
+  - Criar uma nova cobrança teste de R$ 5,00 para um aluno de teste selecionando Pix.
+  - Confirmar que a tela renderiza o QR Code Pix e o botão "Copiar código Pix".
+  - Conferir no painel do Asaas se a cobrança consta na listagem com o `externalReference` correspondente.
+- [ ] **5. Teste de Webhook e Baixa Automática:**
+  - No painel do Asaas (Sandbox), clicar em "Confirmar Pagamento" no simulador oficial.
+  - Atualizar o Trevo One e constatar que a cobrança mudou seu status automaticamente para **Pago / Confirmado**.
 
 ---
 
-## 11. Plano de Rollback e Contingência (Se algo falhar)
+## 12. Etapa 9: Plano de Rollback e Contingência Completo
 
-Se ocorrer qualquer falha impeditiva durante ou logo após o deploy, aplique o rollback na ordem abaixo:
+Se qualquer falha for detectada durante ou após o deploy (especialmente nos testes da Etapa 8), acione o nível de rollback apropriado:
 
-### Nível 1: Falha apenas no faturamento Asaas (< 5 segundos)
-Se o problema for apenas no gateway Asaas e o resto do sistema estiver funcionando:
-```sql
-UPDATE consultancy_finance_settings
-SET asaas_enabled = 0,
-    updated_at = CURRENT_TIMESTAMP(3)
-WHERE consultancy_id = (SELECT id FROM consultancies WHERE slug = 'saiya-shape');
-```
-*Efeito:* A Saiya Shape volta instantaneamente a usar o fluxo legado de **Pix Manual com comprovante**. Nenhuma tela do aluno quebra.
+### Nível 1: Falha exclusiva no gateway Asaas (< 5 segundos de execução)
+Se o sistema web estiver no ar e os formulários funcionando, mas o gateway Asaas falhar na criação da cobrança ou nos webhooks:
+1. No **phpMyAdmin**, desative o Asaas instantaneamente para a consultoria:
+   ```sql
+   UPDATE consultancy_finance_settings
+   SET asaas_enabled = 0,
+       updated_at = CURRENT_TIMESTAMP(3)
+   WHERE consultancy_id = (SELECT id FROM consultancies WHERE slug = 'saiya-shape');
+   ```
+2. **Resultado Imediato:** A Saiya Shape volta instantaneamente a operar no fluxo legado de **Pix Manual com comprovante**. Nenhuma cobrança quebra e nenhum aluno é prejudicado. Não é necessário rebuild nem restart do Node.
 
-### Nível 2: Falha no código do deploy (Reversão de Commit)
-Se o novo código apresentar erros gerais de interface ou runtime:
-1. No painel Git da Hostinger, selecione o commit anterior estável (ou reverta a `main` no GitHub via `git revert HEAD` e dê push).
-2. Clique em **Pull / Deploy** na Hostinger.
-3. Rode `npm run build` e clique em **Reiniciar Aplicação**.
-*(Como as migrations do banco são puramente aditivas, o código anterior funcionará normalmente mesmo com as novas tabelas e colunas presentes no banco).*
+---
 
-### Nível 3: Falha de corrupção de banco (Restauração do Backup)
-Em caso extremo de inconsistência nos dados:
-1. No phpMyAdmin da Hostinger, selecione o banco de dados.
-2. Vá na aba **Importar**.
-3. Selecione o arquivo de backup gerado na Etapa 1 (`trevo_one_prod_backup_pre_deploy_...sql`).
-4. Clique em **Executar** para restaurar o estado original.
+### Nível 2: Falha no código do deploy (Reversão de Commit via Git na Hostinger)
+Se o código novo apresentar erro 500 geral, falha no build, quebra de layout ou instabilidade pós-restart:
+1. **Reverter a branch no Git:**
+   - No GitHub, reverta o merge commit na branch `main` (`git revert -m 1 <commit-hash>` ou via interface do GitHub / PR de reversão) e dê `git push origin main`.
+2. **Puxar o código revertido na Hostinger:**
+   - No painel da Hostinger (seção **Git**), clique em **"Puxar alterações" / "Pull"**.
+3. **Recompilar e Reiniciar:**
+   - Execute `npm run build` no terminal da Hostinger.
+   - Clique em **"Reiniciar Aplicação"** (*Restart*) no painel Node.js.
+4. **Preciso reverter a migration do banco?**
+   - **NÃO.** As migrations `074` e `075` são 100% aditivas (`NULL DEFAULT NULL`). O código antigo que voltou a rodar continuará funcionando normalmente com as novas tabelas e colunas presentes no banco. O rollback de código é suficiente.
+
+---
+
+### Nível 3: Falha crítica com corrupção de dados no banco (Restauração do Backup)
+Em um cenário catastrófico onde dados reais tenham sido afetados ou corrompidos durante a execução da migration:
+1. Acesse o **phpMyAdmin da Hostinger** e selecione o banco de dados de produção do Trevo One.
+2. Na aba **Estrutura**, role até o final, clique em **Marcar todos** e, no menu suspenso, selecione **Eliminar (DROP)** -> Confirme a exclusão de todas as tabelas (o banco ficará vazio).
+3. Clique na aba **Importar** (*Import*).
+4. Em *Arquivo a importar*, selecione o arquivo de backup baixado na **Etapa 1** (`trevo_one_prod_backup_pre_deploy_...sql`).
+5. Clique em **Executar** (*Go*) e aguarde a mensagem de sucesso da restauração.
+6. Clique em **"Reiniciar Aplicação"** no painel Node.js da Hostinger para restabelecer os pools de conexão.
+7. O banco volta exatamente ao estado íntegro em que estava antes de iniciar o procedimento de deploy.

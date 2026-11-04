@@ -1,6 +1,8 @@
 import { getDbConnection } from "@/lib/db/mysql";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 /**
  * TREVO ONE — PILOTO ASAAS SANDBOX EXCLUSIVO PARA SAIYA SHAPE
@@ -51,8 +53,74 @@ export function resolveAsaasPaymentMethod(payment: {
   }
 }
 
+export function resolveAsaasApiKey(): string {
+  const envKey = process.env.ASAAS_API_KEY?.trim();
+  if (envKey) return envKey;
+
+  try {
+    const envPath = path.join(process.cwd(), ".env.local");
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, "utf8");
+      for (const line of content.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("#")) continue;
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx > 0) {
+          const key = trimmed.slice(0, eqIdx).trim();
+          if (key === "ASAAS_API_KEY") {
+            let val = trimmed.slice(eqIdx + 1).trim();
+            if (
+              (val.startsWith('"') && val.endsWith('"')) ||
+              (val.startsWith("'") && val.endsWith("'"))
+            ) {
+              val = val.slice(1, -1);
+            }
+            return val;
+          }
+        }
+      }
+    }
+  } catch {
+    // Non-blocking fallback
+  }
+  return "";
+}
+
+export function resolveAsaasWebhookToken(): string {
+  const envToken = process.env.ASAAS_WEBHOOK_TOKEN?.trim();
+  if (envToken) return envToken;
+
+  try {
+    const envPath = path.join(process.cwd(), ".env.local");
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, "utf8");
+      for (const line of content.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("#")) continue;
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx > 0) {
+          const key = trimmed.slice(0, eqIdx).trim();
+          if (key === "ASAAS_WEBHOOK_TOKEN") {
+            let val = trimmed.slice(eqIdx + 1).trim();
+            if (
+              (val.startsWith('"') && val.endsWith('"')) ||
+              (val.startsWith("'") && val.endsWith("'"))
+            ) {
+              val = val.slice(1, -1);
+            }
+            return val;
+          }
+        }
+      }
+    }
+  } catch {
+    // Non-blocking fallback
+  }
+  return "";
+}
+
 export function getAsaasConfig(): AsaasConfig | null {
-  const apiKey = process.env.ASAAS_API_KEY?.trim() || "";
+  const apiKey = resolveAsaasApiKey();
   const rawEnv = (process.env.ASAAS_ENVIRONMENT || "sandbox").toLowerCase().trim();
 
   // Trava de segurança: produção é expressamente proibida nesta etapa
@@ -64,7 +132,7 @@ export function getAsaasConfig(): AsaasConfig | null {
   // URL oficial exclusiva do Sandbox
   const baseUrl = "https://sandbox.asaas.com/api/v3";
   // Token exclusivo do ambiente sem fallback padrão estático
-  const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN?.trim() || "";
+  const webhookToken = resolveAsaasWebhookToken();
 
   if (!apiKey) {
     return null;
@@ -811,15 +879,15 @@ export async function processAsaasWebhookEvent(params: {
         // Insere o pagamento oficial com baixa imediata e método verificado
         await connection.execute(
           `INSERT INTO student_payments
-           (public_id, consultancy_id, charge_id, amount_cents, currency_code, paid_on, payment_method, confirmed_at, notes)
-           VALUES (?, ?, ?, ?, 'BRL', CURDATE(), ?, CURRENT_TIMESTAMP(3), ?);`,
+           (public_id, consultancy_id, charge_id, receipt_id, asaas_payment_id, amount_cents, currency_code, payment_method, confirmed_by_user_id, confirmed_at)
+           VALUES (?, ?, ?, NULL, ?, ?, 'BRL', ?, NULL, CURRENT_TIMESTAMP(3));`,
           [
             paymentPublicId,
             charge.consultancy_id,
             chargeInternalId,
+            asaasPaymentId,
             paidAmountCents,
             confirmedMethod,
-            `Liquidação automática via Asaas (${eventType} - ID: ${asaasPaymentId} - Meio: ${confirmedMethod})`,
           ]
         );
       }

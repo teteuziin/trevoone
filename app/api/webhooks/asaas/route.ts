@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processAsaasWebhookEvent } from "@/lib/consultancies/asaas";
+import { processAsaasWebhookEvent, resolveAsaasApiKey, resolveAsaasWebhookToken } from "@/lib/consultancies/asaas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +20,15 @@ export async function POST(request: NextRequest) {
       null;
 
     const payload = await request.json().catch(() => null);
+
+    const clientIp =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      "desconhecido";
+    const userAgent = request.headers.get("user-agent") || "desconhecido";
+    console.log(
+      `[Asaas Webhook Incoming] IP Origem: ${clientIp} | User-Agent: ${userAgent} | Evento: ${payload?.event || "N/A"} | hasKey: ${Boolean(resolveAsaasApiKey())} | hasToken: ${Boolean(resolveAsaasWebhookToken())}`
+    );
 
     if (!payload) {
       return NextResponse.json(

@@ -37,7 +37,13 @@ export function AssignFormModal({
   const isMounted = useIsMounted();
 
   const publishedForms = useMemo(
-    () => forms.filter((f) => f.status === "PUBLISHED" || f.publicId === preselectedFormPublicId),
+    () =>
+      forms.filter(
+        (f) =>
+          f.status === "PUBLISHED" ||
+          f.status === "DRAFT" ||
+          f.publicId === preselectedFormPublicId
+      ),
     [forms, preselectedFormPublicId]
   );
 
@@ -234,11 +240,11 @@ export function AssignFormModal({
                   className="w-full px-4 py-3 sm:py-2.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-base sm:text-xs text-slate-900 dark:text-white font-medium focus:outline-hidden focus:border-emerald-500 transition-colors min-h-[48px] cursor-pointer"
                 >
                   {publishedForms.length === 0 ? (
-                    <option value="">Nenhum modelo publicado</option>
+                    <option value="">Nenhum modelo disponível</option>
                   ) : (
                     publishedForms.map((f) => (
                       <option key={f.publicId} value={f.publicId}>
-                        {f.title} ({f.questions?.length || 0} perguntas)
+                        {f.title} ({f.questions?.length || 0} perguntas){f.status === "DRAFT" ? " — (Rascunho)" : ""}
                       </option>
                     ))
                   )}

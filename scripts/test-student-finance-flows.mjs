@@ -97,14 +97,12 @@ runTest("WHERE SQL: Separação estrita entre cobranças em aberto e histórico"
   // Em aberto: sc.state = 'OPEN' AND NOT EXISTS (student_payments)
   assert.ok(pageSource.includes("sc.state = 'OPEN'"), "Filtro OPEN em aberto");
   assert.ok(
-    pageSource.includes("NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id") ||
-      pageSource.includes("NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL)"),
+    pageSource.includes("NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)"),
     "Exclusão de cobranças pagas na aba em aberto"
   );
   // Histórico: sc.state = 'CANCELED' OR EXISTS (student_payments)
   assert.ok(
-    pageSource.includes("(sc.state = 'CANCELED' OR EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id") ||
-      pageSource.includes("(sc.state = 'CANCELED' OR EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL))"),
+    pageSource.includes("(sc.state = 'CANCELED' OR EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id))"),
     "Inclusão de canceladas e quitadas no histórico"
   );
 });

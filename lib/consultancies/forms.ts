@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { execSync } from "node:child_process";
 import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { resolveConsultancyContext } from "./context";
@@ -530,6 +531,19 @@ export async function assignFormToStudents(
   userId: number,
   input: AssignFormInput
 ): Promise<{ success: boolean; assignedCount: number; whatsappLinks?: { name: string; url: string }[]; error?: string }> {
+  let activeCommitHash = "unknown";
+  try {
+    activeCommitHash = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+  } catch {
+    activeCommitHash = process.env.GIT_COMMIT_SHA || process.env.DEPLOYMENT_ID || "unknown";
+  }
+  console.log(`\n======================================================`);
+  console.log(`[assignFormToStudents] ATIVO NO COMMIT: ${activeCommitHash}`);
+  console.log(`[assignFormToStudents] TIMESTAMP: ${new Date().toISOString()}`);
+  console.log(`[assignFormToStudents] Consultancy: ${consultancySlug}, User ID: ${userId}`);
+  console.log(`[assignFormToStudents] Form Public ID: ${input.formPublicId}`);
+  console.log(`======================================================\n`);
+
   await ensureConsultancyFormsSchema();
   const context = await resolveConsultancyContext(userId, consultancySlug);
   const isAllowed =
@@ -682,7 +696,10 @@ export async function assignFormToStudents(
 
     return { success: true, assignedCount, whatsappLinks };
   } catch (err: unknown) {
-    console.error("[forms:assignFormToStudents] Erro ao atribuir formulário aos alunos:", err);
+    console.error("\n======================================================");
+    console.error("[forms:assignFormToStudents] CRITICAL ERROR CAUGHT! FULL STACK TRACE:");
+    console.error(err instanceof Error ? err.stack : err);
+    console.error("======================================================\n");
     return {
       success: false,
       assignedCount: 0,

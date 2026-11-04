@@ -157,7 +157,10 @@ export async function assignFormAction(slug: string, input: AssignFormInput) {
 
     return result;
   } catch (err: unknown) {
-    console.error("[assignFormAction] Error:", err);
+    console.error("\n======================================================");
+    console.error("[assignFormAction] CRITICAL ERROR CAUGHT! FULL STACK TRACE:");
+    console.error(err instanceof Error ? err.stack : err);
+    console.error("======================================================\n");
     return {
       success: false,
       error: sanitizeFormActionError(err, "Não foi possível atribuir o formulário. Tente novamente."),

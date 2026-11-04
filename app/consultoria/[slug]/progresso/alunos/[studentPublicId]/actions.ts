@@ -209,7 +209,10 @@ export async function saveAndSendOrFillFormAction(
     revalidatePath(`/consultoria/${slug}/progresso/alunos/${studentPublicId}`);
     return { success: true };
   } catch (err) {
-    console.error("[saveAndSendOrFillFormAction] Error:", err);
+    console.error("\n======================================================");
+    console.error("[saveAndSendOrFillFormAction] CRITICAL ERROR CAUGHT! FULL STACK TRACE:");
+    console.error(err instanceof Error ? err.stack : err);
+    console.error("======================================================\n");
     return {
       success: false,
       error: sanitizeActionError(err, "Não foi possível processar o formulário. Tente novamente."),

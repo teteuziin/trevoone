@@ -230,24 +230,32 @@ Abra o navegador em **janela anônima** e execute a verificação sequencial:
 
 ## 12. Etapa 9: Plano de Rollback e Contingência Completo
 
-Se qualquer falha for detectada durante ou após o deploy (especialmente nos testes da Etapa 8), acione o nível de rollback apropriado:
+Se qualquer falha for detectada durante ou após o deploy (especialmente nos testes da Etapa 8), acione o nível de rollback apropriado, **sempre iniciando pelo Nível 1**:
 
-### Nível 1: Falha exclusiva no gateway Asaas (< 5 segundos de execução)
-Se o sistema web estiver no ar e os formulários funcionando, mas o gateway Asaas falhar na criação da cobrança ou nos webhooks:
-1. No **phpMyAdmin**, desative o Asaas instantaneamente para a consultoria:
+> [!TIP]
+> **REGRA DE OURO DO ROLLBACK**: O **Nível 1 (desligamento por flag)** resolve mais de 95% das inconsistências operacionais do piloto sem necessidade de mexer no código, sem novo build e com **zero impacto** sobre as demais consultorias da plataforma.
+
+---
+
+### Nível 1: Desativação Imediata da Consultoria (< 5 segundos de execução — PRIMEIRA ESCOLHA)
+Se o sistema web estiver no ar e a aplicação estável, mas o gateway Asaas falhar na criação da cobrança, no retorno do Pix ou na recepção do webhook:
+1. No **phpMyAdmin**, desative o Asaas instantaneamente para a Saiya Shape:
    ```sql
    UPDATE consultancy_finance_settings
    SET asaas_enabled = 0,
        updated_at = CURRENT_TIMESTAMP(3)
    WHERE consultancy_id = (SELECT id FROM consultancies WHERE slug = 'saiya-shape');
    ```
-2. **Resultado Imediato:** A Saiya Shape volta instantaneamente a operar no fluxo legado de **Pix Manual com comprovante**. Nenhuma cobrança quebra e nenhum aluno é prejudicado. Não é necessário rebuild nem restart do Node.
+2. **Resultado Imediato e Seguro:**
+   - A Saiya Shape volta **instantaneamente** a operar no fluxo legado de **Pix Manual com comprovante**.
+   - Nenhuma cobrança quebra, nenhum aluno é bloqueado e nenhuma outra consultoria é afetada.
+   - Não requer alteração de código, rebuild nem reinício do Node.js.
 
 ---
 
 ### Nível 2: Falha no código do deploy (Reversão de Commit via Git na Hostinger)
 Se o código novo apresentar erro 500 geral, falha no build, quebra de layout ou instabilidade pós-restart:
-1. **Reverter a branch no Git:**
+1. **Reverter o merge no Git:**
    - No GitHub, reverta o merge commit na branch `main` (`git revert -m 1 <commit-hash>` ou via interface do GitHub / PR de reversão) e dê `git push origin main`.
 2. **Puxar o código revertido na Hostinger:**
    - No painel da Hostinger (seção **Git**), clique em **"Puxar alterações" / "Pull"**.
@@ -259,12 +267,43 @@ Se o código novo apresentar erro 500 geral, falha no build, quebra de layout ou
 
 ---
 
-### Nível 3: Falha crítica com corrupção de dados no banco (Restauração do Backup)
-Em um cenário catastrófico onde dados reais tenham sido afetados ou corrompidos durante a execução da migration:
+### Nível 2.5: Restauração ou Limpeza Seletiva das Tabelas do Asaas (Sem Afetar Outras Consultorias)
+Se você precisar desfazer dados ou limpar o estado das cobranças do Asaas sem afetar o resto da plataforma:
+1. **É tecnicamente viável restaurar apenas tabelas específicas? SIM.**
+   - No phpMyAdmin, é possível exportar/importar **tabelas isoladas** em vez do banco inteiro (aba *Exportar* -> método *Personalizado* -> selecionar apenas `asaas_customers`, `asaas_webhook_events`, etc.).
+2. **Limpeza seletiva das tabelas exclusivas do piloto (Zero impacto em outros dados):**
+   Como `asaas_customers` e `asaas_webhook_events` são tabelas novas criadas para o piloto, limpá-las não remove alunos, treinos ou dietas do sistema:
+   ```sql
+   -- 1. Limpar eventos de webhook e vínculos Asaas de teste
+   TRUNCATE TABLE asaas_webhook_events;
+   DELETE FROM asaas_customers WHERE consultancy_id = (SELECT id FROM consultancies WHERE slug = 'saiya-shape');
+
+   -- 2. Limpar referências do Asaas em cobranças de teste da Saiya Shape (mantendo histórico)
+   UPDATE student_charges
+   SET asaas_payment_id = NULL,
+       asaas_invoice_url = NULL,
+       asaas_status_raw = NULL,
+       payment_method = 'MANUAL_PIX'
+   WHERE consultancy_id = (SELECT id FROM consultancies WHERE slug = 'saiya-shape')
+     AND asaas_payment_id IS NOT NULL;
+   ```
+   *Vantagem:* Esse procedimento isola 100% a intervenção na Saiya Shape e **preserva integralmente** todos os dados reais das demais consultorias ativas na plataforma.
+
+---
+
+### Nível 3: Falha Crítica com Restauração Completa do Banco (ÚLTIMO RECURSO CATASTRÓFICO)
+
+> [!CAUTION]
+> **PERIGO DE PERDA DE DADOS MULTI-TENANT (TODAS AS CONSULTORIAS)**:
+> **ATENÇÃO:** Este procedimento restaura o banco de dados **INTEIRO** da plataforma, afetando **TODAS as consultorias**, não apenas a Saiya Shape.
+> Qualquer dado real criado em **QUALQUER** lugar do sistema (novos alunos cadastrados em outras consultorias, treinos concluídos, pagamentos Pix manuais aprovados, check-ins de nutrição, mensagens de chat) entre o momento do backup pré-deploy e o momento da restauração **SERÁ PERDIDO PERMANENTEMENTE**.
+> **O Nível 3 NUNCA deve ser acionado por problemas isolados no piloto Asaas.** Ele só deve ser cogitado em caso de falha catastrófica de infraestrutura ou corrupção física do banco que inviabilize o sistema inteiro e que os Níveis 1, 2 e 2.5 não consigam resolver.
+
+Se a restauração catastrófica for estritamente necessária:
 1. Acesse o **phpMyAdmin da Hostinger** e selecione o banco de dados de produção do Trevo One.
 2. Na aba **Estrutura**, role até o final, clique em **Marcar todos** e, no menu suspenso, selecione **Eliminar (DROP)** -> Confirme a exclusão de todas as tabelas (o banco ficará vazio).
 3. Clique na aba **Importar** (*Import*).
 4. Em *Arquivo a importar*, selecione o arquivo de backup baixado na **Etapa 1** (`trevo_one_prod_backup_pre_deploy_...sql`).
 5. Clique em **Executar** (*Go*) e aguarde a mensagem de sucesso da restauração.
-6. Clique em **"Reiniciar Aplicação"** no painel Node.js da Hostinger para restabelecer os pools de conexão.
-7. O banco volta exatamente ao estado íntegro em que estava antes de iniciar o procedimento de deploy.
+6. Clique em **"Reiniciar Aplicação"** no painel Node.js da Hostinger para restabelecer os pools de conexão com o banco restaurado.
+7. O banco volta ao estado em que se encontrava no momento exato do backup da Etapa 1.

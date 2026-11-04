@@ -62,7 +62,7 @@ async function run() {
       interrupted: false,
       apiVersion: 3,
       authToken: config.webhookToken,
-      sendType: "SEQUENTIALLY",
+      sendType: "NON_SEQUENTIALLY",
       events: ["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED", "PAYMENT_REFUNDED"],
     };
     const res = await fetch(`${config.baseUrl}/webhooks`, {

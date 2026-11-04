@@ -135,6 +135,10 @@ async function main() {
     ON DUPLICATE KEY UPDATE status = 'ACTIVE';
   `);
 
+  // Limpar resíduos de execuções anteriores de QA para as cobranças de teste
+  await db.query(`DELETE FROM student_payments WHERE charge_id IN (10, 20, 30);`);
+  await db.query(`DELETE FROM student_charges WHERE id IN (10, 20, 30);`);
+
   // Cobrança antiga da Saiya Shape (Manual Pix)
   const oldChargePublicId = crypto.randomUUID();
   await db.query(`
@@ -209,12 +213,13 @@ async function main() {
       id, public_id, consultancy_id, student_membership_id, title, description, amount_cents,
       currency_code, due_on, state, created_by_user_id, created_at
     ) VALUES (
-      30, ?, 1, 1001, 'Mensalidade Piloto Saiya Shape Asaas', 'Teste real ponta a ponta', 15000,
-      'BRL', '2026-11-15', 'OPEN', 1, NOW(3)
+      30, ?, 1, 1001, 'Mensalidade Piloto Saiya Shape Asaas Pix', 'Teste real ponta a ponta Pix', 12550,
+      'BRL', '2026-11-20', 'OPEN', 1, NOW(3)
     ) ON DUPLICATE KEY UPDATE state = 'OPEN';
   `, [newChargePublicId]);
 
-  // 2.3 Emitir cobrança no Asaas Sandbox vinculada via externalReference
+  // 2.3 Emitir cobrança no Asaas Sandbox configurada estritamente com billingType: PIX
+  console.log("Emitindo cobrança com billingType: PIX...");
   const payRes = await fetch(`${asaasConfig.baseUrl}/payments`, {
     method: "POST",
     headers: {
@@ -223,27 +228,37 @@ async function main() {
     },
     body: JSON.stringify({
       customer: customerId,
-      billingType: "BOLETO",
-      value: 150.0,
-      dueDate: "2026-11-15",
-      description: "Mensalidade Saiya Shape #30",
+      billingType: "PIX",
+      value: 125.50,
+      dueDate: "2026-11-20",
+      description: "Mensalidade Saiya Shape #30 - Pix",
       externalReference: newChargePublicId,
     }),
   });
   const payData = await payRes.json();
-  console.log("payRes status:", payRes.status, payData);
   const asaasPaymentId = payData.id;
-  assert(Boolean(asaasPaymentId), `Cobrança emitida no Asaas Sandbox: ${asaasPaymentId} (fatura: ${payData.invoiceUrl})`);
+  assert(Boolean(asaasPaymentId), `Cobrança PIX emitida no Asaas Sandbox: ${asaasPaymentId} (billingType: ${payData.billingType})`);
+  assert(payData.billingType === "PIX", `billingType é estritamente PIX: ${payData.billingType}`);
+
+  // 2.4 Buscar QR Code Pix oficial (GET /v3/payments/{id}/pixQrCode)
+  console.log("Buscando QR Code Pix oficial na API do Asaas...");
+  const qrRes = await fetch(`${asaasConfig.baseUrl}/payments/${asaasPaymentId}/pixQrCode`, {
+    headers: { access_token: asaasConfig.apiKey },
+  });
+  const qrData = await qrRes.json();
+  assert(Boolean(qrData.encodedImage), `QR Code encodedImage (base64) retornado com sucesso (tamanho: ${qrData.encodedImage?.length} bytes)`);
+  assert(Boolean(qrData.payload), `Linha Copia-e-Cola PIX retornada com sucesso: ${qrData.payload?.slice(0, 35)}...`);
+  console.log(`QR Code Pix Válido | Expiration: ${qrData.expirationDate}`);
 
   // Atualizar student_charge com asaas_payment_id
   await db.query(`
     UPDATE student_charges
-    SET asaas_payment_id = ?, asaas_status_raw = 'PENDING', payment_method = 'BOLETO', asaas_invoice_url = ?
+    SET asaas_payment_id = ?, asaas_status_raw = 'PENDING', payment_method = 'PIX', asaas_invoice_url = ?
     WHERE id = 30;
   `, [asaasPaymentId, payData.invoiceUrl]);
 
   // 3. CONFIRMAÇÃO OFICIAL NO SANDBOX E AGUARDO DO WEBHOOK VIA NGROK
-  console.log("\n[3/7] Acionando simulador oficial Asaas Sandbox POST /sandbox/payment/{id}/confirm...");
+  console.log("\n[3/7] Acionando simulador oficial Asaas Sandbox POST /sandbox/payment/{id}/confirm para Pix...");
   const simRes = await fetch(`${asaasConfig.baseUrl}/sandbox/payment/${asaasPaymentId}/confirm`, {
     method: "POST",
     headers: {
@@ -251,11 +266,12 @@ async function main() {
     },
   });
   const simData = await simRes.json();
-  console.log("Resposta do simulador Sandbox:", simRes.status, simData);
-  assert(simRes.status === 200, "Simulador de confirmação executado com sucesso");
+  console.log("Resposta do simulador Sandbox Pix:", simRes.status, "status:", simData.status, "pixTransaction:", simData.pixTransaction);
+  assert(simRes.status === 200, "Simulador de confirmação executado com sucesso para Pix");
+  assert(simData.status === "RECEIVED", `Status confirmado pelo simulador: ${simData.status}`);
 
   // Aguardar Asaas entregar o webhook via ngrok -> Next.js -> MySQL
-  console.log("\n[4/7] Aguardando entrega do Webhook pelo Asaas através do ngrok...");
+  console.log("\n[4/7] Aguardando entrega do Webhook Pix pelo Asaas através do ngrok...");
   let settlementFound = false;
   let attempts = 0;
   const maxAttempts = 15;
@@ -296,9 +312,9 @@ async function main() {
         payment: {
           id: asaasPaymentId,
           customer: customerId,
-          value: 150.0,
-          netValue: 148.0,
-          billingType: "BOLETO",
+          value: 125.50,
+          netValue: 124.51,
+          billingType: "PIX",
           status: "RECEIVED",
           confirmedDate: "2026-11-04",
           externalReference: newChargePublicId,
@@ -319,8 +335,8 @@ async function main() {
   assert(paymentRecord.receipt_id === null, "receipt_id é estritamente NULL para cobrança Asaas");
   assert(paymentRecord.confirmed_by_user_id === null, "confirmed_by_user_id é estritamente NULL (sem confirmação manual)");
   assert(paymentRecord.refunded_at === null, "refunded_at é NULL inicialmente");
-  assert(paymentRecord.payment_method === "BOLETO", `payment_method reflete fielmente o Asaas: ${paymentRecord.payment_method}`);
-  assert(Number(paymentRecord.amount_cents) === 15000, `amount_cents confere: ${paymentRecord.amount_cents}`);
+  assert(paymentRecord.payment_method === "PIX", `payment_method reflete fielmente o Asaas: ${paymentRecord.payment_method}`);
+  assert(Number(paymentRecord.amount_cents) === 12550, `amount_cents confere: ${paymentRecord.amount_cents}`);
 
   // 5. TESTE DE IDEMPOTÊNCIA ESTRUTURAL (REPLAY)
   console.log("\n[6/7] Testando idempotência estrita (Replay de PAYMENT_RECEIVED e PAYMENT_CONFIRMED)...");
@@ -336,9 +352,9 @@ async function main() {
         payment: {
           id: asaasPaymentId,
           customer: customerId,
-          value: 150.0,
-          netValue: 148.0,
-          billingType: "BOLETO",
+          value: 125.50,
+          netValue: 124.51,
+          billingType: "PIX",
           status: "RECEIVED",
           confirmedDate: "2026-11-04",
           externalReference: newChargePublicId,
@@ -367,9 +383,9 @@ async function main() {
       payment: {
         id: asaasPaymentId,
         customer: customerId,
-        value: 150.0,
-        netValue: 148.0,
-        billingType: "BOLETO",
+        value: 125.50,
+        netValue: 124.51,
+        billingType: "PIX",
         status: "REFUNDED",
         confirmedDate: "2026-11-04",
         externalReference: newChargePublicId,
@@ -402,8 +418,8 @@ async function main() {
       payment: {
         id: asaasPaymentId,
         customer: customerId,
-        value: 150.0,
-        billingType: "BOLETO",
+        value: 125.50,
+        billingType: "PIX",
         status: "RECEIVED",
         externalReference: newChargePublicId,
       },

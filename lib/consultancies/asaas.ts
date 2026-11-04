@@ -781,7 +781,7 @@ export async function processAsaasWebhookEvent(params: {
           [recordedEventId]
         );
       }
-      return { success: false, message: `Cobrança ${asaasPaymentId} não encontrada no Trevo One.` };
+      return { success: true, message: `Cobrança ${asaasPaymentId} não encontrada no Trevo One (reconhecido e arquivado).` };
     }
 
     const charge = chargeRows[0];

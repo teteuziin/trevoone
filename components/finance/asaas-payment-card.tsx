@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 export interface AsaasPaymentCardProps {
@@ -20,7 +21,18 @@ export function AsaasPaymentCard({
   dueOnFormatted,
   isPaid = false,
 }: AsaasPaymentCardProps) {
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
+
+  // Polling automático e discreto: revalida a página a cada 4s enquanto o pagamento estiver pendente
+  // Assim que o webhook do Asaas confirmar, a UI transiciona automaticamente para "Pago" sem ação do aluno
+  useEffect(() => {
+    if (isPaid) return;
+    const interval = setInterval(() => {
+      router.refresh();
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isPaid, router]);
 
   async function handleCopyPix() {
     if (!pixCopiaECola) return;

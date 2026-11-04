@@ -17,6 +17,20 @@ import {
   type FormQuestionDefinition,
 } from "@/lib/consultancies/forms";
 
+function sanitizeActionError(err: unknown, defaultMessage: string): string {
+  if (err instanceof Error && err.message) {
+    const msg = err.message;
+    const isTechnicalSqlError =
+      /SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|JOIN|ER_|SQL|column|table|database|syntax|deadlock|foreign key|constraint|handshake|packet|ECONNREFUSED|PROTOCOL_/i.test(
+        msg
+      );
+    if (!isTechnicalSqlError && msg.trim().length > 0 && msg.length < 250) {
+      return msg;
+    }
+  }
+  return defaultMessage;
+}
+
 // ============================================================================
 // 1. ADD PHOTO EVALUATION BY PROFESSIONAL
 // ============================================================================
@@ -186,14 +200,20 @@ export async function saveAndSendOrFillFormAction(
     });
 
     if (!assignRes.success) {
-      return { success: false, error: assignRes.error || "Erro ao atribuir formulário." };
+      return {
+        success: false,
+        error: sanitizeActionError(new Error(assignRes.error || ""), "Não foi possível atribuir o formulário ao aluno. Tente novamente."),
+      };
     }
 
     revalidatePath(`/consultoria/${slug}/progresso/alunos/${studentPublicId}`);
     return { success: true };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erro ao processar formulário.";
-    return { success: false, error: message };
+    console.error("[saveAndSendOrFillFormAction] Error:", err);
+    return {
+      success: false,
+      error: sanitizeActionError(err, "Não foi possível processar o formulário. Tente novamente."),
+    };
   }
 }
 
@@ -217,8 +237,11 @@ export async function submitResponsesForExistingRequestAction(
     revalidatePath(`/consultoria/${slug}/progresso/alunos/${studentPublicId}`);
     return res;
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erro ao salvar respostas.";
-    return { success: false, error: message };
+    console.error("[submitResponsesForExistingRequestAction] Error:", err);
+    return {
+      success: false,
+      error: sanitizeActionError(err, "Não foi possível salvar as respostas do formulário. Tente novamente."),
+    };
   }
 }
 

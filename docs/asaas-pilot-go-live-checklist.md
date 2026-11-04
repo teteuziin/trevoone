@@ -41,6 +41,7 @@ Configurar as seguintes variáveis no painel da Hostinger (seção *Node.js -> E
 | `ASAAS_API_KEY` | `$aact_...` *(chave do Asaas Sandbox)* | Chave de autenticação da API. **Atenção:** Em variáveis de ambiente Node.js, valores iniciados por `$` são protegidos pelo runtime do Trevo One via `resolveAsaasApiKey()` contra expansão indevida. |
 | `ASAAS_ENVIRONMENT` | `sandbox` | **Obrigatório:** Mantém o gateway restrito a testes reais. Trava de segurança no código rejeita qualquer execução se configurado como `production` nesta etapa. |
 | `ASAAS_WEBHOOK_TOKEN` | *Token secreto exclusivo de 64 caracteres* | Token aleatório de alta entropia exclusivo para o webhook da Hostinger. **Nunca** reutilizar tokens usados em ambientes locais de desenvolvimento. |
+| `ASAAS_REPROCESS_CRON_SECRET` | *Segredo alfanumérico exclusivo (64 caracteres hex)* | **Segredo Dedicado de Manutenção:** Utilizado exclusivamente para autenticar chamadas no endpoint `POST /api/internal/asaas-reprocess-orphans` (cabeçalho `x-cron-secret` ou `Authorization: Bearer <secret>`). Segue a convenção de `CRON_GUARD_SECRET` e `CONSULTATION_REMINDERS_CRON_SECRET`. **Nota Obrigatória:** Deve ser gerada como um **segredo novo e exclusivo quando for cadastrada manualmente no painel de produção pelo usuário no dia da virada** (isso não é feito pelo agente). **Nunca** reutilizar `ASAAS_WEBHOOK_TOKEN` ou outros segredos. |
 
 ---
 
@@ -143,7 +144,7 @@ Durante os primeiros dias de operação do piloto na Hostinger:
    ```
    - **Garantia contra Race Condition:** No fluxo normal da aplicação ([`lib/consultancies/finance.ts`](file:///c:/Users/User/trevo-one/lib/consultancies/finance.ts)), a cobrança é inserida e comitada no MariaDB (`await connection.commit()`) **antes** de enviar a chamada HTTP para criar a cobrança no Asaas. Além disso, o Asaas recebe `externalReference = charge.public_id`, e o webhook busca por `WHERE sc.asaas_payment_id = ? OR sc.public_id = ?`. Portanto, a cobrança já existe no banco no instante em que o Asaas gera a fatura.
    - **Salvaguarda de Reprocessamento Automático:** Caso ocorra uma anomalia (ex: timeout de rede no retorno da criação ou cobrança gerada avulsa), foi implementado o endpoint:
-     `POST /api/internal/asaas-reprocess-orphans` (autenticado com `x-cron-secret` ou `asaas-access-token`) que reavalia eventos órfãos das últimas 24h e dá baixa automática assim que a cobrança estiver disponível no banco.
+     `POST /api/internal/asaas-reprocess-orphans` (autenticado estritamente com `x-cron-secret` ou `Authorization: Bearer <secret>` usando `ASAAS_REPROCESS_CRON_SECRET`) que reavalia eventos órfãos das últimas 24h e dá baixa automática assim que a cobrança estiver disponível no banco. Aceita estritamente método `POST` (rejeita `GET` com 405 Method Not Allowed).
    - **Frequência Mínima no MVP:** Nos primeiros 3 dias de operação com alunos reais da Saiya Shape, executar a query acima manualmente **a cada 4 a 6 horas** (ou 2x ao dia). Caso algum registro seja retornado, acionar o endpoint de reprocessamento ou verificar se foi criado link avulso no painel do Asaas.
 
 3. **Conciliação de Cobranças Emitidas e Liquidadas:**

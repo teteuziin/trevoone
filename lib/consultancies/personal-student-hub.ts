@@ -7,6 +7,7 @@ import type {
   ConsultancyFormDto,
   ConsultancyFormAssignmentDto,
   FormQuestionDefinition,
+  ConsultancyFormStatus,
 } from "./forms";
 import { ensureConsultancyFormsSchema } from "./forms-schema-assurance";
 

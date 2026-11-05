@@ -349,30 +349,40 @@ export async function ConsultancyAppShell({
         iconName: "consultations",
       }
     );
-  } else if (isPersonal && isAdmin) {
-    mobilePrimaryItems.push(
-      {
+    } else if (isPersonal && isAdmin) {
+    if (resolvedViewModeState?.effectiveMode === "PERSONAL") {
+      mobilePrimaryItems.push({
         id: "atendimento-alunos",
         label: "Alunos",
         mobileLabel: "Alunos",
         href: `/consultoria/${consultancySlug}/progresso/alunos`,
         iconName: "members",
-      },
-      {
-        id: "personal-rotinas",
-        label: "Treinos",
-        mobileLabel: "Treinos",
-        href: `/consultoria/${consultancySlug}/rotinas`,
-        iconName: "training",
-      },
-      {
-        id: "atendimento-consultas",
-        label: "Consultas",
-        mobileLabel: "Consultas",
-        href: `/consultoria/${consultancySlug}/consultas`,
-        iconName: "consultations",
-      }
-    );
+      });
+    } else {
+      mobilePrimaryItems.push(
+        {
+          id: "admin-membros",
+          label: "Membros",
+          mobileLabel: "Membros",
+          href: `/consultoria/${consultancySlug}/membros`,
+          iconName: "members",
+        },
+        {
+          id: "admin-financeiro",
+          label: "Financeiro",
+          mobileLabel: "Financeiro",
+          href: `/consultoria/${consultancySlug}/financeiro`,
+          iconName: "finance",
+        },
+        {
+          id: "personal-rotinas",
+          label: "Treinos",
+          mobileLabel: "Treinos",
+          href: `/consultoria/${consultancySlug}/rotinas`,
+          iconName: "training",
+        }
+      );
+    }
   } else if (isNutritionist && isAdmin) {
     mobilePrimaryItems.push(
       {
@@ -445,30 +455,14 @@ export async function ConsultancyAppShell({
         iconName: "operations",
       }
     );
-  } else if (isPersonal) {
-    mobilePrimaryItems.push(
-      {
-        id: "atendimento-alunos",
-        label: "Alunos",
-        mobileLabel: "Alunos",
-        href: `/consultoria/${consultancySlug}/progresso/alunos`,
-        iconName: "members",
-      },
-      {
-        id: "personal-rotinas",
-        label: "Treinos",
-        mobileLabel: "Treinos",
-        href: `/consultoria/${consultancySlug}/rotinas`,
-        iconName: "training",
-      },
-      {
-        id: "atendimento-consultas",
-        label: "Consultas",
-        mobileLabel: "Consultas",
-        href: `/consultoria/${consultancySlug}/consultas`,
-        iconName: "consultations",
-      }
-    );
+    } else if (isPersonal) {
+    mobilePrimaryItems.push({
+      id: "atendimento-alunos",
+      label: "Alunos",
+      mobileLabel: "Alunos",
+      href: `/consultoria/${consultancySlug}/progresso/alunos`,
+      iconName: "members",
+    });
   } else if (isNutritionist) {
     mobilePrimaryItems.push(
       {

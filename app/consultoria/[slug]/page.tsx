@@ -4,7 +4,11 @@ import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import { getStudentOnboardingStatus } from "@/lib/consultancies/student-onboarding";
-import { getStudentFinancialAccessState } from "@/lib/consultancies/finance";
+import {
+  getStudentFinancialAccessState,
+  getConsultancyFinanceDashboard,
+  listConsultancyCharges,
+} from "@/lib/consultancies/finance";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import { listStudentWorkoutCards } from "@/lib/training-v2/assignment-repository";
 import { listWorkoutsForProfessional } from "@/lib/training-v2/workout-repository";
@@ -309,6 +313,49 @@ export default async function ConsultancyPage({ params }: PageProps) {
       })()
     : Promise.resolve(null);
 
+  // Personal Finance query (strictly server-side authorized)
+  const personalFinancePromise = (needPersonalData && isConsultancyAdmin)
+    ? (async () => {
+        try {
+          const [dashboard, chargesResult] = await Promise.all([
+            getConsultancyFinanceDashboard(context.consultancyId),
+            listConsultancyCharges({
+              consultancyId: context.consultancyId,
+              statusFilter: "PENDING",
+              page: 1,
+            }),
+          ]);
+          return {
+            hasAccess: true,
+            toReceiveCents: dashboard.toReceiveCents,
+            overdueCount: dashboard.overdueCount,
+            upcomingChargesCount: chargesResult.total,
+            upcomingCharges: chargesResult.charges.slice(0, 10).map((c) => ({
+              publicId: c.publicId,
+              studentName: c.studentName,
+              amountCents: c.amountCents,
+              dueOn: c.dueOn,
+              computedStatus: c.derivedStatus,
+            })),
+          };
+        } catch {
+          return {
+            hasAccess: true,
+            toReceiveCents: 0,
+            overdueCount: 0,
+            upcomingChargesCount: 0,
+            upcomingCharges: [],
+          };
+        }
+      })()
+    : Promise.resolve({
+        hasAccess: false,
+        toReceiveCents: 0,
+        overdueCount: 0,
+        upcomingChargesCount: 0,
+        upcomingCharges: [],
+      });
+
   // Nutrition Plans V2 query
   const nutritionPlansPromise = needNutritionistData
     ? (async () => {
@@ -457,6 +504,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     studentProgress,
     studentPhotoEvaluations,
     personalPlansResult,
+    personalFinanceResult,
     nutritionPlansResult,
     influencerMissionsResult,
     adminOverview,
@@ -485,6 +533,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
       ? getStudentPhotoEvaluationsData({ userId: session.userId, consultancySlug: slug }).catch(() => null)
       : Promise.resolve(null),
     personalWorkoutsPromise,
+    personalFinancePromise,
     nutritionPlansPromise,
     needInfluencerData && context.membershipId
       ? listInfluencerMissions({
@@ -712,6 +761,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
             studentsWithoutWorkout={personalPlansResult?.studentsWithoutWorkout || []}
             todayConsultations={personalPlansResult?.todayConsultations ?? null}
             activeRoleMode={effectiveMode}
+            financeSummary={personalFinanceResult}
           />
         )}
 
@@ -764,6 +814,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
             prescribedBlocksCount={personalPlansResult?.prescribedBlocksCount}
             studentsWithoutWorkout={personalPlansResult?.studentsWithoutWorkout || []}
             todayConsultations={personalPlansResult?.todayConsultations ?? null}
+            financeSummary={personalFinanceResult}
           />
         )}
 

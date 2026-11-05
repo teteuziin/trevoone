@@ -26,6 +26,7 @@ export interface PersonalAttentionSectionProps {
   isLoading?: boolean;
   isError?: boolean;
   onRetry?: () => void;
+  title?: string;
 }
 
 function formatMemberSince(isoDateString?: string | null): string {
@@ -69,12 +70,13 @@ export function PersonalAttentionSection({
   isLoading = false,
   isError = false,
   onRetry,
+  title = "Precisa resolver",
 }: PersonalAttentionSectionProps) {
   if (isLoading) {
     return (
-      <section aria-label="Precisa de atenção" className="w-full space-y-3">
+      <section aria-label={title} className="w-full space-y-3">
         <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight">
-          Precisa de atenção
+          {title}
         </h2>
         <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 space-y-3 animate-pulse">
           <div className="h-4 bg-[#1B1D21] rounded w-1/4" />
@@ -140,10 +142,10 @@ export function PersonalAttentionSection({
   const visibleCount = selectedStudents.length + selectedDrafts.length;
 
   return (
-    <section aria-label="Precisa de atenção" className="w-full space-y-3">
+    <section aria-label={title} className="w-full space-y-3">
       <div className="flex items-center justify-between px-1">
         <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight flex items-center gap-2">
-          <span>Precisa de atenção</span>
+          <span>{title}</span>
         </h2>
         {totalPendencias > 0 && (
           <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
@@ -199,9 +201,9 @@ export function PersonalAttentionSection({
                     student.membershipPublicId
                   )}`}
                   prefetch={false}
-                  className="inline-flex items-center justify-center min-h-[44px] px-4 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs active:translate-y-[1px] transition-colors cursor-pointer"
+                  className="inline-flex items-center justify-center min-h-[44px] px-4 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-xs active:translate-y-[1px] transition-colors cursor-pointer"
                 >
-                  Criar ficha
+                  + Criar treino
                 </Link>
               </div>
             </div>

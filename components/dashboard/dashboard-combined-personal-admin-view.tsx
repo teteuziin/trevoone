@@ -7,6 +7,7 @@ import type {
   PersonalWorkoutSummaryItem,
   StudentWithoutWorkoutItem,
   PersonalTodayConsultationItem,
+  DashboardPersonalViewProps,
 } from "./dashboard-personal-view";
 import type { ConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import type { PlatformEffectiveAccessState } from "@/lib/platform-admin/billing";
@@ -35,6 +36,8 @@ interface DashboardCombinedPersonalAdminViewProps {
   studentsWithoutWorkout?: StudentWithoutWorkoutItem[];
   todayConsultations?: PersonalTodayConsultationItem[] | null;
   activeRoleMode?: ConsultancyPresentationMode;
+  financeSummary?: DashboardPersonalViewProps["financeSummary"];
+  satisfactionData?: DashboardPersonalViewProps["satisfactionData"];
 }
 
 export function DashboardCombinedPersonalAdminView({
@@ -53,6 +56,8 @@ export function DashboardCombinedPersonalAdminView({
   studentsWithoutWorkout = [],
   todayConsultations = null,
   activeRoleMode,
+  financeSummary,
+  satisfactionData,
 }: DashboardCombinedPersonalAdminViewProps) {
   const [optimisticTab, setOptimisticTab] = useState<"coach" | "admin" | null>(null);
   const [prevActiveRoleMode, setPrevActiveRoleMode] = useState(activeRoleMode);
@@ -100,6 +105,8 @@ export function DashboardCombinedPersonalAdminView({
           studentsWithoutWorkout={studentsWithoutWorkout}
           todayConsultations={todayConsultations}
           hideRoleBadge={true}
+          financeSummary={financeSummary}
+          satisfactionData={satisfactionData}
         />
       ) : (
         <DashboardAdminView

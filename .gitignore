@@ -51,3 +51,11 @@ next-env.d.ts
 # local agent files
 /AGENTS.md
 /CLAUDE.md
+
+# local debug and ad-hoc test scripts
+/scripts/inspect-local-db.mjs
+/scripts/seed-local-qa-anamnese.mjs
+/scripts/test-asaas-two-gaps.mjs
+/scripts/test-hostinger-conn.mjs
+/scripts/verify-anamnese-real-ui.mjs
+

@@ -61,10 +61,10 @@ export async function runRoutesNavSuite() {
   const pages = allRoutes.filter((r) => r.type === "PAGE");
   const apis = allRoutes.filter((r) => r.type === "API");
 
-  runTest(`ROUTES INVENTORY: Discovered exactly 112 total routes (${pages.length} pages, ${apis.length} APIs)`, () => {
-    assert.equal(allRoutes.length, 112, "Total routes in App Router must be 112");
+  runTest(`ROUTES INVENTORY: Discovered exactly 114 total routes (${pages.length} pages, ${apis.length} APIs)`, () => {
+    assert.equal(allRoutes.length, 114, "Total routes in App Router must be 114");
     assert.equal(pages.length, 74, "Page routes in App Router must be 74");
-    assert.equal(apis.length, 38, "API route handlers in App Router must be 38");
+    assert.equal(apis.length, 40, "API route handlers in App Router must be 40");
   });
 
   runTest("REGRESSION GUARD 1: No dead link '/consultoria/[slug]/planos' in admin view", () => {

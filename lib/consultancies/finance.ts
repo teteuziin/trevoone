@@ -6,6 +6,11 @@ import {
   deliverNotificationAfterCommit,
 } from "@/services/notification-service";
 import { readVerifiedPrivateFile } from "../storage/private-files";
+import {
+  isAsaasPilotEligible,
+  getOrCreateAsaasCustomer,
+  emitAsaasChargeForStudent,
+} from "./asaas";
 
 export type PixKeyType = "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "RANDOM";
 
@@ -574,9 +579,18 @@ export type CreateStudentChargeParams = {
  * Validates that student membership belongs to the same consultancy and has the STUDENT role.
  * If blocksAccess is true, verifies that consultancy finance settings exist.
  */
+export type CreateStudentChargeResult = {
+  success: boolean;
+  error?: string;
+  chargePublicId?: string;
+  chargeId?: number;
+  asaasPaymentId?: string;
+  asaasInvoiceUrl?: string;
+};
+
 export async function createStudentCharge(
   params: CreateStudentChargeParams
-): Promise<{ success: boolean; error?: string; chargePublicId?: string }> {
+): Promise<CreateStudentChargeResult> {
   const { consultancyId, userId, studentMembershipPublicId, title, amountCents, dueOn } = params;
 
   if (!consultancyId || consultancyId <= 0 || !userId || userId <= 0) {
@@ -636,7 +650,7 @@ export async function createStudentCharge(
     }
 
     const [memberRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT cm.id, cm.user_id, cm.status, u.status AS user_status, u.deleted_at, c.slug AS consultancy_slug
+      `SELECT cm.id, cm.user_id, cm.status, u.status AS user_status, u.deleted_at, c.slug AS consultancy_slug, u.full_name, u.email
        FROM consultancy_members cm
        INNER JOIN consultancies c ON c.id = cm.consultancy_id
        INNER JOIN users u ON u.id = cm.user_id
@@ -661,7 +675,7 @@ export async function createStudentCharge(
     const consultancySlug = String(memberRows[0].consultancy_slug);
     const chargePublicId = crypto.randomUUID();
 
-    await connection.execute<ResultSetHeader>(
+    const [insertResult] = await connection.execute<ResultSetHeader>(
       `INSERT INTO student_charges (
         public_id,
         consultancy_id,
@@ -741,7 +755,56 @@ export async function createStudentCharge(
       await deliverNotificationAfterCommit(notification.id);
     } catch {}
 
-    return { success: true, chargePublicId };
+    const chargeId = Number(insertResult.insertId);
+    let asaasPaymentId: string | null = null;
+    let asaasInvoiceUrl: string | null = null;
+
+    if (await isAsaasPilotEligible(consultancySlug)) {
+      try {
+        const studentName = String(memberRows[0].full_name || "Aluno").trim();
+        const studentEmail = String(memberRows[0].email || "").trim().toLowerCase();
+        const studentPhone = null;
+        const studentCpf = null;
+
+        const custRes = await getOrCreateAsaasCustomer({
+          consultancyId,
+          studentMembershipId,
+          studentName,
+          studentEmail,
+          phone: studentPhone,
+          cpfCnpj: studentCpf,
+        });
+
+        if (custRes.customerId) {
+          const asaasRes = await emitAsaasChargeForStudent({
+            consultancyId,
+            chargeId,
+            chargePublicId,
+            customerId: custRes.customerId,
+            amountCents,
+            dueOn,
+            title: cleanTitle,
+            description: cleanDescription,
+          });
+
+          if (asaasRes.success && asaasRes.paymentId) {
+            asaasPaymentId = asaasRes.paymentId;
+            asaasInvoiceUrl = asaasRes.invoiceUrl || null;
+          }
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[Asaas Pilot] Erro ao integrar cobrança com Asaas:", msg);
+      }
+    }
+
+    return {
+      success: true,
+      chargePublicId,
+      chargeId,
+      asaasPaymentId: asaasPaymentId || undefined,
+      asaasInvoiceUrl: asaasInvoiceUrl || undefined,
+    };
   } catch {
     if (connection) {
       try {
@@ -789,7 +852,7 @@ export async function cancelStudentCharge(
     const [rows] = await connection.execute<RowDataPacket[]>(
       `SELECT sc.id, sc.consultancy_id, sc.state, sp.id AS payment_id
        FROM student_charges sc
-       LEFT JOIN student_payments sp ON sp.charge_id = sc.id
+       LEFT JOIN student_payments sp ON sp.charge_id = sc.id AND sp.refunded_at IS NULL
        WHERE sc.public_id = ?
          AND sc.consultancy_id = ?
        FOR UPDATE;`,
@@ -935,7 +998,7 @@ export async function getStudentFinancialAccessState(params: {
          AND sc.blocks_access = 1
          AND sc.due_on < ?
          AND NOT EXISTS (
-           SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id
+           SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL
          )
        ORDER BY sc.due_on ASC, sc.id ASC;`,
       [consultancyId, studentMembershipId, localToday]
@@ -1029,7 +1092,7 @@ export async function getConsultancyFinanceDashboard(
        WHERE sc.consultancy_id = ?
          AND sc.state = 'OPEN'
          AND NOT EXISTS (
-           SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id
+           SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL
          );`,
       [localToday, consultancyId]
     );
@@ -1145,6 +1208,9 @@ export type ChargeListItem = {
   state: ChargePersistedState;
   derivedStatus: StudentChargeDerivedStatus;
   createdAt: string;
+  asaasPaymentId?: string | null;
+  asaasInvoiceUrl?: string | null;
+  isAsaas?: boolean;
 };
 
 export type ListChargesResult = {
@@ -1202,17 +1268,17 @@ export async function listConsultancyCharges(
     if (filter === "CANCELED") {
       whereConditions.push("sc.state = 'CANCELED'");
     } else if (filter === "PAID") {
-      whereConditions.push("EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)");
+      whereConditions.push("EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL)");
     } else if (filter === "UNDER_REVIEW") {
       whereConditions.push(
         "sc.state = 'OPEN'",
-        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)",
+        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL)",
         "EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED')"
       );
     } else if (filter === "OVERDUE") {
       whereConditions.push(
         "sc.state = 'OPEN'",
-        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)",
+        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL)",
         "NOT EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED')",
         "sc.due_on < ?"
       );
@@ -1220,7 +1286,7 @@ export async function listConsultancyCharges(
     } else if (filter === "PENDING") {
       whereConditions.push(
         "sc.state = 'OPEN'",
-        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)",
+        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL)",
         "NOT EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED')",
         "sc.due_on >= ?"
       );
@@ -1272,7 +1338,11 @@ export async function listConsultancyCharges(
         sc.blocks_access,
         sc.state,
         sc.created_at,
-        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id) AS has_payment,
+        sc.asaas_payment_id,
+        sc.asaas_invoice_url,
+        sc.payment_method,
+        sc.asaas_status_raw,
+        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL) AS has_payment,
         EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED') AS has_submitted_receipt
       FROM student_charges sc
       INNER JOIN consultancy_members cm ON cm.id = sc.student_membership_id
@@ -1312,6 +1382,9 @@ export async function listConsultancyCharges(
         state: r.state as ChargePersistedState,
         derivedStatus,
         createdAt: String(r.created_at),
+        asaasPaymentId: r.asaas_payment_id ? String(r.asaas_payment_id) : null,
+        asaasInvoiceUrl: r.asaas_invoice_url ? String(r.asaas_invoice_url) : null,
+        isAsaas: Boolean(r.asaas_payment_id),
       };
     });
 
@@ -1341,6 +1414,9 @@ export type StudentChargeDetail = {
   state: ChargePersistedState;
   derivedStatus: StudentChargeDerivedStatus;
   createdAt: string;
+  asaasPaymentId?: string | null;
+  asaasInvoiceUrl?: string | null;
+  isAsaas?: boolean;
   createdByUserName: string;
   canceledAt: string | null;
   canceledByUserName: string | null;
@@ -1396,7 +1472,7 @@ export async function getStudentChargeDetail(params: {
         sc.canceled_at,
         u_canceler.full_name AS canceled_by_user_name,
         sc.cancel_reason,
-        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id) AS has_payment,
+        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL) AS has_payment,
         EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED') AS has_submitted_receipt
        FROM student_charges sc
        INNER JOIN consultancy_members cm ON cm.id = sc.student_membership_id
@@ -1476,6 +1552,9 @@ export type StudentChargeItem = {
   state: ChargePersistedState;
   derivedStatus: StudentChargeDerivedStatus;
   createdAt: string;
+  asaasPaymentId?: string | null;
+  asaasInvoiceUrl?: string | null;
+  isAsaas?: boolean;
 };
 
 export type StudentChargesListResult = {
@@ -1548,12 +1627,12 @@ export async function getStudentChargesPage(
 
     if (isHistory) {
       whereConditions.push(
-        "(sc.state = 'CANCELED' OR EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id))"
+        "(sc.state = 'CANCELED' OR EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL))"
       );
     } else {
       whereConditions.push(
         "sc.state = 'OPEN'",
-        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)"
+        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL)"
       );
     }
 
@@ -1590,7 +1669,9 @@ export async function getStudentChargesPage(
         sc.blocks_access,
         sc.state,
         sc.created_at,
-        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id) AS has_payment,
+        sc.asaas_payment_id,
+        sc.asaas_invoice_url,
+        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL) AS has_payment,
         EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED') AS has_submitted_receipt
       FROM student_charges sc
       WHERE ${whereSql}
@@ -1651,6 +1732,7 @@ export type StudentPaymentChargeDetail = {
   state: ChargePersistedState;
   derivedStatus: StudentChargeDerivedStatus;
   createdAt: string;
+  isAsaas?: boolean;
   isPaid: boolean;
   paidAmountCents: number | null;
   paidConfirmedAt: string | null;
@@ -1671,6 +1753,10 @@ export type StudentPaymentChargeDetail = {
     pixReceiverName: string;
     paymentInstructions: string | null;
   } | null;
+  asaasPaymentId?: string | null;
+  asaasInvoiceUrl?: string | null;
+  paymentMethod?: string | null;
+  asaasStatusRaw?: string | null;
 };
 
 /**
@@ -1739,6 +1825,10 @@ export async function getStudentChargePaymentDetail(params: {
         sc.blocks_access,
         sc.state,
         sc.created_at,
+        sc.asaas_payment_id,
+        sc.asaas_invoice_url,
+        sc.payment_method,
+        sc.asaas_status_raw,
         sp.amount_cents AS payment_amount_cents,
         DATE_FORMAT(sp.confirmed_at, '%Y-%m-%d %H:%i:%s') AS payment_confirmed_at,
         EXISTS (
@@ -1746,7 +1836,7 @@ export async function getStudentChargePaymentDetail(params: {
           WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED'
         ) AS has_submitted_receipt
        FROM student_charges sc
-       LEFT JOIN student_payments sp ON sp.charge_id = sc.id
+       LEFT JOIN student_payments sp ON sp.charge_id = sc.id AND sp.refunded_at IS NULL
        WHERE sc.public_id = ?
          AND sc.consultancy_id = ?
          AND sc.student_membership_id = ?
@@ -1846,6 +1936,10 @@ export async function getStudentChargePaymentDetail(params: {
       previousRejectionReason,
       submittedReceipt,
       pixSettings,
+      asaasPaymentId: r.asaas_payment_id ? String(r.asaas_payment_id) : null,
+      asaasInvoiceUrl: r.asaas_invoice_url ? String(r.asaas_invoice_url) : null,
+      paymentMethod: r.payment_method ? String(r.payment_method) : null,
+      asaasStatusRaw: r.asaas_status_raw ? String(r.asaas_status_raw) : null,
     };
   } catch {
     return null;
@@ -2033,7 +2127,7 @@ export async function submitStudentPaymentReceipt(
         sc.state,
         sc.consultancy_id,
         sc.student_membership_id,
-        (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id LIMIT 1) AS payment_exists,
+        (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL LIMIT 1) AS payment_exists,
         (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED' LIMIT 1) AS submitted_exists
        FROM student_charges sc
        WHERE sc.public_id = ?

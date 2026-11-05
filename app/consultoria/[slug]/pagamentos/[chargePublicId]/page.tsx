@@ -14,6 +14,8 @@ import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-
 import { Alert } from "@/components/ui/alert";
 import { CopyPixButton } from "@/components/finance/copy-pix-button";
 import { ReceiptUploadForm } from "@/components/finance/receipt-upload-form";
+import { getAsaasPixQrCode } from "@/lib/consultancies/asaas";
+import { AsaasPaymentCard } from "@/components/finance/asaas-payment-card";
 
 export const dynamic = "force-dynamic";
 
@@ -151,8 +153,25 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
     ? `${formatDateBr(charge.referencePeriodStart!)} a ${formatDateBr(charge.referencePeriodEnd!)}`
     : null;
 
-  const canSubmitReceipt = charge.state === "OPEN" && !charge.isPaid && !charge.hasSubmittedReceipt;
+  const isAsaasCharge = Boolean(charge.asaasPaymentId);
+  const canSubmitReceipt = !isAsaasCharge && charge.state === "OPEN" && !charge.isPaid && !charge.hasSubmittedReceipt;
   const badgeStyle = getStatusBadgeConfig(charge.derivedStatus);
+
+  // Cobrança já emitida via Asaas permanece no fluxo do gateway mesmo se novas emissões forem desativadas
+  const isAsaasEligible = isAsaasCharge;
+  let asaasPixData: {
+    encodedImage: string | null;
+    payload: string | null;
+    expirationDate: string | null;
+  } | null = null;
+
+  if (isAsaasEligible && charge.state === "OPEN" && !charge.isPaid && charge.asaasPaymentId) {
+    try {
+      asaasPixData = await getAsaasPixQrCode(charge.asaasPaymentId);
+    } catch {
+      // Best effort in case Asaas API is temporarily unreachable
+    }
+  }
 
   return (
     <ConsultancyAppShell
@@ -280,9 +299,25 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
             </p>
             {charge.paidConfirmedAt && (
               <p className="text-xs mt-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                Confirmado em {formatDateTimeBr(charge.paidConfirmedAt)} via PIX.
+                Confirmado em {formatDateTimeBr(charge.paidConfirmedAt)}.
               </p>
             )}
+          </Alert>
+        )}
+
+        {charge.asaasStatusRaw === "PAYMENT_CONFIRMED" && !charge.isPaid && (
+          <Alert variant="warning" title="Pagamento Confirmado, Aguardando Recebimento">
+            <p className="text-xs">
+              O pagamento foi confirmado pelo gateway de pagamento e a baixa automática será concluída assim que o recebimento for liquidado.
+            </p>
+          </Alert>
+        )}
+
+        {charge.asaasStatusRaw === "PAYMENT_REFUNDED" && (
+          <Alert variant="danger" title="Cobrança Estornada">
+            <p className="text-xs">
+              O pagamento desta cobrança foi estornado/revertido. Regularize sua mensalidade para reestabelecer o acesso aos módulos da consultoria.
+            </p>
           </Alert>
         )}
 
@@ -372,9 +407,23 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
         )}
 
         {/* ===================================================================== */}
-        {/* E. DADOS PIX E FORMULÁRIO DE COMPROVANTE (Quando em Aberto)           */}
+        {/* E. PAGAMENTO AUTOMATIZADO ASAAS (PILOTO SANDBOX SAIYA SHAPE)          */}
         {/* ===================================================================== */}
-        {canSubmitReceipt && (
+        {isAsaasEligible && (
+          <AsaasPaymentCard
+            invoiceUrl={charge.asaasInvoiceUrl || null}
+            pixQrCodeImage={asaasPixData?.encodedImage || null}
+            pixCopiaECola={asaasPixData?.payload || null}
+            amountFormatted={formatCentsToBrl(charge.amountCents)}
+            dueOnFormatted={formattedDueDate}
+            isPaid={charge.isPaid}
+          />
+        )}
+
+        {/* ===================================================================== */}
+        {/* F. DADOS PIX E FORMULÁRIO DE COMPROVANTE (Fluxo Manual Não-Asaas)     */}
+        {/* ===================================================================== */}
+        {!isAsaasEligible && canSubmitReceipt && (
           <div className="space-y-6">
             {/* Card com Chave Pix Oficial da Consultoria */}
             {charge.pixSettings ? (

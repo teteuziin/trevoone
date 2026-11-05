@@ -6,11 +6,6 @@ import {
   deliverNotificationAfterCommit,
 } from "@/services/notification-service";
 import { readVerifiedPrivateFile } from "../storage/private-files";
-import {
-  isAsaasPilotEligible,
-  getOrCreateAsaasCustomer,
-  emitAsaasChargeForStudent,
-} from "./asaas";
 
 export type PixKeyType = "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "RANDOM";
 
@@ -756,54 +751,11 @@ export async function createStudentCharge(
     } catch {}
 
     const chargeId = Number(insertResult.insertId);
-    let asaasPaymentId: string | null = null;
-    let asaasInvoiceUrl: string | null = null;
-
-    if (await isAsaasPilotEligible(consultancySlug)) {
-      try {
-        const studentName = String(memberRows[0].full_name || "Aluno").trim();
-        const studentEmail = String(memberRows[0].email || "").trim().toLowerCase();
-        const studentPhone = null;
-        const studentCpf = null;
-
-        const custRes = await getOrCreateAsaasCustomer({
-          consultancyId,
-          studentMembershipId,
-          studentName,
-          studentEmail,
-          phone: studentPhone,
-          cpfCnpj: studentCpf,
-        });
-
-        if (custRes.customerId) {
-          const asaasRes = await emitAsaasChargeForStudent({
-            consultancyId,
-            chargeId,
-            chargePublicId,
-            customerId: custRes.customerId,
-            amountCents,
-            dueOn,
-            title: cleanTitle,
-            description: cleanDescription,
-          });
-
-          if (asaasRes.success && asaasRes.paymentId) {
-            asaasPaymentId = asaasRes.paymentId;
-            asaasInvoiceUrl = asaasRes.invoiceUrl || null;
-          }
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error("[Asaas Pilot] Erro ao integrar cobrança com Asaas:", msg);
-      }
-    }
 
     return {
       success: true,
       chargePublicId,
       chargeId,
-      asaasPaymentId: asaasPaymentId || undefined,
-      asaasInvoiceUrl: asaasInvoiceUrl || undefined,
     };
   } catch {
     if (connection) {

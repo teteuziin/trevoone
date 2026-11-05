@@ -5,14 +5,14 @@ import fs from "node:fs";
 import path from "node:path";
 
 /**
- * TREVO ONE — PILOTO ASAAS SANDBOX EXCLUSIVO PARA SAIYA SHAPE
+ * TREVO ONE — INTEGRAÇÃO ASAAS (PAGAMENTOS NATIVOS PIX + FATURA HOSPEDADA)
  *
- * Regras estritas de segurança e isolamento:
- * 1. Habilitado exclusivamente se consultancySlug === "saiya-shape"
- * 2. Ambiente obrigatoriamente restrito ao sandbox (process.env.ASAAS_ENVIRONMENT === "sandbox")
- * 3. Token e credenciais nunca são expostos em logs ou respostas de erro
- * 4. Idempotência estrita: não cria cobranças duplicadas no Asaas
- * 5. Outras consultorias permanecem 100% no fluxo manual de Pix
+ * Regras estritas de arquitetura, segurança e tenancy:
+ * 1. Ativação dinâmica por consultoria via banco de dados (consultancy_finance_settings.asaas_enabled = 1)
+ * 2. Controle de ambiente com dupla confirmação: Produção exige ASAAS_ENVIRONMENT=production E ASAAS_PRODUCTION_CONFIRMED=true; caso contrário, opera em Sandbox
+ * 3. Token e credenciais nunca são expostos em logs, console ou respostas de erro para a interface
+ * 4. Idempotência estrita e anti-dupla baixa em webhooks e emissões concorrentes
+ * 5. Consultorias com asaas_enabled = 0 permanecem 100% isoladas no fluxo de Pix manual
  */
 
 export interface AsaasConfig {
@@ -122,15 +122,14 @@ export function resolveAsaasWebhookToken(): string {
 export function getAsaasConfig(): AsaasConfig | null {
   const apiKey = resolveAsaasApiKey();
   const rawEnv = (process.env.ASAAS_ENVIRONMENT || "sandbox").toLowerCase().trim();
+  const isProduction =
+    rawEnv === "production" && process.env.ASAAS_PRODUCTION_CONFIRMED === "true";
 
-  // Trava de segurança: produção é expressamente proibida nesta etapa
-  if (rawEnv === "production") {
-    console.warn("[Asaas Security Guard] Produção não autorizada nesta etapa.");
-    return null;
-  }
+  // URL oficial conforme o ambiente (Produção ou Sandbox)
+  const baseUrl = isProduction
+    ? "https://api.asaas.com/v3"
+    : "https://sandbox.asaas.com/api/v3";
 
-  // URL oficial exclusiva do Sandbox
-  const baseUrl = "https://sandbox.asaas.com/api/v3";
   // Token exclusivo do ambiente sem fallback padrão estático
   const webhookToken = resolveAsaasWebhookToken();
 
@@ -141,14 +140,14 @@ export function getAsaasConfig(): AsaasConfig | null {
   return {
     apiKey,
     baseUrl,
-    isSandbox: true,
+    isSandbox: !isProduction,
     webhookToken,
   };
 }
 
 /**
  * Verifica se a consultoria atual é elegível para o piloto Asaas.
- * Estritamente restrito à Saiya Shape em ambiente Sandbox.
+ * Verifica se a consultoria possui o Asaas habilitado no banco (asaas_enabled = 1).
  */
 export async function isAsaasPilotEligible(consultancySlug: string): Promise<boolean> {
   if (!consultancySlug || typeof consultancySlug !== "string") return false;
@@ -156,11 +155,6 @@ export async function isAsaasPilotEligible(consultancySlug: string): Promise<boo
 
   const config = getAsaasConfig();
   if (!config) return false;
-
-  // Restrição estrita de ambiente: somente sandbox nesta etapa
-  if (!config.isSandbox) {
-    return false;
-  }
 
   // Verificação dinâmica de ativação da consultoria no banco de dados (asaas_enabled = 1)
   let connection: PoolConnection | null = null;
@@ -247,10 +241,14 @@ export async function validateAsaasAuthentication(): Promise<{
   error?: string;
 }> {
   const config = getAsaasConfig();
+  const rawEnv = (process.env.ASAAS_ENVIRONMENT || "sandbox").toLowerCase().trim();
+  const isProduction =
+    rawEnv === "production" && process.env.ASAAS_PRODUCTION_CONFIRMED === "true";
+
   if (!config) {
     return {
       success: false,
-      isSandbox: true,
+      isSandbox: !isProduction,
       status: 500,
       error: "Variáveis ASAAS_API_KEY ou ASAAS_ENVIRONMENT não configuradas.",
     };

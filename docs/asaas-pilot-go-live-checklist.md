@@ -34,14 +34,22 @@ Este documento estabelece o procedimento operacional padrão para a virada assis
 
 ## 2. Variáveis de Ambiente no Servidor da Hostinger
 
-Configurar as seguintes variáveis no painel da Hostinger (seção *Node.js -> Environment Variables* ou `.env.local` seguro da aplicação):
+> [!IMPORTANT]
+> **FONTE CANÔNICA DE DEPLOY:**
+> Para o procedimento detalhado e passo a passo de deploy e cadastro de variáveis no servidor de produção, **consulte sempre o documento oficial [docs/deploy-hostinger-checklist.md](file:///c:/Users/User/trevo-one/docs/deploy-hostinger-checklist.md)** como fonte canônica para evitar divergências de configuração.
+>
+> O Trevo One utiliza **exclusivamente o painel da Hostinger (hPanel -> Node.js -> aba Environment Variables)** para injetar as credenciais no runtime de produção.
 
-| Variável | Valor de Configuração | Finalidade / Regra de Segurança |
-|---|---|---|
-| `ASAAS_API_KEY` | `$aact_...` *(chave do Asaas Sandbox)* | Chave de autenticação da API. **Atenção:** Em variáveis de ambiente Node.js, valores iniciados por `$` são protegidos pelo runtime do Trevo One via `resolveAsaasApiKey()` contra expansão indevida. |
-| `ASAAS_ENVIRONMENT` | `sandbox` | **Obrigatório:** Mantém o gateway restrito a testes reais. Trava de segurança no código rejeita qualquer execução se configurado como `production` nesta etapa. |
-| `ASAAS_WEBHOOK_TOKEN` | *Token secreto exclusivo de 64 caracteres* | Token aleatório de alta entropia exclusivo para o webhook da Hostinger. **Nunca** reutilizar tokens usados em ambientes locais de desenvolvimento. |
-| `ASAAS_REPROCESS_CRON_SECRET` | *Segredo alfanumérico exclusivo (64 caracteres hex)* | **Segredo Dedicado de Manutenção:** Utilizado exclusivamente para autenticar chamadas no endpoint `POST /api/internal/asaas-reprocess-orphans` (cabeçalho `x-cron-secret` ou `Authorization: Bearer <secret>`). Segue a convenção de `CRON_GUARD_SECRET` e `CONSULTATION_REMINDERS_CRON_SECRET`. **Nota Obrigatória:** Deve ser gerada como um **segredo novo e exclusivo quando for cadastrada manualmente no painel de produção pelo usuário no dia da virada** (isso não é feito pelo agente). **Nunca** reutilizar `ASAAS_WEBHOOK_TOKEN` ou outros segredos. |
+Configurar as seguintes variáveis no painel da Hostinger:
+
+| Variável | Valor para Piloto (Sandbox) | Valor para Virada Real (Produção) | Finalidade / Regra de Segurança |
+|---|---|---|---|
+| `ASAAS_API_KEY` | `$aact_...` *(chave Sandbox)* | `$aact_...` *(chave Produção)* | Chave de autenticação da API. Valores iniciados por `$` são protegidos pelo runtime contra expansão indevida. |
+| `ASAAS_ENVIRONMENT` | `sandbox` | `production` | **Crítico:** Controla se as chamadas apontam para sandbox ou produção. |
+| `ASAAS_PRODUCTION_CONFIRMED` | *(não definir)* | `true` | **Dupla Trava de Segurança de Produção:** Chamadas reais para `https://api.asaas.com/v3` só acontecem se `ASAAS_ENVIRONMENT=production` E `ASAAS_PRODUCTION_CONFIRMED=true`. Sem ambas, o sistema opera em Sandbox por segurança. |
+| `ASAAS_WEBHOOK_TOKEN` | *Token secreto exclusivo 64 chars* | *Token secreto exclusivo 64 chars* | Token exclusivo para validar o cabeçalho `asaas-access-token`. Deve bater com o valor cadastrado no Asaas. |
+| `ASAAS_REPROCESS_CRON_SECRET` | *Segredo alfanumérico 64 chars* | *Segredo alfanumérico 64 chars* | **Segredo Dedicado:** Utilizado exclusivamente para autenticar chamadas em `POST /api/internal/asaas-reprocess-orphans`. **Nunca** reaproveitar o token do webhook. |
+| `APP_URL` | `https://trevoone.com` | `https://trevoone.com` | URL canônica do domínio HTTPS do Trevo One. |
 
 ---
 

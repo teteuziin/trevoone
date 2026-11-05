@@ -154,11 +154,6 @@ export async function isAsaasPilotEligible(consultancySlug: string): Promise<boo
   if (!consultancySlug || typeof consultancySlug !== "string") return false;
   const normalized = consultancySlug.toLowerCase().trim();
 
-  // Restrição estrita de tenancy: somente 'saiya-shape'
-  if (normalized !== "saiya-shape") {
-    return false;
-  }
-
   const config = getAsaasConfig();
   if (!config) return false;
 
@@ -167,7 +162,7 @@ export async function isAsaasPilotEligible(consultancySlug: string): Promise<boo
     return false;
   }
 
-  // Verificação explícita de ativação da consultoria no banco de dados
+  // Verificação dinâmica de ativação da consultoria no banco de dados (asaas_enabled = 1)
   let connection: PoolConnection | null = null;
   try {
     connection = await getDbConnection();
@@ -182,9 +177,9 @@ export async function isAsaasPilotEligible(consultancySlug: string): Promise<boo
     if (Array.isArray(rows) && rows.length > 0) {
       return Boolean(rows[0].asaas_enabled);
     }
-    return true;
+    return false;
   } catch {
-    return true;
+    return false;
   } finally {
     if (connection) connection.release();
   }
@@ -590,35 +585,20 @@ async function executeGuaranteedChargeEmission(params: {
   // 2. Emissão no Asaas
   const valueNumber = Number((amountCents / 100).toFixed(2));
 
-  // Tenta emitir primeiramente como PIX; se o Sandbox exigir ativação de conta para PIX direto, usa UNDEFINED
-  let createRes = await asaasFetch<{ id: string; invoiceUrl: string; status: string }>("/payments", {
+  // Emissão com billingType "UNDEFINED" para liberar os 3 métodos (PIX, Boleto e Cartão) na fatura oficial do Asaas
+  const cleanDescription = description ? `${title} - ${description}` : title;
+  const createRes = await asaasFetch<{ id: string; invoiceUrl: string; status: string }>("/payments", {
     method: "POST",
     body: {
       customer: customerId,
-      billingType: "PIX",
+      billingType: "UNDEFINED",
       value: valueNumber,
       dueDate: dueOn,
-      description: description ? `${title} - ${description}` : `${title} - Saiya Shape`,
+      description: cleanDescription,
       externalReference: chargePublicId,
       postalService: false,
     },
   });
-
-  if (!createRes.ok && (createRes.error?.includes("Pix não está disponível") || createRes.error?.includes("conta precisa estar aprovada"))) {
-    // Fallback gracioso no sandbox para BOLETO (gera fatura hospedada com checkout ativo para conta pendente)
-    createRes = await asaasFetch<{ id: string; invoiceUrl: string; status: string }>("/payments", {
-      method: "POST",
-      body: {
-        customer: customerId,
-        billingType: "BOLETO",
-        value: valueNumber,
-        dueDate: dueOn,
-        description: description ? `${title} - ${description}` : `${title} - Saiya Shape`,
-        externalReference: chargePublicId,
-        postalService: false,
-      },
-    });
-  }
 
   if (!createRes.ok || !createRes.data?.id) {
     return {
@@ -812,9 +792,13 @@ export async function processAsaasWebhookEvent(params: {
     const externalRef = payment.externalReference ? String(payment.externalReference) : "";
 
     const [chargeRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT sc.id, sc.public_id, sc.consultancy_id, sc.student_membership_id, sc.amount_cents, sc.state, c.slug as consultancy_slug
+      `SELECT sc.id, sc.public_id, sc.consultancy_id, sc.student_membership_id, sc.amount_cents, sc.title, sc.state,
+              c.slug AS consultancy_slug, cm.user_id AS student_user_id,
+              COALESCE(cfs.asaas_enabled, 0) AS asaas_enabled
        FROM student_charges sc
        JOIN consultancies c ON c.id = sc.consultancy_id
+       LEFT JOIN consultancy_members cm ON cm.id = sc.student_membership_id
+       LEFT JOIN consultancy_finance_settings cfs ON cfs.consultancy_id = sc.consultancy_id
        WHERE sc.asaas_payment_id = ? OR sc.public_id = ?
        LIMIT 1;`,
       [asaasPaymentId, externalRef]
@@ -846,27 +830,28 @@ export async function processAsaasWebhookEvent(params: {
     const charge = chargeRows[0];
     const consultancySlug = String(charge.consultancy_slug);
 
-    // Validação estrita de Tenancy do Piloto
-    if (consultancySlug !== "saiya-shape") {
+    // Validação de ativação do Asaas na consultoria (asaas_enabled = 1)
+    const isAsaasEnabled = Boolean(charge.asaas_enabled);
+    if (!isAsaasEnabled) {
       if (recordedEventId) {
         await connection.execute(
           `UPDATE asaas_webhook_events
            SET status = 'OUT_OF_SCOPE',
                processed = 0,
                processed_at = CURRENT_TIMESTAMP(3),
-               processing_error = 'Piloto Asaas restrito exclusivamente à Saiya Shape'
+               processing_error = 'Asaas não habilitado para esta consultoria (asaas_enabled = 0)'
            WHERE id = ?;`,
           [recordedEventId]
         );
       }
       console.warn(
-        `[Asaas Webhook WARN - OUT_OF_SCOPE] Cobrança ${asaasPaymentId} pertence à consultoria '${consultancySlug}', fora do escopo do piloto Asaas. Gravado em asaas_webhook_events como OUT_OF_SCOPE.`
+        `[Asaas Webhook WARN - OUT_OF_SCOPE] Cobrança ${asaasPaymentId} pertence à consultoria '${consultancySlug}', que não possui Asaas habilitado (asaas_enabled = 0). Gravado em asaas_webhook_events como OUT_OF_SCOPE.`
       );
       return {
         success: false,
         acknowledged: true,
         status: "OUT_OF_SCOPE",
-        message: "Piloto Asaas restrito exclusivamente à Saiya Shape.",
+        message: `Asaas não habilitado para a consultoria '${consultancySlug}'.`,
       };
     }
 
@@ -996,6 +981,31 @@ export async function processAsaasWebhookEvent(params: {
         [asaasPaymentId, confirmedMethod, chargeInternalId]
       );
 
+      // Notificação in-app ao aluno confirmando a liquidação e liberação do acesso
+      try {
+        const studentUserId = Number(charge.student_user_id || 0);
+        if (studentUserId > 0) {
+          const { createNotificationInTransaction, deliverNotificationAfterCommit } = await import(
+            "@/services/notification-service"
+          );
+          const notif = await createNotificationInTransaction(connection, {
+            userId: studentUserId,
+            consultancyId: Number(charge.consultancy_id),
+            priority: "HIGH",
+            eventType: "STUDENT_PAYMENT_CONFIRMED",
+            title: "Pagamento confirmado!",
+            body: `Seu pagamento da cobrança "${charge.title || "Mensalidade"}" foi confirmado e seu acesso foi liberado.`,
+            deepLink: `/consultoria/${consultancySlug}/pagamentos/${charge.public_id}`,
+            dedupeKey: `student-payment:confirmed:${charge.public_id}`,
+            sourceType: "STUDENT_CHARGE",
+            sourcePublicId: String(charge.public_id),
+          });
+          await deliverNotificationAfterCommit(notif.id).catch(() => {});
+        }
+      } catch (notifErr: unknown) {
+        console.warn("[Asaas Webhook] Aviso ao enviar notificação de pagamento confirmado:", notifErr);
+      }
+
       // Recalcula acesso financeiro do aluno após a liquidação
       try {
         if (charge.student_membership_id && charge.consultancy_id) {
@@ -1042,6 +1052,33 @@ export async function processAsaasWebhookEvent(params: {
         `UPDATE student_charges SET asaas_status_raw = 'OVERDUE' WHERE id = ?;`,
         [chargeInternalId]
       );
+
+      // Notificação in-app ao aluno avisando sobre cobrança vencida
+      try {
+        const studentUserId = Number(charge.student_user_id || 0);
+        if (studentUserId > 0) {
+          const { createNotificationInTransaction, deliverNotificationAfterCommit } = await import(
+            "@/services/notification-service"
+          );
+          const { formatCentsToBrl } = await import("./finance");
+          const formattedAmount = formatCentsToBrl(Number(charge.amount_cents || 0));
+          const notif = await createNotificationInTransaction(connection, {
+            userId: studentUserId,
+            consultancyId: Number(charge.consultancy_id),
+            priority: "HIGH",
+            eventType: "STUDENT_CHARGE_OVERDUE",
+            title: "Cobrança vencida",
+            body: `A cobrança "${charge.title || "Mensalidade"}" no valor de ${formattedAmount} venceu. Regularize para evitar bloqueio de acesso.`,
+            deepLink: `/consultoria/${consultancySlug}/pagamentos/${charge.public_id}`,
+            dedupeKey: `student-charge:overdue:${charge.public_id}`,
+            sourceType: "STUDENT_CHARGE",
+            sourcePublicId: String(charge.public_id),
+          });
+          await deliverNotificationAfterCommit(notif.id).catch(() => {});
+        }
+      } catch (notifErr: unknown) {
+        console.warn("[Asaas Webhook] Aviso ao enviar notificação de cobrança vencida:", notifErr);
+      }
     } else {
       // Outros eventos (ex: PAYMENT_CREATED, PAYMENT_UPDATED)
       await connection.execute(

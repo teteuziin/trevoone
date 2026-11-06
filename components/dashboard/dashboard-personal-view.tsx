@@ -92,6 +92,16 @@ export interface DashboardPersonalViewProps {
   };
 }
 
+function formatDifficultyLevel(level?: string | null): string | null {
+  if (!level) return null;
+  const l = level.trim().toUpperCase();
+  if (l === "BEGINNER") return "Iniciante";
+  if (l === "INTERMEDIATE") return "Intermediário";
+  if (l === "ADVANCED") return "Avançado";
+  if (l === "ALL_LEVELS") return "Todos os níveis";
+  return level;
+}
+
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
@@ -406,7 +416,7 @@ export function DashboardPersonalView({
                   <span className="w-5 h-5 rounded-full bg-[#FFFBEB] border border-[#FDE68A] text-[#D97706] flex items-center justify-center shrink-0">
                     <RefreshCwIcon className="w-3.5 h-3.5" />
                   </span>
-                  <span className="text-[#4A5568] font-medium truncate">A vencer (próximos 7 dias)</span>
+                  <span className="text-[#4A5568] font-medium truncate">A vencer</span>
                 </div>
                 <span className="font-bold text-[#102E23] tabular-nums ml-2">
                   {computedMetrics.aVencerCount}
@@ -476,16 +486,9 @@ export function DashboardPersonalView({
                 </span>
               </>
             ) : (
-              <div className="flex items-center gap-1">
-                <div className="flex items-center text-[#CBD5E1]">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <svg key={s} className="w-4 h-4 fill-[#E2E8F0] text-[#E2E8F0]" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                </div>
-                <span className="text-[11px] text-[#8A958E] ml-1">Nenhuma avaliação de satisfação registrada</span>
-              </div>
+              <span className="text-xs text-[#6B7870] font-normal">
+                Satisfação: nenhuma avaliação registrada.
+              </span>
             )}
           </div>
         </div>
@@ -496,7 +499,8 @@ export function DashboardPersonalView({
   // 2. CARD SECUNDÁRIO 1: CARTEIRA DE ALUNOS
   const renderCarteiraDeAlunos = () => {
     const total = computedMetrics.totalStudents;
-    const circumference = 150.796; // 2 * PI * 24
+    const activeCount = total;
+    const inactiveCount = 0;
 
     return (
       <section
@@ -504,7 +508,7 @@ export function DashboardPersonalView({
         className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between h-full"
       >
         <div>
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between mb-1.5">
             <h3 className="text-sm sm:text-base font-bold text-[#102E23]">
               Carteira de alunos
             </h3>
@@ -512,89 +516,50 @@ export function DashboardPersonalView({
               <UsersIcon className="w-4 h-4" />
             </span>
           </div>
-          <p className="text-[11px] text-[#6B7870] font-normal mb-3">
-            {total} {total === 1 ? "aluno vinculado" : "alunos vinculados"}
-          </p>
 
-          <div className="flex items-center gap-3 sm:gap-4 mt-1">
-            {/* Mini Donut */}
-            <div className="relative w-14 h-14 sm:w-16 sm:h-16 shrink-0 flex items-center justify-center">
-              <svg className="w-full h-full" viewBox="0 0 60 60">
-                <circle cx="30" cy="30" r="24" stroke="#EAEFE9" strokeWidth="6" fill="none" />
-                {total > 0 && (
-                  <circle
-                    cx="30"
-                    cy="30"
-                    r="24"
-                    stroke="#102E23"
-                    strokeWidth="6"
-                    fill="none"
-                    strokeDasharray={`${circumference} ${circumference}`}
-                    strokeDashoffset={0}
-                    transform="rotate(-90 30 30)"
-                    strokeLinecap="round"
-                  />
-                )}
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-sm sm:text-base font-black text-[#102E23] leading-none">
-                  {total}
-                </span>
-                <span className="text-[9px] font-semibold text-[#6B7870] leading-tight mt-0.5">
-                  Alunos
-                </span>
-              </div>
+          <div className="py-1">
+            <div className="text-3xl sm:text-4xl font-black text-[#102E23] tracking-tight tabular-nums font-sans">
+              {total}
             </div>
-
-            {/* Links e contadores com nomenclatura clara */}
-            <div className="flex-1 min-w-0 space-y-1.5 text-xs">
-              <Link
-                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=active`}
-                prefetch={false}
-                className="flex items-center justify-between text-[#4A5568] hover:text-[#102E23] transition-colors py-0.5"
-              >
-                <span className="truncate">Alunos ativos</span>
-                <span className="font-bold text-[#102E23] flex items-center gap-0.5 tabular-nums">
-                  {total} <span className="text-[#8A958E] text-[10px]">›</span>
-                </span>
-              </Link>
-
-              <Link
-                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=inactive`}
-                prefetch={false}
-                className="flex items-center justify-between text-[#4A5568] hover:text-[#102E23] transition-colors py-0.5"
-              >
-                <span className="truncate">Alunos inativos</span>
-                <span className="font-bold text-[#102E23] flex items-center gap-0.5 tabular-nums">
-                  0 <span className="text-[#8A958E] text-[10px]">›</span>
-                </span>
-              </Link>
-
-              <Link
-                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=expiring`}
-                prefetch={false}
-                className="flex items-center justify-between text-[#4A5568] hover:text-[#102E23] transition-colors py-0.5"
-              >
-                <span className="truncate">Treinos a vencer</span>
-                <span className="font-bold text-[#102E23] flex items-center gap-0.5 tabular-nums">
-                  {computedMetrics.aVencerCount} <span className="text-[#8A958E] text-[10px]">›</span>
-                </span>
-              </Link>
-
-              {computedMetrics.semTreinoCount > 0 && (
-                <Link
-                  href={`/consultoria/${consultancySlug}/progresso/alunos?filter=without_workout`}
-                  prefetch={false}
-                  className="flex items-center justify-between text-[#8C5D39] hover:text-[#102E23] transition-colors py-0.5"
-                >
-                  <span className="truncate font-medium">Sem treino ativo</span>
-                  <span className="font-bold text-[#8C5D39] flex items-center gap-0.5 tabular-nums">
-                    {computedMetrics.semTreinoCount} <span className="text-[#8A958E] text-[10px]">›</span>
-                  </span>
-                </Link>
-              )}
-            </div>
+            <p className="text-xs text-[#526058] font-medium mt-0.5">
+              {total === 1 ? "Aluno vinculado" : "Alunos vinculados"}
+            </p>
           </div>
+
+          <div className="mt-3 pt-3 border-t border-[#F0F2ED] space-y-2 text-xs">
+            <Link
+              href={`/consultoria/${consultancySlug}/progresso/alunos?filter=active`}
+              prefetch={false}
+              className="flex items-center justify-between py-0.5 text-[#4A5568] hover:text-[#102E23] transition-colors"
+            >
+              <span className="font-medium text-[#4A5568]">Alunos ativos</span>
+              <span className="font-bold text-[#102E23] tabular-nums flex items-center gap-1">
+                {activeCount} <span className="text-[#8A958E] text-[10px]">›</span>
+              </span>
+            </Link>
+
+            <Link
+              href={`/consultoria/${consultancySlug}/progresso/alunos?filter=inactive`}
+              prefetch={false}
+              className="flex items-center justify-between py-0.5 text-[#4A5568] hover:text-[#102E23] transition-colors"
+            >
+              <span className="font-medium text-[#4A5568]">Alunos inativos</span>
+              <span className="font-bold text-[#102E23] tabular-nums flex items-center gap-1">
+                {inactiveCount} <span className="text-[#8A958E] text-[10px]">›</span>
+              </span>
+            </Link>
+          </div>
+        </div>
+
+        <div className="pt-3 mt-2 border-t border-[#F0F2ED]">
+          <Link
+            href={`/consultoria/${consultancySlug}/progresso/alunos`}
+            prefetch={false}
+            className="text-xs font-bold text-[#102E23] hover:text-[#176B49] transition-colors flex items-center justify-between min-h-[36px]"
+          >
+            <span>Ver todos os alunos</span>
+            <span className="text-[#8A958E] text-sm" aria-hidden="true">→</span>
+          </Link>
         </div>
       </section>
     );
@@ -604,6 +569,7 @@ export function DashboardPersonalView({
   const renderAvaliacaoFisica = () => {
     const pending = assessmentStats?.pendingAssessmentsCount ?? 0;
     const completed = assessmentStats?.completedAssessmentsCount ?? 0;
+    const hasAnyAssessment = pending > 0 || completed > 0;
 
     return (
       <section
@@ -611,7 +577,7 @@ export function DashboardPersonalView({
         className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between h-full"
       >
         <div>
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between mb-1.5">
             <h3 className="text-sm sm:text-base font-bold text-[#102E23]">
               Avaliação física
             </h3>
@@ -619,27 +585,50 @@ export function DashboardPersonalView({
               <ClipboardIcon className="w-4 h-4" />
             </span>
           </div>
-          <p className="text-[11px] text-[#6B7870] font-normal mb-2">
-            Acompanhamento corporal dos alunos
-          </p>
 
-          <div className="py-1">
-            <div className="text-2xl sm:text-3xl font-black text-[#102E23] tracking-tight tabular-nums font-sans">
-              {pending}
+          {hasAnyAssessment ? (
+            <div className="py-1">
+              <div className="text-3xl sm:text-4xl font-black text-[#102E23] tracking-tight tabular-nums font-sans">
+                {pending > 0 ? pending : completed}
+              </div>
+              <p className="text-xs text-[#526058] font-medium mt-0.5">
+                {pending > 0
+                  ? (pending === 1 ? "Avaliação pendente de revisão" : "Avaliações pendentes de revisão")
+                  : (completed === 1 ? "Avaliação realizada" : "Avaliações realizadas")}
+              </p>
             </div>
-            <p className="text-xs text-[#526058] font-medium mt-0.5">
-              {pending === 1 ? "Aluno sem avaliação física cadastrada" : "Alunos sem avaliação física cadastrada"}
-            </p>
-          </div>
+          ) : (
+            <div className="py-1">
+              <p className="text-sm sm:text-base font-bold text-[#102E23] leading-snug">
+                Nenhuma avaliação registrada
+              </p>
+              <p className="text-xs text-[#526058] font-normal mt-1 leading-relaxed">
+                Nenhum registro de avaliação física ou antropometria para os alunos vinculados.
+              </p>
+            </div>
+          )}
+
+          {hasAnyAssessment && (
+            <div className="mt-3 pt-3 border-t border-[#F0F2ED] space-y-1.5 text-xs">
+              <div className="flex items-center justify-between py-0.5 text-[#4A5568]">
+                <span>Concluídas</span>
+                <span className="font-bold text-[#102E23] tabular-nums">{completed}</span>
+              </div>
+              <div className="flex items-center justify-between py-0.5 text-[#4A5568]">
+                <span>Aguardando revisão</span>
+                <span className="font-bold text-[#102E23] tabular-nums">{pending}</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="pt-2.5 mt-2 border-t border-[#F0F2ED]">
+        <div className="pt-3 mt-2 border-t border-[#F0F2ED]">
           <Link
-            href={`/consultoria/${consultancySlug}/progresso`}
+            href={`/consultoria/${consultancySlug}/progresso/alunos`}
             prefetch={false}
-            className="text-xs font-semibold text-[#102E23] hover:text-[#176B49] transition-colors flex items-center justify-between min-h-[36px]"
+            className="text-xs font-bold text-[#102E23] hover:text-[#176B49] transition-colors flex items-center justify-between min-h-[36px]"
           >
-            <span>Avaliações realizadas: <span className="font-bold tabular-nums">{completed}</span></span>
+            <span>{hasAnyAssessment ? `Ver avaliações (${completed + pending})` : "Acessar avaliações"}</span>
             <span className="text-[#8A958E] text-sm" aria-hidden="true">→</span>
           </Link>
         </div>
@@ -666,7 +655,7 @@ export function DashboardPersonalView({
 
           {sortedStudents.length > 0 ? (
             <span className="text-xs font-bold px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg bg-[#F5EDE4] text-[#8C5D39] border border-[#ECD9CC] shrink-0">
-              {sortedStudents.length} {sortedStudents.length === 1 ? "sem treino ativo" : "sem treino ativo"}
+              {sortedStudents.length} {sortedStudents.length === 1 ? "aluno sem treino" : "alunos sem treino"}
             </span>
           ) : (
             <span className="text-xs font-bold px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg bg-emerald-50 text-[#176B49] border border-emerald-200 shrink-0">
@@ -708,11 +697,11 @@ export function DashboardPersonalView({
                   key={student.membershipPublicId || student.userPublicId}
                   href={studentHref}
                   prefetch={false}
-                  className={`group flex items-center justify-between py-2.5 sm:py-3.5 hover:bg-[#F9FAF8] px-1 sm:px-2 rounded-xl transition-colors cursor-pointer select-none min-h-[48px] ${
+                  className={`group flex items-center justify-between py-2.5 sm:py-3 hover:bg-[#F9FAF8] px-1 sm:px-2 rounded-xl transition-colors cursor-pointer select-none min-h-[48px] ${
                     isThird ? "hidden sm:flex" : "flex"
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 pr-2">
+                  <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 pr-2 flex-1">
                     {student.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -729,18 +718,18 @@ export function DashboardPersonalView({
                       </div>
                     )}
 
-                    <div className="min-w-0">
-                      <p className="text-xs sm:text-sm font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors truncate">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors leading-snug break-words">
                         {student.name}
                       </p>
-                      <p className="text-[11px] sm:text-xs text-[#6B7870] font-normal truncate mt-0.5">
-                        Sem treino ativo cadastrado
+                      <p className="text-[11px] sm:text-xs text-[#6B7870] font-normal mt-0.5">
+                        Sem treino ativo
                       </p>
                     </div>
                   </div>
 
                   {/* Ação específica "Criar treino →" */}
-                  <span className="text-xs font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors shrink-0 flex items-center gap-1 select-none whitespace-nowrap">
+                  <span className="text-xs font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors shrink-0 flex items-center gap-1 select-none whitespace-nowrap ml-2">
                     <span>Criar treino</span>
                     <span aria-hidden="true">→</span>
                   </span>
@@ -752,11 +741,11 @@ export function DashboardPersonalView({
       </div>
 
       {sortedStudents.length > (isMobileLayout ? 2 : 3) && (
-        <div className="pt-2 border-t border-[#F0F2ED] flex justify-end">
+        <div className="pt-2 mt-1 border-t border-[#F0F2ED] flex justify-end">
           <Link
             href={`/consultoria/${consultancySlug}/progresso/alunos?filter=without_workout`}
             prefetch={false}
-            className="text-xs font-bold text-[#102E23] hover:text-[#176B49] hover:underline inline-flex items-center gap-1 min-h-[44px]"
+            className="text-xs font-bold text-[#102E23] hover:text-[#176B49] hover:underline inline-flex items-center gap-1 min-h-[40px]"
           >
             <span>Ver todas as pendências ({sortedStudents.length})</span>
             <span aria-hidden="true">→</span>
@@ -770,7 +759,7 @@ export function DashboardPersonalView({
   const renderRascunho = () => (
     <section
       aria-label="Rascunho de treino"
-      className="relative overflow-hidden rounded-2xl bg-[#0F2F24] border border-[#163E27] shadow-xs text-white p-4 sm:p-6 flex flex-col justify-between h-full min-h-[220px] sm:min-h-[240px]"
+      className="relative overflow-hidden rounded-2xl bg-[#0F2F24] border border-[#163E27] shadow-xs text-white p-4 sm:p-6 flex flex-col justify-between h-full min-h-[190px] sm:min-h-[210px]"
     >
       <div className="space-y-3">
         <div className="text-[10px] font-bold text-[#4ADE80] tracking-wider uppercase border-b-2 border-[#4ADE80] inline-block pb-0.5">
@@ -784,19 +773,19 @@ export function DashboardPersonalView({
                 {primaryDraft.title}
               </h3>
 
-              <div className="flex flex-wrap items-center gap-2 mt-2.5">
+              <div className="flex flex-wrap items-center gap-2 mt-2">
                 {primaryDraft.difficultyLevel && (
-                  <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-white/10 text-white border border-white/10 backdrop-blur-xs">
-                    Foco {primaryDraft.difficultyLevel.toLowerCase()}
+                  <span className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-white/10 text-white border border-white/10 backdrop-blur-xs">
+                    Nível {formatDifficultyLevel(primaryDraft.difficultyLevel)}
                   </span>
                 )}
-                <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-white/10 text-emerald-300 border border-white/10 backdrop-blur-xs">
+                <span className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-white/10 text-emerald-300 border border-white/10 backdrop-blur-xs">
                   Rascunho em edição
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-white/80 font-medium pt-1">
+            <div className="flex items-center gap-2 text-xs text-white/80 font-medium pt-0.5">
               <DumbbellIcon className="w-4 h-4 text-emerald-300 shrink-0" />
               <span>
                 {primaryDraft.blocksCount || 0} {primaryDraft.blocksCount === 1 ? "exercício cadastrado" : "exercícios cadastrados"}
@@ -815,7 +804,7 @@ export function DashboardPersonalView({
         )}
       </div>
 
-      <div className="pt-4">
+      <div className="pt-3">
         <Link
           href={
             primaryDraft
@@ -836,7 +825,7 @@ export function DashboardPersonalView({
   const renderFinanceiro = () => (
     <section
       aria-label="Financeiro / A receber"
-      className="bg-[#E8F0EA] border border-[#D8E4DA] rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col justify-between h-full space-y-4"
+      className="bg-[#E8F0EA] border border-[#D8E4DA] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between h-full space-y-3"
     >
       <div>
         <div className="text-[10px] font-bold text-[#1B4D39] tracking-wider uppercase border-b-2 border-[#1B4D39] inline-block pb-0.5 mb-1.5">
@@ -854,36 +843,32 @@ export function DashboardPersonalView({
           </p>
         </div>
 
-        {/* Linha divisória e lista de próximas cobranças */}
-        <div className="mt-4 pt-3 border-t border-[#D5E2D7] space-y-2.5">
-          {upcomingChargesList.length > 0 ? (
-            upcomingChargesList.map((ch, idx) => (
+        {/* Lista de cobranças (até 2 itens para manter o card proporcional e compacto) */}
+        {upcomingChargesList.length > 0 && (
+          <div className="mt-3 pt-2.5 border-t border-[#D5E2D7] space-y-2">
+            {upcomingChargesList.slice(0, 2).map((ch, idx) => (
               <div
                 key={ch.id || idx}
-                className="flex items-center justify-between text-xs py-1"
+                className="flex items-center justify-between text-xs py-0.5"
               >
                 <div className="min-w-0 pr-2">
                   <p className="font-bold text-xs sm:text-sm text-[#102E23] truncate">{ch.studentName}</p>
-                  <p className="text-xs text-[#5A7366] mt-0.5">Vencimento da cobrança: {ch.dueDate}</p>
+                  <p className="text-[11px] sm:text-xs text-[#5A7366] mt-0.5">Vencimento: {ch.dueDate}</p>
                 </div>
                 <div className="text-right shrink-0">
                   <span className="font-bold text-xs sm:text-sm text-[#102E23] tabular-nums">{ch.amountFormatted}</span>
                 </div>
               </div>
-            ))
-          ) : (
-            <p className="text-xs text-[#5A7366] italic py-1">
-              Nenhuma cobrança com vencimento próximo cadastrada.
-            </p>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="pt-3 border-t border-[#D5E2D7]">
+      <div className="pt-2.5 border-t border-[#D5E2D7]">
         <Link
           href={`/consultoria/${consultancySlug}/financeiro`}
           prefetch={false}
-          className="w-full flex items-center justify-between text-xs font-bold text-[#102E23] hover:text-[#176B49] transition-colors min-h-[44px]"
+          className="w-full flex items-center justify-between text-xs font-bold text-[#102E23] hover:text-[#176B49] transition-colors min-h-[36px]"
         >
           <span>Abrir financeiro</span>
           <span aria-hidden="true">→</span>
@@ -893,7 +878,7 @@ export function DashboardPersonalView({
   );
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-5 sm:space-y-6 pb-28 sm:pb-32 md:pb-10">
+    <div className="w-full max-w-7xl mx-auto space-y-5 sm:space-y-6 pb-4 md:pb-6">
       {/* ============================================================== */}
       {/* 1. CABEÇALHO DO PAINEL INÍCIO                                   */}
       {/* ============================================================== */}
@@ -989,7 +974,8 @@ export function DashboardPersonalView({
       {/* ============================================================== */}
       <div className="flex flex-col gap-4 md:hidden">
         {renderProgramasDeTreino()}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 items-stretch">
+        {/* Em 320px: empilha Carteira e Avaliação se < 375px; em >= 375px: 2 colunas confortáveis */}
+        <div className="grid grid-cols-1 min-[375px]:grid-cols-2 gap-3 sm:gap-4 items-stretch">
           {renderCarteiraDeAlunos()}
           {renderAvaliacaoFisica()}
         </div>

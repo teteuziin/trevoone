@@ -188,10 +188,10 @@ export function DashboardPersonalView({
     });
   }, [studentsWithoutWorkout]);
 
-  // Lista inicial: até 3 alunos no desktop e até 2 alunos no celular (via sm:flex)
+  // Lista inicial: até 3 alunos no desktop e até 2 alunos no celular
   const visibleStudents = useMemo(() => sortedStudents.slice(0, 3), [sortedStudents]);
 
-  // Indicadores de finanças com dados estritamente reais (sem mock de fallback)
+  // Indicadores de finanças com dados estritamente reais (sem simulações ou fallbacks falsos)
   const hasFinanceAccess = financeSummary?.hasAccess ?? false;
   const toReceiveCents = financeSummary?.toReceiveCents ?? 0;
   const toReceiveBrl = toReceiveCents / 100;
@@ -216,8 +216,297 @@ export function DashboardPersonalView({
     return [];
   }, [upcomingChargesFromSummary]);
 
+  // =========================================================================
+  // SUBCOMPONENTES ESTRUTURAIS
+  // =========================================================================
+
+  // 1. WIDGET PENDÊNCIAS
+  const renderPendencias = (isMobileLayout = false) => (
+    <section
+      aria-label="Pendências de atendimento"
+      className="bg-[#FFFEFA] border border-[#E2E6DF] rounded-2xl shadow-xs p-4 sm:p-5 space-y-3.5"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base sm:text-lg font-bold text-[#1E2922] leading-tight font-sans">
+            Pendências
+          </h2>
+          <p className="text-xs text-[#526058] mt-0.5 font-medium">
+            Alunos sem treino ativo
+          </p>
+        </div>
+
+        {sortedStudents.length > 0 ? (
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200/80 shrink-0">
+            {sortedStudents.length} {sortedStudents.length === 1 ? "pendência" : "pendências"}
+          </span>
+        ) : (
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#176B49] border border-emerald-200/80 shrink-0">
+            100% atendidos
+          </span>
+        )}
+      </div>
+
+      {sortedStudents.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[#E2E6DF] p-4 text-center bg-[#F9F9F6]">
+          <p className="text-sm font-bold text-[#1E2922]">
+            Nenhum aluno sem treino ativo
+          </p>
+          <p className="text-xs text-[#526058] mt-0.5">
+            Todos os alunos cadastrados estão com fichas vigentes.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {/* Linhas de alunos: até 3 no desktop, até 2 no mobile */}
+          <div className="divide-y divide-[#E2E6DF] border border-[#E2E6DF] rounded-xl overflow-hidden bg-white">
+            {visibleStudents.map((student, idx) => {
+              const studentHref = `/consultoria/${consultancySlug}/rotinas/novo?studentId=${encodeURIComponent(
+                student.membershipPublicId || student.userPublicId
+              )}&studentName=${encodeURIComponent(student.name)}`;
+
+              // No celular esconde o terceiro para limitar em 2
+              const isThird = idx === 2;
+              if (isMobileLayout && isThird) return null;
+
+              return (
+                <Link
+                  key={student.membershipPublicId || student.userPublicId}
+                  href={studentHref}
+                  prefetch={false}
+                  className={`group flex items-center justify-between p-3 sm:p-3.5 hover:bg-[#F9FAF8] transition-colors cursor-pointer select-none min-h-[44px] ${
+                    isThird ? "hidden sm:flex" : "flex"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {student.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={student.avatarUrl}
+                        alt={student.name}
+                        className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#E2E6DF]"
+                      />
+                    ) : (
+                      <div
+                        aria-hidden="true"
+                        className="w-9 h-9 rounded-full bg-[#EBF3ED] text-[#176B49] font-bold text-xs flex items-center justify-center shrink-0 border border-emerald-900/10 select-none"
+                      >
+                        {getInitials(student.name)}
+                      </div>
+                    )}
+
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-[#1E2922] group-hover:text-[#176B49] transition-colors truncate">
+                        {student.name}
+                      </p>
+                      <p className="text-[11px] text-[#526058] mt-0.5 font-medium truncate">
+                        {formatMemberSince(student.joinedAt)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Ação discreta "Criar →" */}
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#176B49]/10 text-[#176B49] group-hover:bg-[#176B49] group-hover:text-white transition-colors shrink-0 flex items-center gap-1 select-none pointer-events-none">
+                    <span>Criar</span>
+                    <span aria-hidden="true">→</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Rodapé: "Ver todas as pendências →" próximo às linhas */}
+          <div className="pt-0.5 flex justify-end">
+            <Link
+              href={`/consultoria/${consultancySlug}/progresso/alunos?filter=without_workout`}
+              prefetch={false}
+              className="text-xs font-bold text-[#176B49] hover:text-[#064E3B] hover:underline inline-flex items-center gap-1 min-h-[44px]"
+            >
+              <span>Ver todas as pendências</span>
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+
+  // 2. WIDGET RASCUNHO (Card fotográfico contextual na coluna direita)
+  const renderRascunho = () => (
+    <section
+      aria-label="Rascunho de treino em andamento"
+      className="relative overflow-hidden rounded-2xl bg-[#102E23] border border-[#163E27] shadow-xs text-white p-4 sm:p-5 flex flex-col justify-between gap-3.5 min-h-[160px] sm:min-h-[175px]"
+    >
+      {/* Fotografia real contextual com degradê equilibrado e visibilidade nítida */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/images/student/workout-editorial.webp"
+        alt="Fotografia contextual de treino"
+        className="absolute inset-0 w-full h-full object-cover opacity-35 pointer-events-none select-none"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#102E23] via-[#102E23]/70 to-[#102E23]/30 pointer-events-none" />
+
+      <div className="relative z-10 space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/10 text-emerald-300 backdrop-blur-xs border border-white/15 tracking-wider uppercase">
+            Rascunho
+          </span>
+          <span className="text-[11px] text-emerald-200/80 font-medium">
+            {primaryDraft ? formatEditedDate(primaryDraft.updatedAt) : "Pronto para iniciar"}
+          </span>
+        </div>
+
+        <div>
+          <h3 className="text-base sm:text-lg font-black text-white tracking-tight leading-snug line-clamp-2 drop-shadow-sm">
+            {primaryDraft ? primaryDraft.title : "Nenhum rascunho em andamento"}
+          </h3>
+          <p className="text-xs text-emerald-200/90 font-medium mt-0.5">
+            {primaryDraft
+              ? `${primaryDraft.blocksCount || 0} ${primaryDraft.blocksCount === 1 ? "bloco cadastrado" : "blocos cadastrados"}`
+              : "Inicie a elaboração de uma nova ficha."}
+          </p>
+        </div>
+      </div>
+
+      {/* Botão premium não-luminoso */}
+      <div className="relative z-10 pt-1">
+        <Link
+          href={
+            primaryDraft
+              ? `/consultoria/${consultancySlug}/rotinas/${primaryDraft.publicId}/editor`
+              : `/consultoria/${consultancySlug}/rotinas/novo`
+          }
+          prefetch={false}
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs bg-[#FFFEFA] text-[#102E23] hover:bg-emerald-50 shadow-xs transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px]"
+        >
+          <span>{primaryDraft ? "Retomar edição" : "Criar treino"}</span>
+          <ArrowRightIcon className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+    </section>
+  );
+
+  // 3. WIDGET FINANCEIRO (Compacto, altura adaptada ao conteúdo real)
+  const renderFinanceiro = () => (
+    <section
+      aria-label="Resumo financeiro"
+      className="bg-[#F2F8F4] border border-[#DCEEE3] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between gap-2.5"
+    >
+      <div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-emerald-600/10 text-[#176B49]">
+              <CurrencyIcon className="w-4 h-4" />
+            </span>
+            <span className="text-xs font-bold text-[#176B49] uppercase tracking-wider">
+              Financeiro
+            </span>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100/80 text-emerald-800 border border-emerald-200/60">
+            Autorizado
+          </span>
+        </div>
+
+        <div className="mt-2">
+          <p className="text-[11px] font-medium text-[#176B49]/80">
+            Total a receber
+          </p>
+          <p className="text-2xl font-black text-[#102E23] tracking-tight tabular-nums mt-0.5 font-sans">
+            {toReceiveFormatted}
+          </p>
+        </div>
+
+        {/* Linha enxuta de cobrança (sem caixas vazias gigantes) */}
+        <div className="mt-2.5 pt-2 border-t border-emerald-900/10 space-y-1">
+          {upcomingChargesList.length > 0 ? (
+            upcomingChargesList.map((ch, idx) => (
+              <div
+                key={ch.id || idx}
+                className="flex items-center justify-between text-xs py-1"
+              >
+                <div className="min-w-0">
+                  <span className="font-bold text-[#102E23] truncate">{ch.studentName}</span>
+                  <span className="text-[11px] text-[#176B49] ml-1.5">· Vence em {ch.dueDate}</span>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="font-bold text-[#102E23] tabular-nums">{ch.amountFormatted}</span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs text-[#176B49]/80 italic py-0.5">
+              Nenhuma cobrança com vencimento próximo.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Ação discreta "Abrir financeiro →" */}
+      <div className="pt-1 border-t border-emerald-900/10 flex justify-end">
+        <Link
+          href={`/consultoria/${consultancySlug}/financeiro`}
+          prefetch={false}
+          className="min-h-[44px] inline-flex items-center gap-1 text-xs font-bold text-[#176B49] hover:text-[#064E3B] hover:underline transition-colors"
+        >
+          <span>Abrir financeiro</span>
+          <span aria-hidden="true">→</span>
+        </Link>
+      </div>
+    </section>
+  );
+
+  // 4. WIDGET SATISFAÇÃO (Faixa horizontal discreta ocupando a largura disponível)
+  const renderSatisfacao = () => (
+    <section
+      aria-label="Satisfação dos alunos"
+      className="w-full bg-[#FFFEFA] border border-[#E2E6DF] rounded-2xl p-3.5 sm:p-4 shadow-xs"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="p-2 rounded-xl bg-emerald-50 text-[#176B49] border border-emerald-100 flex items-center justify-center shrink-0">
+            <StarIcon className="w-4 h-4 text-amber-500" />
+          </span>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[#1E2922] uppercase tracking-wider">
+                Satisfação
+              </span>
+              <span className="text-[10px] font-semibold text-[#64748B] px-1.5 py-0.2 rounded bg-gray-50 border border-gray-200">
+                Avaliações
+              </span>
+            </div>
+
+            {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 ? (
+              <p className="text-xs sm:text-sm text-[#1E2922] font-bold mt-0.5">
+                {satisfactionData.averageRating.toFixed(1).replace(".", ",")}/5 · Baseado em {satisfactionData.totalReviews} avaliações reais
+              </p>
+            ) : (
+              <p className="text-xs text-[#526058] font-medium mt-0.5 truncate">
+                Ainda sem avaliações · As avaliações dos alunos aparecerão aqui.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Status secundário na direita (desktop) */}
+        <div className="hidden sm:block shrink-0">
+          {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 ? (
+            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-full">
+              Índice consolidado
+            </span>
+          ) : (
+            <span className="text-[11px] text-[#64748B] font-medium">
+              Aguardando avaliações
+            </span>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+
   return (
-    <div className="w-full max-w-[1240px] 2xl:max-w-[1340px] mx-auto space-y-5 sm:space-y-6 pb-6">
+    <div className="w-full max-w-[1240px] 2xl:max-w-[1340px] mx-auto space-y-4 sm:space-y-5 pb-6">
       {/* ============================================================== */}
       {/* 1. CABEÇALHO OBJETIVO (DESKTOP & CELULAR)                      */}
       {/* ============================================================== */}
@@ -236,306 +525,41 @@ export function DashboardPersonalView({
       />
 
       {/* ============================================================== */}
-      {/* 2. GRID ASSIMÉTRICO ADAPTADO AO CONTEÚDO                       */}
-      {/* DESKTOP:                                                       */}
-      {/*   Linha 1: Pendências (esq. 58%) + Rascunho com foto (dir. 42%)*/}
-      {/*   Linha 2: Financeiro (esq. 58%) + Satisfação (dir. 42%)       */}
-      {/* CELULAR:                                                       */}
-      {/*   1. Pendências -> 2. Rascunho -> 3. Financeiro -> 4. Satisf.  */}
+      {/* 2. NOVO GRID DESKTOP (lg+)                                     */}
+      {/* Coluna Esquerda (58%): Pendências                              */}
+      {/* Coluna Direita (42%): Rascunho (em cima) + Financeiro (embaixo)*/}
       {/* ============================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
-        {/* ============================================================ */}
-        {/* WIDGET 1: PENDÊNCIAS (Desktop: Linha 1 Esq. | Mobile: 1º)    */}
-        {/* ============================================================ */}
-        <div className="order-1 lg:order-none lg:col-span-7">
-          <section
-            aria-label="Pendências de atendimento"
-            className="bg-[#FFFEFA] border border-[#E2E6DF] rounded-2xl shadow-xs p-5 sm:p-6 space-y-4"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-base sm:text-lg font-bold text-[#1E2922] leading-tight font-sans">
-                  Pendências
-                </h2>
-                <p className="text-xs text-[#526058] mt-0.5 font-medium">
-                  Alunos sem treino ativo
-                </p>
-              </div>
-
-              {sortedStudents.length > 0 ? (
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200/80 shrink-0">
-                  {sortedStudents.length} {sortedStudents.length === 1 ? "pendência" : "pendências"}
-                </span>
-              ) : (
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#176B49] border border-emerald-200/80 shrink-0">
-                  100% atendidos
-                </span>
-              )}
-            </div>
-
-            {sortedStudents.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[#E2E6DF] p-5 text-center bg-[#F9F9F6]">
-                <p className="text-sm font-bold text-[#1E2922]">
-                  Nenhum aluno sem treino ativo
-                </p>
-                <p className="text-xs text-[#526058] mt-1">
-                  Todos os alunos cadastrados estão com fichas vigentes.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {/* Linhas de alunos: Até 3 no desktop, até 2 no celular */}
-                <div className="divide-y divide-[#E2E6DF] border border-[#E2E6DF] rounded-xl overflow-hidden">
-                  {visibleStudents.map((student, idx) => {
-                    const studentHref = `/consultoria/${consultancySlug}/rotinas/novo?studentId=${encodeURIComponent(
-                      student.membershipPublicId || student.userPublicId
-                    )}&studentName=${encodeURIComponent(student.name)}`;
-
-                    const isThirdOnMobile = idx === 2;
-
-                    return (
-                      <Link
-                        key={student.membershipPublicId || student.userPublicId}
-                        href={studentHref}
-                        prefetch={false}
-                        className={`group items-center justify-between p-3 sm:p-3.5 hover:bg-[#F9FAF8] transition-colors cursor-pointer select-none min-h-[44px] ${
-                          isThirdOnMobile ? "hidden sm:flex" : "flex"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          {student.avatarUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={student.avatarUrl}
-                              alt={student.name}
-                              className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#E2E6DF]"
-                            />
-                          ) : (
-                            <div
-                              aria-hidden="true"
-                              className="w-9 h-9 rounded-full bg-[#EBF3ED] text-[#176B49] font-bold text-xs flex items-center justify-center shrink-0 border border-emerald-900/10 select-none"
-                            >
-                              {getInitials(student.name)}
-                            </div>
-                          )}
-
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-[#1E2922] group-hover:text-[#176B49] transition-colors truncate">
-                              {student.name}
-                            </p>
-                            <p className="text-[11px] text-[#526058] mt-0.5 font-medium truncate">
-                              {formatMemberSince(student.joinedAt)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Ação discreta "Criar →" */}
-                        <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#176B49]/10 text-[#176B49] group-hover:bg-[#176B49] group-hover:text-white transition-colors shrink-0 flex items-center gap-1 select-none pointer-events-none">
-                          <span>Criar</span>
-                          <span aria-hidden="true">→</span>
-                        </span>
-                      </Link>
-                    );
-                  })}
-                </div>
-
-                {/* Rodapé: "Ver todas as pendências →" */}
-                <div className="pt-1 flex justify-end">
-                  <Link
-                    href={`/consultoria/${consultancySlug}/progresso/alunos?filter=without_workout`}
-                    prefetch={false}
-                    className="text-xs font-bold text-[#176B49] hover:text-[#064E3B] hover:underline inline-flex items-center gap-1.5 min-h-[44px]"
-                  >
-                    <span>Ver todas as pendências</span>
-                    <span aria-hidden="true">→</span>
-                  </Link>
-                </div>
-              </div>
-            )}
-          </section>
+      <div className="hidden lg:grid lg:grid-cols-12 gap-5 items-start">
+        {/* Coluna Esquerda: Pendências */}
+        <div className="lg:col-span-7">
+          {renderPendencias(false)}
         </div>
 
-        {/* ============================================================ */}
-        {/* WIDGET 2: RASCUNHO (Desktop: Linha 1 Dir. | Mobile: 2º)      */}
-        {/* ============================================================ */}
-        <div className="order-2 lg:order-none lg:col-span-5">
-          <section
-            aria-label="Rascunho de treino em andamento"
-            className="relative overflow-hidden rounded-2xl bg-[#102E23] border border-[#163E27] shadow-xs text-white p-5 sm:p-6 flex flex-col justify-between gap-4 min-h-[200px]"
-          >
-            {/* Fotografia contextual real de academia com degradê equilibrado */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/student/workout-editorial.webp"
-              alt="Fotografia contextual de treino"
-              className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none select-none"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#102E23] via-[#102E23]/80 to-[#102E23]/35 pointer-events-none" />
-
-            <div className="relative z-10 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-white/10 text-emerald-300 backdrop-blur-xs border border-white/15 tracking-wider uppercase">
-                  Rascunho
-                </span>
-                <span className="text-[11px] text-emerald-200/80 font-medium">
-                  {primaryDraft ? formatEditedDate(primaryDraft.updatedAt) : "Pronto para iniciar"}
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-base sm:text-lg font-black text-white tracking-tight leading-snug line-clamp-2 drop-shadow-sm">
-                  {primaryDraft ? primaryDraft.title : "Nenhum rascunho em andamento"}
-                </h3>
-                <p className="text-xs text-emerald-200/90 font-medium mt-1">
-                  {primaryDraft
-                    ? `${primaryDraft.blocksCount || 0} ${primaryDraft.blocksCount === 1 ? "bloco cadastrado" : "blocos cadastrados"}`
-                    : "Inicie a elaboração de uma nova ficha."}
-                </p>
-              </div>
-            </div>
-
-            {/* Botão premium não-luminoso (branco com texto verde-floresta) */}
-            <div className="relative z-10 pt-2">
-              <Link
-                href={
-                  primaryDraft
-                    ? `/consultoria/${consultancySlug}/rotinas/${primaryDraft.publicId}/editor`
-                    : `/consultoria/${consultancySlug}/rotinas/novo`
-                }
-                prefetch={false}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#FFFEFA] text-[#102E23] hover:bg-emerald-50 shadow-xs transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px] w-full sm:w-auto"
-              >
-                <span>{primaryDraft ? "Retomar edição" : "Criar treino"}</span>
-                <ArrowRightIcon className="w-4 h-4" />
-              </Link>
-            </div>
-          </section>
+        {/* Coluna Direita: Rascunho + Financeiro empilhados */}
+        <div className="lg:col-span-5 flex flex-col gap-4">
+          {renderRascunho()}
+          {hasFinanceAccess && renderFinanceiro()}
         </div>
+      </div>
 
-        {/* ============================================================ */}
-        {/* WIDGET 3: FINANCEIRO (Desktop: Linha 2 Esq. | Mobile: 3º)    */}
-        {/* ============================================================ */}
-        {hasFinanceAccess && (
-          <div className="order-3 lg:order-none lg:col-span-7">
-            <section
-              aria-label="Resumo financeiro"
-              className="bg-[#F2F8F4] border border-[#DCEEE3] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-emerald-600/10 text-[#176B49]">
-                      <CurrencyIcon className="w-4 h-4" />
-                    </span>
-                    <span className="text-xs font-bold text-[#176B49] uppercase tracking-wider">
-                      Financeiro
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100/80 text-emerald-800 border border-emerald-200/60">
-                    Autorizado
-                  </span>
-                </div>
+      {/* ============================================================== */}
+      {/* 3. FLUXO ESPECÍFICO MOBILE (< lg)                              */}
+      {/* 1. Cabeçalho (acima)                                           */}
+      {/* 2. Pendências (2 alunos)                                       */}
+      {/* 3. Rascunho compacto                                           */}
+      {/* 4. Financeiro resumido                                         */}
+      {/* ============================================================== */}
+      <div className="flex flex-col gap-3.5 lg:hidden">
+        {renderPendencias(true)}
+        {renderRascunho()}
+        {hasFinanceAccess && renderFinanceiro()}
+      </div>
 
-                <div className="mt-2.5">
-                  <p className="text-[11px] font-medium text-[#176B49]/80">
-                    Total a receber
-                  </p>
-                  <p className="text-2xl sm:text-3xl font-black text-[#102E23] tracking-tight tabular-nums mt-0.5 font-sans">
-                    {toReceiveFormatted}
-                  </p>
-                </div>
-
-                {/* Próximas cobranças com separadores finos (apenas dados reais) */}
-                <div className="mt-3 pt-2.5 border-t border-emerald-900/10 space-y-1.5">
-                  <p className="text-[10px] font-bold text-[#176B49] uppercase tracking-wider">
-                    Próximas cobranças da consultoria
-                  </p>
-                  {upcomingChargesList.length > 0 ? (
-                    upcomingChargesList.map((ch, idx) => (
-                      <div
-                        key={ch.id || idx}
-                        className="flex items-center justify-between text-xs py-1.5 border-b border-emerald-900/10 last:border-none"
-                      >
-                        <div className="min-w-0">
-                          <p className="font-bold text-[#102E23] truncate">{ch.studentName}</p>
-                          <p className="text-[11px] text-[#176B49]">Vence em {ch.dueDate}</p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-bold text-[#102E23] tabular-nums">{ch.amountFormatted}</p>
-                          <span className="text-[9px] font-semibold text-amber-800 bg-amber-100/80 px-1.5 py-0.2 rounded border border-amber-200/60">
-                            Pendente
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-xs text-[#176B49]/80 italic py-1">
-                      Nenhuma cobrança com vencimento próximo.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Ação discreta "Abrir financeiro →" */}
-              <div className="pt-2 border-t border-emerald-900/10 flex justify-end">
-                <Link
-                  href={`/consultoria/${consultancySlug}/financeiro`}
-                  prefetch={false}
-                  className="min-h-[44px] inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#176B49] hover:text-[#064E3B] hover:underline transition-colors"
-                >
-                  <span>Abrir financeiro</span>
-                  <span aria-hidden="true">→</span>
-                </Link>
-              </div>
-            </section>
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* WIDGET 4: SATISFAÇÃO (Desktop: Linha 2 Dir. | Mobile: 4º)    */}
-        {/* ============================================================ */}
-        <div className={`order-4 lg:order-none ${hasFinanceAccess ? "lg:col-span-5" : "lg:col-span-5"}`}>
-          <section
-            aria-label="Satisfação dos alunos"
-            className="bg-[#FFFEFA] border border-[#E2E6DF] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-emerald-50 text-[#176B49] border border-emerald-100">
-                    <StarIcon className="w-4 h-4 text-amber-500" />
-                  </span>
-                  <span className="text-xs font-bold text-[#1E2922] uppercase tracking-wider">
-                    Satisfação
-                  </span>
-                </div>
-                <span className="text-[10px] font-semibold text-[#64748B] px-2 py-0.5 rounded bg-gray-50 border border-gray-200">
-                  Avaliações
-                </span>
-              </div>
-
-              {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 ? (
-                <div className="mt-3">
-                  <p className="text-2xl sm:text-3xl font-black text-[#1E2922] tracking-tight tabular-nums font-sans">
-                    {satisfactionData.averageRating.toFixed(1).replace(".", ",")}/5
-                  </p>
-                  <p className="text-xs text-[#526058] font-medium mt-0.5">
-                    Baseado em {satisfactionData.totalReviews} avaliações reais
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-3 py-1 space-y-0.5">
-                  <p className="text-sm font-bold text-[#1E2922]">
-                    Ainda sem avaliações
-                  </p>
-                  <p className="text-xs text-[#526058] leading-relaxed">
-                    As avaliações dos alunos aparecerão aqui.
-                  </p>
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
+      {/* ============================================================== */}
+      {/* 4. SATISFAÇÃO: FAIXA HORIZONTAL DISCRETA ABAIXO DAS ÁREAS      */}
+      {/* ============================================================== */}
+      <div className="w-full">
+        {renderSatisfacao()}
       </div>
     </div>
   );

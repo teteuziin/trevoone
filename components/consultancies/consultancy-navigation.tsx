@@ -1317,7 +1317,11 @@ export function ConsultancyNavigation({
               aria-controls="mobile-navigation-drawer"
               className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                 isMoreButtonActive
-                  ? isDarkOverview ? "text-[#065F46] dark:text-[#10B981]" : "text-[var(--brand)]"
+                  ? isTrainerRefined
+                    ? "text-[#176B49]"
+                    : isDarkOverview ? "text-[#065F46] dark:text-[#10B981]" : "text-[var(--brand)]"
+                  : isTrainerRefined
+                  ? "text-[#64748B] hover:text-[#1E2922]"
                   : isDarkOverview ? "text-[#4B5563] hover:text-[#17191D] dark:text-[#C2C8CF] dark:hover:text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
@@ -1351,20 +1355,28 @@ export function ConsultancyNavigation({
               <span
                 className={`text-[11px] tracking-tight truncate max-w-full leading-none mt-1 text-center shrink-0 transition-colors duration-150 ${
                   isMoreButtonActive
-                    ? isDarkOverview ? "font-bold text-[#065F46] dark:text-[#10B981]" : "font-bold text-[var(--brand)]"
+                    ? isTrainerRefined
+                      ? "font-bold text-[#176B49]"
+                      : isDarkOverview ? "font-bold text-[#065F46] dark:text-[#10B981]" : "font-bold text-[var(--brand)]"
+                    : isTrainerRefined
+                    ? "font-medium text-[#64748B] group-hover:text-[#1E2922]"
                     : isDarkOverview ? "font-medium text-[#4B5563] group-hover:text-[#17191D] dark:text-[#C2C8CF] dark:group-hover:text-white" : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                 }`}
               >
                 Mais
               </span>
-              {isMoreButtonActive && (
+              {isMoreButtonActive ? (
                 <span
-                  className={`w-1 h-1 rounded-full mt-0.5 shrink-0 ${
-                    isDarkOverview ? "bg-[#065F46] dark:bg-[#10B981]" : "bg-[var(--brand)]"
+                  className={`shrink-0 ${
+                    isTrainerRefined
+                      ? "w-6 h-[3px] rounded-full bg-[#176B49] mt-1"
+                      : isDarkOverview ? "w-1 h-1 rounded-full mt-0.5 bg-[#065F46] dark:bg-[#10B981]" : "w-1 h-1 rounded-full mt-0.5 bg-[var(--brand)]"
                   }`}
                   aria-hidden="true"
                 />
-              )}
+              ) : isTrainerRefined ? (
+                <span className="w-6 h-[3px] mt-1 opacity-0 shrink-0 select-none" aria-hidden="true" />
+              ) : null}
             </button>
           </div>
         </nav>

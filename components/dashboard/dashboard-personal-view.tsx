@@ -224,7 +224,7 @@ export function DashboardPersonalView({
   const renderPendencias = (isMobileLayout = false) => (
     <section
       aria-label="Pendências de atendimento"
-      className="bg-[#FFFEFA] border border-[#E2E6DF] rounded-2xl shadow-xs p-4 sm:p-5 space-y-3.5"
+      className="bg-white border border-[#E2E6DF] rounded-2xl shadow-xs p-4 sm:p-5 space-y-3.5"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -299,8 +299,10 @@ export function DashboardPersonalView({
                       <p className="text-sm font-bold text-[#1E2922] group-hover:text-[#176B49] transition-colors truncate">
                         {student.name}
                       </p>
-                      <p className="text-[11px] text-[#526058] mt-0.5 font-medium truncate">
-                        {formatMemberSince(student.joinedAt)}
+                      <p className="text-[11px] text-rose-700 font-semibold mt-0.5 flex items-center gap-1.5 truncate">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" aria-hidden="true" />
+                        <span>Sem treino ativo</span>
+                        <span className="text-[#64748B] font-normal">· {formatMemberSince(student.joinedAt)}</span>
                       </p>
                     </div>
                   </div>
@@ -459,7 +461,7 @@ export function DashboardPersonalView({
   const renderSatisfacao = () => (
     <section
       aria-label="Satisfação dos alunos"
-      className="w-full bg-[#FFFEFA] border border-[#E2E6DF] rounded-2xl p-3.5 sm:p-4 shadow-xs"
+      className="w-full bg-white border border-[#E2E6DF] rounded-2xl p-3.5 sm:p-4 shadow-xs"
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
         <div className="flex items-center gap-3 min-w-0">
@@ -506,7 +508,7 @@ export function DashboardPersonalView({
   );
 
   return (
-    <div className="w-full max-w-[1240px] 2xl:max-w-[1340px] mx-auto space-y-4 sm:space-y-5 pb-6">
+    <div className="w-full max-w-[1240px] 2xl:max-w-[1340px] mx-auto space-y-4 sm:space-y-5 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-8">
       {/* ============================================================== */}
       {/* 1. CABEÇALHO OBJETIVO (DESKTOP & CELULAR)                      */}
       {/* ============================================================== */}

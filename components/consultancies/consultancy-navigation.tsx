@@ -769,8 +769,10 @@ export function ConsultancyNavigation({
             href={baseSlugHref}
             prefetch={false}
             className={`flex items-center gap-3 p-2 rounded-xl ${
-              isDarkOverview
-                ? "hover:bg-[#E5E7EB] dark:hover:bg-[#1B1D21] border border-transparent hover:border-[#D1D5DB] dark:hover:border-[#303238]"
+              isTrainerRefined
+                ? "hover:bg-white/5 border border-transparent hover:border-white/10"
+                : isDarkOverview
+                ? "hover:bg-[#E5E7EB] dark:hover:bg-[#1B1D21] border border-transparent hover:border-[#D1D5DB] dark:border-[#303238]"
                 : "hover:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-default)]"
             } transition-all group focus-visible:outline-2 focus-visible:outline-[var(--brand)] depth-interactive`}
           >
@@ -791,7 +793,11 @@ export function ConsultancyNavigation({
                   {roleLabels.map((lbl) => (
                     <span
                       key={lbl}
-                      className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded ${getRoleBadgeColor(lbl)} uppercase tracking-wider`}
+                      className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                        isTrainerRefined
+                          ? "bg-emerald-400/20 text-emerald-200 border border-emerald-400/30"
+                          : getRoleBadgeColor(lbl)
+                      } uppercase tracking-wider`}
                     >
                       {lbl}
                     </span>
@@ -1081,7 +1087,9 @@ export function ConsultancyNavigation({
           ========================================================================= */}
       <header
         className={`hidden md:flex lg:hidden sticky top-0 z-30 w-full max-w-full min-w-0 ${
-          isDarkOverview
+          isTrainerRefined
+            ? "bg-[#FBFBF9]/95 backdrop-blur border-b border-[#E7E9E3] text-[#1E2922]"
+            : isDarkOverview
             ? "bg-[#F9FAFB] dark:bg-[#111215] border-b border-[#E5E7EB] dark:border-[#303238] text-[#17191D] dark:text-white"
             : "bg-[var(--surface)] border-b border-[var(--border-default)]"
         } shadow-2xs print:hidden transition-colors border-specular-t`}
@@ -1122,10 +1130,14 @@ export function ConsultancyNavigation({
                   aria-current={active ? "page" : undefined}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl border transition-all depth-interactive ${
                     active
-                      ? isDarkOverview
+                      ? isTrainerRefined
+                        ? "bg-[#E8F5E9] text-[#064E3B] border-[#176B49] shadow-xs font-bold"
+                        : isDarkOverview
                         ? "bg-[#E5E7EB] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
                         : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                      : isDarkOverview
+                      : isTrainerRefined
+                        ? "text-[#64748B] hover:text-[#1E2922] hover:bg-black/5 border-transparent font-medium"
+                        : isDarkOverview
                         ? "text-[#4B5563] hover:text-[#17191D] hover:bg-[#F3F4F6] dark:text-[#C2C8CF] dark:hover:text-white dark:hover:bg-[#1B1D21] border-transparent font-medium"
                         : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent font-medium"
                   }`}
@@ -1133,7 +1145,7 @@ export function ConsultancyNavigation({
                   <NavIcon name={item.iconName} />
                   <span>{item.mobileLabel || item.label}</span>
                   {active && (
-                    <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${isTrainerRefined ? "bg-[#176B49]" : isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
                   )}
                 </Link>
               );

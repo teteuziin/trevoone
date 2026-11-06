@@ -39,13 +39,14 @@ export function PersonalHeader({
       {/* alinhados verticalmente, sem duplicações da barra lateral.     */}
       {/* ============================================================== */}
       <div className="flex items-center justify-between gap-3 pt-1 pb-1 sm:pb-2">
-        <h1 className="text-2xl sm:text-3xl font-black text-[#176B49] tracking-tight leading-none font-sans">
+        <h1 className="text-2xl sm:text-3xl font-black text-[#102E23] tracking-tight leading-none font-sans">
           Início
         </h1>
 
         <Link
           href={`/consultoria/${consultancySlug}/rotinas/novo`}
           prefetch={false}
+          aria-label="Criar novo treino"
           className="min-h-[44px] px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#176B49] hover:bg-[#135A3D] text-white flex items-center justify-center gap-1.5 sm:gap-2 shadow-xs transition-colors shrink-0 select-none cursor-pointer active:translate-y-[1px]"
         >
           <PlusIcon className="w-4 h-4" />

@@ -35,7 +35,11 @@ import { getStudentOwnProgressHistory } from "@/lib/consultancies/progress";
 import { getStudentPhotoEvaluationsData } from "@/lib/consultancies/photo-evaluations";
 import { listInfluencerMissions } from "@/lib/consultancies/missions";
 import { getReferrerDashboardData } from "@/lib/referrals/service";
-import { listPersonalStudents } from "@/lib/consultancies/personal-student-hub";
+import {
+  listPersonalStudents,
+  computePersonalTrainingMetrics,
+  getPersonalAssessmentsCount,
+} from "@/lib/consultancies/personal-student-hub";
 import dynamic from "next/dynamic";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { listUnreadAnnouncementsForUser } from "@/lib/consultancies/announcements";
@@ -236,13 +240,18 @@ export default async function ConsultancyPage({ params }: PageProps) {
           const tz = context.consultancyTimezone || "America/Sao_Paulo";
           const todayDateStr = getConsultancyLocalDate(tz, new Date());
 
-          const [res, personalStudents, upcomingConsultations] = await Promise.all([
+          const [res, personalStudents, upcomingConsultations, assessmentStats] = await Promise.all([
             listWorkoutsForProfessional(tCtx, { limit: 50 }),
             listPersonalStudents({ consultancyId: context.consultancyId }).catch(() => null),
             context.membershipId
               ? listUpcomingConsultationsForProfessional(context.consultancyId, context.membershipId, 50).catch(() => null)
               : Promise.resolve(null),
+            getPersonalAssessmentsCount(context.consultancyId).catch(() => ({ pendingAssessmentsCount: 0, completedAssessmentsCount: 0 })),
           ]);
+
+          const trainingMetrics = personalStudents
+            ? computePersonalTrainingMetrics(personalStudents, todayDateStr)
+            : null;
 
           const todayConsultations = upcomingConsultations
             ? upcomingConsultations
@@ -289,6 +298,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
             prescribedBlocksCount,
             todayConsultations,
             studentsWithoutWorkout,
+            trainingMetrics,
+            assessmentStats,
             items: res.items.map((w) => ({
               publicId: w.publicId,
               title: w.title,
@@ -826,6 +837,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
             prescribedBlocksCount={personalPlansResult?.prescribedBlocksCount}
             studentsWithoutWorkout={personalPlansResult?.studentsWithoutWorkout || []}
             todayConsultations={personalPlansResult?.todayConsultations ?? null}
+            trainingMetrics={personalPlansResult?.trainingMetrics}
+            assessmentStats={personalPlansResult?.assessmentStats}
             financeSummary={personalFinanceResult}
           />
         )}

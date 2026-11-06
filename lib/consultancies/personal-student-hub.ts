@@ -52,6 +52,7 @@ export interface PersonalStudentSummary {
   latestWorkoutStatus: string | null;
   latestAssignmentStatus: "ACTIVE" | "ENDED" | null;
   latestAssignmentStartsOn: string | null;
+  latestAssignmentEndsOn?: string | null;
   activeNutritionPlanTitle?: string | null;
   activeNutritionPlanPublicId?: string | null;
   activeNutritionVersionPublicId?: string | null;
@@ -268,6 +269,7 @@ export async function listPersonalStudents(params: {
           COALESCE(w.status, wv.status) AS latest_workout_status,
           latest_wa.status AS latest_assignment_status,
           latest_wa.starts_on AS latest_assignment_starts_on,
+          latest_wa.ends_on AS latest_assignment_ends_on,
           curr_nutri.plan_title AS active_nutrition_plan_title,
           curr_nutri.plan_public_id AS active_nutrition_plan_public_id,
           curr_nutri.version_public_id AS active_nutrition_version_public_id,
@@ -291,7 +293,8 @@ export async function listPersonalStudents(params: {
             wa.student_membership_id,
             wa.workout_version_id,
             wa.status,
-            wa.starts_on
+            wa.starts_on,
+            wa.ends_on
           FROM workout_assignments wa
           INNER JOIN (
             SELECT student_membership_id, MAX(id) AS max_id
@@ -346,6 +349,7 @@ export async function listPersonalStudents(params: {
         latestWorkoutStatus: r.latest_workout_status ? String(r.latest_workout_status) : null,
         latestAssignmentStatus: (r.latest_assignment_status as "ACTIVE" | "ENDED") || null,
         latestAssignmentStartsOn: r.latest_assignment_starts_on ? formatDateYmd(r.latest_assignment_starts_on) : null,
+        latestAssignmentEndsOn: r.latest_assignment_ends_on ? formatDateYmd(r.latest_assignment_ends_on) : null,
         activeNutritionPlanTitle: r.active_nutrition_plan_title ? String(r.active_nutrition_plan_title) : null,
         activeNutritionPlanPublicId: r.active_nutrition_plan_public_id ? String(r.active_nutrition_plan_public_id) : null,
         activeNutritionVersionPublicId: r.active_nutrition_version_public_id ? String(r.active_nutrition_version_public_id) : null,
@@ -1196,6 +1200,7 @@ export async function getPersonalStudentDetail(params: {
               wa.public_id AS assignment_public_id,
               wa.status AS assignment_status,
               wa.starts_on,
+            wa.ends_on,
               wa.ends_on,
               wa.notes_for_student,
               NULL AS custom_title,
@@ -1665,6 +1670,93 @@ export async function getPersonalStudentDetail(params: {
       };
     }
     return null;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+
+export interface PersonalTrainingMetrics {
+  totalStudents: number;
+  emDiaCount: number;
+  aVencerCount: number;
+  vencidosCount: number;
+  semTreinoCount: number;
+  emDiaPercent: number;
+}
+
+export function computePersonalTrainingMetrics(
+  students: PersonalStudentSummary[],
+  todayStr = new Date().toISOString().slice(0, 10)
+): PersonalTrainingMetrics {
+  const totalStudents = students.length;
+  let semTreinoCount = 0;
+  let vencidosCount = 0;
+  let aVencerCount = 0;
+  let emDiaCount = 0;
+
+  const today = new Date(todayStr);
+  const next7Days = new Date(today);
+  next7Days.setDate(next7Days.getDate() + 7);
+  const next7DaysStr = next7Days.toISOString().slice(0, 10);
+
+  for (const s of students) {
+    if (!s.latestWorkoutTitle || s.latestAssignmentStatus !== "ACTIVE") {
+      semTreinoCount++;
+    } else if (s.latestAssignmentEndsOn && s.latestAssignmentEndsOn < todayStr) {
+      vencidosCount++;
+    } else if (
+      s.latestAssignmentEndsOn &&
+      s.latestAssignmentEndsOn >= todayStr &&
+      s.latestAssignmentEndsOn <= next7DaysStr
+    ) {
+      aVencerCount++;
+    } else {
+      emDiaCount++;
+    }
+  }
+
+  const emDiaPercent = totalStudents > 0 ? Math.round((emDiaCount / totalStudents) * 100) : 0;
+
+  return {
+    totalStudents,
+    emDiaCount,
+    aVencerCount,
+    vencidosCount,
+    semTreinoCount,
+    emDiaPercent,
+  };
+}
+
+export async function getPersonalAssessmentsCount(consultancyId: number): Promise<{
+  pendingAssessmentsCount: number;
+  completedAssessmentsCount: number;
+}> {
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+         COUNT(CASE WHEN r.status = 'PENDING' OR r.status = 'SUBMITTED' THEN 1 END) AS pending_count,
+         COUNT(CASE WHEN r.status = 'REVIEWED' THEN 1 END) AS completed_count
+       FROM student_photo_evaluation_requests r
+       INNER JOIN consultancy_members cm ON cm.id = r.student_membership_id
+       WHERE cm.consultancy_id = ? AND r.deleted_at IS NULL;`,
+      [consultancyId]
+    ).catch(() => [[{ pending_count: 0, completed_count: 0 }]] as unknown as [RowDataPacket[]]);
+
+    const r = rows?.[0] || { pending_count: 0, completed_count: 0 };
+    return {
+      pendingAssessmentsCount: Number(r.pending_count || 0),
+      completedAssessmentsCount: Number(r.completed_count || 0),
+    };
+  } catch {
+    return {
+      pendingAssessmentsCount: 0,
+      completedAssessmentsCount: 0,
+    };
   } finally {
     if (connection) {
       connection.release();

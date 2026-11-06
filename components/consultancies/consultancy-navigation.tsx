@@ -756,56 +756,61 @@ export function ConsultancyNavigation({
       >
         {/* Top: Brand Header */}
         <div className={`p-4 border-b ${isTrainerRefined ? "border-[#163E27]" : "border-[#E5E7EB] dark:border-[#303238]"} shrink-0`}>
-          {isTrainerRefined && (
-            <div className="flex items-center gap-2 px-1 mb-3.5 select-none">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/trevo-one-logo.png" alt="Trevo One" className="w-5 h-5 object-contain" />
-              <span className="font-bold text-sm tracking-tight text-white font-sans">
-                Trevo <span className="text-emerald-400">One</span>
-              </span>
+          {isTrainerRefined ? (
+            <div className="space-y-3 px-1 select-none">
+              <div className="flex items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/trevo-one-logo.png" alt="Trevo One" className="w-5 h-5 object-contain" />
+                <span className="font-bold text-base tracking-tight text-white font-sans">
+                  trevo<span className="text-emerald-400">.one</span>
+                </span>
+              </div>
+              <div className="pt-1">
+                <p className="text-[10px] font-bold text-emerald-300/60 uppercase tracking-widest font-heading">
+                  CONSULTORIA
+                </p>
+                <p className="text-sm font-bold text-white tracking-tight mt-0.5 truncate">
+                  {consultancyName}
+                </p>
+              </div>
             </div>
+          ) : (
+            <Link
+              href={baseSlugHref}
+              prefetch={false}
+              className={`flex items-center gap-3 p-2 rounded-xl ${
+                isDarkOverview
+                  ? "hover:bg-[#E5E7EB] dark:hover:bg-[#1B1D21] border border-transparent hover:border-[#D1D5DB] dark:border-[#303238]"
+                  : "hover:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-default)]"
+              } transition-all group focus-visible:outline-2 focus-visible:outline-[var(--brand)] depth-interactive`}
+            >
+              <ConsultancyLogo
+                logoUrl={consultancyLogoUrl}
+                name={consultancyName}
+                size={56}
+                clean={true}
+              />
+              <div className="min-w-0 flex-1">
+                <p className={`text-base font-bold tracking-tight ${
+                  isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"
+                } truncate leading-tight transition-colors`}>
+                  {consultancyName}
+                </p>
+                {roleLabels.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {roleLabels.map((lbl) => (
+                      <span
+                        key={lbl}
+                        className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded ${getRoleBadgeColor(lbl)} uppercase tracking-wider`}
+                      >
+                        {lbl}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Link>
           )}
-          <Link
-            href={baseSlugHref}
-            prefetch={false}
-            className={`flex items-center gap-3 p-2 rounded-xl ${
-              isTrainerRefined
-                ? "hover:bg-white/5 border border-transparent hover:border-white/10"
-                : isDarkOverview
-                ? "hover:bg-[#E5E7EB] dark:hover:bg-[#1B1D21] border border-transparent hover:border-[#D1D5DB] dark:border-[#303238]"
-                : "hover:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-default)]"
-            } transition-all group focus-visible:outline-2 focus-visible:outline-[var(--brand)] depth-interactive`}
-          >
-            <ConsultancyLogo
-              logoUrl={consultancyLogoUrl}
-              name={consultancyName}
-              size={56}
-              clean={true}
-            />
-            <div className="min-w-0 flex-1">
-              <p className={`text-base font-bold tracking-tight ${
-                isTrainerRefined ? "text-white" : isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"
-              } truncate leading-tight transition-colors`}>
-                {consultancyName}
-              </p>
-              {roleLabels.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  {roleLabels.map((lbl) => (
-                    <span
-                      key={lbl}
-                      className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                        isTrainerRefined
-                          ? "bg-emerald-400/20 text-emerald-200 border border-emerald-400/30"
-                          : getRoleBadgeColor(lbl)
-                      } uppercase tracking-wider`}
-                    >
-                      {lbl}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </Link>
 
           {/* Mode Switcher for Multi-Role on Desktop Sidebar */}
           {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.filter(o => o.isRealRole).length > 1 && viewModeState.allowedOptions.some(o => o.isRealRole && (o.mode === "PERSONAL" || o.mode === "ADMIN" || o.mode === "NUTRITIONIST")) && (
@@ -850,7 +855,7 @@ export function ConsultancyNavigation({
                       ? "text-emerald-300/60 uppercase tracking-widest text-[10px] font-bold"
                       : isDarkOverview ? "text-[#4B5563] dark:text-[#8E959E]" : "text-[var(--text-tertiary)]"
                   } uppercase tracking-wider px-3 mb-2 font-heading`}>
-                    {section.title}
+                    {isTrainerRefined ? "NAVEGAÇÃO" : section.title}
                   </p>
                 )}
                 {section.items.map((item) => {
@@ -1190,7 +1195,9 @@ export function ConsultancyNavigation({
           3. MOBILE TOPBAR (< 768px)
           ========================================================================= */}
       <header
-        className={`flex md:hidden sticky top-0 z-30 w-full max-w-full min-w-0 ${
+        className={`${
+          isTrainerRefined ? "hidden" : "flex md:hidden sticky top-0 z-30"
+        } w-full max-w-full min-w-0 ${
           isTrainerRefined
             ? "bg-[#FBFBF9]/95 backdrop-blur border-b border-[#E7E9E3] text-[#1E2922]"
             : isDarkOverview

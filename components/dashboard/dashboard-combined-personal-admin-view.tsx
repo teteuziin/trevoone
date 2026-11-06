@@ -41,6 +41,8 @@ interface DashboardCombinedPersonalAdminViewProps {
   studentsWithoutWorkout?: StudentWithoutWorkoutItem[];
   todayConsultations?: PersonalTodayConsultationItem[] | null;
   activeRoleMode?: ConsultancyPresentationMode;
+  trainingMetrics?: DashboardPersonalViewProps["trainingMetrics"];
+  assessmentStats?: DashboardPersonalViewProps["assessmentStats"];
   financeSummary?: DashboardPersonalViewProps["financeSummary"];
   satisfactionData?: DashboardPersonalViewProps["satisfactionData"];
 }
@@ -67,6 +69,8 @@ export function DashboardCombinedPersonalAdminView({
   studentsWithoutWorkout = [],
   todayConsultations = null,
   activeRoleMode,
+  trainingMetrics,
+  assessmentStats,
   financeSummary,
   satisfactionData,
 }: DashboardCombinedPersonalAdminViewProps) {
@@ -117,6 +121,8 @@ export function DashboardCombinedPersonalAdminView({
           studentsWithoutWorkout={studentsWithoutWorkout}
           todayConsultations={todayConsultations}
           hideRoleBadge={true}
+          trainingMetrics={trainingMetrics}
+          assessmentStats={assessmentStats}
           financeSummary={financeSummary}
           satisfactionData={satisfactionData}
         />

@@ -46,6 +46,20 @@ export interface PersonalTodayConsultationItem {
   href?: string;
 }
 
+export interface PersonalTrainingMetrics {
+  totalStudents: number;
+  semTreinoCount: number;
+  vencidosCount: number;
+  aVencerCount: number;
+  emDiaCount: number;
+  emDiaPercent: number;
+}
+
+export interface PersonalAssessmentStats {
+  pendingAssessmentsCount: number;
+  completedAssessmentsCount: number;
+}
+
 export interface DashboardPersonalViewProps {
   consultancySlug: string;
   consultancyName?: string;
@@ -67,6 +81,8 @@ export interface DashboardPersonalViewProps {
   studentsWithoutWorkout?: StudentWithoutWorkoutItem[];
   todayConsultations?: PersonalTodayConsultationItem[] | null;
   hideRoleBadge?: boolean;
+  trainingMetrics?: PersonalTrainingMetrics | null;
+  assessmentStats?: PersonalAssessmentStats | null;
   financeSummary?: PersonalFinanceIndicatorData & {
     upcomingCharges?: PersonalFinanceChargeItem[];
   };
@@ -82,22 +98,58 @@ function getInitials(name: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-function StarIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
-      />
-    </svg>
-  );
-}
-
 function DumbbellIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 5v14M18 5v14M4 8h2m-2 8h2m12-8h2m-2 8h2M6 12h12" />
+    </svg>
+  );
+}
+
+function UsersIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+    </svg>
+  );
+}
+
+function ClipboardIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+    </svg>
+  );
+}
+
+function RefreshCwIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+    </svg>
+  );
+}
+
+function XCircleIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+function AlertCircleIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
     </svg>
   );
 }
@@ -116,11 +168,22 @@ export function DashboardPersonalView({
   activeRoleMode,
   recentPlans,
   workouts,
+  totalPlans = 0,
+  totalWorkouts,
   totalStudents,
+  prescribedBlocksCount,
   studentsWithoutWorkout = [],
+  todayConsultations,
+  trainingMetrics,
+  assessmentStats,
   financeSummary,
   satisfactionData,
 }: DashboardPersonalViewProps) {
+  void prescribedBlocksCount;
+  void todayConsultations;
+  void totalWorkouts;
+  void totalPlans;
+
   // Normalização de treinos para identificar o rascunho mais recente
   const activeWorkouts = useMemo(() => workouts || recentPlans || [], [workouts, recentPlans]);
 
@@ -132,12 +195,12 @@ export function DashboardPersonalView({
         title: w.title,
         updatedAt: w.updatedAt ? new Date(w.updatedAt).toISOString() : null,
         draftVersionNumber: w.draftVersionNumber,
-        blocksCount: w.blocksCount || 4,
+        difficultyLevel: w.difficultyLevel,
+        blocksCount: w.blocksCount || 0,
       }));
   }, [activeWorkouts]);
 
   const primaryDraft = draftWorkouts[0] || null;
-  void totalStudents;
 
   // Ordenação determinística de alunos sem treino
   const sortedStudents = useMemo(() => {
@@ -151,6 +214,23 @@ export function DashboardPersonalView({
 
   // Lista inicial: até 3 alunos no desktop e até 2 alunos no celular
   const visibleStudents = useMemo(() => sortedStudents.slice(0, 3), [sortedStudents]);
+
+  // Indicadores de treinamento matematicamente consistentes
+  const computedMetrics: PersonalTrainingMetrics = useMemo(() => {
+    if (trainingMetrics) return trainingMetrics;
+    const total = totalStudents ?? sortedStudents.length;
+    const semTreino = sortedStudents.length;
+    const emDia = Math.max(0, total - semTreino);
+    const emDiaPercent = total > 0 ? Math.round((emDia / total) * 100) : 0;
+    return {
+      totalStudents: total,
+      semTreinoCount: semTreino,
+      vencidosCount: 0,
+      aVencerCount: 0,
+      emDiaCount: emDia,
+      emDiaPercent,
+    };
+  }, [trainingMetrics, totalStudents, sortedStudents.length]);
 
   // Indicadores de finanças com dados estritamente reais (sem simulações ou fallbacks falsos)
   const hasFinanceAccess = financeSummary?.hasAccess ?? false;
@@ -178,32 +258,394 @@ export function DashboardPersonalView({
   }, [upcomingChargesFromSummary]);
 
   // =========================================================================
-  // SUBCOMPONENTES ESTRUTURAIS — DIREÇÃO VISUAL APROVADA (4 WIDGETS)
+  // SUBCOMPONENTES ESTRUTURAIS — TREVO ONE 3.0 (PAINEL OPERACIONAL)
   // =========================================================================
 
-  // 1. CARD DE PENDÊNCIAS ("Precisam de atenção")
+  // 1. CARD PRINCIPAL: PROGRAMAS DE TREINO (COM DONUT SVG E STATUS)
+  const renderProgramasDeTreino = () => {
+    const total = computedMetrics.totalStudents;
+    const circumference = 238.761; // 2 * PI * 38
+
+    const emDiaLen = total > 0 ? (computedMetrics.emDiaCount / total) * circumference : 0;
+    const aVencerLen = total > 0 ? (computedMetrics.aVencerCount / total) * circumference : 0;
+    const vencidosLen = total > 0 ? (computedMetrics.vencidosCount / total) * circumference : 0;
+    const semTreinoLen = total > 0 ? (computedMetrics.semTreinoCount / total) * circumference : 0;
+
+    const emDiaOffset = 0;
+    const aVencerOffset = -emDiaLen;
+    const vencidosOffset = -(emDiaLen + aVencerLen);
+    const semTreinoOffset = -(emDiaLen + aVencerLen + vencidosLen);
+
+    return (
+      <section
+        aria-label="Programas de treino"
+        className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col justify-between h-full space-y-4"
+      >
+        <div>
+          {/* Cabeçalho do card com link */}
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div>
+              <h2 className="text-base sm:text-xl font-bold text-[#102E23] leading-tight font-sans">
+                Programas de treino
+              </h2>
+            </div>
+            <Link
+              href={`/consultoria/${consultancySlug}/rotinas`}
+              prefetch={false}
+              className="text-xs font-bold text-[#526058] hover:text-[#176B49] transition-colors flex items-center gap-1 select-none"
+              aria-label="Ver todas as rotinas"
+            >
+              <span className="text-sm">›</span>
+            </Link>
+          </div>
+
+          {/* Gráfico Donut + Status List */}
+          <div className="flex flex-row items-center gap-4 sm:gap-6">
+            {/* SVG Donut */}
+            <div className="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0 flex items-center justify-center">
+              <svg className="w-full h-full drop-shadow-xs" viewBox="0 0 100 100">
+                {/* Track */}
+                <circle cx="50" cy="50" r="38" stroke="#EAEFE9" strokeWidth="10" fill="none" />
+
+                {total > 0 ? (
+                  <g transform="rotate(-90 50 50)">
+                    {emDiaLen > 0 && (
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="38"
+                        stroke="#176B49"
+                        strokeWidth="10"
+                        fill="none"
+                        strokeDasharray={`${emDiaLen} ${circumference}`}
+                        strokeDashoffset={emDiaOffset}
+                        strokeLinecap={computedMetrics.emDiaCount === total ? "round" : "butt"}
+                      />
+                    )}
+                    {aVencerLen > 0 && (
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="38"
+                        stroke="#D97706"
+                        strokeWidth="10"
+                        fill="none"
+                        strokeDasharray={`${aVencerLen} ${circumference}`}
+                        strokeDashoffset={aVencerOffset}
+                      />
+                    )}
+                    {vencidosLen > 0 && (
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="38"
+                        stroke="#DC2626"
+                        strokeWidth="10"
+                        fill="none"
+                        strokeDasharray={`${vencidosLen} ${circumference}`}
+                        strokeDashoffset={vencidosOffset}
+                      />
+                    )}
+                    {semTreinoLen > 0 && (
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="38"
+                        stroke="#94A3B8"
+                        strokeWidth="10"
+                        fill="none"
+                        strokeDasharray={`${semTreinoLen} ${circumference}`}
+                        strokeDashoffset={semTreinoOffset}
+                      />
+                    )}
+                  </g>
+                ) : null}
+              </svg>
+
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span className="text-2xl sm:text-3xl font-black text-[#102E23] leading-none font-sans">
+                  {computedMetrics.emDiaPercent}%
+                </span>
+                <span className="text-[10px] font-bold text-[#6B7870] leading-tight mt-0.5 tracking-tight">
+                  Em dia
+                </span>
+              </div>
+            </div>
+
+            {/* Lista com os 4 status mutuamente exclusivos */}
+            <div className="flex-1 min-w-0 space-y-2 sm:space-y-2.5">
+              {/* Vencidos */}
+              <Link
+                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=expired`}
+                prefetch={false}
+                className="flex items-center justify-between text-xs sm:text-sm py-0.5 hover:opacity-80 transition-opacity"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-5 h-5 rounded-full bg-[#FDF2F2] border border-[#FECACA] text-[#DC2626] flex items-center justify-center shrink-0">
+                    <XCircleIcon className="w-3.5 h-3.5" />
+                  </span>
+                  <span className="text-[#4A5568] font-medium truncate">Vencidos</span>
+                </div>
+                <span className="font-bold text-[#102E23] tabular-nums ml-2">
+                  {computedMetrics.vencidosCount}
+                </span>
+              </Link>
+
+              {/* A vencer */}
+              <Link
+                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=expiring`}
+                prefetch={false}
+                className="flex items-center justify-between text-xs sm:text-sm py-0.5 hover:opacity-80 transition-opacity"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-5 h-5 rounded-full bg-[#FFFBEB] border border-[#FDE68A] text-[#D97706] flex items-center justify-center shrink-0">
+                    <RefreshCwIcon className="w-3.5 h-3.5" />
+                  </span>
+                  <span className="text-[#4A5568] font-medium truncate">A vencer</span>
+                </div>
+                <span className="font-bold text-[#102E23] tabular-nums ml-2">
+                  {computedMetrics.aVencerCount}
+                </span>
+              </Link>
+
+              {/* Em dia */}
+              <Link
+                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=active`}
+                prefetch={false}
+                className="flex items-center justify-between text-xs sm:text-sm py-0.5 hover:opacity-80 transition-opacity"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-5 h-5 rounded-full bg-[#EDF5F0] border border-[#C6E2D1] text-[#176B49] flex items-center justify-center shrink-0">
+                    <CheckCircleIcon className="w-3.5 h-3.5" />
+                  </span>
+                  <span className="text-[#102E23] font-semibold truncate">Em dia</span>
+                </div>
+                <span className="font-bold text-[#102E23] tabular-nums ml-2">
+                  {computedMetrics.emDiaCount}
+                </span>
+              </Link>
+
+              {/* Sem treino ativo */}
+              <Link
+                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=without_workout`}
+                prefetch={false}
+                className="flex items-center justify-between text-xs sm:text-sm py-0.5 hover:opacity-80 transition-opacity"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-5 h-5 rounded-full bg-[#F1F5F9] border border-[#E2E8F0] text-[#64748B] flex items-center justify-center shrink-0">
+                    <AlertCircleIcon className="w-3.5 h-3.5" />
+                  </span>
+                  <span className="text-[#4A5568] font-medium truncate">Sem treino ativo</span>
+                </div>
+                <span className="font-bold text-[#102E23] tabular-nums ml-2">
+                  {computedMetrics.semTreinoCount}
+                </span>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Nível de Satisfação integrado no rodapé */}
+        <div className="pt-3.5 border-t border-[#F0F2ED] flex items-center justify-between text-xs sm:text-sm">
+          <span className="text-[#526058] font-medium">Nível de Satisfação</span>
+          <div className="flex items-center gap-1.5">
+            {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 ? (
+              <>
+                <div className="flex items-center text-amber-500">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <svg
+                      key={star}
+                      className={`w-4 h-4 ${
+                        star <= Math.round(satisfactionData.averageRating || 0)
+                          ? "fill-amber-400 text-amber-400"
+                          : "fill-neutral-200 text-neutral-200"
+                      }`}
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  ))}
+                </div>
+                <span className="text-xs font-bold text-[#102E23] ml-1">
+                  {satisfactionData.averageRating.toFixed(1).replace(".", ",")}
+                </span>
+              </>
+            ) : (
+              <div className="flex items-center gap-1">
+                <div className="flex items-center text-[#CBD5E1]">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <svg key={s} className="w-4 h-4 fill-[#E2E8F0] text-[#E2E8F0]" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  ))}
+                </div>
+                <span className="text-[11px] text-[#8A958E] ml-1">Sem avaliações</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 2. CARD SECUNDÁRIO 1: MINHA CARTEIRA
+  const renderMinhaCarteira = () => {
+    const total = computedMetrics.totalStudents;
+    const circumference = 150.796; // 2 * PI * 24
+
+    return (
+      <section
+        aria-label="Minha carteira"
+        className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between h-full"
+      >
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm sm:text-base font-bold text-[#102E23]">
+              Minha carteira
+            </h3>
+            <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#F0F5F2] text-[#176B49] flex items-center justify-center shrink-0">
+              <UsersIcon className="w-4 h-4" />
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 sm:gap-4 mt-2">
+            {/* Mini Donut */}
+            <div className="relative w-14 h-14 sm:w-16 sm:h-16 shrink-0 flex items-center justify-center">
+              <svg className="w-full h-full" viewBox="0 0 60 60">
+                <circle cx="30" cy="30" r="24" stroke="#EAEFE9" strokeWidth="6" fill="none" />
+                {total > 0 && (
+                  <circle
+                    cx="30"
+                    cy="30"
+                    r="24"
+                    stroke="#102E23"
+                    strokeWidth="6"
+                    fill="none"
+                    strokeDasharray={`${circumference} ${circumference}`}
+                    strokeDashoffset={0}
+                    transform="rotate(-90 30 30)"
+                    strokeLinecap="round"
+                  />
+                )}
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span className="text-sm sm:text-base font-black text-[#102E23] leading-none">
+                  {total}
+                </span>
+                <span className="text-[9px] font-semibold text-[#6B7870] leading-tight mt-0.5">
+                  Alunos
+                </span>
+              </div>
+            </div>
+
+            {/* Links e contadores */}
+            <div className="flex-1 min-w-0 space-y-1.5 text-xs">
+              <Link
+                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=active`}
+                prefetch={false}
+                className="flex items-center justify-between text-[#4A5568] hover:text-[#102E23] transition-colors py-0.5"
+              >
+                <span className="truncate">Ativos</span>
+                <span className="font-bold text-[#102E23] flex items-center gap-0.5 tabular-nums">
+                  {total} <span className="text-[#8A958E] text-[10px]">›</span>
+                </span>
+              </Link>
+
+              <Link
+                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=inactive`}
+                prefetch={false}
+                className="flex items-center justify-between text-[#4A5568] hover:text-[#102E23] transition-colors py-0.5"
+              >
+                <span className="truncate">Inativos</span>
+                <span className="font-bold text-[#102E23] flex items-center gap-0.5 tabular-nums">
+                  0 <span className="text-[#8A958E] text-[10px]">›</span>
+                </span>
+              </Link>
+
+              <Link
+                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=expiring`}
+                prefetch={false}
+                className="flex items-center justify-between text-[#4A5568] hover:text-[#102E23] transition-colors py-0.5"
+              >
+                <span className="truncate">A vencer</span>
+                <span className="font-bold text-[#102E23] flex items-center gap-0.5 tabular-nums">
+                  {computedMetrics.aVencerCount} <span className="text-[#8A958E] text-[10px]">›</span>
+                </span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 3. CARD SECUNDÁRIO 2: AVALIAÇÃO FÍSICA
+  const renderAvaliacaoFisica = () => {
+    const pending = assessmentStats?.pendingAssessmentsCount ?? 0;
+    const completed = assessmentStats?.completedAssessmentsCount ?? 0;
+
+    return (
+      <section
+        aria-label="Avaliação física"
+        className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between h-full"
+      >
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm sm:text-base font-bold text-[#102E23]">
+              Avaliação física
+            </h3>
+            <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#F0F5F2] text-[#176B49] flex items-center justify-center shrink-0">
+              <ClipboardIcon className="w-4 h-4" />
+            </span>
+          </div>
+
+          <div className="py-1">
+            <div className="text-2xl sm:text-3xl font-black text-[#102E23] tracking-tight tabular-nums font-sans">
+              {pending}
+            </div>
+            <p className="text-xs text-[#526058] font-medium mt-0.5">
+              Ativos sem avaliação
+            </p>
+          </div>
+        </div>
+
+        <div className="pt-2.5 mt-2 border-t border-[#F0F2ED]">
+          <Link
+            href={`/consultoria/${consultancySlug}/progresso`}
+            prefetch={false}
+            className="text-xs font-semibold text-[#102E23] hover:text-[#176B49] transition-colors flex items-center justify-between"
+          >
+            <span>Avaliações realizadas: <span className="font-bold tabular-nums">{completed}</span></span>
+            <span className="text-[#8A958E] text-[10px]" aria-hidden="true">›</span>
+          </Link>
+        </div>
+      </section>
+    );
+  };
+
+  // 4. CARD DE PENDÊNCIAS ("Precisam de atenção")
   const renderPendencias = (isMobileLayout = false) => (
     <section
       aria-label="Atendimento: Precisam de atenção"
-      className="bg-white border border-[#E5E8E2] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4"
+      className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col justify-between h-full space-y-4"
     >
       <div>
-        <div className="flex items-center justify-between gap-3 mb-2">
+        <div className="flex items-center justify-between gap-2 sm:gap-3 mb-2">
           <div>
-            <div className="text-[10px] font-bold text-[#8C5D39] tracking-wider uppercase border-b-2 border-[#8C5D39] inline-block pb-0.5 mb-1.5">
+            <div className="text-[10px] font-bold text-[#8C5D39] tracking-wider uppercase border-b-2 border-[#8C5D39] inline-block pb-0.5 mb-1">
               ATENDIMENTO
             </div>
-            <h2 className="text-lg sm:text-xl font-bold text-[#102E23] leading-tight font-sans">
+            <h2 className="text-base sm:text-xl font-bold text-[#102E23] leading-tight font-sans">
               Precisam de atenção
             </h2>
           </div>
 
           {sortedStudents.length > 0 ? (
-            <span className="text-xs font-bold px-3 py-1 rounded-lg bg-[#F5EDE4] text-[#8C5D39] border border-[#ECD9CC] shrink-0">
+            <span className="text-xs font-bold px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg bg-[#F5EDE4] text-[#8C5D39] border border-[#ECD9CC] shrink-0">
               {sortedStudents.length} {sortedStudents.length === 1 ? "aluno" : "alunos"}
             </span>
           ) : (
-            <span className="text-xs font-bold px-3 py-1 rounded-lg bg-emerald-50 text-[#176B49] border border-emerald-200 shrink-0">
+            <span className="text-xs font-bold px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg bg-emerald-50 text-[#176B49] border border-emerald-200 shrink-0">
               100% atendidos
             </span>
           )}
@@ -211,7 +653,7 @@ export function DashboardPersonalView({
 
         {/* Lista de alunos */}
         {sortedStudents.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[#E2E6DF] p-5 text-center bg-[#FBFBFA] mt-3">
+          <div className="rounded-xl border border-dashed border-[#E2E6DF] p-4 text-center bg-[#FBFBFA] mt-3">
             <p className="text-sm font-bold text-[#102E23]">
               Nenhum aluno sem treino ativo
             </p>
@@ -220,7 +662,7 @@ export function DashboardPersonalView({
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-[#F0F2ED] mt-3">
+          <div className="divide-y divide-[#F0F2ED] mt-2">
             {visibleStudents.map((student, idx) => {
               const studentHref = `/consultoria/${consultancySlug}/rotinas/novo?studentId=${encodeURIComponent(
                 student.membershipPublicId || student.userPublicId
@@ -229,7 +671,7 @@ export function DashboardPersonalView({
               const isThird = idx === 2;
               if (isMobileLayout && isThird) return null;
 
-              // Paleta de avatares alternados elegante inspirada na referência (verde sage, pêssego suave, azul pastel)
+              // Paleta de avatares alternados elegante inspirada na referência
               const avatarColors = [
                 "bg-[#E2ECE5] text-[#1E4A38]",
                 "bg-[#F4E8DF] text-[#8A5636]",
@@ -242,32 +684,32 @@ export function DashboardPersonalView({
                   key={student.membershipPublicId || student.userPublicId}
                   href={studentHref}
                   prefetch={false}
-                  className={`group flex items-center justify-between py-3.5 hover:bg-[#F9FAF8] px-1 sm:px-2 rounded-xl transition-colors cursor-pointer select-none min-h-[48px] ${
+                  className={`group flex items-center justify-between py-2.5 sm:py-3.5 hover:bg-[#F9FAF8] px-1 sm:px-2 rounded-xl transition-colors cursor-pointer select-none min-h-[48px] ${
                     isThird ? "hidden sm:flex" : "flex"
                   }`}
                 >
-                  <div className="flex items-center gap-3.5 min-w-0 pr-2">
+                  <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 pr-2">
                     {student.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={student.avatarUrl}
                         alt={student.name}
-                        className="w-10 h-10 rounded-full object-cover shrink-0 border border-[#E2E6DF]"
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover shrink-0 border border-[#E2E6DF]"
                       />
                     ) : (
                       <div
                         aria-hidden="true"
-                        className={`w-10 h-10 rounded-full ${colorClass} font-bold text-xs flex items-center justify-center shrink-0 border border-black/5 select-none`}
+                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full ${colorClass} font-bold text-xs flex items-center justify-center shrink-0 border border-black/5 select-none`}
                       >
                         {getInitials(student.name)}
                       </div>
                     )}
 
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors truncate">
+                      <p className="text-xs sm:text-sm font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors truncate">
                         {student.name}
                       </p>
-                      <p className="text-xs text-[#6B7870] font-normal truncate mt-0.5">
+                      <p className="text-[11px] sm:text-xs text-[#6B7870] font-normal truncate mt-0.5">
                         Sem treino ativo
                       </p>
                     </div>
@@ -300,40 +742,53 @@ export function DashboardPersonalView({
     </section>
   );
 
-  // 2. CARD TREINO EM ANDAMENTO ("TREINO EM ANDAMENTO")
+  // 5. CARD TREINO EM ANDAMENTO ("TREINO EM ANDAMENTO")
   const renderRascunho = () => (
     <section
       aria-label="Treino em andamento"
-      className="relative overflow-hidden rounded-2xl bg-[#0F2F24] border border-[#163E27] shadow-xs text-white p-5 sm:p-6 flex flex-col justify-between min-h-[220px] sm:min-h-[240px]"
+      className="relative overflow-hidden rounded-2xl bg-[#0F2F24] border border-[#163E27] shadow-xs text-white p-4 sm:p-6 flex flex-col justify-between h-full min-h-[220px] sm:min-h-[240px]"
     >
       <div className="space-y-3">
         <div className="text-[10px] font-bold text-[#4ADE80] tracking-wider uppercase border-b-2 border-[#4ADE80] inline-block pb-0.5">
           TREINO EM ANDAMENTO
         </div>
 
-        <div>
-          <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug drop-shadow-sm line-clamp-2">
-            {primaryDraft ? primaryDraft.title : "Hipertrofia A/B/C"}
-          </h3>
+        {primaryDraft ? (
+          <>
+            <div>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug drop-shadow-sm line-clamp-2">
+                {primaryDraft.title}
+              </h3>
 
-          <div className="flex flex-wrap items-center gap-2 mt-2.5">
-            <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-white/10 text-white border border-white/10 backdrop-blur-xs">
-              {primaryDraft ? "Foco hipertrofia" : "Foco peitoral"}
-            </span>
-            <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-white/10 text-emerald-300 border border-white/10 backdrop-blur-xs">
-              Rascunho
-            </span>
+              <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                {primaryDraft.difficultyLevel && (
+                  <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-white/10 text-white border border-white/10 backdrop-blur-xs">
+                    Foco {primaryDraft.difficultyLevel.toLowerCase()}
+                  </span>
+                )}
+                <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-white/10 text-emerald-300 border border-white/10 backdrop-blur-xs">
+                  Rascunho
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-white/80 font-medium pt-1">
+              <DumbbellIcon className="w-4 h-4 text-emerald-300 shrink-0" />
+              <span>
+                {primaryDraft.blocksCount || 0} {primaryDraft.blocksCount === 1 ? "exercício adicionado" : "exercícios adicionados"}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="py-2 space-y-1.5">
+            <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug">
+              Nenhum treino em andamento
+            </h3>
+            <p className="text-xs sm:text-sm text-white/70 leading-relaxed">
+              Você não possui rascunhos no momento. Crie uma nova rotina para seus alunos.
+            </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 text-xs text-white/80 font-medium pt-1">
-          <DumbbellIcon className="w-4 h-4 text-emerald-300 shrink-0" />
-          <span>
-            {primaryDraft
-              ? `${primaryDraft.blocksCount || 4} exercícios adicionados`
-              : "4 exercícios adicionados"}
-          </span>
-        </div>
+        )}
       </div>
 
       <div className="pt-4">
@@ -346,18 +801,18 @@ export function DashboardPersonalView({
           prefetch={false}
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#EBF3ED] hover:bg-white text-[#0F2F24] shadow-sm transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px]"
         >
-          <span>Retomar edição</span>
+          <span>{primaryDraft ? "Retomar edição" : "+ Criar treino"}</span>
           <span aria-hidden="true">→</span>
         </Link>
       </div>
     </section>
   );
 
-  // 3. CARD FINANCEIRO ("FINANCEIRO / A RECEBER")
+  // 6. CARD FINANCEIRO ("FINANCEIRO / A RECEBER")
   const renderFinanceiro = () => (
     <section
       aria-label="Financeiro / A receber"
-      className="bg-[#E8F0EA] border border-[#D8E4DA] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4"
+      className="bg-[#E8F0EA] border border-[#D8E4DA] rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col justify-between h-full space-y-4"
     >
       <div>
         <div className="text-[10px] font-bold text-[#1B4D39] tracking-wider uppercase border-b-2 border-[#1B4D39] inline-block pb-0.5 mb-1.5">
@@ -371,7 +826,7 @@ export function DashboardPersonalView({
           <p className="text-xs text-[#4A6356] font-medium mt-1">
             {upcomingChargesList.length > 0
               ? `${upcomingChargesList.length} ${upcomingChargesList.length === 1 ? "vencimento próximo" : "vencimentos próximos"}`
-              : "3 vencimentos próximos"}
+              : "Nenhum vencimento próximo"}
           </p>
         </div>
 
@@ -384,11 +839,11 @@ export function DashboardPersonalView({
                 className="flex items-center justify-between text-xs py-1"
               >
                 <div className="min-w-0 pr-2">
-                  <p className="font-bold text-sm text-[#102E23] truncate">{ch.studentName}</p>
+                  <p className="font-bold text-xs sm:text-sm text-[#102E23] truncate">{ch.studentName}</p>
                   <p className="text-xs text-[#5A7366] mt-0.5">{ch.dueDate}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="font-bold text-sm text-[#102E23] tabular-nums">{ch.amountFormatted}</span>
+                  <span className="font-bold text-xs sm:text-sm text-[#102E23] tabular-nums">{ch.amountFormatted}</span>
                 </div>
               </div>
             ))
@@ -413,57 +868,8 @@ export function DashboardPersonalView({
     </section>
   );
 
-  // 4. CARD SATISFAÇÃO ("SATISFAÇÃO DOS ALUNOS")
-  const renderSatisfacao = () => (
-    <section
-      aria-label="Satisfação dos alunos"
-      className="bg-white border border-[#E5E8E2] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4"
-    >
-      <div>
-        <div className="w-10 h-10 rounded-full bg-[#EDF5F0] border border-[#D8E8DD] flex items-center justify-center text-[#1B4D39] mb-3">
-          <StarIcon className="w-5 h-5 stroke-[1.8]" />
-        </div>
-
-        <div className="text-[10px] font-bold text-[#1B4D39] tracking-wider uppercase border-b-2 border-[#1B4D39] inline-block pb-0.5 mb-1.5">
-          SATISFAÇÃO DOS ALUNOS
-        </div>
-
-        {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 ? (
-          <div className="mt-1">
-            <h3 className="text-lg sm:text-xl font-black text-[#102E23] leading-tight">
-              {satisfactionData.averageRating.toFixed(1).replace(".", ",")}/5 · Excelente
-            </h3>
-            <p className="text-xs sm:text-sm text-[#5A6860] leading-relaxed mt-1">
-              Baseado em {satisfactionData.totalReviews} avaliações reais dos seus alunos.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-1">
-            <h3 className="text-lg sm:text-xl font-black text-[#102E23] leading-tight">
-              Nenhuma avaliação ainda
-            </h3>
-            <p className="text-xs sm:text-sm text-[#5A6860] leading-relaxed mt-1">
-              Convide seus alunos a compartilhar a experiência.
-            </p>
-          </div>
-        )}
-      </div>
-
-      <div className="pt-2">
-        <Link
-          href={`/consultoria/${consultancySlug}/progresso/alunos`}
-          prefetch={false}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-[#C9DCCD] text-[#102E23] hover:bg-[#EDF5F0] transition-colors w-fit min-h-[44px]"
-        >
-          <span>Solicitar avaliação</span>
-          <span aria-hidden="true">→</span>
-        </Link>
-      </div>
-    </section>
-  );
-
   return (
-    <div className="w-full max-w-[1240px] 2xl:max-w-[1340px] mx-auto space-y-5 sm:space-y-6 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-8">
+    <div className="w-full max-w-[1040px] mx-auto space-y-5 sm:space-y-6 pb-28 sm:pb-32 md:pb-8">
       {/* ============================================================== */}
       {/* 1. CABEÇALHO EDITORIAL (DESKTOP & CELULAR)                     */}
       {/* ============================================================== */}
@@ -482,31 +888,56 @@ export function DashboardPersonalView({
       />
 
       {/* ============================================================== */}
-      {/* 2. GRID DESKTOP (2 COLUNAS X 2 LINHAS - ESTILO APROVADO)       */}
-      {/* Row 1: Precisam de atenção (esq) | Treino em andamento (dir)   */}
-      {/* Row 2: Financeiro a receber (esq) | Satisfação alunos (dir)    */}
+      {/* 2. GRID DESKTOP (TREVO ONE 3.0 — PAINEL OPERACIONAL)           */}
+      {/* Row 1: Programas de treino (7 cols) | Carteira & Avaliação (5) */}
+      {/* Row 2: Precisam de atenção (esq) | Treino em andamento (dir)   */}
+      {/* Row 3: Financeiro a receber (quando autorizado)                */}
       {/* ============================================================== */}
-      <div className="hidden md:grid md:grid-cols-2 gap-5 items-stretch">
-        {renderPendencias(false)}
-        {renderRascunho()}
-        {hasFinanceAccess ? renderFinanceiro() : null}
-        {renderSatisfacao()}
+      <div className="hidden md:flex md:flex-col gap-5">
+        {/* Linha 1: Cockpit Operacional */}
+        <div className="grid grid-cols-12 gap-5 items-stretch">
+          <div className="col-span-7 flex flex-col">
+            {renderProgramasDeTreino()}
+          </div>
+          <div className="col-span-5 grid grid-cols-2 gap-4 h-full">
+            {renderMinhaCarteira()}
+            {renderAvaliacaoFisica()}
+          </div>
+        </div>
+
+        {/* Linha 2: Atendimento e Rascunho */}
+        <div className="grid grid-cols-2 gap-5 items-stretch">
+          {renderPendencias(false)}
+          {renderRascunho()}
+        </div>
+
+        {/* Linha 3: Financeiro (se autorizado) */}
+        {hasFinanceAccess && (
+          <div className="w-full">
+            {renderFinanceiro()}
+          </div>
+        )}
       </div>
 
       {/* ============================================================== */}
       {/* 3. FLUXO MOBILE (< md)                                         */}
       {/* Ordem lógica aprovada:                                         */}
       {/* 1. Início + Criar treino (no cabeçalho acima)                  */}
-      {/* 2. Pendências ("Precisam de atenção")                          */}
-      {/* 3. Treino em andamento (Rascunho)                              */}
-      {/* 4. Financeiro / A receber                                      */}
-      {/* 5. Satisfação dos alunos                                       */}
+      {/* 2. Programas de treino                                         */}
+      {/* 3. Grid 2 colunas: Minha carteira & Avaliação física           */}
+      {/* 4. Pendências ("Precisam de atenção")                          */}
+      {/* 5. Treino em andamento (Rascunho)                              */}
+      {/* 6. Financeiro / A receber (quando autorizado)                  */}
       {/* ============================================================== */}
       <div className="flex flex-col gap-4 md:hidden">
+        {renderProgramasDeTreino()}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 items-stretch">
+          {renderMinhaCarteira()}
+          {renderAvaliacaoFisica()}
+        </div>
         {renderPendencias(true)}
         {renderRascunho()}
         {hasFinanceAccess && renderFinanceiro()}
-        {renderSatisfacao()}
       </div>
     </div>
   );

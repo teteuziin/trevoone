@@ -35,19 +35,18 @@ export function PersonalHeader({
     <header className={`w-full ${className}`}>
       {/* ============================================================== */}
       {/* TREVO ONE 2.0: CABEÇALHO OBJETIVO (DESKTOP & CELULAR)          */}
-      {/* Título "Início" em verde-esmeralda e botão "+ Criar treino"    */}
-      {/* perfeitamente alinhados verticalmente, sem dados duplicados da */}
-      {/* barra lateral (sem breadcrumbs ou cartões extras).             */}
+      {/* Título "Início" e botão "+ Criar treino" perfeitamente          */}
+      {/* alinhados verticalmente, sem duplicações da barra lateral.     */}
       {/* ============================================================== */}
       <div className="flex items-center justify-between gap-3 pt-1 pb-1 sm:pb-2">
-        <h1 className="text-2xl sm:text-3xl font-black text-[#047857] tracking-tight leading-none font-sans">
+        <h1 className="text-2xl sm:text-3xl font-black text-[#176B49] tracking-tight leading-none font-sans">
           Início
         </h1>
 
         <Link
           href={`/consultoria/${consultancySlug}/rotinas/novo`}
           prefetch={false}
-          className="min-h-[44px] px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#047857] hover:bg-[#065F46] text-white flex items-center justify-center gap-1.5 sm:gap-2 shadow-xs transition-colors shrink-0 select-none cursor-pointer active:translate-y-[1px]"
+          className="min-h-[44px] px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#176B49] hover:bg-[#135A3D] text-white flex items-center justify-center gap-1.5 sm:gap-2 shadow-xs transition-colors shrink-0 select-none cursor-pointer active:translate-y-[1px]"
         >
           <PlusIcon className="w-4 h-4" />
           <span>Criar treino</span>

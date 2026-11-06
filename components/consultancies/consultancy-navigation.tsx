@@ -858,7 +858,7 @@ export function ConsultancyNavigation({
                       className={`flex items-center justify-between px-3 py-2 text-[13px] min-h-[44px] rounded-xl border transition-all depth-interactive ${
                         active
                           ? isTrainerRefined
-                            ? "bg-[#E8F5E9] text-[#064E3B] border-l-[3px] border-[#047857] pl-2.5 rounded-r-xl shadow-xs font-bold"
+                            ? "bg-[#E8F5E9] text-[#064E3B] border-l-[3px] border-[#176B49] pl-2.5 rounded-r-xl shadow-xs font-bold"
                             : isDarkOverview
                             ? "bg-[#E5E7EB] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
                             : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
@@ -870,11 +870,11 @@ export function ConsultancyNavigation({
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <NavIcon name={item.iconName} className={`w-5 h-5 shrink-0 ${isTrainerRefined ? (active ? "text-[#047857]" : "text-emerald-300/70 group-hover:text-white") : ""}`} />
+                        <NavIcon name={item.iconName} className={`w-5 h-5 shrink-0 ${isTrainerRefined ? (active ? "text-[#176B49]" : "text-emerald-300/70 group-hover:text-white") : ""}`} />
                         <span className="truncate">{item.label}</span>
                       </div>
                       {active && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${isTrainerRefined ? "bg-[#047857]" : isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${isTrainerRefined ? "bg-[#176B49]" : isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
                       )}
                     </Link>
                   );
@@ -1217,7 +1217,7 @@ export function ConsultancyNavigation({
                 {consultancyName}
               </p>
               {primaryRoleLabel && (
-                <p className={`text-[10px] font-semibold ${isTrainerRefined ? "text-[#047857]" : isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-tertiary)]"} truncate leading-tight uppercase tracking-wider mt-0.5`}>
+                <p className={`text-[10px] font-semibold ${isTrainerRefined ? "text-[#176B49]" : isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-tertiary)]"} truncate leading-tight uppercase tracking-wider mt-0.5`}>
                   {primaryRoleLabel}
                 </p>
               )}
@@ -1257,7 +1257,7 @@ export function ConsultancyNavigation({
                   className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                     active
                       ? isTrainerRefined
-                        ? "text-[#047857]"
+                        ? "text-[#176B49]"
                         : isDarkOverview ? "text-[#065F46] dark:text-[#10B981]" : "text-[var(--brand)]"
                       : isTrainerRefined
                       ? "text-[#64748B] hover:text-[#1E2922]"
@@ -1265,18 +1265,16 @@ export function ConsultancyNavigation({
                   }`}
                 >
                   <div
-                    className={`px-3 py-1 rounded-full relative flex items-center justify-center shrink-0 transition-all duration-150 ${
-                      active
-                        ? isTrainerRefined
-                          ? "bg-emerald-50 text-[#047857] border border-emerald-200/60 shadow-xs"
-                          : isDarkOverview
-                          ? "bg-emerald-500/15 text-[#065F46] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
-                          : "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
-                        : isTrainerRefined
-                        ? "border border-transparent group-hover:bg-[#F3F4F6]"
+                    className={`relative flex items-center justify-center shrink-0 transition-all duration-150 ${
+                      isTrainerRefined
+                        ? "w-6 h-6"
+                        : active
+                        ? isDarkOverview
+                          ? "px-3 py-1 rounded-full bg-emerald-500/15 text-[#065F46] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
+                          : "px-3 py-1 rounded-full bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
                         : isDarkOverview
-                          ? "border border-transparent group-hover:bg-[#DFE3E8] dark:group-hover:bg-[#1B1D21]"
-                          : "border border-transparent group-hover:bg-[var(--surface-hover)]"
+                          ? "px-3 py-1 rounded-full border border-transparent group-hover:bg-[#DFE3E8] dark:group-hover:bg-[#1B1D21]"
+                          : "px-3 py-1 rounded-full border border-transparent group-hover:bg-[var(--surface-hover)]"
                     }`}
                   >
                     <NavIcon name={item.iconName} className="w-[22px] h-[22px] shrink-0" />
@@ -1285,7 +1283,7 @@ export function ConsultancyNavigation({
                     className={`text-[11px] tracking-tight truncate max-w-full leading-none mt-1 text-center shrink-0 transition-colors duration-150 ${
                       active
                         ? isTrainerRefined
-                          ? "font-bold text-[#047857]"
+                          ? "font-bold text-[#176B49]"
                           : isDarkOverview ? "font-bold text-[#065F46] dark:text-[#10B981]" : "font-bold text-[var(--brand)]"
                         : isTrainerRefined
                         ? "font-medium text-[#64748B] group-hover:text-[#1E2922]"
@@ -1294,16 +1292,18 @@ export function ConsultancyNavigation({
                   >
                     {item.mobileLabel || item.label}
                   </span>
-                  {active && (
+                  {active ? (
                     <span
                       className={`shrink-0 ${
                         isTrainerRefined
-                          ? "w-6 h-[3px] rounded-full bg-[#047857] mt-1"
+                          ? "w-6 h-[3px] rounded-full bg-[#176B49] mt-1"
                           : isDarkOverview ? "w-1 h-1 rounded-full mt-0.5 bg-[#065F46] dark:bg-[#10B981]" : "w-1 h-1 rounded-full mt-0.5 bg-[var(--brand)]"
                       }`}
                       aria-hidden="true"
                     />
-                  )}
+                  ) : isTrainerRefined ? (
+                    <span className="w-6 h-[3px] mt-1 opacity-0 shrink-0 select-none" aria-hidden="true" />
+                  ) : null}
                 </Link>
               );
             })}
@@ -1322,14 +1322,16 @@ export function ConsultancyNavigation({
               }`}
             >
               <div
-                className={`px-3 py-1 rounded-full relative flex items-center justify-center shrink-0 transition-all duration-150 ${
-                  isMoreButtonActive
+                className={`relative flex items-center justify-center shrink-0 transition-all duration-150 ${
+                  isTrainerRefined
+                    ? "w-6 h-6"
+                    : isMoreButtonActive
                     ? isDarkOverview
-                      ? "bg-emerald-500/15 text-[#065F46] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
-                      : "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
+                      ? "px-3 py-1 rounded-full bg-emerald-500/15 text-[#065F46] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
+                      : "px-3 py-1 rounded-full bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
                     : isDarkOverview
-                      ? "border border-transparent group-hover:bg-[#DFE3E8] dark:group-hover:bg-[#1B1D21]"
-                      : "border border-transparent group-hover:bg-[var(--surface-hover)]"
+                      ? "px-3 py-1 rounded-full border border-transparent group-hover:bg-[#DFE3E8] dark:group-hover:bg-[#1B1D21]"
+                      : "px-3 py-1 rounded-full border border-transparent group-hover:bg-[var(--surface-hover)]"
                 }`}
               >
                 <svg

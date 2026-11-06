@@ -590,7 +590,7 @@ export async function ConsultancyAppShell({
     <div
       className={`min-h-svh w-full max-w-full min-w-0 ${
         themeVariant === "trainer-refined"
-          ? "bg-[#FBFBF9] text-[#1E2922]"
+          ? "bg-[#F5F5F0] text-[#1E2922]"
           : themeVariant === "dark-overview"
           ? "bg-[#F0F1F3] dark:bg-[#0B0C0E] text-[#17191D] dark:text-[#FFFFFF]"
           : "bg-transparent text-[var(--text-primary)]"

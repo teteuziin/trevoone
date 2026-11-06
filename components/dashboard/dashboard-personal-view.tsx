@@ -30,6 +30,9 @@ export interface StudentWithoutWorkoutItem {
   name: string;
   email: string;
   joinedAt: string;
+  avatarUrl?: string | null;
+  hasProfilePhoto?: boolean;
+  profilePhotoUpdatedAt?: Date | string | number | null;
 }
 
 export interface PersonalTodayConsultationItem {
@@ -130,11 +133,134 @@ function CurrencyIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
+function ArrowRightIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
     </svg>
+  );
+}
+
+interface DraftWorkoutCardProps {
+  consultancySlug: string;
+  primaryDraft: {
+    publicId: string;
+    title: string;
+    updatedAt: string | null;
+    blocksCount: number;
+  } | null;
+  variant: "horizontal-desktop" | "compact-mobile";
+}
+
+function DraftWorkoutCard({ consultancySlug, primaryDraft, variant }: DraftWorkoutCardProps) {
+  if (variant === "horizontal-desktop") {
+    return (
+      <section
+        aria-label="Rascunho de treino em andamento"
+        className="relative overflow-hidden rounded-2xl bg-[#0A2214] border border-[#163E27] shadow-xs text-white p-6 flex items-center justify-between gap-6 min-h-[140px]"
+      >
+        {/* Fotografia real contextual de academia devidamente otimizada */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/student/workout-editorial.webp"
+          alt="Fotografia de treino contextual"
+          className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none select-none"
+        />
+        {/* Gradiente horizontal moderado garantindo contraste para leitura perfeita */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0A2214]/95 via-[#0A2214]/85 to-[#0A2214]/40 pointer-events-none" />
+
+        {/* Conteúdo textual */}
+        <div className="relative z-10 space-y-1.5 min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-white/15 text-emerald-300 backdrop-blur-xs border border-white/20 tracking-wider uppercase">
+              Rascunho de treino
+            </span>
+            <span className="text-xs text-emerald-200/80 font-medium">
+              {primaryDraft ? formatEditedDate(primaryDraft.updatedAt) : "Pronto para iniciar"}
+            </span>
+          </div>
+
+          <h3 className="text-lg sm:text-xl font-black text-white tracking-tight truncate drop-shadow-sm">
+            {primaryDraft ? primaryDraft.title : "Nenhum rascunho em andamento"}
+          </h3>
+
+          <p className="text-xs text-emerald-200/90 font-medium">
+            {primaryDraft
+              ? `${primaryDraft.blocksCount || 0} ${primaryDraft.blocksCount === 1 ? "bloco cadastrado" : "blocos cadastrados"}`
+              : "Inicie a elaboração de uma nova ficha para seus alunos."}
+          </p>
+        </div>
+
+        {/* Ação direta */}
+        <div className="relative z-10 shrink-0">
+          <Link
+            href={
+              primaryDraft
+                ? `/consultoria/${consultancySlug}/rotinas/${primaryDraft.publicId}/editor`
+                : `/consultoria/${consultancySlug}/rotinas/novo`
+            }
+            prefetch={false}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#10B981] hover:bg-[#059669] text-[#042F1E] shadow-xs transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px]"
+          >
+            <span>{primaryDraft ? "Retomar edição" : "Criar treino"}</span>
+            <ArrowRightIcon className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  // Versão compacta para celular
+  return (
+    <section
+      aria-label="Rascunho de treino em andamento"
+      className="relative overflow-hidden rounded-2xl bg-[#0A2214] border border-[#163E27] shadow-xs text-white p-5 flex flex-col justify-between gap-4 min-h-[170px]"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/images/student/workout-editorial.webp"
+        alt="Fotografia de treino contextual"
+        className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none select-none"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0A2214]/95 via-[#0A2214]/80 to-[#0A2214]/40 pointer-events-none" />
+
+      <div className="relative z-10 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/15 text-emerald-300 backdrop-blur-xs border border-white/20 tracking-wider uppercase">
+            Rascunho de treino
+          </span>
+          <span className="text-[11px] text-emerald-200/80 font-medium">
+            {primaryDraft ? formatEditedDate(primaryDraft.updatedAt) : "Pronto para iniciar"}
+          </span>
+        </div>
+
+        <div>
+          <h3 className="text-base font-black text-white tracking-tight line-clamp-2 drop-shadow-sm">
+            {primaryDraft ? primaryDraft.title : "Nenhum rascunho em andamento"}
+          </h3>
+          <p className="text-xs text-emerald-200/90 font-medium mt-0.5">
+            {primaryDraft
+              ? `${primaryDraft.blocksCount || 0} ${primaryDraft.blocksCount === 1 ? "bloco cadastrado" : "blocos cadastrados"}`
+              : "Inicie a elaboração de uma nova ficha."}
+          </p>
+        </div>
+      </div>
+
+      <div className="relative z-10 pt-1">
+        <Link
+          href={
+            primaryDraft
+              ? `/consultoria/${consultancySlug}/rotinas/${primaryDraft.publicId}/editor`
+              : `/consultoria/${consultancySlug}/rotinas/novo`
+          }
+          prefetch={false}
+          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-[#10B981] hover:bg-[#059669] text-[#042F1E] shadow-xs transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px]"
+        >
+          <span>{primaryDraft ? "Retomar edição" : "Criar treino"}</span>
+          <ArrowRightIcon className="w-4 h-4" />
+        </Link>
+      </div>
+    </section>
   );
 }
 
@@ -184,20 +310,22 @@ export function DashboardPersonalView({
     });
   }, [studentsWithoutWorkout]);
 
-  // Lista inicial refinada para 3 alunos (Prioridade 3 aprovada)
+  // Lista inicial: até 3 alunos no desktop e até 2 alunos no celular (via classe responsiva)
   const visibleStudents = useMemo(() => sortedStudents.slice(0, 3), [sortedStudents]);
 
-  // Indicadores de finanças
+  // Indicadores de finanças com dados estritamente reais (sem mock de fallback)
   const hasFinanceAccess = financeSummary?.hasAccess ?? false;
-  const toReceiveBrl = (financeSummary?.toReceiveCents || 185000) / 100;
+  const toReceiveCents = financeSummary?.toReceiveCents ?? 0;
+  const toReceiveBrl = toReceiveCents / 100;
   const toReceiveFormatted = `R$ ${toReceiveBrl.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+
   const upcomingChargesFromSummary = financeSummary?.upcomingCharges;
   const upcomingChargesList = useMemo(() => {
     if (upcomingChargesFromSummary && upcomingChargesFromSummary.length > 0) {
-      return upcomingChargesFromSummary.slice(0, 3).map((ch) => ({
+      return upcomingChargesFromSummary.slice(0, 2).map((ch) => ({
         id: ch.publicId,
         studentName: ch.studentName,
         dueDate: ch.dueOn ? ch.dueOn.split("-").reverse().join("/") : "—",
@@ -207,16 +335,13 @@ export function DashboardPersonalView({
         })}`,
       }));
     }
-    return [
-      { id: "ch_1", studentName: "Ingrid Silva", dueDate: "10/11/2026", amountFormatted: "R$ 150,00" },
-      { id: "ch_2", studentName: "Rodrigo Costa", dueDate: "15/11/2026", amountFormatted: "R$ 200,00" },
-    ];
+    return [];
   }, [upcomingChargesFromSummary]);
 
   return (
     <div className="w-full max-w-full space-y-5 sm:space-y-6 pb-6">
       {/* ============================================================== */}
-      {/* 1. CABEÇALHO OBJETIVO (DESKTOP & MOBILE)                       */}
+      {/* 1. CABEÇALHO OBJETIVO (DESKTOP & CELULAR)                      */}
       {/* ============================================================== */}
       <PersonalHeader
         consultancyName={consultancyName || "Consultoria"}
@@ -233,21 +358,22 @@ export function DashboardPersonalView({
       />
 
       {/* ============================================================== */}
-      {/* 2. GRID PRINCIPAL DOS 4 WIDGETS COM IDENTIDADES DISTINTAS       */}
+      {/* 2. GRID PRINCIPAL (2 COLUNAS NO DESKTOP, FLUXO NATURAL NO CEL)  */}
+      {/* Desktop: Pendências à esquerda, Financeiro & Satisfação à dir. */}
       {/* ============================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
-        {/* COLUNA ESQUERDA (~58% desktop / 7 colunas) */}
-        <div className="lg:col-span-7 space-y-5 sm:space-y-6">
+        {/* COLUNA ESQUERDA (7 colunas no desktop / ~58%) */}
+        <div className="lg:col-span-7">
           {/* ============================================================ */}
-          {/* WIDGET 1: PENDÊNCIAS (Superfície branca, linhas clicáveis)   */}
+          {/* WIDGET 1: PENDÊNCIAS (Fundo branco, lista de trabalho)       */}
           {/* ============================================================ */}
           <section
             aria-label="Pendências de atendimento"
             className="bg-white border border-[#E2E6DF] rounded-2xl shadow-xs p-5 sm:p-6 space-y-4"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-base sm:text-lg font-bold text-[#1E2922] leading-tight">
+                <h2 className="text-base sm:text-lg font-bold text-[#1E2922] leading-tight font-sans">
                   Pendências
                 </h2>
                 <p className="text-xs text-[#64748B] mt-0.5 font-medium">
@@ -257,7 +383,7 @@ export function DashboardPersonalView({
 
               {sortedStudents.length > 0 ? (
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200/80 shrink-0">
-                  {sortedStudents.length} {sortedStudents.length === 1 ? "sem ficha" : "sem ficha"}
+                  {sortedStudents.length} {sortedStudents.length === 1 ? "sem treino" : "sem treino"}
                 </span>
               ) : (
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0">
@@ -277,27 +403,42 @@ export function DashboardPersonalView({
               </div>
             ) : (
               <div className="space-y-3">
-                {/* Linhas de alunos (Máximo inicial de 3, linha inteira clicável) */}
+                {/* Linhas de alunos: Máximo 3 no desktop, 2 no celular via sm:flex */}
                 <div className="divide-y divide-[#E2E6DF] border border-[#E2E6DF] rounded-xl overflow-hidden">
-                  {visibleStudents.map((student) => {
+                  {visibleStudents.map((student, idx) => {
                     const studentHref = `/consultoria/${consultancySlug}/rotinas/novo?studentId=${encodeURIComponent(
                       student.membershipPublicId || student.userPublicId
                     )}&studentName=${encodeURIComponent(student.name)}`;
+
+                    // No celular exibe até 2 alunos para manter o layout compacto
+                    const isThirdOnMobile = idx === 2;
 
                     return (
                       <Link
                         key={student.membershipPublicId || student.userPublicId}
                         href={studentHref}
                         prefetch={false}
-                        className="group flex items-center justify-between p-3.5 hover:bg-[#F7F8F4] transition-colors cursor-pointer select-none"
+                        className={`group items-center justify-between p-3.5 hover:bg-[#F7F8F4] transition-colors cursor-pointer select-none min-h-[44px] ${
+                          isThirdOnMobile ? "hidden sm:flex" : "flex"
+                        }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div
-                            aria-hidden="true"
-                            className="w-10 h-10 rounded-full bg-[#EBF3ED] text-[#065F46] font-bold text-xs flex items-center justify-center shrink-0 border border-emerald-900/10 select-none"
-                          >
-                            {getInitials(student.name)}
-                          </div>
+                          {student.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={student.avatarUrl}
+                              alt={student.name}
+                              className="w-10 h-10 rounded-full object-cover shrink-0 border border-[#E2E6DF]"
+                            />
+                          ) : (
+                            <div
+                              aria-hidden="true"
+                              className="w-10 h-10 rounded-full bg-[#EBF3ED] text-[#065F46] font-bold text-xs flex items-center justify-center shrink-0 border border-emerald-900/10 select-none"
+                            >
+                              {getInitials(student.name)}
+                            </div>
+                          )}
+
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm font-bold text-[#1E2922] group-hover:text-[#047857] transition-colors truncate">
@@ -313,94 +454,36 @@ export function DashboardPersonalView({
                           </div>
                         </div>
 
-                        <span className="min-h-[44px] px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#047857] group-hover:bg-[#065F46] text-white flex items-center justify-center gap-1 shadow-xs transition-colors shrink-0 pointer-events-none">
-                          <PlusIcon className="w-3.5 h-3.5" />
+                        {/* Ação discreta "Criar →" */}
+                        <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#047857]/10 text-[#047857] group-hover:bg-[#047857] group-hover:text-white transition-colors shrink-0 flex items-center gap-1 select-none pointer-events-none">
                           <span>Criar</span>
+                          <span aria-hidden="true">→</span>
                         </span>
                       </Link>
                     );
                   })}
                 </div>
 
-                {/* Acesso direto aos demais alunos quando houver mais de 3 */}
-                {sortedStudents.length > 3 && (
-                  <div className="pt-1 flex justify-end">
-                    <Link
-                      href={`/consultoria/${consultancySlug}/progresso/alunos`}
-                      prefetch={false}
-                      className="text-xs font-bold text-[#047857] hover:text-[#065F46] hover:underline inline-flex items-center gap-1.5 min-h-[44px]"
-                    >
-                      <span>Ver todos os {sortedStudents.length} alunos sob gestão</span>
-                      <span aria-hidden="true">→</span>
-                    </Link>
-                  </div>
-                )}
+                {/* Rodapé: "Ver todas as pendências →" levando à listagem filtrada */}
+                <div className="pt-1 flex justify-end">
+                  <Link
+                    href={`/consultoria/${consultancySlug}/progresso/alunos?filter=without_workout`}
+                    prefetch={false}
+                    className="text-xs font-bold text-[#047857] hover:text-[#065F46] hover:underline inline-flex items-center gap-1.5 min-h-[44px]"
+                  >
+                    <span>Ver todas as pendências</span>
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                </div>
               </div>
             )}
           </section>
-
-          {/* ============================================================ */}
-          {/* WIDGET 2: RASCUNHO DE TREINO (Verde-floresta com foto real)   */}
-          {/* ============================================================ */}
-          <section
-            aria-label="Rascunho de treino em andamento"
-            className="relative overflow-hidden rounded-2xl bg-[#0A2214] border border-[#163E27] shadow-xs text-white p-5 sm:p-6 flex flex-col justify-between min-h-[220px] sm:min-h-[250px]"
-          >
-            {/* Fotografia real contextual perceptível com gradiente equilibrado */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/student/workout-editorial.webp"
-              alt="Fotografia de treino contextual"
-              className="absolute inset-0 w-full h-full object-cover opacity-35 pointer-events-none select-none"
-            />
-            {/* Overlay gradiente escuro garantindo contraste total dos textos */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0A2214]/95 via-[#0A2214]/75 to-[#0A2214]/40 pointer-events-none" />
-
-            {/* Conteúdo em z-10 */}
-            <div className="relative z-10 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-white/15 text-emerald-300 backdrop-blur-xs border border-white/20 tracking-wider uppercase">
-                  Rascunho de treino
-                </span>
-                <span className="text-xs text-emerald-100/90 font-medium">
-                  {primaryDraft ? formatEditedDate(primaryDraft.updatedAt) : "Trabalho interno"}
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-lg sm:text-xl font-black text-white tracking-tight leading-snug line-clamp-2 drop-shadow-sm">
-                  {primaryDraft ? primaryDraft.title : "Hipertrofia A/B/C – Foco Peitoral"}
-                </h3>
-                <p className="text-xs text-emerald-200 font-medium mt-1">
-                  {primaryDraft ? `${primaryDraft.blocksCount || 0} blocos cadastrados` : "6 exercícios cadastrados"}
-                </p>
-              </div>
-            </div>
-
-            {/* Botão de retomada compacto e bem posicionado */}
-            <div className="relative z-10 pt-4">
-              <Link
-                href={
-                  primaryDraft
-                    ? `/consultoria/${consultancySlug}/rotinas/${primaryDraft.publicId}/editor`
-                    : `/consultoria/${consultancySlug}/rotinas`
-                }
-                prefetch={false}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#10B981] hover:bg-[#059669] text-[#042F1E] shadow-xs transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px]"
-              >
-                <span>Retomar edição</span>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-              </Link>
-            </div>
-          </section>
         </div>
 
-        {/* COLUNA DIREITA (~42% desktop / 5 colunas) */}
+        {/* COLUNA DIREITA (5 colunas no desktop / ~42%) */}
         <div className="lg:col-span-5 space-y-5 sm:space-y-6">
           {/* ============================================================ */}
-          {/* WIDGET 3: FINANCEIRO (Verde suave, sem botão verde gigante)  */}
+          {/* WIDGET 2: FINANCEIRO (Resumo em verde suave, dados reais)    */}
           {/* ============================================================ */}
           {hasFinanceAccess && (
             <section
@@ -431,39 +514,45 @@ export function DashboardPersonalView({
                   </p>
                 </div>
 
-                {/* Próximas cobranças alinhadas com divisórias finas sem caixas aninhadas */}
+                {/* Próximas cobranças com divisórias finas (apenas dados reais) */}
                 <div className="mt-4 pt-3 border-t border-emerald-900/10 space-y-2">
                   <p className="text-[10px] font-bold text-[#065F46] uppercase tracking-wider">
                     Próximas cobranças da consultoria
                   </p>
-                  {upcomingChargesList.map((ch, idx) => (
-                    <div
-                      key={ch.id || idx}
-                      className="flex items-center justify-between text-xs py-2 border-b border-emerald-900/10 last:border-none"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-bold text-[#064E3B] truncate">{ch.studentName}</p>
-                        <p className="text-[10px] text-[#047857]">Vence em {ch.dueDate}</p>
+                  {upcomingChargesList.length > 0 ? (
+                    upcomingChargesList.map((ch, idx) => (
+                      <div
+                        key={ch.id || idx}
+                        className="flex items-center justify-between text-xs py-2 border-b border-emerald-900/10 last:border-none"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-bold text-[#064E3B] truncate">{ch.studentName}</p>
+                          <p className="text-[10px] text-[#047857]">Vence em {ch.dueDate}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-bold text-[#064E3B]">{ch.amountFormatted}</p>
+                          <span className="text-[9px] font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded border border-amber-200">
+                            Pendente
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-bold text-[#064E3B]">{ch.amountFormatted}</p>
-                        <span className="text-[9px] font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded border border-amber-200">
-                          Pendente
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-xs text-[#065F46]/80 italic py-1">
+                      Nenhuma cobrança com vencimento próximo.
+                    </p>
+                  )}
                 </div>
               </div>
 
-              {/* Rodapé limpo com link direto elegante (sem botão verde gigante) */}
+              {/* Ação discreta "Abrir financeiro →" */}
               <div className="pt-2 border-t border-emerald-900/10 flex justify-end">
                 <Link
                   href={`/consultoria/${consultancySlug}/financeiro`}
                   prefetch={false}
                   className="min-h-[44px] inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#047857] hover:text-[#065F46] hover:underline transition-colors"
                 >
-                  <span>Ver painel financeiro completo</span>
+                  <span>Abrir financeiro</span>
                   <span aria-hidden="true">→</span>
                 </Link>
               </div>
@@ -471,7 +560,18 @@ export function DashboardPersonalView({
           )}
 
           {/* ============================================================ */}
-          {/* WIDGET 4: SATISFAÇÃO (Superfície clara, sem caixas aninhadas) */}
+          {/* NO CELULAR: RASCUNHO ENTRE FINANCEIRO E SATISFAÇÃO            */}
+          {/* ============================================================ */}
+          <div className="block lg:hidden">
+            <DraftWorkoutCard
+              consultancySlug={consultancySlug}
+              primaryDraft={primaryDraft}
+              variant="compact-mobile"
+            />
+          </div>
+
+          {/* ============================================================ */}
+          {/* WIDGET 3: SATISFAÇÃO (Módulo compacto, superfície clara)      */}
           {/* ============================================================ */}
           <section
             aria-label="Satisfação dos alunos"
@@ -484,15 +584,15 @@ export function DashboardPersonalView({
                     <StarIcon className="w-4 h-4" />
                   </span>
                   <span className="text-xs font-bold text-[#1E2922] uppercase tracking-wider">
-                    Satisfação dos alunos
+                    Satisfação
                   </span>
                 </div>
                 <span className="text-[10px] font-semibold text-[#64748B] px-2 py-0.5 rounded bg-gray-50 border border-gray-200">
-                  Periódico
+                  Avaliações
                 </span>
               </div>
 
-              {satisfactionData?.averageRating != null ? (
+              {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 ? (
                 <div className="mt-4">
                   <p className="text-2xl sm:text-3xl font-black text-[#1E2922] tracking-tight">
                     {satisfactionData.averageRating.toFixed(1).replace(".", ",")}/5
@@ -502,12 +602,12 @@ export function DashboardPersonalView({
                   </p>
                 </div>
               ) : (
-                <div className="mt-4 py-2 space-y-1">
+                <div className="mt-4 py-1 space-y-1">
                   <p className="text-xs sm:text-sm font-bold text-[#1E2922]">
-                    Sem avaliações recentes
+                    Ainda sem avaliações recentes
                   </p>
                   <p className="text-xs text-[#64748B] leading-relaxed">
-                    Acompanhe o feedback e índice de satisfação dos seus alunos conforme novas avaliações forem submetidas.
+                    O índice de satisfação será exibido conforme seus alunos avaliarem os treinos realizados.
                   </p>
                 </div>
               )}
@@ -518,6 +618,17 @@ export function DashboardPersonalView({
             </div>
           </section>
         </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 3. NO DESKTOP: RASCUNHO HORIZONTAL EDITORIAL ABAIXO DO GRID    */}
+      {/* ============================================================== */}
+      <div className="hidden lg:block w-full">
+        <DraftWorkoutCard
+          consultancySlug={consultancySlug}
+          primaryDraft={primaryDraft}
+          variant="horizontal-desktop"
+        />
       </div>
     </div>
   );

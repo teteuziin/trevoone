@@ -748,14 +748,23 @@ export function ConsultancyNavigation({
         aria-label="Barra lateral de navegação"
         className={`hidden lg:flex fixed top-0 bottom-0 left-0 w-64 ${
           isTrainerRefined
-            ? "bg-[#0A2214] border-r border-[#143823] text-white"
+            ? "bg-[#102E23] border-r border-[#163E27] text-white"
             : isDarkOverview
             ? "bg-[#F9FAFB] dark:bg-[#111215] border-r border-[#E5E7EB] dark:border-[#303238] text-[#17191D] dark:text-white"
             : "bg-[var(--surface)] border-r border-[var(--border-default)]"
         } z-30 flex-col justify-between select-none print:hidden transition-colors`}
       >
         {/* Top: Brand Header */}
-        <div className="p-4 border-b border-[#E5E7EB] dark:border-[#303238] shrink-0">
+        <div className={`p-4 border-b ${isTrainerRefined ? "border-[#163E27]" : "border-[#E5E7EB] dark:border-[#303238]"} shrink-0`}>
+          {isTrainerRefined && (
+            <div className="flex items-center gap-2 px-1 mb-3.5 select-none">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/trevo-one-logo.png" alt="Trevo One" className="w-5 h-5 object-contain" />
+              <span className="font-bold text-sm tracking-tight text-white font-sans">
+                Trevo <span className="text-emerald-400">One</span>
+              </span>
+            </div>
+          )}
           <Link
             href={baseSlugHref}
             prefetch={false}
@@ -849,23 +858,23 @@ export function ConsultancyNavigation({
                       className={`flex items-center justify-between px-3 py-2 text-[13px] min-h-[44px] rounded-xl border transition-all depth-interactive ${
                         active
                           ? isTrainerRefined
-                            ? "bg-[#133A24] text-white border-l-[3.5px] border-emerald-400 pl-2.5 rounded-r-xl shadow-xs font-bold"
+                            ? "bg-[#E8F5E9] text-[#064E3B] border-l-[3px] border-[#047857] pl-2.5 rounded-r-xl shadow-xs font-bold"
                             : isDarkOverview
                             ? "bg-[#E5E7EB] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
                             : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                           : isTrainerRefined
-                          ? "text-emerald-100/75 hover:text-white hover:bg-[#133A24]/60 border-transparent font-medium rounded-xl"
+                          ? "text-emerald-100/75 hover:text-white hover:bg-white/5 border-transparent font-medium rounded-xl"
                           : isDarkOverview
                           ? "text-[#4B5563] hover:text-[#17191D] hover:bg-[#F3F4F6] dark:text-[#C2C8CF] dark:hover:text-white dark:hover:bg-[#1B1D21] border-transparent font-medium"
                           : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent font-medium"
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <NavIcon name={item.iconName} className={`w-5 h-5 shrink-0 ${isTrainerRefined ? (active ? "text-emerald-400" : "text-emerald-300/80") : ""}`} />
+                        <NavIcon name={item.iconName} className={`w-5 h-5 shrink-0 ${isTrainerRefined ? (active ? "text-[#047857]" : "text-emerald-300/70 group-hover:text-white") : ""}`} />
                         <span className="truncate">{item.label}</span>
                       </div>
                       {active && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${isTrainerRefined ? "bg-emerald-400" : isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${isTrainerRefined ? "bg-[#047857]" : isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
                       )}
                     </Link>
                   );
@@ -880,7 +889,7 @@ export function ConsultancyNavigation({
           ref={desktopProfileRef}
           className={`relative p-3 border-t ${
             isTrainerRefined
-              ? "border-[#143823] bg-[#0D2B19]"
+              ? "border-[#163E27] bg-[#0C241C]"
               : isDarkOverview
               ? "border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#111215]"
               : "border-[var(--border-default)] bg-[var(--surface)]"

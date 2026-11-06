@@ -864,7 +864,7 @@ export function ConsultancyNavigation({
                       className={`flex items-center justify-between px-3 py-2 text-[13px] min-h-[44px] rounded-xl border transition-all depth-interactive ${
                         active
                           ? isTrainerRefined
-                            ? "bg-[#E8F5E9] text-[#064E3B] border-l-[3px] border-[#176B49] pl-2.5 rounded-r-xl shadow-xs font-bold"
+                            ? "bg-[#E8EDE5] text-[#102E23] shadow-xs font-bold rounded-xl"
                             : isDarkOverview
                             ? "bg-[#E5E7EB] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
                             : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
@@ -876,11 +876,11 @@ export function ConsultancyNavigation({
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <NavIcon name={item.iconName} className={`w-5 h-5 shrink-0 ${isTrainerRefined ? (active ? "text-[#176B49]" : "text-emerald-300/70 group-hover:text-white") : ""}`} />
+                        <NavIcon name={item.iconName} className={`w-5 h-5 shrink-0 ${isTrainerRefined ? (active ? "text-[#102E23]" : "text-white/75 group-hover:text-white") : ""}`} />
                         <span className="truncate">{item.label}</span>
                       </div>
                       {active && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${isTrainerRefined ? "bg-[#176B49]" : isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${isTrainerRefined ? "bg-[#102E23]" : isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
                       )}
                     </Link>
                   );
@@ -1251,7 +1251,7 @@ export function ConsultancyNavigation({
           aria-label="Navegação rápida móvel"
           className={`md:hidden fixed bottom-0 inset-x-0 z-30 w-full max-w-full min-w-0 ${
             isTrainerRefined
-              ? "bg-white/95 backdrop-blur border-t border-[#E7E9E3]"
+              ? "bg-[#102E23] border-t border-[#163E27] text-white"
               : isDarkOverview
               ? "bg-[#F9FAFB] dark:bg-[#111215] border-t border-[#E5E7EB] dark:border-[#303238]"
               : "bg-[var(--surface)] border-t border-[var(--border-default)]"
@@ -1269,10 +1269,10 @@ export function ConsultancyNavigation({
                   className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                     active
                       ? isTrainerRefined
-                        ? "text-[#176B49]"
+                        ? "text-white"
                         : isDarkOverview ? "text-[#065F46] dark:text-[#10B981]" : "text-[var(--brand)]"
                       : isTrainerRefined
-                      ? "text-[#64748B] hover:text-[#1E2922]"
+                      ? "text-white/75 hover:text-white"
                       : isDarkOverview ? "text-[#4B5563] hover:text-[#17191D] dark:text-[#C2C8CF] dark:hover:text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
@@ -1295,10 +1295,10 @@ export function ConsultancyNavigation({
                     className={`text-[11px] tracking-tight truncate max-w-full leading-none mt-1 text-center shrink-0 transition-colors duration-150 ${
                       active
                         ? isTrainerRefined
-                          ? "font-bold text-[#176B49]"
+                          ? "font-bold text-white"
                           : isDarkOverview ? "font-bold text-[#065F46] dark:text-[#10B981]" : "font-bold text-[var(--brand)]"
                         : isTrainerRefined
-                        ? "font-medium text-[#64748B] group-hover:text-[#1E2922]"
+                        ? "font-medium text-white/75 group-hover:text-white"
                         : isDarkOverview ? "font-medium text-[#4B5563] group-hover:text-[#17191D] dark:text-[#C2C8CF] dark:group-hover:text-white" : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                     }`}
                   >
@@ -1308,7 +1308,7 @@ export function ConsultancyNavigation({
                     <span
                       className={`shrink-0 ${
                         isTrainerRefined
-                          ? "w-6 h-[3px] rounded-full bg-[#176B49] mt-1"
+                          ? "w-6 h-[3px] rounded-full bg-[#4ADE80] mt-1"
                           : isDarkOverview ? "w-1 h-1 rounded-full mt-0.5 bg-[#065F46] dark:bg-[#10B981]" : "w-1 h-1 rounded-full mt-0.5 bg-[var(--brand)]"
                       }`}
                       aria-hidden="true"
@@ -1330,10 +1330,10 @@ export function ConsultancyNavigation({
               className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                 isMoreButtonActive
                   ? isTrainerRefined
-                    ? "text-[#176B49]"
+                    ? "text-white"
                     : isDarkOverview ? "text-[#065F46] dark:text-[#10B981]" : "text-[var(--brand)]"
                   : isTrainerRefined
-                  ? "text-[#64748B] hover:text-[#1E2922]"
+                  ? "text-white/75 hover:text-white"
                   : isDarkOverview ? "text-[#4B5563] hover:text-[#17191D] dark:text-[#C2C8CF] dark:hover:text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
@@ -1350,16 +1350,25 @@ export function ConsultancyNavigation({
                       : "px-3 py-1 rounded-full border border-transparent group-hover:bg-[var(--surface-hover)]"
                 }`}
               >
-                <svg
-                  className="w-[22px] h-[22px] shrink-0"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <circle cx="5" cy="12" r="2" />
-                  <circle cx="12" cy="12" r="2" />
-                  <circle cx="19" cy="12" r="2" />
-                </svg>
+                {isTrainerRefined ? (
+                  <svg className="w-[20px] h-[20px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-[22px] h-[22px] shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <circle cx="5" cy="12" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="19" cy="12" r="2" />
+                  </svg>
+                )}
                 {unreadNotificationsCount > 0 && (
                   <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#065F46] ring-2 ring-[#F9FAFB] dark:bg-[#10B981] dark:ring-[#111215]" : "bg-[var(--brand)] ring-2 ring-[var(--surface)]"}`} />
                 )}
@@ -1368,10 +1377,10 @@ export function ConsultancyNavigation({
                 className={`text-[11px] tracking-tight truncate max-w-full leading-none mt-1 text-center shrink-0 transition-colors duration-150 ${
                   isMoreButtonActive
                     ? isTrainerRefined
-                      ? "font-bold text-[#176B49]"
+                      ? "font-bold text-white"
                       : isDarkOverview ? "font-bold text-[#065F46] dark:text-[#10B981]" : "font-bold text-[var(--brand)]"
                     : isTrainerRefined
-                    ? "font-medium text-[#64748B] group-hover:text-[#1E2922]"
+                    ? "font-medium text-white/75 group-hover:text-white"
                     : isDarkOverview ? "font-medium text-[#4B5563] group-hover:text-[#17191D] dark:text-[#C2C8CF] dark:group-hover:text-white" : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                 }`}
               >
@@ -1381,7 +1390,7 @@ export function ConsultancyNavigation({
                 <span
                   className={`shrink-0 ${
                     isTrainerRefined
-                      ? "w-6 h-[3px] rounded-full bg-[#176B49] mt-1"
+                      ? "w-6 h-[3px] rounded-full bg-[#4ADE80] mt-1"
                       : isDarkOverview ? "w-1 h-1 rounded-full mt-0.5 bg-[#065F46] dark:bg-[#10B981]" : "w-1 h-1 rounded-full mt-0.5 bg-[var(--brand)]"
                   }`}
                   aria-hidden="true"

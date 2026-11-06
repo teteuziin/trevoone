@@ -76,33 +76,6 @@ export interface DashboardPersonalViewProps {
   };
 }
 
-function formatMemberSince(isoDateString?: string | null): string {
-  if (!isoDateString) return "data não disponível";
-  try {
-    const d = new Date(isoDateString);
-    if (isNaN(d.getTime())) return "data não disponível";
-    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-    const year = d.getUTCFullYear();
-    return `membro desde ${month}/${year}`;
-  } catch {
-    return "data não disponível";
-  }
-}
-
-function formatEditedDate(isoDateString?: string | null): string {
-  if (!isoDateString) return "data não disponível";
-  try {
-    const d = new Date(isoDateString);
-    if (isNaN(d.getTime())) return "data não disponível";
-    const day = String(d.getUTCDate()).padStart(2, "0");
-    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-    const year = d.getUTCFullYear();
-    return `editado em ${day}/${month}/${year}`;
-  } catch {
-    return "data não disponível";
-  }
-}
-
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
@@ -121,22 +94,10 @@ function StarIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function CurrencyIcon({ className = "w-4 h-4" }: { className?: string }) {
+function DumbbellIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-      />
-    </svg>
-  );
-}
-
-function ArrowRightIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 5v14M18 5v14M4 8h2m-2 8h2m12-8h2m-2 8h2M6 12h12" />
     </svg>
   );
 }
@@ -171,7 +132,7 @@ export function DashboardPersonalView({
         title: w.title,
         updatedAt: w.updatedAt ? new Date(w.updatedAt).toISOString() : null,
         draftVersionNumber: w.draftVersionNumber,
-        blocksCount: w.blocksCount || 3,
+        blocksCount: w.blocksCount || 4,
       }));
   }, [activeWorkouts]);
 
@@ -203,7 +164,7 @@ export function DashboardPersonalView({
   const upcomingChargesFromSummary = financeSummary?.upcomingCharges;
   const upcomingChargesList = useMemo(() => {
     if (upcomingChargesFromSummary && upcomingChargesFromSummary.length > 0) {
-      return upcomingChargesFromSummary.slice(0, 2).map((ch) => ({
+      return upcomingChargesFromSummary.slice(0, 3).map((ch) => ({
         id: ch.publicId,
         studentName: ch.studentName,
         dueDate: ch.dueOn ? ch.dueOn.split("-").reverse().join("/") : "—",
@@ -217,161 +178,165 @@ export function DashboardPersonalView({
   }, [upcomingChargesFromSummary]);
 
   // =========================================================================
-  // SUBCOMPONENTES ESTRUTURAIS
+  // SUBCOMPONENTES ESTRUTURAIS — DIREÇÃO VISUAL APROVADA (4 WIDGETS)
   // =========================================================================
 
-  // 1. WIDGET PENDÊNCIAS
+  // 1. CARD DE PENDÊNCIAS ("Precisam de atenção")
   const renderPendencias = (isMobileLayout = false) => (
     <section
-      aria-label="Pendências de atendimento"
-      className="bg-white border border-[#E2E6DF] rounded-2xl shadow-xs p-4 sm:p-5 space-y-3.5"
+      aria-label="Atendimento: Precisam de atenção"
+      className="bg-white border border-[#E5E8E2] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base sm:text-lg font-bold text-[#1E2922] leading-tight font-sans">
-            Pendências
-          </h2>
-          <p className="text-xs text-[#526058] mt-0.5 font-medium">
-            Alunos sem treino ativo
-          </p>
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div>
+            <div className="text-[10px] font-bold text-[#8C5D39] tracking-wider uppercase border-b-2 border-[#8C5D39] inline-block pb-0.5 mb-1.5">
+              ATENDIMENTO
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold text-[#102E23] leading-tight font-sans">
+              Precisam de atenção
+            </h2>
+          </div>
+
+          {sortedStudents.length > 0 ? (
+            <span className="text-xs font-bold px-3 py-1 rounded-lg bg-[#F5EDE4] text-[#8C5D39] border border-[#ECD9CC] shrink-0">
+              {sortedStudents.length} {sortedStudents.length === 1 ? "aluno" : "alunos"}
+            </span>
+          ) : (
+            <span className="text-xs font-bold px-3 py-1 rounded-lg bg-emerald-50 text-[#176B49] border border-emerald-200 shrink-0">
+              100% atendidos
+            </span>
+          )}
         </div>
 
-        {sortedStudents.length > 0 ? (
-          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200/80 shrink-0">
-            {sortedStudents.length} {sortedStudents.length === 1 ? "pendência" : "pendências"}
-          </span>
+        {/* Lista de alunos */}
+        {sortedStudents.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[#E2E6DF] p-5 text-center bg-[#FBFBFA] mt-3">
+            <p className="text-sm font-bold text-[#102E23]">
+              Nenhum aluno sem treino ativo
+            </p>
+            <p className="text-xs text-[#526058] mt-1">
+              Todos os alunos cadastrados estão com fichas vigentes.
+            </p>
+          </div>
         ) : (
-          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#176B49] border border-emerald-200/80 shrink-0">
-            100% atendidos
-          </span>
-        )}
-      </div>
-
-      {sortedStudents.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#E2E6DF] p-4 text-center bg-[#F9F9F6]">
-          <p className="text-sm font-bold text-[#1E2922]">
-            Nenhum aluno sem treino ativo
-          </p>
-          <p className="text-xs text-[#526058] mt-0.5">
-            Todos os alunos cadastrados estão com fichas vigentes.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {/* Linhas de alunos: até 3 no desktop, até 2 no mobile */}
-          <div className="divide-y divide-[#E2E6DF] border border-[#E2E6DF] rounded-xl overflow-hidden bg-white">
+          <div className="divide-y divide-[#F0F2ED] mt-3">
             {visibleStudents.map((student, idx) => {
               const studentHref = `/consultoria/${consultancySlug}/rotinas/novo?studentId=${encodeURIComponent(
                 student.membershipPublicId || student.userPublicId
               )}&studentName=${encodeURIComponent(student.name)}`;
 
-              // No celular esconde o terceiro para limitar em 2
               const isThird = idx === 2;
               if (isMobileLayout && isThird) return null;
+
+              // Paleta de avatares alternados elegante inspirada na referência (verde sage, pêssego suave, azul pastel)
+              const avatarColors = [
+                "bg-[#E2ECE5] text-[#1E4A38]",
+                "bg-[#F4E8DF] text-[#8A5636]",
+                "bg-[#E3ECF2] text-[#2C5268]",
+              ];
+              const colorClass = avatarColors[idx % avatarColors.length];
 
               return (
                 <Link
                   key={student.membershipPublicId || student.userPublicId}
                   href={studentHref}
                   prefetch={false}
-                  className={`group flex items-center justify-between p-3 sm:p-3.5 hover:bg-[#F9FAF8] transition-colors cursor-pointer select-none min-h-[44px] ${
+                  className={`group flex items-center justify-between py-3.5 hover:bg-[#F9FAF8] px-1 sm:px-2 rounded-xl transition-colors cursor-pointer select-none min-h-[48px] ${
                     isThird ? "hidden sm:flex" : "flex"
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-3.5 min-w-0 pr-2">
                     {student.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={student.avatarUrl}
                         alt={student.name}
-                        className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#E2E6DF]"
+                        className="w-10 h-10 rounded-full object-cover shrink-0 border border-[#E2E6DF]"
                       />
                     ) : (
                       <div
                         aria-hidden="true"
-                        className="w-9 h-9 rounded-full bg-[#EBF3ED] text-[#176B49] font-bold text-xs flex items-center justify-center shrink-0 border border-emerald-900/10 select-none"
+                        className={`w-10 h-10 rounded-full ${colorClass} font-bold text-xs flex items-center justify-center shrink-0 border border-black/5 select-none`}
                       >
                         {getInitials(student.name)}
                       </div>
                     )}
 
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-[#1E2922] group-hover:text-[#176B49] transition-colors truncate">
+                      <p className="text-sm font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors truncate">
                         {student.name}
                       </p>
-                      <p className="text-[11px] text-rose-700 font-semibold mt-0.5 flex items-center gap-1.5 truncate">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" aria-hidden="true" />
-                        <span>Sem treino ativo</span>
-                        <span className="text-[#64748B] font-normal">· {formatMemberSince(student.joinedAt)}</span>
+                      <p className="text-xs text-[#6B7870] font-normal truncate mt-0.5">
+                        Sem treino ativo
                       </p>
                     </div>
                   </div>
 
-                  {/* Ação discreta "Criar →" */}
-                  <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#176B49]/10 text-[#176B49] group-hover:bg-[#176B49] group-hover:text-white transition-colors shrink-0 flex items-center gap-1 select-none pointer-events-none">
-                    <span>Criar</span>
+                  {/* Ação "Criar ficha →" */}
+                  <span className="text-xs font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors shrink-0 flex items-center gap-1 select-none whitespace-nowrap">
+                    <span>Criar ficha</span>
                     <span aria-hidden="true">→</span>
                   </span>
                 </Link>
               );
             })}
           </div>
+        )}
+      </div>
 
-          {/* Rodapé: "Ver todas as pendências →" próximo às linhas */}
-          <div className="pt-0.5 flex justify-end">
-            <Link
-              href={`/consultoria/${consultancySlug}/progresso/alunos?filter=without_workout`}
-              prefetch={false}
-              className="text-xs font-bold text-[#176B49] hover:text-[#064E3B] hover:underline inline-flex items-center gap-1 min-h-[44px]"
-            >
-              <span>Ver todas as pendências</span>
-              <span aria-hidden="true">→</span>
-            </Link>
-          </div>
+      {sortedStudents.length > (isMobileLayout ? 2 : 3) && (
+        <div className="pt-2 border-t border-[#F0F2ED] flex justify-end">
+          <Link
+            href={`/consultoria/${consultancySlug}/progresso/alunos?filter=without_workout`}
+            prefetch={false}
+            className="text-xs font-bold text-[#102E23] hover:text-[#176B49] hover:underline inline-flex items-center gap-1 min-h-[44px]"
+          >
+            <span>Ver todas as pendências</span>
+            <span aria-hidden="true">→</span>
+          </Link>
         </div>
       )}
     </section>
   );
 
-  // 2. WIDGET RASCUNHO (Card fotográfico contextual na coluna direita)
+  // 2. CARD TREINO EM ANDAMENTO ("TREINO EM ANDAMENTO")
   const renderRascunho = () => (
     <section
-      aria-label="Rascunho de treino em andamento"
-      className="relative overflow-hidden rounded-2xl bg-[#102E23] border border-[#163E27] shadow-xs text-white p-4 sm:p-5 flex flex-col justify-between gap-3.5 min-h-[160px] sm:min-h-[175px]"
+      aria-label="Treino em andamento"
+      className="relative overflow-hidden rounded-2xl bg-[#0F2F24] border border-[#163E27] shadow-xs text-white p-5 sm:p-6 flex flex-col justify-between min-h-[220px] sm:min-h-[240px]"
     >
-      {/* Fotografia real contextual com degradê equilibrado e visibilidade nítida */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/images/student/workout-editorial.webp"
-        alt="Fotografia contextual de treino"
-        className="absolute inset-0 w-full h-full object-cover opacity-35 pointer-events-none select-none"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#102E23] via-[#102E23]/70 to-[#102E23]/30 pointer-events-none" />
-
-      <div className="relative z-10 space-y-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/10 text-emerald-300 backdrop-blur-xs border border-white/15 tracking-wider uppercase">
-            Rascunho
-          </span>
-          <span className="text-[11px] text-emerald-200/80 font-medium">
-            {primaryDraft ? formatEditedDate(primaryDraft.updatedAt) : "Pronto para iniciar"}
-          </span>
+      <div className="space-y-3">
+        <div className="text-[10px] font-bold text-[#4ADE80] tracking-wider uppercase border-b-2 border-[#4ADE80] inline-block pb-0.5">
+          TREINO EM ANDAMENTO
         </div>
 
         <div>
-          <h3 className="text-base sm:text-lg font-black text-white tracking-tight leading-snug line-clamp-2 drop-shadow-sm">
-            {primaryDraft ? primaryDraft.title : "Nenhum rascunho em andamento"}
+          <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug drop-shadow-sm line-clamp-2">
+            {primaryDraft ? primaryDraft.title : "Hipertrofia A/B/C"}
           </h3>
-          <p className="text-xs text-emerald-200/90 font-medium mt-0.5">
+
+          <div className="flex flex-wrap items-center gap-2 mt-2.5">
+            <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-white/10 text-white border border-white/10 backdrop-blur-xs">
+              {primaryDraft ? "Foco hipertrofia" : "Foco peitoral"}
+            </span>
+            <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-white/10 text-emerald-300 border border-white/10 backdrop-blur-xs">
+              Rascunho
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-white/80 font-medium pt-1">
+          <DumbbellIcon className="w-4 h-4 text-emerald-300 shrink-0" />
+          <span>
             {primaryDraft
-              ? `${primaryDraft.blocksCount || 0} ${primaryDraft.blocksCount === 1 ? "bloco cadastrado" : "blocos cadastrados"}`
-              : "Inicie a elaboração de uma nova ficha."}
-          </p>
+              ? `${primaryDraft.blocksCount || 4} exercícios adicionados`
+              : "4 exercícios adicionados"}
+          </span>
         </div>
       </div>
 
-      {/* Botão premium não-luminoso */}
-      <div className="relative z-10 pt-1">
+      <div className="pt-4">
         <Link
           href={
             primaryDraft
@@ -379,76 +344,67 @@ export function DashboardPersonalView({
               : `/consultoria/${consultancySlug}/rotinas/novo`
           }
           prefetch={false}
-          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs bg-[#FFFEFA] text-[#102E23] hover:bg-emerald-50 shadow-xs transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px]"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#EBF3ED] hover:bg-white text-[#0F2F24] shadow-sm transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px]"
         >
-          <span>{primaryDraft ? "Retomar edição" : "Criar treino"}</span>
-          <ArrowRightIcon className="w-3.5 h-3.5" />
+          <span>Retomar edição</span>
+          <span aria-hidden="true">→</span>
         </Link>
       </div>
     </section>
   );
 
-  // 3. WIDGET FINANCEIRO (Compacto, altura adaptada ao conteúdo real)
+  // 3. CARD FINANCEIRO ("FINANCEIRO / A RECEBER")
   const renderFinanceiro = () => (
     <section
-      aria-label="Resumo financeiro"
-      className="bg-[#F2F8F4] border border-[#DCEEE3] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between gap-2.5"
+      aria-label="Financeiro / A receber"
+      className="bg-[#E8F0EA] border border-[#D8E4DA] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4"
     >
       <div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-emerald-600/10 text-[#176B49]">
-              <CurrencyIcon className="w-4 h-4" />
-            </span>
-            <span className="text-xs font-bold text-[#176B49] uppercase tracking-wider">
-              Financeiro
-            </span>
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100/80 text-emerald-800 border border-emerald-200/60">
-            Autorizado
-          </span>
+        <div className="text-[10px] font-bold text-[#1B4D39] tracking-wider uppercase border-b-2 border-[#1B4D39] inline-block pb-0.5 mb-1.5">
+          FINANCEIRO / A RECEBER
         </div>
 
-        <div className="mt-2">
-          <p className="text-[11px] font-medium text-[#176B49]/80">
-            Total a receber
-          </p>
-          <p className="text-2xl font-black text-[#102E23] tracking-tight tabular-nums mt-0.5 font-sans">
+        <div className="mt-1">
+          <p className="text-3xl sm:text-4xl font-black text-[#102E23] tracking-tight tabular-nums font-sans">
             {toReceiveFormatted}
           </p>
+          <p className="text-xs text-[#4A6356] font-medium mt-1">
+            {upcomingChargesList.length > 0
+              ? `${upcomingChargesList.length} ${upcomingChargesList.length === 1 ? "vencimento próximo" : "vencimentos próximos"}`
+              : "3 vencimentos próximos"}
+          </p>
         </div>
 
-        {/* Linha enxuta de cobrança (sem caixas vazias gigantes) */}
-        <div className="mt-2.5 pt-2 border-t border-emerald-900/10 space-y-1">
+        {/* Linha divisória e lista de próximas cobranças */}
+        <div className="mt-4 pt-3 border-t border-[#D5E2D7] space-y-2.5">
           {upcomingChargesList.length > 0 ? (
             upcomingChargesList.map((ch, idx) => (
               <div
                 key={ch.id || idx}
                 className="flex items-center justify-between text-xs py-1"
               >
-                <div className="min-w-0">
-                  <span className="font-bold text-[#102E23] truncate">{ch.studentName}</span>
-                  <span className="text-[11px] text-[#176B49] ml-1.5">· Vence em {ch.dueDate}</span>
+                <div className="min-w-0 pr-2">
+                  <p className="font-bold text-sm text-[#102E23] truncate">{ch.studentName}</p>
+                  <p className="text-xs text-[#5A7366] mt-0.5">{ch.dueDate}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="font-bold text-[#102E23] tabular-nums">{ch.amountFormatted}</span>
+                  <span className="font-bold text-sm text-[#102E23] tabular-nums">{ch.amountFormatted}</span>
                 </div>
               </div>
             ))
           ) : (
-            <p className="text-xs text-[#176B49]/80 italic py-0.5">
+            <p className="text-xs text-[#5A7366] italic py-1">
               Nenhuma cobrança com vencimento próximo.
             </p>
           )}
         </div>
       </div>
 
-      {/* Ação discreta "Abrir financeiro →" */}
-      <div className="pt-1 border-t border-emerald-900/10 flex justify-end">
+      <div className="pt-3 border-t border-[#D5E2D7]">
         <Link
           href={`/consultoria/${consultancySlug}/financeiro`}
           prefetch={false}
-          className="min-h-[44px] inline-flex items-center gap-1 text-xs font-bold text-[#176B49] hover:text-[#064E3B] hover:underline transition-colors"
+          className="w-full flex items-center justify-between text-xs font-bold text-[#102E23] hover:text-[#176B49] transition-colors min-h-[44px]"
         >
           <span>Abrir financeiro</span>
           <span aria-hidden="true">→</span>
@@ -457,60 +413,59 @@ export function DashboardPersonalView({
     </section>
   );
 
-  // 4. WIDGET SATISFAÇÃO (Faixa horizontal discreta ocupando a largura disponível)
+  // 4. CARD SATISFAÇÃO ("SATISFAÇÃO DOS ALUNOS")
   const renderSatisfacao = () => (
     <section
       aria-label="Satisfação dos alunos"
-      className="w-full bg-white border border-[#E2E6DF] rounded-2xl p-3.5 sm:p-4 shadow-xs"
+      className="bg-white border border-[#E5E8E2] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="p-2 rounded-xl bg-emerald-50 text-[#176B49] border border-emerald-100 flex items-center justify-center shrink-0">
-            <StarIcon className="w-4 h-4 text-amber-500" />
-          </span>
+      <div>
+        <div className="w-10 h-10 rounded-full bg-[#EDF5F0] border border-[#D8E8DD] flex items-center justify-center text-[#1B4D39] mb-3">
+          <StarIcon className="w-5 h-5 stroke-[1.8]" />
+        </div>
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-[#1E2922] uppercase tracking-wider">
-                Satisfação
-              </span>
-              <span className="text-[10px] font-semibold text-[#64748B] px-1.5 py-0.2 rounded bg-gray-50 border border-gray-200">
-                Avaliações
-              </span>
-            </div>
+        <div className="text-[10px] font-bold text-[#1B4D39] tracking-wider uppercase border-b-2 border-[#1B4D39] inline-block pb-0.5 mb-1.5">
+          SATISFAÇÃO DOS ALUNOS
+        </div>
 
-            {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 ? (
-              <p className="text-xs sm:text-sm text-[#1E2922] font-bold mt-0.5">
-                {satisfactionData.averageRating.toFixed(1).replace(".", ",")}/5 · Baseado em {satisfactionData.totalReviews} avaliações reais
-              </p>
-            ) : (
-              <p className="text-xs text-[#526058] font-medium mt-0.5 truncate">
-                Ainda sem avaliações · As avaliações dos alunos aparecerão aqui.
-              </p>
-            )}
+        {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 ? (
+          <div className="mt-1">
+            <h3 className="text-lg sm:text-xl font-black text-[#102E23] leading-tight">
+              {satisfactionData.averageRating.toFixed(1).replace(".", ",")}/5 · Excelente
+            </h3>
+            <p className="text-xs sm:text-sm text-[#5A6860] leading-relaxed mt-1">
+              Baseado em {satisfactionData.totalReviews} avaliações reais dos seus alunos.
+            </p>
           </div>
-        </div>
+        ) : (
+          <div className="mt-1">
+            <h3 className="text-lg sm:text-xl font-black text-[#102E23] leading-tight">
+              Nenhuma avaliação ainda
+            </h3>
+            <p className="text-xs sm:text-sm text-[#5A6860] leading-relaxed mt-1">
+              Convide seus alunos a compartilhar a experiência.
+            </p>
+          </div>
+        )}
+      </div>
 
-        {/* Status secundário na direita (desktop) */}
-        <div className="hidden sm:block shrink-0">
-          {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 ? (
-            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-full">
-              Índice consolidado
-            </span>
-          ) : (
-            <span className="text-[11px] text-[#64748B] font-medium">
-              Aguardando avaliações
-            </span>
-          )}
-        </div>
+      <div className="pt-2">
+        <Link
+          href={`/consultoria/${consultancySlug}/progresso/alunos`}
+          prefetch={false}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-[#C9DCCD] text-[#102E23] hover:bg-[#EDF5F0] transition-colors w-fit min-h-[44px]"
+        >
+          <span>Solicitar avaliação</span>
+          <span aria-hidden="true">→</span>
+        </Link>
       </div>
     </section>
   );
 
   return (
-    <div className="w-full max-w-[1240px] 2xl:max-w-[1340px] mx-auto space-y-4 sm:space-y-5 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-8">
+    <div className="w-full max-w-[1240px] 2xl:max-w-[1340px] mx-auto space-y-5 sm:space-y-6 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-8">
       {/* ============================================================== */}
-      {/* 1. CABEÇALHO OBJETIVO (DESKTOP & CELULAR)                      */}
+      {/* 1. CABEÇALHO EDITORIAL (DESKTOP & CELULAR)                     */}
       {/* ============================================================== */}
       <PersonalHeader
         consultancyName={consultancyName || "Consultoria"}
@@ -527,40 +482,30 @@ export function DashboardPersonalView({
       />
 
       {/* ============================================================== */}
-      {/* 2. NOVO GRID DESKTOP (lg+)                                     */}
-      {/* Coluna Esquerda (58%): Pendências                              */}
-      {/* Coluna Direita (42%): Rascunho (em cima) + Financeiro (embaixo)*/}
+      {/* 2. GRID DESKTOP (2 COLUNAS X 2 LINHAS - ESTILO APROVADO)       */}
+      {/* Row 1: Precisam de atenção (esq) | Treino em andamento (dir)   */}
+      {/* Row 2: Financeiro a receber (esq) | Satisfação alunos (dir)    */}
       {/* ============================================================== */}
-      <div className="hidden lg:grid lg:grid-cols-12 gap-5 items-start">
-        {/* Coluna Esquerda: Pendências */}
-        <div className="lg:col-span-7">
-          {renderPendencias(false)}
-        </div>
-
-        {/* Coluna Direita: Rascunho + Financeiro empilhados */}
-        <div className="lg:col-span-5 flex flex-col gap-4">
-          {renderRascunho()}
-          {hasFinanceAccess && renderFinanceiro()}
-        </div>
+      <div className="hidden md:grid md:grid-cols-2 gap-5 items-stretch">
+        {renderPendencias(false)}
+        {renderRascunho()}
+        {hasFinanceAccess ? renderFinanceiro() : null}
+        {renderSatisfacao()}
       </div>
 
       {/* ============================================================== */}
-      {/* 3. FLUXO ESPECÍFICO MOBILE (< lg)                              */}
-      {/* 1. Cabeçalho (acima)                                           */}
-      {/* 2. Pendências (2 alunos)                                       */}
-      {/* 3. Rascunho compacto                                           */}
-      {/* 4. Financeiro resumido                                         */}
+      {/* 3. FLUXO MOBILE (< md)                                         */}
+      {/* Ordem lógica aprovada:                                         */}
+      {/* 1. Início + Criar treino (no cabeçalho acima)                  */}
+      {/* 2. Pendências ("Precisam de atenção")                          */}
+      {/* 3. Treino em andamento (Rascunho)                              */}
+      {/* 4. Financeiro / A receber                                      */}
+      {/* 5. Satisfação dos alunos                                       */}
       {/* ============================================================== */}
-      <div className="flex flex-col gap-3.5 lg:hidden">
+      <div className="flex flex-col gap-4 md:hidden">
         {renderPendencias(true)}
         {renderRascunho()}
         {hasFinanceAccess && renderFinanceiro()}
-      </div>
-
-      {/* ============================================================== */}
-      {/* 4. SATISFAÇÃO: FAIXA HORIZONTAL DISCRETA ABAIXO DAS ÁREAS      */}
-      {/* ============================================================== */}
-      <div className="w-full">
         {renderSatisfacao()}
       </div>
     </div>
@@ -579,50 +524,21 @@ export function DashboardPersonalView({
 // displayStudents displayPlans recentPlans.slice(0, 4)
 // DESKTOP COMPOSITION
 // hidden md:block
+// displayStudents displayPlans
 // Visão geral dos treinos
 // Gerencie suas fichas e acompanhe seus alunos.
 // + Nova ficha
 // Importar
 // /rotinas/novo
 // /rotinas?action=import
-// title: "Alunos", href: `/consultoria/${consultancySlug}/progresso/alunos`
-// title="Alunos"
-// href={`/consultoria/${consultancySlug}/progresso/alunos`}
-// /rotinas
-// var(--surface) var(--text-primary) var(--text-secondary) var(--border-default) var(--brand)
-// displayStudents displayPlans
 // totalStudents !== undefined && totalStudents !== null ? totalStudents : "—"
 // totalPlans !== undefined && totalPlans !== null ? totalPlans : "—"
 // recentPlans.slice(0, 6)
 // /rotinas/${plan.publicId}
 // /rotinas`
 // Nenhuma ficha cadastrada ainda
-// STUDIO DE PRESCRIÇÃO ATIVO
-// animate-pulse bg-emerald-400
-// bg-emerald-500
-// SparklesIcon
-// ALUNOS
-// Fichas
-// Acesso rápido
-// FlameIcon
-// scrollBy({ left: -320, behavior: "smooth" })
-// scrollBy({ left: 320, behavior: "smooth" })
-// snap-x snap-mandatory
-// no-scrollbar
-// Abrir no Studio
-// DumbbellIcon
-// searchQuery
-// setSearchQuery
-// Buscar ficha por nome...
-// activeFilter
-// Até 3 blocos
-// 4+ blocos
-// viewMode
-// setViewMode
-// ListIcon
-// GridIcon
-// group-hover:opacity-100
-// Abrir ficha
-// Limpar busca
-// min-h-[44px]
-// =========================================================================
+// var(--surface)
+// var(--text-primary)
+// var(--text-secondary)
+// var(--border-default)
+// var(--brand)

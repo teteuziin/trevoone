@@ -184,6 +184,9 @@ export function DashboardPersonalView({
     });
   }, [studentsWithoutWorkout]);
 
+  // Lista inicial refinada para 3 alunos (Prioridade 3 aprovada)
+  const visibleStudents = useMemo(() => sortedStudents.slice(0, 3), [sortedStudents]);
+
   // Indicadores de finanças
   const hasFinanceAccess = financeSummary?.hasAccess ?? false;
   const toReceiveBrl = (financeSummary?.toReceiveCents || 185000) / 100;
@@ -211,7 +214,7 @@ export function DashboardPersonalView({
   }, [upcomingChargesFromSummary]);
 
   return (
-    <div className="w-full max-w-full space-y-5 sm:space-y-6 pb-12">
+    <div className="w-full max-w-full space-y-5 sm:space-y-6 pb-6">
       {/* ============================================================== */}
       {/* 1. CABEÇALHO OBJETIVO (DESKTOP & MOBILE)                       */}
       {/* ============================================================== */}
@@ -273,48 +276,65 @@ export function DashboardPersonalView({
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-[#E2E6DF] border border-[#E2E6DF] rounded-xl overflow-hidden">
-                {sortedStudents.slice(0, 5).map((student) => {
-                  const studentHref = `/consultoria/${consultancySlug}/rotinas/novo?studentId=${encodeURIComponent(
-                    student.membershipPublicId || student.userPublicId
-                  )}&studentName=${encodeURIComponent(student.name)}`;
+              <div className="space-y-3">
+                {/* Linhas de alunos (Máximo inicial de 3, linha inteira clicável) */}
+                <div className="divide-y divide-[#E2E6DF] border border-[#E2E6DF] rounded-xl overflow-hidden">
+                  {visibleStudents.map((student) => {
+                    const studentHref = `/consultoria/${consultancySlug}/rotinas/novo?studentId=${encodeURIComponent(
+                      student.membershipPublicId || student.userPublicId
+                    )}&studentName=${encodeURIComponent(student.name)}`;
 
-                  return (
-                    <Link
-                      key={student.membershipPublicId || student.userPublicId}
-                      href={studentHref}
-                      prefetch={false}
-                      className="group flex items-center justify-between p-3.5 hover:bg-[#F7F8F4] transition-colors cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          aria-hidden="true"
-                          className="w-10 h-10 rounded-full bg-[#EBF3ED] text-[#065F46] font-bold text-xs flex items-center justify-center shrink-0 border border-emerald-900/10 select-none"
-                        >
-                          {getInitials(student.name)}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-bold text-[#1E2922] group-hover:text-emerald-800 transition-colors truncate">
-                              {student.name}
-                            </span>
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded text-rose-700 bg-rose-50 border border-rose-200/60 shrink-0">
-                              SEM FICHA
-                            </span>
+                    return (
+                      <Link
+                        key={student.membershipPublicId || student.userPublicId}
+                        href={studentHref}
+                        prefetch={false}
+                        className="group flex items-center justify-between p-3.5 hover:bg-[#F7F8F4] transition-colors cursor-pointer select-none"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            aria-hidden="true"
+                            className="w-10 h-10 rounded-full bg-[#EBF3ED] text-[#065F46] font-bold text-xs flex items-center justify-center shrink-0 border border-emerald-900/10 select-none"
+                          >
+                            {getInitials(student.name)}
                           </div>
-                          <p className="text-[11px] text-[#64748B] mt-0.5 font-medium truncate">
-                            {formatMemberSince(student.joinedAt)}
-                          </p>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-bold text-[#1E2922] group-hover:text-[#047857] transition-colors truncate">
+                                {student.name}
+                              </span>
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded text-rose-700 bg-rose-50 border border-rose-200/60 shrink-0">
+                                SEM FICHA
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-[#64748B] mt-0.5 font-medium truncate">
+                              {formatMemberSince(student.joinedAt)}
+                            </p>
+                          </div>
                         </div>
-                      </div>
 
-                      <span className="min-h-[44px] px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#047857] group-hover:bg-[#065F46] text-white flex items-center justify-center gap-1 shadow-xs transition-colors shrink-0">
-                        <PlusIcon className="w-3.5 h-3.5" />
-                        <span>Criar</span>
-                      </span>
+                        <span className="min-h-[44px] px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#047857] group-hover:bg-[#065F46] text-white flex items-center justify-center gap-1 shadow-xs transition-colors shrink-0 pointer-events-none">
+                          <PlusIcon className="w-3.5 h-3.5" />
+                          <span>Criar</span>
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+
+                {/* Acesso direto aos demais alunos quando houver mais de 3 */}
+                {sortedStudents.length > 3 && (
+                  <div className="pt-1 flex justify-end">
+                    <Link
+                      href={`/consultoria/${consultancySlug}/progresso/alunos`}
+                      prefetch={false}
+                      className="text-xs font-bold text-[#047857] hover:text-[#065F46] hover:underline inline-flex items-center gap-1.5 min-h-[44px]"
+                    >
+                      <span>Ver todos os {sortedStudents.length} alunos sob gestão</span>
+                      <span aria-hidden="true">→</span>
                     </Link>
-                  );
-                })}
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -326,37 +346,38 @@ export function DashboardPersonalView({
             aria-label="Rascunho de treino em andamento"
             className="relative overflow-hidden rounded-2xl bg-[#0A2214] border border-[#163E27] shadow-xs text-white p-5 sm:p-6 flex flex-col justify-between min-h-[220px] sm:min-h-[250px]"
           >
-            {/* Fotografia real contextual (Fitness/Musculação) */}
+            {/* Fotografia real contextual perceptível com gradiente equilibrado */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/student/workout-editorial.webp"
-              alt="Fotografia de treino"
-              className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none select-none"
+              alt="Fotografia de treino contextual"
+              className="absolute inset-0 w-full h-full object-cover opacity-35 pointer-events-none select-none"
             />
-            {/* Overlay gradiente escuro para legibilidade impecável */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0A2214] via-[#0A2214]/85 to-[#0A2214]/60 pointer-events-none" />
+            {/* Overlay gradiente escuro garantindo contraste total dos textos */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0A2214]/95 via-[#0A2214]/75 to-[#0A2214]/40 pointer-events-none" />
 
             {/* Conteúdo em z-10 */}
             <div className="relative z-10 space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-white/10 text-emerald-300 backdrop-blur-xs border border-white/10 tracking-wider uppercase">
+                <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-white/15 text-emerald-300 backdrop-blur-xs border border-white/20 tracking-wider uppercase">
                   Rascunho de treino
                 </span>
-                <span className="text-xs text-emerald-100/75 font-medium">
+                <span className="text-xs text-emerald-100/90 font-medium">
                   {primaryDraft ? formatEditedDate(primaryDraft.updatedAt) : "Trabalho interno"}
                 </span>
               </div>
 
               <div>
-                <h3 className="text-lg sm:text-xl font-black text-white tracking-tight leading-snug line-clamp-2">
+                <h3 className="text-lg sm:text-xl font-black text-white tracking-tight leading-snug line-clamp-2 drop-shadow-sm">
                   {primaryDraft ? primaryDraft.title : "Hipertrofia A/B/C – Foco Peitoral"}
                 </h3>
-                <p className="text-xs text-emerald-200/90 font-medium mt-1">
-                  {primaryDraft ? `${primaryDraft.blocksCount * 2} exercícios cadastrados` : "6 exercícios cadastrados"}
+                <p className="text-xs text-emerald-200 font-medium mt-1">
+                  {primaryDraft ? `${primaryDraft.blocksCount || 0} blocos cadastrados` : "6 exercícios cadastrados"}
                 </p>
               </div>
             </div>
 
+            {/* Botão de retomada compacto e bem posicionado */}
             <div className="relative z-10 pt-4">
               <Link
                 href={
@@ -365,7 +386,7 @@ export function DashboardPersonalView({
                     : `/consultoria/${consultancySlug}/rotinas`
                 }
                 prefetch={false}
-                className="min-h-[44px] w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#10B981] hover:bg-[#059669] text-[#042F1E] flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer active:translate-y-[1px]"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#10B981] hover:bg-[#059669] text-[#042F1E] shadow-xs transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px]"
               >
                 <span>Retomar edição</span>
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -379,7 +400,7 @@ export function DashboardPersonalView({
         {/* COLUNA DIREITA (~42% desktop / 5 colunas) */}
         <div className="lg:col-span-5 space-y-5 sm:space-y-6">
           {/* ============================================================ */}
-          {/* WIDGET 3: FINANCEIRO (Verde suave, valores alinhados)         */}
+          {/* WIDGET 3: FINANCEIRO (Verde suave, sem botão verde gigante)  */}
           {/* ============================================================ */}
           {hasFinanceAccess && (
             <section
@@ -410,7 +431,7 @@ export function DashboardPersonalView({
                   </p>
                 </div>
 
-                {/* Próximas cobranças alinhadas com divisórias finas */}
+                {/* Próximas cobranças alinhadas com divisórias finas sem caixas aninhadas */}
                 <div className="mt-4 pt-3 border-t border-emerald-900/10 space-y-2">
                   <p className="text-[10px] font-bold text-[#065F46] uppercase tracking-wider">
                     Próximas cobranças da consultoria
@@ -418,7 +439,7 @@ export function DashboardPersonalView({
                   {upcomingChargesList.map((ch, idx) => (
                     <div
                       key={ch.id || idx}
-                      className="flex items-center justify-between text-xs py-1.5 border-b border-emerald-900/5 last:border-none"
+                      className="flex items-center justify-between text-xs py-2 border-b border-emerald-900/10 last:border-none"
                     >
                       <div className="min-w-0">
                         <p className="font-bold text-[#064E3B] truncate">{ch.studentName}</p>
@@ -435,21 +456,22 @@ export function DashboardPersonalView({
                 </div>
               </div>
 
-              <div className="pt-2">
+              {/* Rodapé limpo com link direto elegante (sem botão verde gigante) */}
+              <div className="pt-2 border-t border-emerald-900/10 flex justify-end">
                 <Link
                   href={`/consultoria/${consultancySlug}/financeiro`}
                   prefetch={false}
-                  className="min-h-[44px] w-full px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#047857] hover:bg-[#065F46] text-white flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  className="min-h-[44px] inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#047857] hover:text-[#065F46] hover:underline transition-colors"
                 >
                   <span>Ver painel financeiro completo</span>
-                  <span>→</span>
+                  <span aria-hidden="true">→</span>
                 </Link>
               </div>
             </section>
           )}
 
           {/* ============================================================ */}
-          {/* WIDGET 4: SATISFAÇÃO (Superfície clara, estado vazio limpo)   */}
+          {/* WIDGET 4: SATISFAÇÃO (Superfície clara, sem caixas aninhadas) */}
           {/* ============================================================ */}
           <section
             aria-label="Satisfação dos alunos"
@@ -480,7 +502,7 @@ export function DashboardPersonalView({
                   </p>
                 </div>
               ) : (
-                <div className="mt-4 p-4 rounded-xl bg-[#F9F9F6] border border-[#E2E6DF] space-y-1">
+                <div className="mt-4 py-2 space-y-1">
                   <p className="text-xs sm:text-sm font-bold text-[#1E2922]">
                     Sem avaliações recentes
                   </p>
@@ -491,7 +513,7 @@ export function DashboardPersonalView({
               )}
             </div>
 
-            <div className="pt-2 text-[11px] text-[#64748B] font-medium text-center">
+            <div className="pt-2 border-t border-[#E2E6DF] text-[11px] text-[#64748B] font-medium text-center">
               Métricas consolidadas da consultoria ativa
             </div>
           </section>

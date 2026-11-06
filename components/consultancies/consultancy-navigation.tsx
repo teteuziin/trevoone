@@ -773,7 +773,7 @@ export function ConsultancyNavigation({
             />
             <div className="min-w-0 flex-1">
               <p className={`text-base font-bold tracking-tight ${
-                isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"
+                isTrainerRefined ? "text-white" : isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"
               } truncate leading-tight transition-colors`}>
                 {consultancyName}
               </p>
@@ -831,7 +831,9 @@ export function ConsultancyNavigation({
               >
                 {section.title && (
                   <p className={`text-[11px] font-semibold ${
-                    isDarkOverview ? "text-[#4B5563] dark:text-[#8E959E]" : "text-[var(--text-tertiary)]"
+                    isTrainerRefined
+                      ? "text-emerald-300/60 uppercase tracking-widest text-[10px] font-bold"
+                      : isDarkOverview ? "text-[#4B5563] dark:text-[#8E959E]" : "text-[var(--text-tertiary)]"
                   } uppercase tracking-wider px-3 mb-2 font-heading`}>
                     {section.title}
                   </p>
@@ -846,20 +848,24 @@ export function ConsultancyNavigation({
                       aria-current={active ? "page" : undefined}
                       className={`flex items-center justify-between px-3 py-2 text-[13px] min-h-[44px] rounded-xl border transition-all depth-interactive ${
                         active
-                          ? isDarkOverview
+                          ? isTrainerRefined
+                            ? "bg-[#133A24] text-white border-l-[3.5px] border-emerald-400 pl-2.5 rounded-r-xl shadow-xs font-bold"
+                            : isDarkOverview
                             ? "bg-[#E5E7EB] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
                             : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                          : isTrainerRefined
+                          ? "text-emerald-100/75 hover:text-white hover:bg-[#133A24]/60 border-transparent font-medium rounded-xl"
                           : isDarkOverview
                           ? "text-[#4B5563] hover:text-[#17191D] hover:bg-[#F3F4F6] dark:text-[#C2C8CF] dark:hover:text-white dark:hover:bg-[#1B1D21] border-transparent font-medium"
                           : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent font-medium"
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <NavIcon name={item.iconName} className="w-5 h-5 shrink-0" />
+                        <NavIcon name={item.iconName} className={`w-5 h-5 shrink-0 ${isTrainerRefined ? (active ? "text-emerald-400" : "text-emerald-300/80") : ""}`} />
                         <span className="truncate">{item.label}</span>
                       </div>
                       {active && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${isTrainerRefined ? "bg-emerald-400" : isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
                       )}
                     </Link>
                   );
@@ -873,7 +879,9 @@ export function ConsultancyNavigation({
         <div
           ref={desktopProfileRef}
           className={`relative p-3 border-t ${
-            isDarkOverview
+            isTrainerRefined
+              ? "border-[#143823] bg-[#0D2B19]"
+              : isDarkOverview
               ? "border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#111215]"
               : "border-[var(--border-default)] bg-[var(--surface)]"
           } shrink-0`}
@@ -1005,7 +1013,9 @@ export function ConsultancyNavigation({
             aria-expanded={desktopProfileOpen}
             aria-label="Abrir menu de conta"
             className={`w-full flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-xl text-left ${
-              isDarkOverview
+              isTrainerRefined
+                ? "hover:bg-[#133A24] border border-transparent"
+                : isDarkOverview
                 ? desktopProfileOpen
                   ? "bg-[#E5E7EB] dark:bg-[#1B1D21] border border-[#D1D5DB] dark:border-[#303238]"
                   : "hover:bg-[#E5E7EB] dark:hover:bg-[#1B1D21] border border-transparent"
@@ -1024,7 +1034,7 @@ export function ConsultancyNavigation({
               />
               <div className="min-w-0 flex-1">
                 <p className={`text-[13px] font-semibold ${
-                  isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"
+                  isTrainerRefined ? "text-white" : isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"
                 } transition-colors truncate leading-tight`}>
                   {identity.fullName}
                 </p>
@@ -1032,7 +1042,7 @@ export function ConsultancyNavigation({
 <p
                     title={identity.email}
                     className={`text-xs ${
-                      isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-tertiary)]"
+                      isTrainerRefined ? "text-emerald-300/80" : isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-tertiary)]"
                     } break-all leading-snug mt-0.5`}
                   >
                     {identity.email}
@@ -1160,7 +1170,9 @@ export function ConsultancyNavigation({
           ========================================================================= */}
       <header
         className={`flex md:hidden sticky top-0 z-30 w-full max-w-full min-w-0 ${
-          isDarkOverview
+          isTrainerRefined
+            ? "bg-[#FBFBF9]/95 backdrop-blur border-b border-[#E7E9E3] text-[#1E2922]"
+            : isDarkOverview
             ? "bg-[#F9FAFB] dark:bg-[#111215] border-b border-[#E5E7EB] dark:border-[#303238] text-[#17191D] dark:text-white"
             : "bg-[var(--surface)] border-b border-[var(--border-default)]"
         } shadow-2xs pt-[env(safe-area-inset-top,0px)] print:hidden transition-colors border-specular-t`}
@@ -1192,11 +1204,11 @@ export function ConsultancyNavigation({
             </div>
           ) : (
             <div className="min-w-0 flex-1">
-              <p className={`text-xs font-semibold ${isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"} truncate leading-tight`}>
+              <p className={`text-xs font-bold ${isTrainerRefined ? "text-[#1E2922]" : isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"} truncate leading-tight`}>
                 {consultancyName}
               </p>
               {primaryRoleLabel && (
-                <p className={`text-[10px] font-medium ${isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-tertiary)]"} truncate leading-tight uppercase tracking-wider mt-0.5`}>
+                <p className={`text-[10px] font-semibold ${isTrainerRefined ? "text-[#047857]" : isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-tertiary)]"} truncate leading-tight uppercase tracking-wider mt-0.5`}>
                   {primaryRoleLabel}
                 </p>
               )}
@@ -1217,7 +1229,9 @@ export function ConsultancyNavigation({
         <nav
           aria-label="Navegação rápida móvel"
           className={`md:hidden fixed bottom-0 inset-x-0 z-30 w-full max-w-full min-w-0 ${
-            isDarkOverview
+            isTrainerRefined
+              ? "bg-white/95 backdrop-blur border-t border-[#E7E9E3]"
+              : isDarkOverview
               ? "bg-[#F9FAFB] dark:bg-[#111215] border-t border-[#E5E7EB] dark:border-[#303238]"
               : "bg-[var(--surface)] border-t border-[var(--border-default)]"
           } pb-[max(0.375rem,env(safe-area-inset-bottom,0px))] shadow-lg print:hidden border-specular-t`}
@@ -1233,16 +1247,24 @@ export function ConsultancyNavigation({
                   aria-current={active ? "page" : undefined}
                   className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                     active
-                      ? isDarkOverview ? "text-[#065F46] dark:text-[#10B981]" : "text-[var(--brand)]"
+                      ? isTrainerRefined
+                        ? "text-[#047857]"
+                        : isDarkOverview ? "text-[#065F46] dark:text-[#10B981]" : "text-[var(--brand)]"
+                      : isTrainerRefined
+                      ? "text-[#64748B] hover:text-[#1E2922]"
                       : isDarkOverview ? "text-[#4B5563] hover:text-[#17191D] dark:text-[#C2C8CF] dark:hover:text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <div
                     className={`px-3 py-1 rounded-full relative flex items-center justify-center shrink-0 transition-all duration-150 ${
                       active
-                        ? isDarkOverview
+                        ? isTrainerRefined
+                          ? "bg-emerald-50 text-[#047857] border border-emerald-200/60 shadow-xs"
+                          : isDarkOverview
                           ? "bg-emerald-500/15 text-[#065F46] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
                           : "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
+                        : isTrainerRefined
+                        ? "border border-transparent group-hover:bg-[#F3F4F6]"
                         : isDarkOverview
                           ? "border border-transparent group-hover:bg-[#DFE3E8] dark:group-hover:bg-[#1B1D21]"
                           : "border border-transparent group-hover:bg-[var(--surface-hover)]"
@@ -1253,7 +1275,11 @@ export function ConsultancyNavigation({
                   <span
                     className={`text-[11px] tracking-tight truncate max-w-full leading-none mt-1 text-center shrink-0 transition-colors duration-150 ${
                       active
-                        ? isDarkOverview ? "font-bold text-[#065F46] dark:text-[#10B981]" : "font-bold text-[var(--brand)]"
+                        ? isTrainerRefined
+                          ? "font-bold text-[#047857]"
+                          : isDarkOverview ? "font-bold text-[#065F46] dark:text-[#10B981]" : "font-bold text-[var(--brand)]"
+                        : isTrainerRefined
+                        ? "font-medium text-[#64748B] group-hover:text-[#1E2922]"
                         : isDarkOverview ? "font-medium text-[#4B5563] group-hover:text-[#17191D] dark:text-[#C2C8CF] dark:group-hover:text-white" : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                     }`}
                   >

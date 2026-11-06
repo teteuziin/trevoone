@@ -728,11 +728,11 @@ export default async function ConsultancyPage({ params }: PageProps) {
       consultancyPublicId={context.consultancyPublicId}
       viewModeState={effectiveState}
       unreadAnnouncements={unreadAnnouncements}
-      themeVariant={isDarkOverviewTheme ? "dark-overview" : "default"}
-      showDashboardWallpaper={isTrainerOrAdminScreen}
+      themeVariant={isPurePersonal || (isCombinedPersonalAdmin && effectiveMode === "PERSONAL") ? "trainer-refined" : isDarkOverviewTheme ? "dark-overview" : "default"}
+      showDashboardWallpaper={!(isPurePersonal || (isCombinedPersonalAdmin && effectiveMode === "PERSONAL")) && isTrainerOrAdminScreen}
       maxWidth="full"
     >
-      <div className="w-full max-w-[1280px] mx-auto space-y-5 sm:space-y-6">
+      <div className={`w-full ${isPurePersonal || isCombinedPersonalAdmin ? "max-w-[1600px] 2xl:max-w-[1780px]" : "max-w-[1280px]"} mx-auto space-y-5 sm:space-y-6`}>
         {/* Context Header Compacto (oculta para Nutricionista, Personal e Admin que possuem cabeçalho executivo próprio) */}
         {!(isPureNutritionist || isCombinedNutritionistAdmin || isPurePersonal || isCombinedPersonalAdmin || isPureAdmin || isStudentOverview) && (
           <DashboardContext
@@ -750,6 +750,12 @@ export default async function ConsultancyPage({ params }: PageProps) {
             consultancySlug={context.consultancySlug}
             consultancyName={context.consultancyName}
             userName={session.fullName}
+            userEmail={session.email}
+            userPublicId={session.userPublicId}
+            hasProfilePhoto={session.hasProfilePhoto}
+            profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+            roles={context.roles}
+            consultancyLogoUrl={context.consultancyLogoUrl}
             overview={adminOverview}
             platformAccess={context.platformAccess}
             recentPlans={personalPlansResult?.items || []}
@@ -806,6 +812,12 @@ export default async function ConsultancyPage({ params }: PageProps) {
             consultancySlug={context.consultancySlug}
             consultancyName={context.consultancyName}
             userName={session.fullName}
+            userEmail={session.email}
+            userPublicId={session.userPublicId}
+            hasProfilePhoto={session.hasProfilePhoto}
+            profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+            roles={context.roles}
+            consultancyLogoUrl={context.consultancyLogoUrl}
             recentPlans={personalPlansResult?.items || []}
             workouts={personalPlansResult?.items || []}
             totalPlans={personalPlansResult?.total}

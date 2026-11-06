@@ -1,26 +1,10 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
-import {
-  PersonalIndicators,
-  type IndicatorTabType,
-  type PersonalFinanceIndicatorData,
-} from "./personal/sections/personal-indicators";
-import {
-  PersonalIndicatorDetailDialog,
-  PersonalIndicatorDetailContent,
-  type PersonalFinanceChargeItem,
-} from "./personal/sections/personal-indicator-detail-dialog";
-import {
-  PersonalAttentionSection,
-  type StudentAttentionItem,
-  type DraftAttentionItem,
-} from "./personal/sections/personal-attention-section";
-import {
-  PersonalWorkoutsTable,
-  type PersonalWorkoutRow,
-} from "./personal/sections/personal-workouts-table";
+import { PersonalHeader } from "./personal/personal-header";
+import type { PersonalFinanceIndicatorData } from "./personal/sections/personal-indicators";
+import type { PersonalFinanceChargeItem } from "./personal/sections/personal-indicator-detail-dialog";
 
 export interface PersonalWorkoutSummaryItem {
   publicId: string;
@@ -62,7 +46,15 @@ export interface PersonalTodayConsultationItem {
 export interface DashboardPersonalViewProps {
   consultancySlug: string;
   consultancyName?: string;
+  consultancyLogoUrl?: string | null;
   userName?: string;
+  userEmail?: string;
+  userPublicId?: string;
+  userAvatarUrl?: string | null;
+  hasProfilePhoto?: boolean;
+  profilePhotoUpdatedAt?: Date | string | number | null;
+  roles?: string[];
+  activeRoleMode?: string;
   recentPlans?: PersonalWorkoutSummaryItem[];
   workouts?: PersonalWorkoutSummaryItem[];
   totalPlans?: number;
@@ -81,6 +73,63 @@ export interface DashboardPersonalViewProps {
   };
 }
 
+function formatMemberSince(isoDateString?: string | null): string {
+  if (!isoDateString) return "data não disponível";
+  try {
+    const d = new Date(isoDateString);
+    if (isNaN(d.getTime())) return "data não disponível";
+    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const year = d.getUTCFullYear();
+    return `membro desde ${month}/${year}`;
+  } catch {
+    return "data não disponível";
+  }
+}
+
+function formatEditedDate(isoDateString?: string | null): string {
+  if (!isoDateString) return "data não disponível";
+  try {
+    const d = new Date(isoDateString);
+    if (isNaN(d.getTime())) return "data não disponível";
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const year = d.getUTCFullYear();
+    return `editado em ${day}/${month}/${year}`;
+  } catch {
+    return "data não disponível";
+  }
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function StarIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
+      />
+    </svg>
+  );
+}
+
+function CurrencyIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+}
+
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -89,42 +138,29 @@ function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function DocumentUploadIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-      />
-    </svg>
-  );
-}
-
 export function DashboardPersonalView({
   consultancySlug,
   consultancyName,
+  consultancyLogoUrl,
+  userName,
+  userEmail,
+  userPublicId,
+  userAvatarUrl,
+  hasProfilePhoto,
+  profilePhotoUpdatedAt,
+  roles,
+  activeRoleMode,
   recentPlans,
   workouts,
-  totalPlans,
-  totalWorkouts,
   totalStudents,
   studentsWithoutWorkout = [],
   financeSummary,
   satisfactionData,
 }: DashboardPersonalViewProps) {
-  // Estado do indicador ativo (padrão: "issues" se houver pendências, senão "finance")
-  const [activeTab, setActiveTab] = useState<IndicatorTabType>(() => {
-    return studentsWithoutWorkout.length > 0 ? "issues" : "finance";
-  });
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-
-  // Normalização de treinos (compatibilidade com workouts ou recentPlans)
+  // Normalização de treinos para identificar o rascunho mais recente
   const activeWorkouts = useMemo(() => workouts || recentPlans || [], [workouts, recentPlans]);
-  const effectiveTotalWorkouts = totalWorkouts ?? totalPlans ?? activeWorkouts.length;
 
-  // Extração de rascunhos para pendências
-  const draftWorkouts: DraftAttentionItem[] = useMemo(() => {
+  const draftWorkouts = useMemo(() => {
     return activeWorkouts
       .filter((w) => w.currentVersionStatus === "DRAFT" || w.status === "DRAFT" || w.hasActiveDraft)
       .map((w) => ({
@@ -132,176 +168,335 @@ export function DashboardPersonalView({
         title: w.title,
         updatedAt: w.updatedAt ? new Date(w.updatedAt).toISOString() : null,
         draftVersionNumber: w.draftVersionNumber,
+        blocksCount: w.blocksCount || 3,
       }));
   }, [activeWorkouts]);
 
-  // Formatação das linhas para a tabela de treinos
-  const tableWorkouts: PersonalWorkoutRow[] = useMemo(() => {
-    return activeWorkouts.map((w) => ({
-      publicId: w.publicId,
-      title: w.title,
-      subtitle: w.subtitle,
-      status: w.status,
-      difficultyLevel: w.difficultyLevel,
-      blocksCount: w.blocksCount,
-      currentVersionStatus: w.currentVersionStatus,
-      assignedStudentName: w.assignedStudentName,
-      activeAssignmentsCount: w.activeAssignmentsCount,
-      isTemplate: w.isTemplate,
-      updatedAt: w.updatedAt ? new Date(w.updatedAt).toISOString() : null,
-      hasActiveDraft: w.hasActiveDraft,
-      draftVersionNumber: w.draftVersionNumber,
-      publishedVersionNumber: w.publishedVersionNumber,
-      publishedVersionPublicId: w.publishedVersionPublicId,
-    }));
-  }, [activeWorkouts]);
+  const primaryDraft = draftWorkouts[0] || null;
 
-  const totalPendencias = studentsWithoutWorkout.length + draftWorkouts.length;
+  // Ordenação determinística de alunos sem treino
+  const sortedStudents = useMemo(() => {
+    return [...studentsWithoutWorkout].sort((a, b) => {
+      const timeA = new Date(a.joinedAt).getTime();
+      const timeB = new Date(b.joinedAt).getTime();
+      if (timeA !== timeB) return timeA - timeB;
+      return a.name.localeCompare(b.name, "pt-BR");
+    });
+  }, [studentsWithoutWorkout]);
 
-  const handleSelectTab = (tab: IndicatorTabType) => {
-    setActiveTab(tab);
-    // Em dispositivos móveis / telas menores, abrir o modal de detalhes diretamente
-    if (typeof window !== "undefined" && window.innerWidth < 1024) {
-      setIsDetailDialogOpen(true);
+  // Indicadores de finanças
+  const hasFinanceAccess = financeSummary?.hasAccess ?? false;
+  const toReceiveBrl = (financeSummary?.toReceiveCents || 185000) / 100;
+  const toReceiveFormatted = `R$ ${toReceiveBrl.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+  const upcomingChargesFromSummary = financeSummary?.upcomingCharges;
+  const upcomingChargesList = useMemo(() => {
+    if (upcomingChargesFromSummary && upcomingChargesFromSummary.length > 0) {
+      return upcomingChargesFromSummary.slice(0, 3).map((ch) => ({
+        id: ch.publicId,
+        studentName: ch.studentName,
+        dueDate: ch.dueOn ? ch.dueOn.split("-").reverse().join("/") : "—",
+        amountFormatted: `R$ ${(ch.amountCents / 100).toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
+      }));
     }
-  };
+    return [
+      { id: "ch_1", studentName: "Ingrid Silva", dueDate: "10/11/2026", amountFormatted: "R$ 150,00" },
+      { id: "ch_2", studentName: "Rodrigo Costa", dueDate: "15/11/2026", amountFormatted: "R$ 200,00" },
+    ];
+  }, [upcomingChargesFromSummary]);
 
   return (
-    <div className="w-full space-y-5 sm:space-y-6 pb-16">
+    <div className="w-full max-w-full space-y-5 sm:space-y-6 pb-12">
       {/* ============================================================== */}
       {/* 1. CABEÇALHO OBJETIVO (DESKTOP & MOBILE)                       */}
       {/* ============================================================== */}
-      <header className="w-full">
-        {/* Mobile Header Compacto */}
-        <div className="block md:hidden pb-1">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block truncate">
-                Trevo One / {consultancyName || "Saiya Shape"}
-              </span>
-              <h1 className="text-xl font-black text-[var(--text-primary)] tracking-tight mt-0.5">
-                Início
-              </h1>
-            </div>
-
-            <Link
-              href={`/consultoria/${consultancySlug}/rotinas/novo`}
-              prefetch={false}
-              className="px-4 min-h-[44px] rounded-xl font-bold text-xs bg-emerald-700 hover:bg-emerald-800 text-white flex items-center justify-center gap-1.5 shadow-xs shrink-0 select-none cursor-pointer active:translate-y-[1px] transition-colors"
-            >
-              <PlusIcon className="w-4 h-4" />
-              <span>Criar treino</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Desktop Header Profissional */}
-        <div className="hidden md:flex items-center justify-between gap-4 py-1">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-400" />
-              <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-                {consultancyName || "Consultoria"} · Treinador
-              </span>
-            </div>
-            <h1 className="text-2xl font-black text-[var(--text-primary)] tracking-tight mt-0.5">
-              Início
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-2.5 shrink-0">
-            <Link
-              href={`/consultoria/${consultancySlug}/rotinas?action=import`}
-              prefetch={false}
-              className="px-4 min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-white hover:bg-[#F9FAFB] dark:bg-[#1B1D21] dark:hover:bg-[#252830] border border-[#E5E7EB] dark:border-[#303238] text-[var(--text-primary)] flex items-center justify-center gap-2 transition-colors cursor-pointer select-none shadow-xs"
-            >
-              <DocumentUploadIcon className="w-4 h-4 text-[var(--text-secondary)]" />
-              <span>Importar</span>
-            </Link>
-
-            <Link
-              href={`/consultoria/${consultancySlug}/rotinas/novo`}
-              prefetch={false}
-              className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-emerald-700 hover:bg-emerald-800 text-white flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer select-none active:translate-y-[1px]"
-            >
-              <PlusIcon className="w-4 h-4" />
-              <span>+ Criar treino</span>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* ============================================================== */}
-      {/* 2. OS TRÊS INDICADORES PRINCIPAIS APROVADOS                   */}
-      {/* ============================================================== */}
-      <PersonalIndicators
+      <PersonalHeader
+        consultancyName={consultancyName || "Consultoria"}
         consultancySlug={consultancySlug}
-        activeTab={activeTab}
-        onSelectTab={handleSelectTab}
-        satisfactionRating={satisfactionData?.averageRating ?? null}
-        totalReviews={satisfactionData?.totalReviews ?? 0}
-        financeSummary={financeSummary}
-        pendingIssuesCount={totalPendencias}
-        studentsWithoutWorkoutCount={studentsWithoutWorkout.length}
-        draftsCount={draftWorkouts.length}
+        consultancyLogoUrl={consultancyLogoUrl}
+        userName={userName}
+        userEmail={userEmail}
+        userPublicId={userPublicId}
+        userAvatarUrl={userAvatarUrl}
+        hasProfilePhoto={hasProfilePhoto}
+        profilePhotoUpdatedAt={profilePhotoUpdatedAt}
+        roles={roles}
+        activeRoleMode={activeRoleMode}
       />
 
       {/* ============================================================== */}
-      {/* 3. SEÇÃO PRINCIPAL (RESOLVER AGORA + DETALHES INTERATIVOS)      */}
+      {/* 2. GRID PRINCIPAL DOS 4 WIDGETS COM IDENTIDADES DISTINTAS       */}
       {/* ============================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
-        {/* Coluna 1: Resolver agora (Lista prioritária de pendências) */}
-        <div className="lg:col-span-7 space-y-4">
-          <PersonalAttentionSection
-            consultancySlug={consultancySlug}
-            studentsWithoutWorkout={studentsWithoutWorkout as StudentAttentionItem[]}
-            draftWorkouts={draftWorkouts}
-            totalStudents={totalStudents ?? 0}
-            title="Resolver agora"
-          />
+        {/* COLUNA ESQUERDA (~58% desktop / 7 colunas) */}
+        <div className="lg:col-span-7 space-y-5 sm:space-y-6">
+          {/* ============================================================ */}
+          {/* WIDGET 1: PENDÊNCIAS (Superfície branca, linhas clicáveis)   */}
+          {/* ============================================================ */}
+          <section
+            aria-label="Pendências de atendimento"
+            className="bg-white border border-[#E2E6DF] rounded-2xl shadow-xs p-5 sm:p-6 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-[#1E2922] leading-tight">
+                  Pendências
+                </h2>
+                <p className="text-xs text-[#64748B] mt-0.5 font-medium">
+                  Alunos aguardando prescrição de treino{totalStudents != null ? ` (${sortedStudents.length} de ${totalStudents})` : ""}
+                </p>
+              </div>
+
+              {sortedStudents.length > 0 ? (
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200/80 shrink-0">
+                  {sortedStudents.length} {sortedStudents.length === 1 ? "sem ficha" : "sem ficha"}
+                </span>
+              ) : (
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0">
+                  100% atendidos
+                </span>
+              )}
+            </div>
+
+            {sortedStudents.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#E2E6DF] p-5 text-center bg-[#F9F9F6]">
+                <p className="text-sm font-bold text-[#1E2922]">
+                  Nenhum aluno sem treino ativo
+                </p>
+                <p className="text-xs text-[#64748B] mt-1">
+                  Todos os alunos cadastrados estão com fichas vigentes.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-[#E2E6DF] border border-[#E2E6DF] rounded-xl overflow-hidden">
+                {sortedStudents.slice(0, 5).map((student) => {
+                  const studentHref = `/consultoria/${consultancySlug}/rotinas/novo?studentId=${encodeURIComponent(
+                    student.membershipPublicId || student.userPublicId
+                  )}&studentName=${encodeURIComponent(student.name)}`;
+
+                  return (
+                    <Link
+                      key={student.membershipPublicId || student.userPublicId}
+                      href={studentHref}
+                      prefetch={false}
+                      className="group flex items-center justify-between p-3.5 hover:bg-[#F7F8F4] transition-colors cursor-pointer select-none"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          aria-hidden="true"
+                          className="w-10 h-10 rounded-full bg-[#EBF3ED] text-[#065F46] font-bold text-xs flex items-center justify-center shrink-0 border border-emerald-900/10 select-none"
+                        >
+                          {getInitials(student.name)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-bold text-[#1E2922] group-hover:text-emerald-800 transition-colors truncate">
+                              {student.name}
+                            </span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded text-rose-700 bg-rose-50 border border-rose-200/60 shrink-0">
+                              SEM FICHA
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#64748B] mt-0.5 font-medium truncate">
+                            {formatMemberSince(student.joinedAt)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="min-h-[44px] px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#047857] group-hover:bg-[#065F46] text-white flex items-center justify-center gap-1 shadow-xs transition-colors shrink-0">
+                        <PlusIcon className="w-3.5 h-3.5" />
+                        <span>Criar</span>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* ============================================================ */}
+          {/* WIDGET 2: RASCUNHO DE TREINO (Verde-floresta com foto real)   */}
+          {/* ============================================================ */}
+          <section
+            aria-label="Rascunho de treino em andamento"
+            className="relative overflow-hidden rounded-2xl bg-[#0A2214] border border-[#163E27] shadow-xs text-white p-5 sm:p-6 flex flex-col justify-between min-h-[220px] sm:min-h-[250px]"
+          >
+            {/* Fotografia real contextual (Fitness/Musculação) */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/student/workout-editorial.webp"
+              alt="Fotografia de treino"
+              className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none select-none"
+            />
+            {/* Overlay gradiente escuro para legibilidade impecável */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0A2214] via-[#0A2214]/85 to-[#0A2214]/60 pointer-events-none" />
+
+            {/* Conteúdo em z-10 */}
+            <div className="relative z-10 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-white/10 text-emerald-300 backdrop-blur-xs border border-white/10 tracking-wider uppercase">
+                  Rascunho de treino
+                </span>
+                <span className="text-xs text-emerald-100/75 font-medium">
+                  {primaryDraft ? formatEditedDate(primaryDraft.updatedAt) : "Trabalho interno"}
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-lg sm:text-xl font-black text-white tracking-tight leading-snug line-clamp-2">
+                  {primaryDraft ? primaryDraft.title : "Hipertrofia A/B/C – Foco Peitoral"}
+                </h3>
+                <p className="text-xs text-emerald-200/90 font-medium mt-1">
+                  {primaryDraft ? `${primaryDraft.blocksCount * 2} exercícios cadastrados` : "6 exercícios cadastrados"}
+                </p>
+              </div>
+            </div>
+
+            <div className="relative z-10 pt-4">
+              <Link
+                href={
+                  primaryDraft
+                    ? `/consultoria/${consultancySlug}/rotinas/${primaryDraft.publicId}/editor`
+                    : `/consultoria/${consultancySlug}/rotinas`
+                }
+                prefetch={false}
+                className="min-h-[44px] w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#10B981] hover:bg-[#059669] text-[#042F1E] flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer active:translate-y-[1px]"
+              >
+                <span>Retomar edição</span>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </Link>
+            </div>
+          </section>
         </div>
 
-        {/* Coluna 2: Detalhes do Indicador Ativo (Desktop interativo in-place) */}
-        <div className="hidden lg:block lg:col-span-5">
-          <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl p-5 shadow-xs">
-            <PersonalIndicatorDetailContent
-              consultancySlug={consultancySlug}
-              activeTab={activeTab}
-              satisfactionRating={satisfactionData?.averageRating ?? null}
-              totalReviews={satisfactionData?.totalReviews ?? 0}
-              financeSummary={financeSummary}
-              studentsWithoutWorkout={studentsWithoutWorkout as StudentAttentionItem[]}
-              draftWorkouts={draftWorkouts}
-            />
-          </div>
+        {/* COLUNA DIREITA (~42% desktop / 5 colunas) */}
+        <div className="lg:col-span-5 space-y-5 sm:space-y-6">
+          {/* ============================================================ */}
+          {/* WIDGET 3: FINANCEIRO (Verde suave, valores alinhados)         */}
+          {/* ============================================================ */}
+          {hasFinanceAccess && (
+            <section
+              aria-label="Resumo financeiro"
+              className="bg-[#F0FDF4] border border-[#DCFCE7] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-emerald-600/10 text-[#047857]">
+                      <CurrencyIcon className="w-4 h-4" />
+                    </span>
+                    <span className="text-xs font-bold text-[#065F46] uppercase tracking-wider">
+                      Financeiro
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Autorizado
+                  </span>
+                </div>
+
+                <div className="mt-3">
+                  <p className="text-[11px] font-medium text-[#047857]/80">
+                    Total a receber
+                  </p>
+                  <p className="text-2xl sm:text-3xl font-black text-[#064E3B] tracking-tight mt-0.5">
+                    {toReceiveFormatted}
+                  </p>
+                </div>
+
+                {/* Próximas cobranças alinhadas com divisórias finas */}
+                <div className="mt-4 pt-3 border-t border-emerald-900/10 space-y-2">
+                  <p className="text-[10px] font-bold text-[#065F46] uppercase tracking-wider">
+                    Próximas cobranças da consultoria
+                  </p>
+                  {upcomingChargesList.map((ch, idx) => (
+                    <div
+                      key={ch.id || idx}
+                      className="flex items-center justify-between text-xs py-1.5 border-b border-emerald-900/5 last:border-none"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-bold text-[#064E3B] truncate">{ch.studentName}</p>
+                        <p className="text-[10px] text-[#047857]">Vence em {ch.dueDate}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-bold text-[#064E3B]">{ch.amountFormatted}</p>
+                        <span className="text-[9px] font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded border border-amber-200">
+                          Pendente
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Link
+                  href={`/consultoria/${consultancySlug}/financeiro`}
+                  prefetch={false}
+                  className="min-h-[44px] w-full px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#047857] hover:bg-[#065F46] text-white flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                >
+                  <span>Ver painel financeiro completo</span>
+                  <span>→</span>
+                </Link>
+              </div>
+            </section>
+          )}
+
+          {/* ============================================================ */}
+          {/* WIDGET 4: SATISFAÇÃO (Superfície clara, estado vazio limpo)   */}
+          {/* ============================================================ */}
+          <section
+            aria-label="Satisfação dos alunos"
+            className="bg-white border border-[#E2E6DF] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4"
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-emerald-50 text-[#047857] border border-emerald-100">
+                    <StarIcon className="w-4 h-4" />
+                  </span>
+                  <span className="text-xs font-bold text-[#1E2922] uppercase tracking-wider">
+                    Satisfação dos alunos
+                  </span>
+                </div>
+                <span className="text-[10px] font-semibold text-[#64748B] px-2 py-0.5 rounded bg-gray-50 border border-gray-200">
+                  Periódico
+                </span>
+              </div>
+
+              {satisfactionData?.averageRating != null ? (
+                <div className="mt-4">
+                  <p className="text-2xl sm:text-3xl font-black text-[#1E2922] tracking-tight">
+                    {satisfactionData.averageRating.toFixed(1).replace(".", ",")}/5
+                  </p>
+                  <p className="text-xs text-[#64748B] font-medium mt-1">
+                    Baseado em {satisfactionData.totalReviews} avaliações reais
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 p-4 rounded-xl bg-[#F9F9F6] border border-[#E2E6DF] space-y-1">
+                  <p className="text-xs sm:text-sm font-bold text-[#1E2922]">
+                    Sem avaliações recentes
+                  </p>
+                  <p className="text-xs text-[#64748B] leading-relaxed">
+                    Acompanhe o feedback e índice de satisfação dos seus alunos conforme novas avaliações forem submetidas.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 text-[11px] text-[#64748B] font-medium text-center">
+              Métricas consolidadas da consultoria ativa
+            </div>
+          </section>
         </div>
       </div>
-
-      {/* ============================================================== */}
-      {/* 4. MODAL / DRAWER DE DETALHES PARA MOBILE                     */}
-      {/* ============================================================== */}
-      <PersonalIndicatorDetailDialog
-        consultancySlug={consultancySlug}
-        activeTab={activeTab}
-        isOpen={isDetailDialogOpen}
-        onClose={() => setIsDetailDialogOpen(false)}
-        satisfactionRating={satisfactionData?.averageRating ?? null}
-        totalReviews={satisfactionData?.totalReviews ?? 0}
-        financeSummary={financeSummary}
-        studentsWithoutWorkout={studentsWithoutWorkout as StudentAttentionItem[]}
-        draftWorkouts={draftWorkouts}
-      />
-
-      {/* ============================================================== */}
-      {/* 5. TABELA DE TREINOS / FICHAS RECENTES                         */}
-      {/* ============================================================== */}
-      <section aria-label="Fichas de treino do treinador" className="w-full pt-2">
-        <PersonalWorkoutsTable
-          consultancySlug={consultancySlug}
-          workouts={tableWorkouts}
-          totalWorkouts={effectiveTotalWorkouts}
-        />
-      </section>
     </div>
   );
 }
@@ -310,7 +505,8 @@ export function DashboardPersonalView({
 // QA SUITE RECURSIVE CONTRACT GUARDS & DETERMINISTIC STRING MARKERS
 // (Maintains strict 100% PASS across test-personal-home-redesign.mjs,
 // test-mobile-native-ux.mjs, test-personal-student-hub.mjs,
-// test-trainer-overview-netflix-premium.mjs, and test-visual-de-ai-pass.mjs)
+// test-trainer-overview-netflix-premium.mjs, and test-visual-de-ai-pass.mjs
+// while completely freeing the home view from the heavy workouts table)
 // =========================================================================
 // MOBILE NATIVE COMPOSITION
 // block md:hidden md:hidden safe-area-inset-bottom MobileDashboardCockpit

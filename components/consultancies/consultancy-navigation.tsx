@@ -72,7 +72,7 @@ export interface ConsultancyNavigationProps {
   userPublicId?: string;
   hasProfilePhoto?: boolean;
   profilePhotoUpdatedAt?: Date | string | number | null;
-  themeVariant?: "default" | "dark-overview";
+  themeVariant?: "default" | "dark-overview" | "trainer-refined";
 }
 
 type ThemeMode = "light" | "dark" | "system";
@@ -329,6 +329,7 @@ export function ConsultancyNavigation({
   themeVariant = "default",
 }: ConsultancyNavigationProps) {
   const isDarkOverview = themeVariant === "dark-overview";
+  const isTrainerRefined = themeVariant === "trainer-refined";
   const identity = resolveUserIdentity({
     fullName: userName,
     email: userEmail,
@@ -746,7 +747,9 @@ export function ConsultancyNavigation({
       <aside
         aria-label="Barra lateral de navegação"
         className={`hidden lg:flex fixed top-0 bottom-0 left-0 w-64 ${
-          isDarkOverview
+          isTrainerRefined
+            ? "bg-[#0A2214] border-r border-[#143823] text-white"
+            : isDarkOverview
             ? "bg-[#F9FAFB] dark:bg-[#111215] border-r border-[#E5E7EB] dark:border-[#303238] text-[#17191D] dark:text-white"
             : "bg-[var(--surface)] border-r border-[var(--border-default)]"
         } z-30 flex-col justify-between select-none print:hidden transition-colors`}
@@ -1258,8 +1261,10 @@ export function ConsultancyNavigation({
                   </span>
                   {active && (
                     <span
-                      className={`w-1 h-1 rounded-full mt-0.5 shrink-0 ${
-                        isDarkOverview ? "bg-[#065F46] dark:bg-[#10B981]" : "bg-[var(--brand)]"
+                      className={`shrink-0 ${
+                        isTrainerRefined
+                          ? "w-6 h-[3px] rounded-full bg-[#047857] mt-1"
+                          : isDarkOverview ? "w-1 h-1 rounded-full mt-0.5 bg-[#065F46] dark:bg-[#10B981]" : "w-1 h-1 rounded-full mt-0.5 bg-[var(--brand)]"
                       }`}
                       aria-hidden="true"
                     />

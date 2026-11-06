@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
-import { CockpitRoleModeSwitcher } from "./cockpit-role-mode-switcher";
 import type {
   PersonalWorkoutSummaryItem,
   StudentWithoutWorkoutItem,
@@ -25,6 +24,12 @@ interface DashboardCombinedPersonalAdminViewProps {
   consultancyName?: string;
   consultancyLogoUrl?: string | null;
   userName?: string;
+  userEmail?: string;
+  userPublicId?: string;
+  userAvatarUrl?: string | null;
+  hasProfilePhoto?: boolean;
+  profilePhotoUpdatedAt?: Date | string | number | null;
+  roles?: string[];
   overview: ConsultancyAdminOverview | null;
   platformAccess?: PlatformEffectiveAccessState;
   recentPlans?: PersonalWorkoutSummaryItem[];
@@ -45,6 +50,12 @@ export function DashboardCombinedPersonalAdminView({
   consultancyName,
   consultancyLogoUrl,
   userName,
+  userEmail,
+  userPublicId,
+  userAvatarUrl,
+  hasProfilePhoto,
+  profilePhotoUpdatedAt,
+  roles,
   overview,
   platformAccess,
   recentPlans = [],
@@ -82,20 +93,21 @@ export function DashboardCombinedPersonalAdminView({
 
   return (
     <div className="space-y-5 sm:space-y-6 w-full animate-in fade-in duration-150">
-      {/* Alternador de Modo (Desktop no topo da área principal) */}
-      <div className="hidden lg:flex items-center justify-between pb-3 border-b border-[#E5E7EB] dark:border-[#303238]">
-        <CockpitRoleModeSwitcher
-          consultancySlug={consultancySlug}
-          currentMode={activeTab === "coach" ? "PERSONAL" : "ADMIN"}
-          onSwitch={(mode) => setOptimisticTab(mode === "PERSONAL" ? "coach" : "admin")}
-        />
-      </div>
+      
 
       {activeTab === "coach" ? (
         <DashboardPersonalView
           consultancySlug={consultancySlug}
           consultancyName={consultancyName}
           userName={userName}
+          consultancyLogoUrl={consultancyLogoUrl}
+          userEmail={userEmail}
+          userPublicId={userPublicId}
+          userAvatarUrl={userAvatarUrl}
+          hasProfilePhoto={hasProfilePhoto}
+          profilePhotoUpdatedAt={profilePhotoUpdatedAt}
+          roles={roles}
+          activeRoleMode={activeRoleMode}
           recentPlans={recentPlans}
           workouts={workouts}
           totalPlans={totalPlans}

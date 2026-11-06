@@ -27,6 +27,7 @@ export interface PersonalAttentionSectionProps {
   isError?: boolean;
   onRetry?: () => void;
   title?: string;
+  maxStudentsMobile?: number;
 }
 
 function formatMemberSince(isoDateString?: string | null): string {
@@ -62,23 +63,35 @@ function getInitials(name: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
+function DocumentPencilIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"
+      />
+    </svg>
+  );
+}
+
 export function PersonalAttentionSection({
   consultancySlug,
   studentsWithoutWorkout = [],
   draftWorkouts = [],
-  totalStudents = 0,
   isLoading = false,
   isError = false,
   onRetry,
-  title = "Precisa resolver",
+  title = "Resolver agora",
+  maxStudentsMobile = 3,
 }: PersonalAttentionSectionProps) {
   if (isLoading) {
     return (
       <section aria-label={title} className="w-full space-y-3">
-        <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight">
+        <h2 className="text-base font-bold text-[var(--text-primary)] leading-tight">
           {title}
         </h2>
-        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 space-y-3 animate-pulse">
+        <div className="bg-[#151619] border border-[#303238] rounded-xl p-5 space-y-3 animate-pulse">
           <div className="h-4 bg-[#1B1D21] rounded w-1/4" />
           <div className="h-12 bg-[#1B1D21] rounded w-full" />
         </div>
@@ -88,11 +101,11 @@ export function PersonalAttentionSection({
 
   if (isError) {
     return (
-      <section aria-label="Precisa de atenção" className="w-full space-y-3">
-        <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight">
-          Precisa de atenção
+      <section aria-label={title} className="w-full space-y-3">
+        <h2 className="text-base font-bold text-[var(--text-primary)] leading-tight">
+          {title}
         </h2>
-        <div className="bg-[#151619] border border-red-500/30 rounded-2xl p-5 flex items-center justify-between gap-4">
+        <div className="bg-[#151619] border border-red-500/30 rounded-xl p-5 flex items-center justify-between gap-4">
           <p className="text-sm font-normal text-red-300">
             Não foi possível carregar as pendências no momento.
           </p>
@@ -110,7 +123,7 @@ export function PersonalAttentionSection({
     );
   }
 
-  // Ordenação determinística
+  // Ordenação determinística de alunos
   const sortedStudents = [...studentsWithoutWorkout].sort((a, b) => {
     const timeA = new Date(a.joinedAt).getTime();
     const timeB = new Date(b.joinedAt).getTime();
@@ -125,160 +138,168 @@ export function PersonalAttentionSection({
     return a.title.localeCompare(b.title, "pt-BR");
   });
 
-  // Cota dinâmica (Teto total = 5)
-  const quota1 = Math.min(sortedStudents.length, 3);
-  const quota2 = Math.min(sortedDrafts.length, 2);
-  let remainingSlots = 5 - (quota1 + quota2);
-
-  const extra1 = Math.min(sortedStudents.length - quota1, remainingSlots);
-  remainingSlots -= extra1;
-
-  const extra2 = Math.min(sortedDrafts.length - quota2, remainingSlots);
-
-  const selectedStudents = sortedStudents.slice(0, quota1 + extra1);
-  const selectedDrafts = sortedDrafts.slice(0, quota2 + extra2);
-
-  const totalPendencias = sortedStudents.length + sortedDrafts.length;
-  const visibleCount = selectedStudents.length + selectedDrafts.length;
+  // Lista curta no mobile (máximo 3) e até 5 no desktop
+  const visibleStudents = sortedStudents.slice(0, 5);
+  const remainingStudentsCount = Math.max(0, sortedStudents.length - maxStudentsMobile);
 
   return (
-    <section aria-label={title} className="w-full space-y-3">
-      <div className="flex items-center justify-between px-1">
-        <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight flex items-center gap-2">
-          <span>{title}</span>
-        </h2>
-        {totalPendencias > 0 && (
-          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-            {totalPendencias} {totalPendencias === 1 ? "pendência" : "pendências"}
-          </span>
-        )}
-      </div>
-
-      {totalPendencias === 0 ? (
-        <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl p-5 shadow-xs flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[#10B981] flex items-center justify-center shrink-0">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
+    <section aria-label={title} className="w-full space-y-5">
+      {/* ============================================================== */}
+      {/* 1. BLOCO DE PENDÊNCIAS DE ATENDIMENTO (ALUNOS SEM TREINO)      */}
+      {/* ============================================================== */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-0.5">
+          <div>
+            <h2 className="text-sm sm:text-base font-bold text-[var(--text-primary)] leading-tight flex items-center gap-2">
+              <span>{title}</span>
+            </h2>
+            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 font-medium">
+              Alunos aguardando prescrição de treino
+            </p>
           </div>
-          <p className="text-sm font-medium text-[#4B5563] dark:text-[#C2C8CF]">
-            Todos os seus alunos possuem fichas ativas e não há rascunhos pendentes.
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl divide-y divide-[#E5E7EB] dark:divide-[#303238] overflow-hidden shadow-xs">
-          {/* Grupo 1: Alunos Ativos sem Ficha */}
-          {selectedStudents.map((student) => (
-            <div
-              key={student.membershipPublicId}
-              className="p-3 sm:py-3 sm:px-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-[#F9FAFB] dark:hover:bg-[#1B1D21]/50 h-auto min-h-[52px]"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div
-                  aria-hidden="true"
-                  className="w-10 h-10 rounded-xl bg-[#F3F4F6] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] flex items-center justify-center text-xs font-bold text-[#17191D] dark:text-white shrink-0 select-none"
-                >
-                  {getInitials(student.name)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-bold text-[#17191D] dark:text-white break-words leading-snug">
-                      {student.name}
-                    </p>
-                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-rose-700 dark:text-rose-300 bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 dark:border-rose-500/30 select-none">
-                      Sem ficha ativa
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#4B5563] dark:text-[#C2C8CF] mt-0.5 font-medium">
-                    {formatMemberSince(student.joinedAt)}
-                  </p>
-                </div>
-              </div>
 
-              <div className="flex items-center justify-end sm:shrink-0 pt-1 sm:pt-0">
+          {sortedStudents.length > 0 ? (
+            <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20 shrink-0">
+              {sortedStudents.length} {sortedStudents.length === 1 ? "aluno sem treino" : "alunos sem treino"}
+            </span>
+          ) : (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+              100% atendidos
+            </span>
+          )}
+        </div>
+
+        {sortedStudents.length === 0 ? (
+          <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-xl p-4 sm:p-5 shadow-xs flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[#10B981] flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">
+                Nenhum aluno sem treino ativo
+              </p>
+              <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                Todos os seus alunos ativos estão com rotinas prescritas.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-xl divide-y divide-[#E5E7EB] dark:divide-[#303238] overflow-hidden shadow-xs">
+            {visibleStudents.map((student, idx) => (
+              <div
+                key={student.membershipPublicId}
+                className={`p-3 sm:p-3.5 flex items-center justify-between gap-3 transition-colors hover:bg-[#F9FAFB] dark:hover:bg-[#1B1D21]/50 ${
+                  idx >= maxStudentsMobile ? "hidden sm:flex" : "flex"
+                }`}
+              >
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <div
+                    aria-hidden="true"
+                    className="w-9 h-9 rounded-lg bg-[#F3F4F6] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] flex items-center justify-center text-xs font-bold text-[var(--text-primary)] shrink-0 select-none"
+                  >
+                    {getInitials(student.name)}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate leading-snug">
+                        {student.name}
+                      </p>
+                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded text-rose-700 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 select-none">
+                        Sem ficha ativa
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 font-medium truncate">
+                      {formatMemberSince(student.joinedAt)}
+                    </p>
+                  </div>
+                </div>
+
                 <Link
                   href={`/consultoria/${consultancySlug}/rotinas/novo?student=${encodeURIComponent(
                     student.membershipPublicId
                   )}`}
                   prefetch={false}
-                  className="inline-flex items-center justify-center min-h-[44px] px-4 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-xs active:translate-y-[1px] transition-colors cursor-pointer"
+                  className="inline-flex items-center justify-center min-h-[44px] px-3 sm:px-4 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg shadow-xs active:translate-y-[1px] transition-colors cursor-pointer shrink-0"
                 >
                   + Criar treino
                 </Link>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {/* Grupo 2: Rascunhos Pendentes */}
-          {selectedDrafts.map((draft) => (
-            <div
-              key={draft.publicId}
-              className="p-3 sm:py-3 sm:px-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-[#F9FAFB] dark:hover:bg-[#1B1D21]/50 h-auto min-h-[52px]"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div
-                  aria-hidden="true"
-                  className="w-10 h-10 rounded-xl bg-[#F3F4F6] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] flex items-center justify-center text-[#4B5563] dark:text-[#C2C8CF] shrink-0 select-none"
+            {/* Link para ver todos os alunos no mobile quando houver mais de 3 */}
+            {remainingStudentsCount > 0 && (
+              <div className="p-2.5 sm:hidden text-center bg-[#F9FAFB] dark:bg-[#1B1D21]/40 border-t border-[#E5E7EB] dark:border-[#303238]">
+                <Link
+                  href={`/consultoria/${consultancySlug}/progresso/alunos`}
+                  prefetch={false}
+                  className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-1"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-bold text-[#17191D] dark:text-white break-words leading-snug">
+                  Ver todos os {sortedStudents.length} alunos sob gestão →
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ============================================================== */}
+      {/* 2. BLOCO SEPARADO DE TRABALHO INTERNO: RASCUNHOS EM ANDAMENTO   */}
+      {/* ============================================================== */}
+      <div className="space-y-3 pt-1">
+        <div className="flex items-center justify-between px-0.5">
+          <div>
+            <h3 className="text-xs sm:text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-2">
+              <span>Rascunhos de treino</span>
+            </h3>
+            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+              Fichas em elaboração não publicadas (trabalho interno do treinador)
+            </p>
+          </div>
+
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-[#F3F4F6] dark:bg-[#1B1D21] text-[var(--text-secondary)] border border-[#E5E7EB] dark:border-[#303238] shrink-0">
+            {sortedDrafts.length} {sortedDrafts.length === 1 ? "rascunho" : "rascunhos"}
+          </span>
+        </div>
+
+        {sortedDrafts.length === 0 ? (
+          <div className="bg-[#F9FAFB] dark:bg-[#1B1D21]/30 border border-dashed border-[#E5E7EB] dark:border-[#303238] rounded-xl p-3.5 text-center text-xs text-[var(--text-secondary)]">
+            Nenhum rascunho de treino pendente.
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-xl divide-y divide-[#E5E7EB] dark:divide-[#303238] overflow-hidden shadow-xs">
+            {sortedDrafts.slice(0, 3).map((draft) => (
+              <div
+                key={draft.publicId}
+                className="p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-[#F3F4F6] dark:bg-[#1B1D21] text-[var(--text-secondary)] flex items-center justify-center shrink-0 border border-[#E5E7EB] dark:border-[#303238]">
+                    <DocumentPencilIcon className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-[var(--text-primary)] truncate">
                       {draft.title}
                     </p>
-                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-amber-800 dark:text-amber-300 bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 dark:border-amber-500/30 select-none">
-                      Rascunho não publicado
-                    </span>
+                    <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                      {formatEditedDate(draft.updatedAt)}
+                    </p>
                   </div>
-                  <p className="text-xs text-[#4B5563] dark:text-[#C2C8CF] mt-0.5 font-medium">
-                    {formatEditedDate(draft.updatedAt)}
-                  </p>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-end sm:shrink-0 pt-1 sm:pt-0">
                 <Link
                   href={`/consultoria/${consultancySlug}/rotinas/${draft.publicId}`}
                   prefetch={false}
-                  className="inline-flex items-center justify-center min-h-[44px] px-4 text-xs font-semibold text-[#17191D] dark:text-[#E5E7EB] hover:text-[#17191D] dark:hover:text-white bg-[#F3F4F6] hover:bg-[#E5E7EB] dark:bg-[#1B1D21] dark:hover:bg-[#252830] border border-[#E5E7EB] dark:border-[#303238] rounded-xl shadow-xs active:translate-y-[1px] transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg font-bold text-xs bg-[#F3F4F6] hover:bg-[#E5E7EB] dark:bg-[#1B1D21] dark:hover:bg-[#252830] text-[var(--text-primary)] border border-[#E5E7EB] dark:border-[#303238] shrink-0 min-h-[44px] flex items-center justify-center transition-colors cursor-pointer"
                 >
-                  Revisar ficha
+                  Continuar edição
                 </Link>
               </div>
-            </div>
-          ))}
-
-          {/* Rodapé de Paginação e Navegação */}
-          <div className="p-3.5 bg-[#F9FAFB] dark:bg-[#111215] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-[#4B5563] dark:text-[#C2C8CF] font-medium border-t border-[#E5E7EB] dark:border-[#303238]">
-            <span>
-              {visibleCount} de {totalPendencias} pendências exibidas
-            </span>
-
-            <div className="flex items-center gap-4">
-              <Link
-                href={`/consultoria/${consultancySlug}/progresso/alunos`}
-                prefetch={false}
-                className="text-emerald-700 hover:text-emerald-800 dark:text-[#10B981] dark:hover:text-emerald-300 font-semibold transition-colors"
-              >
-                Ver todos os alunos ({totalStudents}) →
-              </Link>
-
-              {sortedDrafts.length > 0 && (
-                <Link
-                  href={`/consultoria/${consultancySlug}/rotinas?status=draft`}
-                  prefetch={false}
-                  className="text-emerald-700 hover:text-emerald-800 dark:text-[#10B981] dark:hover:text-emerald-300 font-semibold transition-colors"
-                >
-                  Ver rascunhos ({sortedDrafts.length}) →
-                </Link>
-              )}
-            </div>
+            ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }

@@ -30,7 +30,7 @@ export interface ConsultancyAppShellProps {
   activeRole?: ConsultancyRole;
   maxWidth?: "narrow" | "default" | "wide" | "full";
   className?: string;
-  themeVariant?: "default" | "dark-overview";
+  themeVariant?: "default" | "dark-overview" | "trainer-refined";
   showDashboardWallpaper?: boolean;
   children: React.ReactNode;
 }
@@ -589,7 +589,9 @@ export async function ConsultancyAppShell({
   return (
     <div
       className={`min-h-svh w-full max-w-full min-w-0 ${
-        themeVariant === "dark-overview"
+        themeVariant === "trainer-refined"
+          ? "bg-[#FBFBF9] text-[#1E2922]"
+          : themeVariant === "dark-overview"
           ? "bg-[#F0F1F3] dark:bg-[#0B0C0E] text-[#17191D] dark:text-[#FFFFFF]"
           : "bg-transparent text-[var(--text-primary)]"
       } flex flex-col lg:pl-64 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors`}
@@ -672,6 +674,8 @@ export async function ConsultancyAppShell({
         className={`relative z-10 flex-1 w-full min-w-0 max-w-full mx-auto p-4 sm:p-6 lg:p-8 ${
           showDashboardWallpaper
             ? "bg-transparent text-[#17191D] dark:text-[#FFFFFF]"
+            : themeVariant === "trainer-refined"
+            ? "bg-transparent text-[#1E2922]"
             : themeVariant === "dark-overview"
             ? "bg-[#F0F1F3] dark:bg-[#0B0C0E]"
             : "xl:p-10"

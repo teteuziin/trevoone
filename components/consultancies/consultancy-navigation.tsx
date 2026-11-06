@@ -744,6 +744,7 @@ export function ConsultancyNavigation({
       {/* =========================================================================
           1. DESKTOP PERSISTENT SIDEBAR (>= 1024px / lg)
           ========================================================================= */}
+      {!isTrainerRefined && (
       <aside
         aria-label="Barra lateral de navegação"
         className={`hidden lg:flex fixed top-0 bottom-0 left-0 w-64 ${
@@ -1086,10 +1087,12 @@ export function ConsultancyNavigation({
           </button>
         </div>
       </aside>
+      )}
 
       {/* =========================================================================
           2. TABLET ADAPTIVE TOPBAR (768px - 1023px / md to lg)
           ========================================================================= */}
+      {!isTrainerRefined && (
       <header
         className={`hidden md:flex lg:hidden sticky top-0 z-30 w-full max-w-full min-w-0 ${
           isTrainerRefined
@@ -1190,6 +1193,7 @@ export function ConsultancyNavigation({
           </div>
         </div>
       </header>
+      )}
 
       {/* =========================================================================
           3. MOBILE TOPBAR (< 768px)
@@ -1249,6 +1253,245 @@ export function ConsultancyNavigation({
           </div>
         </div>
       </header>
+
+      {/* =========================================================================
+          TRAINER REFINED HORIZONTAL HEADER (>= 768px / md and lg)
+          ========================================================================= */}
+      {isTrainerRefined && (
+        <header
+          className="hidden md:flex sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-[#E5E8E2] text-[#102E23] shadow-xs print:hidden"
+        >
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            {/* Left: Branding & Consultancy */}
+            <div className="flex items-center gap-3 shrink-0">
+              <Link
+                href={baseSlugHref}
+                prefetch={false}
+                className="flex items-center gap-2 group focus-visible:outline-2 focus-visible:outline-[#176B49] rounded-xl py-1"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/trevo-one-logo.png" alt="Trevo One" className="w-6 h-6 object-contain" />
+                <span className="font-bold text-base tracking-tight text-[#102E23] font-sans">
+                  trevo<span className="text-[#176B49]">.one</span>
+                </span>
+              </Link>
+
+              <div className="h-5 w-[1px] bg-[#E2E6DF] mx-1" aria-hidden="true" />
+
+              <Link
+                href={baseSlugHref}
+                prefetch={false}
+                className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity"
+              >
+                <ConsultancyLogo
+                  logoUrl={consultancyLogoUrl}
+                  name={consultancyName}
+                  size={24}
+                  clean={true}
+                />
+                <span className="text-xs font-bold text-[#102E23] truncate max-w-[160px] sm:max-w-[200px]">
+                  {consultancyName}
+                </span>
+              </Link>
+            </div>
+
+            {/* Center: Horizontal Navigation Tabs */}
+            <nav aria-label="Navegação horizontal principal" className="flex items-center gap-1">
+              {/* Início */}
+              <Link
+                href={baseSlugHref}
+                prefetch={false}
+                aria-current={pathname === baseSlugHref ? "page" : undefined}
+                className={`px-3 py-1.5 text-xs rounded-xl font-bold transition-all ${
+                  pathname === baseSlugHref
+                    ? "bg-[#E8F0EA] text-[#102E23] border border-[#D5E2D7] shadow-2xs"
+                    : "text-[#526058] hover:text-[#102E23] hover:bg-black/5 border border-transparent font-medium"
+                }`}
+              >
+                Início
+              </Link>
+
+              {/* Alunos */}
+              <Link
+                href={`/consultoria/${consultancySlug}/progresso/alunos`}
+                prefetch={false}
+                aria-current={pathname.includes("/progresso/alunos") ? "page" : undefined}
+                className={`px-3 py-1.5 text-xs rounded-xl font-bold transition-all ${
+                  pathname.includes("/progresso/alunos")
+                    ? "bg-[#E8F0EA] text-[#102E23] border border-[#D5E2D7] shadow-2xs"
+                    : "text-[#526058] hover:text-[#102E23] hover:bg-black/5 border border-transparent font-medium"
+                }`}
+              >
+                Alunos
+              </Link>
+
+              {/* Treinos */}
+              <Link
+                href={`/consultoria/${consultancySlug}/rotinas`}
+                prefetch={false}
+                aria-current={pathname.includes("/rotinas") ? "page" : undefined}
+                className={`px-3 py-1.5 text-xs rounded-xl font-bold transition-all ${
+                  pathname.includes("/rotinas")
+                    ? "bg-[#E8F0EA] text-[#102E23] border border-[#D5E2D7] shadow-2xs"
+                    : "text-[#526058] hover:text-[#102E23] hover:bg-black/5 border border-transparent font-medium"
+                }`}
+              >
+                Treinos
+              </Link>
+
+              {/* Consultas (Visível no desktop >= lg) */}
+              <Link
+                href={`/consultoria/${consultancySlug}/consultas`}
+                prefetch={false}
+                aria-current={pathname.includes("/consultas") ? "page" : undefined}
+                className={`hidden lg:inline-flex px-3 py-1.5 text-xs rounded-xl font-bold transition-all ${
+                  pathname.includes("/consultas")
+                    ? "bg-[#E8F0EA] text-[#102E23] border border-[#D5E2D7] shadow-2xs"
+                    : "text-[#526058] hover:text-[#102E23] hover:bg-black/5 border border-transparent font-medium"
+                }`}
+              >
+                Consultas
+              </Link>
+
+              {/* Biblioteca de Exercícios (Visível no desktop >= lg) */}
+              <Link
+                href={`/consultoria/${consultancySlug}/exercicios`}
+                prefetch={false}
+                aria-current={pathname.includes("/exercicios") ? "page" : undefined}
+                className={`hidden lg:inline-flex px-3 py-1.5 text-xs rounded-xl font-bold transition-all ${
+                  pathname.includes("/exercicios")
+                    ? "bg-[#E8F0EA] text-[#102E23] border border-[#D5E2D7] shadow-2xs"
+                    : "text-[#526058] hover:text-[#102E23] hover:bg-black/5 border border-transparent font-medium"
+                }`}
+              >
+                Biblioteca
+              </Link>
+
+              {/* Botão Mais */}
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                aria-label="Mais opções de navegação"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl text-[#526058] hover:text-[#102E23] hover:bg-black/5 font-semibold transition-all cursor-pointer"
+              >
+                <svg className="w-4 h-4 text-[#6B7870]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                </svg>
+                <span>Mais</span>
+              </button>
+            </nav>
+
+            {/* Right: Notifications, Multi-Role Switcher & Profile Dropdown */}
+            <div className="flex items-center gap-3 shrink-0">
+              {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.filter(o => o.isRealRole).length > 1 && viewModeState.allowedOptions.some(o => o.isRealRole && (o.mode === "PERSONAL" || o.mode === "ADMIN" || o.mode === "NUTRITIONIST")) && (
+                <CockpitRoleModeSwitcher
+                  consultancySlug={consultancySlug}
+                  currentMode={viewModeState.effectiveMode}
+                  allowedOptions={viewModeState.allowedOptions}
+                  variant="mobile"
+                  compact={true}
+                  className="hidden xl:inline-flex"
+                />
+              )}
+
+              <NotificationBell unreadCount={unreadNotificationsCount} />
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDesktopProfileOpen((prev) => !prev)}
+                  aria-expanded={desktopProfileOpen}
+                  aria-label="Menu de conta do profissional"
+                  className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-black/5 transition-colors cursor-pointer select-none"
+                >
+                  <UserAvatar
+                    fullName={identity.fullName}
+                    userPublicId={identity.userPublicId}
+                    avatarUrl={identity.avatarUrl}
+                    hasProfilePhoto={identity.hasProfilePhoto}
+                    profilePhotoUpdatedAt={identity.profilePhotoUpdatedAt}
+                    shape="circle"
+                    size="sm"
+                  />
+                  <div className="hidden sm:block text-left min-w-0 pr-1">
+                    <p className="text-xs font-bold text-[#102E23] leading-tight truncate max-w-[120px]">
+                      {identity.fullName}
+                    </p>
+                    <p className="text-[10px] text-[#6B7870] font-medium leading-tight">
+                      Treinador
+                    </p>
+                  </div>
+                  <svg
+                    className={`w-3.5 h-3.5 text-[#6B7870] transition-transform duration-150 ${
+                      desktopProfileOpen ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {desktopProfileOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-[#E5E8E2] shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-100"
+                  >
+                    <div className="px-3 py-2 border-b border-[#F0F2ED]">
+                      <p className="text-xs font-bold text-[#102E23] truncate">{identity.fullName}</p>
+                      <p className="text-[11px] text-[#6B7870] truncate mt-0.5">{identity.email}</p>
+                    </div>
+
+                    <div className="py-1">
+                      <Link
+                        href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
+                        prefetch={false}
+                        onClick={() => setDesktopProfileOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-[#102E23] hover:bg-[#F5F5F0] rounded-xl transition-colors"
+                      >
+                        <svg className="w-4 h-4 text-[#6B7870]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                        </svg>
+                        <span>Meu Perfil</span>
+                      </Link>
+
+                      <Link
+                        href={`/conta/seguranca?returnTo=${encodeURIComponent(pathname)}`}
+                        prefetch={false}
+                        onClick={() => setDesktopProfileOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-[#102E23] hover:bg-[#F5F5F0] rounded-xl transition-colors"
+                      >
+                        <svg className="w-4 h-4 text-[#6B7870]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                        </svg>
+                        <span>Segurança</span>
+                      </Link>
+                    </div>
+
+                    <div className="pt-1 border-t border-[#F0F2ED]">
+                      <LogoutButton
+                        logoutAction={logoutFromConsultancyArea}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-xl text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                        </svg>
+                        <span>Sair da conta</span>
+                      </LogoutButton>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </header>
+      )}
+
 
       {/* =========================================================================
           4. MOBILE BOTTOM NAVIGATION (< 768px)

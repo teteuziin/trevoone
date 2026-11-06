@@ -44,10 +44,9 @@ export function PersonalHeader({
 
   return (
     <header className={`w-full space-y-3 sm:space-y-4 ${className}`}>
-      {/* 1. Barra Superior Editorial (Contexto Consultoria + Perfil) */}
-      <div className="flex items-center justify-between pb-3 border-b border-[#E6E9E2]">
-        {/* Mobile (< sm): 2 linhas (Nome da consultoria + Trevo One) */}
-        <div className="sm:hidden min-w-0 pr-2">
+      {/* 1. Contexto Mobile (< sm) com identificação da consultoria e perfil */}
+      <div className="flex sm:hidden items-center justify-between pb-2.5 border-b border-[#E6E9E2]">
+        <div className="min-w-0 pr-2">
           <p className="text-base font-bold text-[#102E23] leading-tight truncate">
             {consultancyName}
           </p>
@@ -56,20 +55,12 @@ export function PersonalHeader({
           </p>
         </div>
 
-        {/* Desktop (>= sm): Breadcrumb "Consultoria / Painel do treinador" */}
-        <div className="hidden sm:flex items-center gap-2 text-xs sm:text-sm">
-          <span className="font-bold text-[#102E23]">{consultancyName}</span>
-          <span className="text-[#8E9B93]" aria-hidden="true">/</span>
-          <span className="text-[#526058] font-medium">Painel do treinador</span>
-        </div>
-
-        {/* Perfil autenticado (Lucas Personal + Treinador + LP) */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <div className="text-right min-w-0">
-            <p className="text-xs sm:text-sm font-bold text-[#102E23] leading-tight truncate">
+            <p className="text-xs font-bold text-[#102E23] leading-tight truncate">
               {userName}
             </p>
-            <p className="text-[11px] text-[#6B7870] font-medium leading-tight mt-0.5">
+            <p className="text-[10px] text-[#6B7870] font-medium leading-tight">
               Treinador
             </p>
           </div>
@@ -91,14 +82,14 @@ export function PersonalHeader({
         </div>
       </div>
 
-      {/* 2. Título "Início" e Botão "+ Criar treino" */}
+      {/* 2. Título da Página ("Início") e Ação Principal ("+ Criar treino") */}
       <div className="flex items-center justify-between gap-3 pt-1">
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#102E23] tracking-tight leading-none font-sans">
             Início
           </h1>
-          <p className="hidden sm:block text-xs sm:text-sm text-[#526058] font-medium mt-1.5">
-            Suas prioridades e atividades em andamento.
+          <p className="text-xs sm:text-sm text-[#526058] font-medium mt-1.5">
+            Acompanhamento operacional e prioridades de treino.
           </p>
         </div>
 

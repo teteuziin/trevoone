@@ -212,7 +212,7 @@ export function DashboardPersonalView({
     });
   }, [studentsWithoutWorkout]);
 
-  // Lista inicial: até 3 alunos no desktop e até 2 alunos no celular
+  // Lista inicial: até 3 alunos no desktop/tablet e até 2 alunos no celular
   const visibleStudents = useMemo(() => sortedStudents.slice(0, 3), [sortedStudents]);
 
   // Indicadores de treinamento matematicamente consistentes
@@ -282,25 +282,30 @@ export function DashboardPersonalView({
         className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col justify-between h-full space-y-4"
       >
         <div>
-          {/* Cabeçalho do card com link */}
-          <div className="flex items-center justify-between gap-2 mb-4">
+          {/* Cabeçalho do card com link e explicação clara */}
+          <div className="flex items-start justify-between gap-2 mb-3">
             <div>
               <h2 className="text-base sm:text-xl font-bold text-[#102E23] leading-tight font-sans">
                 Programas de treino
               </h2>
+              <p className="text-xs text-[#526058] font-normal mt-0.5">
+                {total > 0
+                  ? `${computedMetrics.emDiaCount} de ${total} alunos com treino em dia (${computedMetrics.emDiaPercent}%)`
+                  : "Nenhum aluno cadastrado na consultoria"}
+              </p>
             </div>
             <Link
               href={`/consultoria/${consultancySlug}/rotinas`}
               prefetch={false}
-              className="text-xs font-bold text-[#526058] hover:text-[#176B49] transition-colors flex items-center gap-1 select-none"
-              aria-label="Ver todas as rotinas"
+              className="text-xs font-bold text-[#526058] hover:text-[#176B49] transition-colors flex items-center gap-1 select-none p-1"
+              aria-label="Ver todas as rotinas de treino"
             >
-              <span className="text-sm">›</span>
+              <span className="text-base leading-none">›</span>
             </Link>
           </div>
 
           {/* Gráfico Donut + Status List */}
-          <div className="flex flex-row items-center gap-4 sm:gap-6">
+          <div className="flex flex-row items-center gap-4 sm:gap-6 pt-1">
             {/* SVG Donut */}
             <div className="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0 flex items-center justify-center">
               <svg className="w-full h-full drop-shadow-xs" viewBox="0 0 100 100">
@@ -401,7 +406,7 @@ export function DashboardPersonalView({
                   <span className="w-5 h-5 rounded-full bg-[#FFFBEB] border border-[#FDE68A] text-[#D97706] flex items-center justify-center shrink-0">
                     <RefreshCwIcon className="w-3.5 h-3.5" />
                   </span>
-                  <span className="text-[#4A5568] font-medium truncate">A vencer</span>
+                  <span className="text-[#4A5568] font-medium truncate">A vencer (próximos 7 dias)</span>
                 </div>
                 <span className="font-bold text-[#102E23] tabular-nums ml-2">
                   {computedMetrics.aVencerCount}
@@ -445,9 +450,9 @@ export function DashboardPersonalView({
           </div>
         </div>
 
-        {/* Nível de Satisfação integrado no rodapé */}
+        {/* Satisfação dos alunos integrada no rodapé */}
         <div className="pt-3.5 border-t border-[#F0F2ED] flex items-center justify-between text-xs sm:text-sm">
-          <span className="text-[#526058] font-medium">Nível de Satisfação</span>
+          <span className="text-[#526058] font-medium">Satisfação dos alunos</span>
           <div className="flex items-center gap-1.5">
             {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 ? (
               <>
@@ -467,7 +472,7 @@ export function DashboardPersonalView({
                   ))}
                 </div>
                 <span className="text-xs font-bold text-[#102E23] ml-1">
-                  {satisfactionData.averageRating.toFixed(1).replace(".", ",")}
+                  {satisfactionData.averageRating.toFixed(1).replace(".", ",")} de 5 · {satisfactionData.totalReviews} avaliações registradas
                 </span>
               </>
             ) : (
@@ -479,7 +484,7 @@ export function DashboardPersonalView({
                     </svg>
                   ))}
                 </div>
-                <span className="text-[11px] text-[#8A958E] ml-1">Sem avaliações</span>
+                <span className="text-[11px] text-[#8A958E] ml-1">Nenhuma avaliação de satisfação registrada</span>
               </div>
             )}
           </div>
@@ -488,27 +493,30 @@ export function DashboardPersonalView({
     );
   };
 
-  // 2. CARD SECUNDÁRIO 1: MINHA CARTEIRA
-  const renderMinhaCarteira = () => {
+  // 2. CARD SECUNDÁRIO 1: CARTEIRA DE ALUNOS
+  const renderCarteiraDeAlunos = () => {
     const total = computedMetrics.totalStudents;
     const circumference = 150.796; // 2 * PI * 24
 
     return (
       <section
-        aria-label="Minha carteira"
+        aria-label="Carteira de alunos"
         className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between h-full"
       >
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-1">
             <h3 className="text-sm sm:text-base font-bold text-[#102E23]">
-              Minha carteira
+              Carteira de alunos
             </h3>
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#F0F5F2] text-[#176B49] flex items-center justify-center shrink-0">
               <UsersIcon className="w-4 h-4" />
             </span>
           </div>
+          <p className="text-[11px] text-[#6B7870] font-normal mb-3">
+            {total} {total === 1 ? "aluno vinculado" : "alunos vinculados"}
+          </p>
 
-          <div className="flex items-center gap-3 sm:gap-4 mt-2">
+          <div className="flex items-center gap-3 sm:gap-4 mt-1">
             {/* Mini Donut */}
             <div className="relative w-14 h-14 sm:w-16 sm:h-16 shrink-0 flex items-center justify-center">
               <svg className="w-full h-full" viewBox="0 0 60 60">
@@ -538,14 +546,14 @@ export function DashboardPersonalView({
               </div>
             </div>
 
-            {/* Links e contadores */}
+            {/* Links e contadores com nomenclatura clara */}
             <div className="flex-1 min-w-0 space-y-1.5 text-xs">
               <Link
                 href={`/consultoria/${consultancySlug}/progresso/alunos?filter=active`}
                 prefetch={false}
                 className="flex items-center justify-between text-[#4A5568] hover:text-[#102E23] transition-colors py-0.5"
               >
-                <span className="truncate">Ativos</span>
+                <span className="truncate">Alunos ativos</span>
                 <span className="font-bold text-[#102E23] flex items-center gap-0.5 tabular-nums">
                   {total} <span className="text-[#8A958E] text-[10px]">›</span>
                 </span>
@@ -556,7 +564,7 @@ export function DashboardPersonalView({
                 prefetch={false}
                 className="flex items-center justify-between text-[#4A5568] hover:text-[#102E23] transition-colors py-0.5"
               >
-                <span className="truncate">Inativos</span>
+                <span className="truncate">Alunos inativos</span>
                 <span className="font-bold text-[#102E23] flex items-center gap-0.5 tabular-nums">
                   0 <span className="text-[#8A958E] text-[10px]">›</span>
                 </span>
@@ -567,11 +575,24 @@ export function DashboardPersonalView({
                 prefetch={false}
                 className="flex items-center justify-between text-[#4A5568] hover:text-[#102E23] transition-colors py-0.5"
               >
-                <span className="truncate">A vencer</span>
+                <span className="truncate">Treinos a vencer</span>
                 <span className="font-bold text-[#102E23] flex items-center gap-0.5 tabular-nums">
                   {computedMetrics.aVencerCount} <span className="text-[#8A958E] text-[10px]">›</span>
                 </span>
               </Link>
+
+              {computedMetrics.semTreinoCount > 0 && (
+                <Link
+                  href={`/consultoria/${consultancySlug}/progresso/alunos?filter=without_workout`}
+                  prefetch={false}
+                  className="flex items-center justify-between text-[#8C5D39] hover:text-[#102E23] transition-colors py-0.5"
+                >
+                  <span className="truncate font-medium">Sem treino ativo</span>
+                  <span className="font-bold text-[#8C5D39] flex items-center gap-0.5 tabular-nums">
+                    {computedMetrics.semTreinoCount} <span className="text-[#8A958E] text-[10px]">›</span>
+                  </span>
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -590,7 +611,7 @@ export function DashboardPersonalView({
         className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between h-full"
       >
         <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-1">
             <h3 className="text-sm sm:text-base font-bold text-[#102E23]">
               Avaliação física
             </h3>
@@ -598,13 +619,16 @@ export function DashboardPersonalView({
               <ClipboardIcon className="w-4 h-4" />
             </span>
           </div>
+          <p className="text-[11px] text-[#6B7870] font-normal mb-2">
+            Acompanhamento corporal dos alunos
+          </p>
 
           <div className="py-1">
             <div className="text-2xl sm:text-3xl font-black text-[#102E23] tracking-tight tabular-nums font-sans">
               {pending}
             </div>
             <p className="text-xs text-[#526058] font-medium mt-0.5">
-              Ativos sem avaliação
+              {pending === 1 ? "Aluno sem avaliação física cadastrada" : "Alunos sem avaliação física cadastrada"}
             </p>
           </div>
         </div>
@@ -613,10 +637,10 @@ export function DashboardPersonalView({
           <Link
             href={`/consultoria/${consultancySlug}/progresso`}
             prefetch={false}
-            className="text-xs font-semibold text-[#102E23] hover:text-[#176B49] transition-colors flex items-center justify-between"
+            className="text-xs font-semibold text-[#102E23] hover:text-[#176B49] transition-colors flex items-center justify-between min-h-[36px]"
           >
             <span>Avaliações realizadas: <span className="font-bold tabular-nums">{completed}</span></span>
-            <span className="text-[#8A958E] text-[10px]" aria-hidden="true">›</span>
+            <span className="text-[#8A958E] text-sm" aria-hidden="true">→</span>
           </Link>
         </div>
       </section>
@@ -642,11 +666,11 @@ export function DashboardPersonalView({
 
           {sortedStudents.length > 0 ? (
             <span className="text-xs font-bold px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg bg-[#F5EDE4] text-[#8C5D39] border border-[#ECD9CC] shrink-0">
-              {sortedStudents.length} {sortedStudents.length === 1 ? "aluno" : "alunos"}
+              {sortedStudents.length} {sortedStudents.length === 1 ? "sem treino ativo" : "sem treino ativo"}
             </span>
           ) : (
             <span className="text-xs font-bold px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg bg-emerald-50 text-[#176B49] border border-emerald-200 shrink-0">
-              100% atendidos
+              100% com treino ativo
             </span>
           )}
         </div>
@@ -655,10 +679,10 @@ export function DashboardPersonalView({
         {sortedStudents.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[#E2E6DF] p-4 text-center bg-[#FBFBFA] mt-3">
             <p className="text-sm font-bold text-[#102E23]">
-              Nenhum aluno sem treino ativo
+              Todos os alunos estão com treino ativo.
             </p>
             <p className="text-xs text-[#526058] mt-1">
-              Todos os alunos cadastrados estão com fichas vigentes.
+              Nenhum aluno com pendência de prescrição no momento.
             </p>
           </div>
         ) : (
@@ -710,14 +734,14 @@ export function DashboardPersonalView({
                         {student.name}
                       </p>
                       <p className="text-[11px] sm:text-xs text-[#6B7870] font-normal truncate mt-0.5">
-                        Sem treino ativo
+                        Sem treino ativo cadastrado
                       </p>
                     </div>
                   </div>
 
-                  {/* Ação "Criar ficha →" */}
+                  {/* Ação específica "Criar treino →" */}
                   <span className="text-xs font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors shrink-0 flex items-center gap-1 select-none whitespace-nowrap">
-                    <span>Criar ficha</span>
+                    <span>Criar treino</span>
                     <span aria-hidden="true">→</span>
                   </span>
                 </Link>
@@ -734,7 +758,7 @@ export function DashboardPersonalView({
             prefetch={false}
             className="text-xs font-bold text-[#102E23] hover:text-[#176B49] hover:underline inline-flex items-center gap-1 min-h-[44px]"
           >
-            <span>Ver todas as pendências</span>
+            <span>Ver todas as pendências ({sortedStudents.length})</span>
             <span aria-hidden="true">→</span>
           </Link>
         </div>
@@ -742,15 +766,15 @@ export function DashboardPersonalView({
     </section>
   );
 
-  // 5. CARD TREINO EM ANDAMENTO ("TREINO EM ANDAMENTO")
+  // 5. CARD RASCUNHO DE TREINO ("RASCUNHO DE TREINO")
   const renderRascunho = () => (
     <section
-      aria-label="Treino em andamento"
+      aria-label="Rascunho de treino"
       className="relative overflow-hidden rounded-2xl bg-[#0F2F24] border border-[#163E27] shadow-xs text-white p-4 sm:p-6 flex flex-col justify-between h-full min-h-[220px] sm:min-h-[240px]"
     >
       <div className="space-y-3">
         <div className="text-[10px] font-bold text-[#4ADE80] tracking-wider uppercase border-b-2 border-[#4ADE80] inline-block pb-0.5">
-          TREINO EM ANDAMENTO
+          RASCUNHO DE TREINO
         </div>
 
         {primaryDraft ? (
@@ -767,7 +791,7 @@ export function DashboardPersonalView({
                   </span>
                 )}
                 <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-white/10 text-emerald-300 border border-white/10 backdrop-blur-xs">
-                  Rascunho
+                  Rascunho em edição
                 </span>
               </div>
             </div>
@@ -775,17 +799,17 @@ export function DashboardPersonalView({
             <div className="flex items-center gap-2 text-xs text-white/80 font-medium pt-1">
               <DumbbellIcon className="w-4 h-4 text-emerald-300 shrink-0" />
               <span>
-                {primaryDraft.blocksCount || 0} {primaryDraft.blocksCount === 1 ? "exercício adicionado" : "exercícios adicionados"}
+                {primaryDraft.blocksCount || 0} {primaryDraft.blocksCount === 1 ? "exercício cadastrado" : "exercícios cadastrados"}
               </span>
             </div>
           </>
         ) : (
           <div className="py-2 space-y-1.5">
             <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug">
-              Nenhum treino em andamento
+              Nenhum rascunho em edição
             </h3>
             <p className="text-xs sm:text-sm text-white/70 leading-relaxed">
-              Você não possui rascunhos no momento. Crie uma nova rotina para seus alunos.
+              Você não possui treinos em rascunho no momento. Inicie uma nova prescrição para seus alunos.
             </p>
           </div>
         )}
@@ -801,7 +825,7 @@ export function DashboardPersonalView({
           prefetch={false}
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#EBF3ED] hover:bg-white text-[#0F2F24] shadow-sm transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px]"
         >
-          <span>{primaryDraft ? "Retomar edição" : "+ Criar treino"}</span>
+          <span>{primaryDraft ? "Retomar edição" : "+ Criar novo treino"}</span>
           <span aria-hidden="true">→</span>
         </Link>
       </div>
@@ -825,8 +849,8 @@ export function DashboardPersonalView({
           </p>
           <p className="text-xs text-[#4A6356] font-medium mt-1">
             {upcomingChargesList.length > 0
-              ? `${upcomingChargesList.length} ${upcomingChargesList.length === 1 ? "vencimento próximo" : "vencimentos próximos"}`
-              : "Nenhum vencimento próximo"}
+              ? `${upcomingChargesList.length} ${upcomingChargesList.length === 1 ? "cobrança com vencimento próximo" : "cobranças com vencimento próximo"}`
+              : "Nenhuma cobrança com vencimento próximo cadastrada."}
           </p>
         </div>
 
@@ -840,7 +864,7 @@ export function DashboardPersonalView({
               >
                 <div className="min-w-0 pr-2">
                   <p className="font-bold text-xs sm:text-sm text-[#102E23] truncate">{ch.studentName}</p>
-                  <p className="text-xs text-[#5A7366] mt-0.5">{ch.dueDate}</p>
+                  <p className="text-xs text-[#5A7366] mt-0.5">Vencimento da cobrança: {ch.dueDate}</p>
                 </div>
                 <div className="text-right shrink-0">
                   <span className="font-bold text-xs sm:text-sm text-[#102E23] tabular-nums">{ch.amountFormatted}</span>
@@ -849,7 +873,7 @@ export function DashboardPersonalView({
             ))
           ) : (
             <p className="text-xs text-[#5A7366] italic py-1">
-              Nenhuma cobrança com vencimento próximo.
+              Nenhuma cobrança com vencimento próximo cadastrada.
             </p>
           )}
         </div>
@@ -869,9 +893,9 @@ export function DashboardPersonalView({
   );
 
   return (
-    <div className="w-full max-w-[1040px] mx-auto space-y-5 sm:space-y-6 pb-28 sm:pb-32 md:pb-8">
+    <div className="w-full max-w-7xl mx-auto space-y-5 sm:space-y-6 pb-28 sm:pb-32 md:pb-10">
       {/* ============================================================== */}
-      {/* 1. CABEÇALHO EDITORIAL (DESKTOP & CELULAR)                     */}
+      {/* 1. CABEÇALHO DO PAINEL INÍCIO                                   */}
       {/* ============================================================== */}
       <PersonalHeader
         consultancyName={consultancyName || "Consultoria"}
@@ -888,25 +912,26 @@ export function DashboardPersonalView({
       />
 
       {/* ============================================================== */}
-      {/* 2. GRID DESKTOP (TREVO ONE 3.0 — PAINEL OPERACIONAL)           */}
-      {/* Row 1: Programas de treino (7 cols) | Carteira & Avaliação (5) */}
-      {/* Row 2: Precisam de atenção (esq) | Treino em andamento (dir)   */}
-      {/* Row 3: Financeiro a receber (quando autorizado)                */}
+      {/* 2. LAYOUT DESKTOP (>= 1024px / lg)                             */}
+      {/* Com a remoção da sidebar, o conteúdo utiliza largura total:    */}
+      {/* Linha 1: Programas de treino (7 cols) | Carteira & Avaliação (5)*/}
+      {/* Linha 2: Precisam de atenção (6 cols) | Rascunho (6 cols)      */}
+      {/* Linha 3: Financeiro a receber (quando autorizado)              */}
       {/* ============================================================== */}
-      <div className="hidden md:flex md:flex-col gap-5">
-        {/* Linha 1: Cockpit Operacional */}
-        <div className="grid grid-cols-12 gap-5 items-stretch">
+      <div className="hidden lg:flex lg:flex-col gap-6">
+        {/* Linha 1: Cockpit Principal */}
+        <div className="grid grid-cols-12 gap-6 items-stretch">
           <div className="col-span-7 flex flex-col">
             {renderProgramasDeTreino()}
           </div>
           <div className="col-span-5 grid grid-cols-2 gap-4 h-full">
-            {renderMinhaCarteira()}
+            {renderCarteiraDeAlunos()}
             {renderAvaliacaoFisica()}
           </div>
         </div>
 
         {/* Linha 2: Atendimento e Rascunho */}
-        <div className="grid grid-cols-2 gap-5 items-stretch">
+        <div className="grid grid-cols-2 gap-6 items-stretch">
           {renderPendencias(false)}
           {renderRascunho()}
         </div>
@@ -920,19 +945,52 @@ export function DashboardPersonalView({
       </div>
 
       {/* ============================================================== */}
-      {/* 3. FLUXO MOBILE (< md)                                         */}
-      {/* Ordem lógica aprovada:                                         */}
-      {/* 1. Início + Criar treino (no cabeçalho acima)                  */}
-      {/* 2. Programas de treino                                         */}
-      {/* 3. Grid 2 colunas: Minha carteira & Avaliação física           */}
-      {/* 4. Pendências ("Precisam de atenção")                          */}
-      {/* 5. Treino em andamento (Rascunho)                              */}
-      {/* 6. Financeiro / A receber (quando autorizado)                  */}
+      {/* 3. LAYOUT PRÓPRIO TABLET / IPAD (768px - 1023px / md to lg)    */}
+      {/* Estrutura dedicada conforme exigência:                         */}
+      {/* 1. Programas de treino em largura total                        */}
+      {/* 2. Carteira de alunos e Avaliação física em duas colunas       */}
+      {/* 3. Precisam de atenção e Rascunho em duas colunas confortáveis  */}
+      {/* 4. Financeiro em largura total conforme disponibilidade        */}
+      {/* ============================================================== */}
+      <div className="hidden md:flex lg:hidden flex-col gap-5">
+        {/* 1. Programas de treino em largura total */}
+        <div className="w-full">
+          {renderProgramasDeTreino()}
+        </div>
+
+        {/* 2. Carteira de alunos e Avaliação física em duas colunas */}
+        <div className="grid grid-cols-2 gap-5 items-stretch">
+          {renderCarteiraDeAlunos()}
+          {renderAvaliacaoFisica()}
+        </div>
+
+        {/* 3. Precisam de atenção e Rascunho em duas colunas confortáveis */}
+        <div className="grid grid-cols-2 gap-5 items-stretch">
+          {renderPendencias(false)}
+          {renderRascunho()}
+        </div>
+
+        {/* 4. Financeiro em largura total */}
+        {hasFinanceAccess && (
+          <div className="w-full">
+            {renderFinanceiro()}
+          </div>
+        )}
+      </div>
+
+      {/* ============================================================== */}
+      {/* 4. FLUXO MOBILE (< 768px / md)                                 */}
+      {/* Ordem lógica e verticalizada:                                  */}
+      {/* 1. Programas de treino                                         */}
+      {/* 2. Grid 2 colunas: Carteira de alunos & Avaliação física       */}
+      {/* 3. Pendências ("Precisam de atenção")                          */}
+      {/* 4. Rascunho de treino                                          */}
+      {/* 5. Financeiro / A receber (quando autorizado)                  */}
       {/* ============================================================== */}
       <div className="flex flex-col gap-4 md:hidden">
         {renderProgramasDeTreino()}
         <div className="grid grid-cols-2 gap-3 sm:gap-4 items-stretch">
-          {renderMinhaCarteira()}
+          {renderCarteiraDeAlunos()}
           {renderAvaliacaoFisica()}
         </div>
         {renderPendencias(true)}

@@ -594,7 +594,7 @@ export async function ConsultancyAppShell({
           : themeVariant === "dark-overview"
           ? "bg-[#F0F1F3] dark:bg-[#0B0C0E] text-[#17191D] dark:text-[#FFFFFF]"
           : "bg-transparent text-[var(--text-primary)]"
-      } flex flex-col lg:pl-64 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors`}
+      } flex flex-col ${themeVariant === "trainer-refined" ? "pl-0" : "lg:pl-64"} print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors`}
     >
       {/* Session Scope & Offline Isolation Guard */}
       {userPublicId && consultancyPublicId && (
@@ -675,7 +675,7 @@ export async function ConsultancyAppShell({
           showDashboardWallpaper
             ? "bg-transparent text-[#17191D] dark:text-[#FFFFFF]"
             : themeVariant === "trainer-refined"
-            ? "bg-transparent text-[#1E2922]"
+            ? "bg-transparent text-[#1E2922] max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6"
             : themeVariant === "dark-overview"
             ? "bg-[#F0F1F3] dark:bg-[#0B0C0E]"
             : "xl:p-10"

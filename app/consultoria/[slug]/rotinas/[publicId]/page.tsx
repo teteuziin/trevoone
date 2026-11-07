@@ -1,5 +1,4 @@
 import React from "react";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
@@ -8,14 +7,6 @@ import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getWorkoutWithSpecificVersion } from "@/lib/training-v2/workout-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { WorkoutBuilder } from "@/components/consultancies/training-v2/workout-builder";
-
-function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-    </svg>
-  );
-}
 
 type PageProps = {
   params: Promise<{
@@ -82,31 +73,11 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
-      themeVariant="dark-overview"
-      showDashboardWallpaper={true}
+      themeVariant="trainer-refined"
+      showDashboardWallpaper={false}
       maxWidth="full"
     >
-      <div className="w-full max-w-full min-w-0 max-w-[1440px] 2xl:max-w-[1600px] mx-auto space-y-6 pb-20">
-        <div className="hidden sm:flex items-center justify-between gap-4">
-          <Link
-            href={
-              student
-                ? `/consultoria/${slug}/progresso/alunos/${student}`
-                : `/consultoria/${slug}/rotinas${workout.isTemplate ? "?tab=templates" : ""}`
-            }
-            className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive"
-          >
-            <ArrowLeftIcon className="w-4 h-4" />
-            <span>
-              {student
-                ? "Voltar para Central do Aluno"
-                : workout.isTemplate
-                ? "Voltar para Modelos de Treino"
-                : "Voltar para Treinos"}
-            </span>
-          </Link>
-        </div>
-
+      <div className="w-full max-w-full min-w-0 mx-auto pb-12">
         <WorkoutBuilder
           key={version.publicId}
           consultancySlug={slug}

@@ -2657,6 +2657,7 @@ export type WorkoutListItemDto = {
   publishedVersionPublicId?: string | null;
   activeAssignmentsCount?: number;
   assignedStudentName?: string | null;
+  assignedStudentMembershipPublicId?: string | null;
   blocksCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -2708,11 +2709,17 @@ export async function listWorkoutsForProfessional(
            JOIN workout_versions wv_s ON wv_s.id = wa_s.workout_version_id
            JOIN consultancy_members cm_s ON cm_s.id = wa_s.student_membership_id
            JOIN users u_s ON u_s.id = cm_s.user_id
-           WHERE wv_s.workout_id = w.id AND wa_s.status = 'ACTIVE' AND wa_s.deleted_at IS NULL AND u_s.full_name LIKE ?
+           WHERE wv_s.workout_id = w.id AND wa_s.deleted_at IS NULL AND u_s.full_name LIKE ?
+         ) OR EXISTS (
+           SELECT 1 FROM consultancy_members cm_m
+           JOIN users u_m ON u_m.id = cm_m.user_id
+           WHERE cm_m.consultancy_id = w.consultancy_id AND cm_m.deleted_at IS NULL
+             AND (w.title = CONCAT('Treino - ', u_m.full_name) OR wv.title = CONCAT('Treino - ', u_m.full_name))
+             AND u_m.full_name LIKE ?
          ))`
       );
       const q = `%${options.query.trim()}%`;
-      params.push(q, q, q);
+      params.push(q, q, q, q);
     }
 
     if (options?.status && options.status !== "ALL") {
@@ -2768,7 +2775,16 @@ export async function listWorkoutsForProfessional(
               (SELECT wv_p.version_number FROM workout_versions wv_p WHERE wv_p.workout_id = w.id AND wv_p.status = 'PUBLISHED' ORDER BY wv_p.version_number DESC LIMIT 1) AS published_version_number,
               (SELECT wv_p.public_id FROM workout_versions wv_p WHERE wv_p.workout_id = w.id AND wv_p.status = 'PUBLISHED' ORDER BY wv_p.version_number DESC LIMIT 1) AS published_version_public_id,
               (SELECT COUNT(*) FROM workout_assignments wa JOIN workout_versions wv_all ON wv_all.id = wa.workout_version_id WHERE wv_all.workout_id = w.id AND wa.status = 'ACTIVE' AND wa.deleted_at IS NULL) AS active_assignments_count,
-              (SELECT u.full_name FROM workout_assignments wa JOIN workout_versions wv_all ON wv_all.id = wa.workout_version_id JOIN consultancy_members cm ON cm.id = wa.student_membership_id JOIN users u ON u.id = cm.user_id WHERE wv_all.workout_id = w.id AND wa.status = 'ACTIVE' AND wa.deleted_at IS NULL ORDER BY wa.id DESC LIMIT 1) AS assigned_student_name
+              COALESCE(
+                (SELECT u.full_name FROM workout_assignments wa JOIN workout_versions wv_all ON wv_all.id = wa.workout_version_id JOIN consultancy_members cm ON cm.id = wa.student_membership_id JOIN users u ON u.id = cm.user_id WHERE wv_all.workout_id = w.id AND wa.status = 'ACTIVE' AND wa.deleted_at IS NULL ORDER BY wa.id DESC LIMIT 1),
+                (SELECT u.full_name FROM workout_assignments wa JOIN workout_versions wv_all ON wv_all.id = wa.workout_version_id JOIN consultancy_members cm ON cm.id = wa.student_membership_id JOIN users u ON u.id = cm.user_id WHERE wv_all.workout_id = w.id AND wa.deleted_at IS NULL ORDER BY wa.id DESC LIMIT 1),
+                (SELECT u.full_name FROM consultancy_members cm JOIN users u ON u.id = cm.user_id WHERE cm.consultancy_id = w.consultancy_id AND cm.deleted_at IS NULL AND (w.title = CONCAT('Treino - ', u.full_name) OR wv.title = CONCAT('Treino - ', u.full_name)) LIMIT 1)
+              ) AS assigned_student_name,
+              COALESCE(
+                (SELECT cm.public_id FROM workout_assignments wa JOIN workout_versions wv_all ON wv_all.id = wa.workout_version_id JOIN consultancy_members cm ON cm.id = wa.student_membership_id WHERE wv_all.workout_id = w.id AND wa.status = 'ACTIVE' AND wa.deleted_at IS NULL ORDER BY wa.id DESC LIMIT 1),
+                (SELECT cm.public_id FROM workout_assignments wa JOIN workout_versions wv_all ON wv_all.id = wa.workout_version_id JOIN consultancy_members cm ON cm.id = wa.student_membership_id WHERE wv_all.workout_id = w.id AND wa.deleted_at IS NULL ORDER BY wa.id DESC LIMIT 1),
+                (SELECT cm.public_id FROM consultancy_members cm JOIN users u ON u.id = cm.user_id WHERE cm.consultancy_id = w.consultancy_id AND cm.deleted_at IS NULL AND (w.title = CONCAT('Treino - ', u.full_name) OR wv.title = CONCAT('Treino - ', u.full_name)) LIMIT 1)
+              ) AS assigned_student_membership_public_id
        FROM workouts w
        LEFT JOIN workout_versions wv ON wv.workout_id = w.id
             AND wv.id = (
@@ -2801,6 +2817,7 @@ export async function listWorkoutsForProfessional(
       publishedVersionPublicId: r.published_version_public_id ? String(r.published_version_public_id) : null,
       activeAssignmentsCount: Number(r.active_assignments_count || 0),
       assignedStudentName: r.assigned_student_name ? String(r.assigned_student_name) : null,
+      assignedStudentMembershipPublicId: r.assigned_student_membership_public_id ? String(r.assigned_student_membership_public_id) : null,
       blocksCount: Number(r.blocks_count || 0),
       createdAt: new Date(r.created_at),
       updatedAt: new Date(r.current_version_updated_at || r.updated_at),

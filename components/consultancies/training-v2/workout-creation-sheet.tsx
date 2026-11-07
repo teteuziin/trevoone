@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import dynamic from "next/dynamic";
 import { WorkoutTemplatePicker } from "./workout-template-picker";
 
@@ -24,7 +23,7 @@ function useIsMounted() {
 
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 4v16m8-8H4" />
     </svg>
   );
@@ -117,94 +116,94 @@ export function WorkoutCreationSheet({
   };
 
   const renderOptions = () => (
-    <div className="space-y-3 py-1">
-      {/* 1. Criar manualmente */}
+    <div className="space-y-2.5 py-1">
+      {/* 1. Criar diretamente */}
       <Link
         href={`/consultoria/${consultancySlug}/rotinas/novo`}
         onClick={() => setIsSheetOpen(false)}
-        className="p-4 rounded-2xl bg-zinc-100 hover:bg-zinc-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-zinc-200 dark:border-white/[0.08] flex items-center gap-3.5 transition-all active:scale-[0.99] select-none block min-h-[44px]"
+        className="p-4 rounded-2xl bg-[#FDFDFC] hover:bg-[#F5F5F0] border border-[#E5E8E2] flex items-center gap-3.5 transition-all select-none block min-h-[44px]"
       >
-        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
+        <div className="w-10 h-10 rounded-xl bg-[#176B49]/10 text-[#176B49] flex items-center justify-center shrink-0 border border-[#176B49]/20">
           <EditIcon className="w-5 h-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
-            Criar manualmente
+          <h4 className="text-sm font-bold text-[#102E23]">
+            Criar ficha em branco
           </h4>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">
-            Monte uma ficha em branco escolhendo blocos e exercícios
+          <p className="text-xs text-[#526058] mt-0.5 leading-relaxed">
+            Monte a ficha no novo editor com divisões e biblioteca de exercícios
           </p>
         </div>
-        <span className="text-zinc-400 text-xs font-bold">→</span>
+        <span className="text-[#8C9890] text-xs font-bold">→</span>
       </Link>
 
-      {/* 2. Criar do zero com IA */}
+      {/* 2. Criar com IA */}
       <button
         type="button"
         onClick={() => {
           setIsSheetOpen(false);
           setIsAiGenerateModalOpen(true);
         }}
-        className="w-full text-left p-4 rounded-2xl bg-zinc-100 hover:bg-zinc-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-zinc-200 dark:border-white/[0.08] flex items-center gap-3.5 transition-all active:scale-[0.99] select-none cursor-pointer min-h-[44px]"
+        className="w-full text-left p-4 rounded-2xl bg-[#FDFDFC] hover:bg-[#F5F5F0] border border-[#E5E8E2] flex items-center gap-3.5 transition-all select-none cursor-pointer min-h-[44px]"
       >
-        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
+        <div className="w-10 h-10 rounded-xl bg-[#176B49]/10 text-[#176B49] flex items-center justify-center shrink-0 border border-[#176B49]/20">
           <SparklesIcon className="w-5 h-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
-            Criar do zero com IA
+          <h4 className="text-sm font-bold text-[#102E23]">
+            Gerar com Inteligência Artificial
           </h4>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">
-            Descreva o treino e deixe a IA estruturar a ficha completa
+          <p className="text-xs text-[#526058] mt-0.5 leading-relaxed">
+            Descreva o perfil do aluno e objetivo para a IA estruturar a rotina
           </p>
         </div>
-        <span className="text-zinc-400 text-xs font-bold">→</span>
+        <span className="text-[#8C9890] text-xs font-bold">→</span>
       </button>
 
-      {/* 3. Importar com IA */}
-      <button
-        type="button"
-        onClick={() => {
-          setIsSheetOpen(false);
-          setIsAiImportModalOpen(true);
-        }}
-        className="w-full text-left p-4 rounded-2xl bg-zinc-100 hover:bg-zinc-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-zinc-200 dark:border-white/[0.08] flex items-center gap-3.5 transition-all active:scale-[0.99] select-none cursor-pointer min-h-[44px]"
-      >
-        <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
-          <UploadIcon className="w-5 h-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
-            Importar com IA
-          </h4>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">
-            Envie um PDF, foto ou texto e converta em ficha de treino automaticamente
-          </p>
-        </div>
-        <span className="text-zinc-400 text-xs font-bold">→</span>
-      </button>
-
-      {/* 4. Usar modelo */}
+      {/* 3. Aproveitar de um modelo */}
       <button
         type="button"
         onClick={() => {
           setIsSheetOpen(false);
           setIsTemplatePickerOpen(true);
         }}
-        className="w-full text-left p-4 rounded-2xl bg-zinc-100 hover:bg-zinc-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-zinc-200 dark:border-white/[0.08] flex items-center gap-3.5 transition-all active:scale-[0.99] select-none cursor-pointer min-h-[44px]"
+        className="w-full text-left p-4 rounded-2xl bg-[#FDFDFC] hover:bg-[#F5F5F0] border border-[#E5E8E2] flex items-center gap-3.5 transition-all select-none cursor-pointer min-h-[44px]"
       >
-        <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/20">
+        <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-700 flex items-center justify-center shrink-0 border border-purple-500/20">
           <LayersIcon className="w-5 h-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
-            Usar modelo
+          <h4 className="text-sm font-bold text-[#102E23]">
+            Aproveitar de um modelo
           </h4>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">
-            Aproveite um modelo já estruturado para personalizar rapidamente
+          <p className="text-xs text-[#526058] mt-0.5 leading-relaxed">
+            Comece a partir de um dos seus modelos pré-configurados
           </p>
         </div>
-        <span className="text-zinc-400 text-xs font-bold">→</span>
+        <span className="text-[#8C9890] text-xs font-bold">→</span>
+      </button>
+
+      {/* 4. Importar treino */}
+      <button
+        type="button"
+        onClick={() => {
+          setIsSheetOpen(false);
+          setIsAiImportModalOpen(true);
+        }}
+        className="w-full text-left p-4 rounded-2xl bg-[#FDFDFC] hover:bg-[#F5F5F0] border border-[#E5E8E2] flex items-center gap-3.5 transition-all select-none cursor-pointer min-h-[44px]"
+      >
+        <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-700 flex items-center justify-center shrink-0 border border-blue-500/20">
+          <UploadIcon className="w-5 h-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h4 className="text-sm font-bold text-[#102E23]">
+            Importar texto ou ficha existente
+          </h4>
+          <p className="text-xs text-[#526058] mt-0.5 leading-relaxed">
+            Cole um texto de treino para importar os exercícios automaticamente
+          </p>
+        </div>
+        <span className="text-[#8C9890] text-xs font-bold">→</span>
       </button>
     </div>
   );
@@ -213,88 +212,90 @@ export function WorkoutCreationSheet({
     <>
       {/* Trigger Button */}
       {isFloating ? (
-        isTemplatesTab ? (
-          <Link
-            href={`/consultoria/${consultancySlug}/rotinas/novo?isTemplate=true`}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-lg active:scale-95 transition-all"
-          >
-            <PlusIcon className="w-4 h-4" />
-            <span>Novo modelo</span>
-          </Link>
-        ) : (
-          <button
-            ref={triggerRef}
-            type="button"
-            onClick={() => setIsSheetOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-lg active:scale-95 transition-all cursor-pointer"
-          >
-            <PlusIcon className="w-4 h-4" />
-            <span>Nova ficha</span>
-          </button>
-        )
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setIsSheetOpen(true)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-[#176B49] hover:bg-[#12583B] text-white shadow-lg active:scale-95 transition-all cursor-pointer font-sans"
+        >
+          <PlusIcon className="w-4 h-4" />
+          <span>{isTemplatesTab ? "Novo modelo" : "Criar ficha"}</span>
+        </button>
       ) : (
-        <div className="w-full sm:w-auto">
+        <div className="flex items-center gap-2">
           {isTemplatesTab ? (
             <Link
               href={`/consultoria/${consultancySlug}/rotinas/novo?isTemplate=true`}
-              className="w-full sm:w-auto inline-block"
-            >
-              <Button
-                variant="primary"
-                size="md"
-                className="w-full sm:w-auto font-bold min-h-[42px] px-5 shadow-sm flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950"
-              >
-                <PlusIcon className="w-4 h-4" />
-                <span>Novo modelo</span>
-              </Button>
-            </Link>
-          ) : (
-            <Button
-              ref={triggerRef}
-              type="button"
-              variant="primary"
-              size="md"
-              onClick={() => setIsSheetOpen(true)}
-              className="w-full sm:w-auto font-bold min-h-[42px] px-5 shadow-sm flex items-center justify-center gap-2 cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-zinc-950"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all font-sans cursor-pointer min-h-[40px]"
             >
               <PlusIcon className="w-4 h-4" />
-              <span>Nova ficha</span>
-            </Button>
+              <span>+ Novo modelo</span>
+            </Link>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/consultoria/${consultancySlug}/rotinas/novo`}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all font-sans cursor-pointer min-h-[40px]"
+              >
+                <PlusIcon className="w-4 h-4" />
+                <span>+ Criar treino</span>
+              </Link>
+              <button
+                ref={triggerRef}
+                type="button"
+                onClick={() => setIsSheetOpen(true)}
+                title="Mais opções de criação"
+                aria-label="Mais opções de criação"
+                className="p-2 rounded-xl bg-white hover:bg-[#F5F5F0] text-[#102E23] border border-[#E5E8E2] shadow-2xs transition-all cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center font-sans text-xs font-semibold"
+              >
+                <SparklesIcon className="w-4 h-4 text-[#176B49]" />
+              </button>
+            </div>
           )}
         </div>
       )}
 
-      {/* PORTAL BOTTOM SHEET: Stricty z-[70] above all bottom bars and top headers */}
+      {/* PORTAL BOTTOM SHEET: Strictly z-[70] above all bottom bars and top headers */}
       {isMounted && isSheetOpen && createPortal(
         <div
           data-testid="workout-creation-sheet-overlay"
-          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-150"
           onClick={handleClose}
         >
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Nova ficha"
+            aria-label="Nova ficha de treino"
             onClick={(e) => e.stopPropagation()}
-            className="w-full sm:max-w-lg bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-8 duration-200 overflow-hidden"
+            className="w-full sm:max-w-lg bg-white border-t sm:border border-[#E5E8E2] rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-8 duration-200 overflow-hidden font-sans"
           >
-            {/* Compact Header: title "Nova ficha" + close button >= 44x44px. No drag handle. */}
-            <div className="px-5 py-3.5 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 shrink-0">
-              <h3 className="text-base sm:text-lg font-black text-[var(--text-primary)] tracking-tight">
-                Nova ficha
-              </h3>
+            {/* Header */}
+            <div className="p-5 border-b border-[#F0F2ED] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#176B49]/10 text-[#176B49] flex items-center justify-center font-bold">
+                  <PlusIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-[#102E23] leading-tight">
+                    {isTemplatesTab ? "Criar novo modelo" : "Como deseja criar a ficha?"}
+                  </h3>
+                  <p className="text-xs text-[#526058] mt-0.5">
+                    Escolha a melhor forma de iniciar a prescrição
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={handleClose}
-                aria-label="Fechar painel"
-                className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] flex items-center justify-center cursor-pointer transition-colors"
+                aria-label="Fechar"
+                className="p-1.5 text-[#8C9890] hover:text-[#102E23] rounded-xl hover:bg-[#F5F5F0] transition-colors cursor-pointer"
               >
                 <CloseIcon className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Content: 16px padding, 12px gap, safe area bottom */}
-            <div className="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
+            {/* Body */}
+            <div className="p-5 overflow-y-auto space-y-4">
               {renderOptions()}
             </div>
           </div>
@@ -302,25 +303,31 @@ export function WorkoutCreationSheet({
         document.body
       )}
 
-      {/* Sub-Modals for creation options */}
-      <WorkoutTemplatePicker
-        consultancySlug={consultancySlug}
-        isOpen={isTemplatePickerOpen}
-        onClose={() => setIsTemplatePickerOpen(false)}
-      />
+      {/* SUB-MODALS */}
+      {isTemplatePickerOpen && (
+        <WorkoutTemplatePicker
+          isOpen={isTemplatePickerOpen}
+          onClose={() => setIsTemplatePickerOpen(false)}
+          consultancySlug={consultancySlug}
+        />
+      )}
 
-      <TrainingAiGenerateModal
-        consultancySlug={consultancySlug}
-        isOpen={isAiGenerateModalOpen}
-        onClose={() => setIsAiGenerateModalOpen(false)}
-      />
+      {isAiGenerateModalOpen && (
+        <TrainingAiGenerateModal
+          isOpen={isAiGenerateModalOpen}
+          onClose={() => setIsAiGenerateModalOpen(false)}
+          consultancySlug={consultancySlug}
+        />
+      )}
 
-      <TrainingAiImportModal
-        consultancySlug={consultancySlug}
-        isOpenControlled={isAiImportModalOpen}
-        onCloseControlled={() => setIsAiImportModalOpen(false)}
-        hideTrigger
-      />
+      {isAiImportModalOpen && (
+        <TrainingAiImportModal
+          isOpenControlled={isAiImportModalOpen}
+          onCloseControlled={() => setIsAiImportModalOpen(false)}
+          consultancySlug={consultancySlug}
+          hideTrigger={true}
+        />
+      )}
     </>
   );
 }

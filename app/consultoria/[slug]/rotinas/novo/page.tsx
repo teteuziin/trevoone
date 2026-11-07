@@ -155,6 +155,8 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      themeVariant="trainer-refined"
+      showDashboardWallpaper={false}
       maxWidth="full"
     >
       <div className="w-full max-w-[720px] 2xl:max-w-[760px] space-y-6 sm:space-y-7 pb-12 animate-in fade-in duration-150">

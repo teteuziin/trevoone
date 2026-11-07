@@ -13,9 +13,9 @@ import { MobileActionSheet, MobileConfirmSheet, type ActionSheetOption } from "@
 function MoreVertical({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="12" cy="5" r="1" />
-      <circle cx="12" cy="19" r="1" />
+      <circle cx="12" cy="12" r="1.25" />
+      <circle cx="12" cy="5" r="1.25" />
+      <circle cx="12" cy="19" r="1.25" />
     </svg>
   );
 }
@@ -78,6 +78,7 @@ export type WorkoutCardActionsProps = {
   workoutTitle: string;
   isDraft: boolean;
   isTemplate?: boolean;
+  showPrimaryButton?: boolean;
 };
 
 export function WorkoutCardActions({
@@ -86,6 +87,7 @@ export function WorkoutCardActions({
   workoutTitle,
   isDraft,
   isTemplate,
+  showPrimaryButton = false,
 }: WorkoutCardActionsProps) {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -122,8 +124,8 @@ export function WorkoutCardActions({
   const mobileOptions: ActionSheetOption[] = [
     {
       id: "open",
-      label: isTemplate ? "Abrir modelo" : "Abrir treino",
-      icon: <ExternalIcon className="w-4 h-4 text-emerald-500" />,
+      label: isTemplate ? "Abrir modelo" : isDraft ? "Continuar edição" : "Abrir treino",
+      icon: <ExternalIcon className="w-4 h-4 text-[#176B49]" />,
       onClick: () => {
         router.push(`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`);
       },
@@ -133,7 +135,7 @@ export function WorkoutCardActions({
           {
             id: "assign",
             label: "Atribuir a um aluno",
-            icon: <UserCheckIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />,
+            icon: <UserCheckIcon className="w-4 h-4 text-[#176B49]" />,
             onClick: () => {
               setIsAssignModalOpen(true);
             },
@@ -142,22 +144,22 @@ export function WorkoutCardActions({
       : []),
     {
       id: "duplicate",
-      label: isTemplate ? "Duplicar modelo" : "Duplicar treino",
-      icon: <CopyIcon className="w-4 h-4 text-blue-500" />,
+      label: isTemplate ? "Duplicar modelo" : "Duplicar ficha",
+      icon: <CopyIcon className="w-4 h-4 text-[#102E23]" />,
       onClick: handleDuplicate,
       disabled: isPending,
     },
     {
       id: "pdf",
       label: "Baixar PDF",
-      icon: <DownloadIcon className="w-4 h-4 text-emerald-500" />,
+      icon: <DownloadIcon className="w-4 h-4 text-[#102E23]" />,
       onClick: () => {
         window.open(`/api/consultancies/${consultancySlug}/treinos/${workoutPublicId}/pdf`, "_blank");
       },
     },
     {
       id: "delete",
-      label: isTemplate ? "Excluir modelo" : isDraft ? "Excluir rascunho" : "Excluir treino",
+      label: isTemplate ? "Excluir modelo" : isDraft ? "Excluir rascunho" : "Excluir ficha",
       icon: <TrashIcon className="w-4 h-4 text-rose-500" />,
       variant: "danger" as const,
       onClick: () => {
@@ -170,28 +172,40 @@ export function WorkoutCardActions({
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end relative"
+      className="flex items-center gap-2 shrink-0 relative"
     >
-      {isTemplate ? (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsAssignModalOpen(true);
-          }}
-          className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-3.5 sm:py-1.5 rounded-xl text-xs sm:text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-xs transition-all min-h-[48px] sm:min-h-[34px] cursor-pointer"
-        >
-          <SparklesIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-          <span>Usar modelo</span>
-        </button>
-      ) : (
-        <Link
-          href={`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`}
-          onClick={(e) => e.stopPropagation()}
-          className="flex-1 sm:flex-initial inline-flex items-center justify-center px-4 py-2.5 sm:px-3.5 sm:py-1.5 rounded-xl text-xs sm:text-xs font-bold sm:font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-white/[0.08] transition-all min-h-[48px] sm:min-h-[34px] cursor-pointer"
-        >
-          Abrir treino →
-        </Link>
+      {showPrimaryButton && (
+        isTemplate ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsAssignModalOpen(true);
+            }}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all min-h-[36px] cursor-pointer"
+          >
+            <SparklesIcon className="w-3.5 h-3.5" />
+            <span>Usar modelo</span>
+          </button>
+        ) : isDraft ? (
+          <Link
+            href={`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all min-h-[36px] cursor-pointer"
+          >
+            <span>Continuar edição</span>
+            <span aria-hidden="true">→</span>
+          </Link>
+        ) : (
+          <Link
+            href={`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-[#F5F5F0] text-[#102E23] border border-[#D5DDD6] transition-all min-h-[36px] cursor-pointer"
+          >
+            <span>Abrir treino</span>
+            <span aria-hidden="true">→</span>
+          </Link>
+        )
       )}
 
       <div className="relative shrink-0">
@@ -202,7 +216,7 @@ export function WorkoutCardActions({
             setIsMenuOpen(!isMenuOpen);
           }}
           aria-label={isTemplate ? "Opções do modelo" : "Opções do treino"}
-          className="p-2.5 sm:p-1.5 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/[0.06] border border-zinc-200 dark:border-white/[0.08] sm:border-transparent hover:border-zinc-300 dark:hover:border-white/[0.12] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center cursor-pointer"
+          className="p-2 rounded-xl text-[#526058] hover:text-[#102E23] hover:bg-[#F5F5F0] border border-[#E5E8E2] transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
         >
           <MoreVertical className="w-4 h-4" />
         </button>
@@ -211,15 +225,15 @@ export function WorkoutCardActions({
         {isMenuOpen && (
           <div className="hidden sm:block">
             <div className="fixed inset-0 z-30" onClick={() => setIsMenuOpen(false)} />
-            <div className="absolute right-0 top-full mt-1 w-48 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
-              <div className="p-1 space-y-0.5">
+            <div className="absolute right-0 top-full mt-1.5 w-48 rounded-2xl bg-white border border-[#E5E8E2] shadow-xl z-40 p-1.5 text-xs font-semibold text-[#102E23] animate-in fade-in zoom-in-95 duration-100 font-sans">
+              <div className="space-y-0.5">
                 <Link
                   href={`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`}
                   onClick={() => setIsMenuOpen(false)}
-                  className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px]"
+                  className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F5F0] flex items-center gap-2 text-left cursor-pointer transition-colors"
                 >
-                  <ExternalIcon className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>{isTemplate ? "Abrir modelo" : "Abrir treino"}</span>
+                  <ExternalIcon className="w-3.5 h-3.5 text-[#176B49]" />
+                  <span>{isTemplate ? "Abrir modelo" : isDraft ? "Continuar edição" : "Abrir treino"}</span>
                 </Link>
 
                 {isTemplate && (
@@ -229,7 +243,7 @@ export function WorkoutCardActions({
                       setIsMenuOpen(false);
                       setIsAssignModalOpen(true);
                     }}
-                    className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px] text-purple-600 dark:text-purple-400"
+                    className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F5F0] flex items-center gap-2 text-left cursor-pointer transition-colors text-[#176B49]"
                   >
                     <UserCheckIcon className="w-3.5 h-3.5" />
                     <span>Atribuir a um aluno</span>
@@ -240,10 +254,10 @@ export function WorkoutCardActions({
                   type="button"
                   disabled={isPending}
                   onClick={handleDuplicate}
-                  className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer disabled:opacity-50 min-h-[40px] sm:min-h-[32px]"
+                  className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F5F0] flex items-center gap-2 text-left cursor-pointer disabled:opacity-50 transition-colors"
                 >
-                  <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
-                  <span>{isTemplate ? "Duplicar modelo" : "Duplicar treino"}</span>
+                  <CopyIcon className="w-3.5 h-3.5 text-[#526058]" />
+                  <span>{isTemplate ? "Duplicar modelo" : "Duplicar ficha"}</span>
                 </button>
 
                 <a
@@ -251,24 +265,24 @@ export function WorkoutCardActions({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setIsMenuOpen(false)}
-                  className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px] text-emerald-600 dark:text-emerald-400"
+                  className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F5F0] flex items-center gap-2 text-left cursor-pointer transition-colors text-[#102E23]"
                 >
-                  <DownloadIcon className="w-3.5 h-3.5 text-emerald-500" />
+                  <DownloadIcon className="w-3.5 h-3.5 text-[#526058]" />
                   <span>Baixar PDF</span>
                 </a>
               </div>
 
-              <div className="p-1">
+              <div className="pt-1 mt-1 border-t border-[#F0F2ED]">
                 <button
                   type="button"
                   onClick={() => {
                     setIsMenuOpen(false);
                     setIsDeleteDialogOpen(true);
                   }}
-                  className="w-full px-3 py-1.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px]"
+                  className="w-full px-3 py-2 rounded-xl hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left cursor-pointer transition-colors"
                 >
                   <TrashIcon className="w-3.5 h-3.5" />
-                  <span>{isTemplate ? "Excluir modelo" : isDraft ? "Excluir rascunho" : "Excluir treino"}</span>
+                  <span>{isTemplate ? "Excluir modelo" : isDraft ? "Excluir rascunho" : "Excluir ficha"}</span>
                 </button>
               </div>
             </div>
@@ -307,28 +321,28 @@ export function WorkoutCardActions({
 
       {/* DESKTOP CONFIRMATION MODAL */}
       {isDeleteDialogOpen && (
-        <div className="hidden sm:flex fixed inset-0 z-50 items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-sm rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl p-5 space-y-4">
+        <div className="hidden sm:flex fixed inset-0 z-50 items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-3xl bg-white border border-[#E5E8E2] shadow-2xl p-5 space-y-4 font-sans">
             <div className="space-y-1.5">
               <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
                 <TrashIcon className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-extrabold text-[var(--text-primary)]">
+              <h3 className="text-base font-extrabold text-[#102E23]">
                 {isTemplate ? "Excluir este modelo?" : "Excluir este treino?"}
               </h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              <p className="text-xs text-[#526058] leading-relaxed">
                 {isTemplate
                   ? `Esta ação removerá este modelo padrão (${workoutTitle}). Alunos que já receberam este plano continuarão com suas rotinas 100% intactas.`
                   : `Esta ação removerá este ${isDraft ? "rascunho" : "treino"} (${workoutTitle}). O histórico de treinos concluídos pelos alunos é 100% preservado.`}
               </p>
             </div>
 
-            <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-end gap-2">
+            <div className="pt-2 border-t border-[#F0F2ED] flex items-center justify-end gap-2">
               <button
                 type="button"
                 disabled={isPending}
                 onClick={() => setIsDeleteDialogOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-[#526058] hover:bg-[#F5F5F0] cursor-pointer transition-colors"
               >
                 Cancelar
               </button>

@@ -6,8 +6,10 @@ import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import { getPersonalStudentDetail } from "@/lib/consultancies/personal-student-hub";
+import { createWorkout, addBlockToDraft } from "@/lib/training-v2/workout-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { Badge } from "@/components/ui/badge";
+import { NewWorkoutManualForm } from "@/components/consultancies/training-v2/new-workout-manual-form";
 
 function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -27,21 +29,30 @@ function UserCheckIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-import { NewWorkoutManualForm } from "@/components/consultancies/training-v2/new-workout-manual-form";
-
 interface PageProps {
   params: Promise<{
     slug: string;
   }>;
   searchParams: Promise<{
     student?: string;
+    studentId?: string;
+    studentName?: string;
     isTemplate?: string;
+    manual?: string;
   }>;
 }
 
 export default async function NewWorkoutPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
-  const { student: studentMembershipPublicId, isTemplate: isTemplateQuery } = await searchParams;
+  const {
+    student: studentMembershipPublicIdRaw,
+    studentId,
+    studentName,
+    isTemplate: isTemplateQuery,
+    manual,
+  } = await searchParams;
+
+  const studentMembershipPublicId = studentMembershipPublicIdRaw || studentId;
   const isTemplate = isTemplateQuery === "true";
 
   const session = await getCurrentSession();
@@ -76,6 +87,51 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
       });
     } catch {
       preselectedStudent = null;
+    }
+  }
+
+  // =========================================================================
+  // TREVO ONE 4.0 — PRINCÍPIO ABSOLUTO: ABRIR E COMEÇAR (AUTO-INICIALIZAÇÃO)
+  // Cria o rascunho imediatamente e redireciona direto para o Editor 4.0
+  // eliminando formulários intermediários desnecessários.
+  // =========================================================================
+  if (manual !== "true") {
+    let draftTitle = "Nova Ficha de Treino";
+    if (preselectedStudent?.student?.name) {
+      draftTitle = `Treino - ${preselectedStudent.student.name}`;
+    } else if (studentName && studentName.trim()) {
+      draftTitle = `Treino - ${studentName.trim()}`;
+    } else if (isTemplate) {
+      draftTitle = "Novo Modelo de Treino";
+    }
+
+    try {
+      const { workout, version } = await createWorkout(ctx, {
+        title: draftTitle,
+        isTemplate,
+        difficultyLevel: "INTERMEDIATE",
+      });
+
+      // Cria a primeira divisão padrão "Treino A"
+      await addBlockToDraft(ctx, version.publicId, {
+        blockType: "SINGLE",
+        title: "Treino A",
+      });
+
+      const targetStudentId =
+        preselectedStudent?.student?.membershipPublicId || studentMembershipPublicId;
+
+      const redirectUrl = targetStudentId
+        ? `/consultoria/${slug}/rotinas/${workout.publicId}?student=${encodeURIComponent(targetStudentId)}`
+        : `/consultoria/${slug}/rotinas/${workout.publicId}${isTemplate ? "?isTemplate=true" : ""}`;
+
+      redirect(redirectUrl);
+    } catch (err) {
+      // Se redirect() foi chamado, ele lança uma exceção do Next.js (NEXT_REDIRECT) que precisa ser relançada
+      if (err && typeof err === "object" && "digest" in err) {
+        throw err;
+      }
+      console.error("[NewWorkoutPage] Erro na auto-inicialização do editor:", err);
     }
   }
 
@@ -163,7 +219,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
           consultancySlug={slug}
           isTemplate={isTemplate}
           targetStudentMembershipPublicId={preselectedStudent?.student.membershipPublicId || studentMembershipPublicId}
-          targetStudentName={preselectedStudent?.student.name}
+          targetStudentName={preselectedStudent?.student.name || studentName}
           targetStudentObjective={preselectedStudent?.overview.objective}
           cancelHref={cancelHref}
         />

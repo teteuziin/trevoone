@@ -1,0 +1,962 @@
+"use client";
+
+import React, { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import type {
+  WorkoutRootDto,
+  WorkoutVersionDto,
+  WorkoutBlockDto,
+  WorkoutBlockItemDto,
+  ExerciseItemDto,
+} from "@/lib/training-v2/types";
+import type { WorkoutVersionSummaryDto } from "@/lib/training-v2/workout-repository";
+import { parseRepsInput } from "@/lib/training-v2/reps-normalizer";
+import type {
+  AutoSaveStatus,
+  EditorStudentInfo,
+  ActiveDrawerType,
+  ActiveInsertTarget,
+} from "./types";
+import {
+  updateWorkoutDraftMetadataAction,
+  addBlockToDraftAction,
+  updateBlockTitleAction,
+  duplicateBlockAction,
+  removeBlockAction,
+  addExerciseItemToBlockAction,
+  deleteExerciseAction,
+  duplicateExerciseAction,
+  reorderItemsAction,
+  updateExerciseQuickConfigAction,
+  createItemCombinationAction,
+  ungroupItemCombinationAction,
+  deleteItemCombinationAction,
+  reorderItemsInCombinationAction,
+  duplicateItemCombinationAction,
+  removeItemFromCombinationAction,
+  publishWorkoutAction,
+  assignWorkoutVersionAction,
+  saveWorkoutAsTemplateAction,
+  createWorkoutFromTemplateAction,
+  getTemplatePreviewAction,
+  getActiveStudentByMembershipAction,
+} from "@/app/consultoria/[slug]/rotinas/actions";
+import { EditorHeader } from "./editor-header";
+import { DivisionsBar } from "./divisions-bar";
+import { DivisionWorkspace } from "./division-workspace";
+import { ShortcutsDock } from "./shortcuts-dock";
+import { AddItemModal } from "./add-item-modal";
+import { ModelsDrawer } from "./models-drawer";
+import { AiHelperDrawer } from "./ai-helper-drawer";
+import { ReorderDrawer } from "./reorder-drawer";
+import { FinalizeDrawer } from "./finalize-drawer";
+import { StudentSelectModal } from "./student-select-modal";
+import { StudentWorkoutRenderer } from "../student-workout-renderer";
+
+export interface WorkoutEditor4Props {
+  consultancySlug: string;
+  workout: WorkoutRootDto;
+  initialVersion: WorkoutVersionDto;
+  isDraft: boolean;
+  allVersions: WorkoutVersionSummaryDto[];
+  isConsultancyAdmin: boolean;
+  initialStudentPublicId?: string;
+}
+
+export function WorkoutEditor4({
+  consultancySlug,
+  workout,
+  initialVersion,
+  isDraft,
+  initialStudentPublicId,
+}: WorkoutEditor4Props) {
+  const router = useRouter();
+
+  // Root states
+  const [version] = useState<WorkoutVersionDto>(initialVersion);
+  const [title, setTitle] = useState<string>(initialVersion.title || workout.title);
+  const [blocks, setBlocks] = useState<WorkoutBlockDto[]>(initialVersion.blocks || []);
+  const [activeBlockPublicId, setActiveBlockPublicId] = useState<string>(
+    initialVersion.blocks?.[0]?.publicId || ""
+  );
+
+  // Student context
+  const [student, setStudent] = useState<EditorStudentInfo | null>(null);
+
+  // Auto-save and drawer management
+  const [saveStatus, setSaveStatus] = useState<AutoSaveStatus>("saved");
+  const [activeDrawer, setActiveDrawer] = useState<ActiveDrawerType>(null);
+  const [insertTarget, setInsertTarget] = useState<ActiveInsertTarget | null>(null);
+
+  // Fallback back URL
+  const backHref = student
+    ? `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`
+    : `/consultoria/${consultancySlug}/rotinas${workout.isTemplate ? "?tab=templates" : ""}`;
+
+  // Fetch initial student details if provided in query params
+  useEffect(() => {
+    if (initialStudentPublicId && !student) {
+      getActiveStudentByMembershipAction(consultancySlug, initialStudentPublicId).then((res) => {
+        if (res.ok && res.data) {
+          setStudent({
+            membershipPublicId: res.data.membershipPublicId,
+            name: res.data.name,
+            email: res.data.email,
+          });
+        }
+      });
+    }
+  }, [initialStudentPublicId, consultancySlug, student]);
+
+  // Power user shortcut (Ctrl + K) to open Add modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setActiveDrawer((prev) => (prev === "add" ? null : "add"));
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const activeBlock = useMemo(() => {
+    return blocks.find((b) => b.publicId === activeBlockPublicId) || blocks[0] || null;
+  }, [blocks, activeBlockPublicId]);
+
+  // =========================================================================
+  // 1. WORKOUT METADATA MUTATIONS
+  // =========================================================================
+  const handleUpdateTitle = async (newTitle: string) => {
+    setTitle(newTitle);
+    setSaveStatus("saving");
+    try {
+      const res = await updateWorkoutDraftMetadataAction(consultancySlug, version.publicId, {
+        title: newTitle,
+      });
+      if (res.ok) {
+        setSaveStatus("saved");
+      } else {
+        setSaveStatus("error");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  // =========================================================================
+  // 2. DIVISION / BLOCK MUTATIONS
+  // =========================================================================
+  const handleAddBlock = async (blockTitle?: string) => {
+    setSaveStatus("saving");
+    try {
+      const res = await addBlockToDraftAction(consultancySlug, version.publicId, {
+        title: blockTitle || `Treino ${String.fromCharCode(65 + blocks.length)}`,
+      });
+      if (res.ok && res.data) {
+        const newBlock = res.data;
+        setBlocks((prev) => [...prev, newBlock]);
+        setActiveBlockPublicId(newBlock.publicId);
+        setSaveStatus("saved");
+      } else {
+        setSaveStatus("error");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleRenameBlock = async (blockPublicId: string, newTitle: string) => {
+    setBlocks((prev) =>
+      prev.map((b) => (b.publicId === blockPublicId ? { ...b, title: newTitle } : b))
+    );
+    setSaveStatus("saving");
+    try {
+      const res = await updateBlockTitleAction(consultancySlug, blockPublicId, newTitle);
+      setSaveStatus(res.ok ? "saved" : "error");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleDuplicateBlock = async (blockPublicId: string) => {
+    setSaveStatus("saving");
+    try {
+      const res = await duplicateBlockAction(consultancySlug, blockPublicId);
+      if (res.ok && res.data) {
+        setBlocks((prev) => [...prev, res.data!]);
+        setActiveBlockPublicId(res.data!.publicId);
+        setSaveStatus("saved");
+      } else {
+        setSaveStatus("error");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleDeleteBlock = async (blockPublicId: string) => {
+    setBlocks((prev) => prev.filter((b) => b.publicId !== blockPublicId));
+    setSaveStatus("saving");
+    try {
+      const res = await removeBlockAction(consultancySlug, blockPublicId);
+      setSaveStatus(res.ok ? "saved" : "error");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  // =========================================================================
+  // 3. EXERCISE ITEM MUTATIONS
+  // =========================================================================
+  const handleSelectExercise = async (exercise: ExerciseItemDto) => {
+    if (!activeBlock) return;
+    setSaveStatus("saving");
+
+    try {
+      const res = await addExerciseItemToBlockAction(
+        consultancySlug,
+        activeBlock.publicId,
+        exercise.publicId
+      );
+
+      if (res.ok && res.data) {
+        const newItem = res.data;
+
+        // If an explicit insert index was targeted, reorder items accordingly
+        setBlocks((prev) => {
+          return prev.map((b) => {
+            if (b.publicId !== activeBlock.publicId) return b;
+            const currentItems = [...(b.items || [])];
+
+            if (
+              insertTarget?.insertIndex !== undefined &&
+              insertTarget.insertIndex < currentItems.length
+            ) {
+              currentItems.splice(insertTarget.insertIndex, 0, newItem);
+            } else {
+              currentItems.push(newItem);
+            }
+
+            return { ...b, items: currentItems };
+          });
+        });
+
+        // If inserted at a specific index, sync new ordering with server
+        if (
+          insertTarget?.insertIndex !== undefined &&
+          activeBlock.items &&
+          insertTarget.insertIndex < activeBlock.items.length
+        ) {
+          const currentIds = activeBlock.items.map((i) => i.publicId);
+          currentIds.splice(insertTarget.insertIndex, 0, newItem.publicId);
+          await reorderItemsAction(consultancySlug, activeBlock.publicId, currentIds);
+        }
+
+        setSaveStatus("saved");
+        setActiveDrawer(null);
+        setInsertTarget(null);
+      } else {
+        setSaveStatus("error");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleUpdateItemConfig = async (
+    itemPublicId: string,
+    updates: {
+      setsCount?: number;
+      reps?: string;
+      loadKg?: number | null;
+      restSeconds?: number | null;
+      notes?: string;
+      tempo?: string;
+      rpeTarget?: number | null;
+    }
+  ) => {
+    const parsedReps = parseRepsInput(updates.reps || "10");
+    const repsMin = parsedReps?.repsMin ?? 10;
+    const repsMax = parsedReps?.repsMax ?? null;
+
+    // Optimistic local update
+    setBlocks((prev) =>
+      prev.map((b) => ({
+        ...b,
+        items: (b.items || []).map((it) => {
+          if (it.publicId !== itemPublicId) return it;
+          const updatedSets = Array.from({ length: updates.setsCount || it.sets?.length || 3 }).map(
+            (_, sIdx) => ({
+              ...(it.sets?.[sIdx] || {
+                setNumber: sIdx + 1,
+                setType: "NORMAL" as const,
+              }),
+              setNumber: sIdx + 1,
+              targetReps: repsMin,
+              targetRepsMax: repsMax,
+              targetLoadKg: updates.loadKg !== undefined ? updates.loadKg : (it.sets?.[0]?.targetLoadKg ?? null),
+              targetRestSeconds: updates.restSeconds !== undefined ? updates.restSeconds : (it.sets?.[0]?.targetRestSeconds ?? 60),
+            })
+          );
+          return {
+            ...it,
+            sets: updatedSets,
+            notes: updates.notes !== undefined ? updates.notes : it.notes,
+            targetCadence: updates.tempo !== undefined ? updates.tempo : it.targetCadence,
+            targetRpe: updates.rpeTarget !== undefined ? updates.rpeTarget : it.targetRpe,
+          };
+        }),
+      }))
+    );
+
+    setSaveStatus("saving");
+    try {
+      const res = await updateExerciseQuickConfigAction(consultancySlug, itemPublicId, {
+        seriesCount: updates.setsCount || 3,
+        reps: repsMin,
+        targetRepsMax: repsMax,
+        restSeconds: updates.restSeconds ?? 60,
+        loadKg: updates.loadKg !== undefined ? updates.loadKg : null,
+        notes: updates.notes,
+      });
+
+      setSaveStatus(res.ok ? "saved" : "error");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleMoveItem = async (itemPublicId: string, direction: "up" | "down") => {
+    if (!activeBlock || !activeBlock.items) return;
+    const items = [...activeBlock.items];
+    const index = items.findIndex((i) => i.publicId === itemPublicId);
+    if (index === -1) return;
+
+    if (direction === "up" && index > 0) {
+      const temp = items[index];
+      items[index] = items[index - 1];
+      items[index - 1] = temp;
+    } else if (direction === "down" && index < items.length - 1) {
+      const temp = items[index];
+      items[index] = items[index + 1];
+      items[index + 1] = temp;
+    } else {
+      return;
+    }
+
+    setBlocks((prev) =>
+      prev.map((b) => (b.publicId === activeBlock.publicId ? { ...b, items } : b))
+    );
+
+    setSaveStatus("saving");
+    try {
+      const ids = items.map((i) => i.publicId);
+      const res = await reorderItemsAction(consultancySlug, activeBlock.publicId, ids);
+      setSaveStatus(res.ok ? "saved" : "error");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleDuplicateItem = async (itemPublicId: string) => {
+    setSaveStatus("saving");
+    try {
+      const res = await duplicateExerciseAction(consultancySlug, itemPublicId);
+      if (res.ok && res.data) {
+        const newItem = res.data;
+        setBlocks((prev) =>
+          prev.map((b) => {
+            if (b.publicId !== activeBlock?.publicId) return b;
+            return { ...b, items: [...(b.items || []), newItem] };
+          })
+        );
+        setSaveStatus("saved");
+      } else {
+        setSaveStatus("error");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleDeleteItem = async (itemPublicId: string) => {
+    setBlocks((prev) =>
+      prev.map((b) => ({
+        ...b,
+        items: (b.items || []).filter((i) => i.publicId !== itemPublicId),
+      }))
+    );
+    setSaveStatus("saving");
+    try {
+      const res = await deleteExerciseAction(consultancySlug, itemPublicId);
+      setSaveStatus(res.ok ? "saved" : "error");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  // =========================================================================
+  // 4. COMBINATIONS (BI-SET, TRI-SET, CIRCUIT)
+  // =========================================================================
+  const handleCreateMethod = async (method: "BI_SET" | "TRI_SET" | "CIRCUIT") => {
+    if (!activeBlock) return;
+    setSaveStatus("saving");
+
+    try {
+      // Pick first exercises if available or add placeholders
+      const existingItems = activeBlock.items || [];
+      const neededCount = method === "BI_SET" ? 2 : method === "TRI_SET" ? 3 : 3;
+
+      let itemIds: string[] = [];
+      if (existingItems.length >= neededCount) {
+        itemIds = existingItems.slice(0, neededCount).map((i) => i.publicId);
+      }
+
+      const res = await createItemCombinationAction(consultancySlug, {
+        blockPublicId: activeBlock.publicId,
+        combinationType: method,
+        title: method === "BI_SET" ? "Bi-set" : method === "TRI_SET" ? "Tri-set" : "Circuito",
+        restAfterSeconds: 90,
+        itemPublicIds: itemIds,
+      });
+
+      if (res.ok && res.data) {
+        const newComb = res.data;
+        setBlocks((prev) =>
+          prev.map((b) => {
+            if (b.publicId !== activeBlock.publicId) return b;
+            return {
+              ...b,
+              combinations: [...(b.combinations || []), newComb],
+            };
+          })
+        );
+        setSaveStatus("saved");
+      } else {
+        setSaveStatus("error");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleSwapCombinationOrder = async (combinationPublicId: string) => {
+    if (!activeBlock) return;
+    const comb = activeBlock.combinations?.find((c) => c.publicId === combinationPublicId);
+    if (!comb || !comb.items || comb.items.length < 2) return;
+
+    const swapped = [...comb.items].reverse();
+
+    setBlocks((prev) =>
+      prev.map((b) => {
+        if (b.publicId !== activeBlock.publicId) return b;
+        return {
+          ...b,
+          combinations: (b.combinations || []).map((c) =>
+            c.publicId === combinationPublicId ? { ...c, items: swapped } : c
+          ),
+        };
+      })
+    );
+
+    setSaveStatus("saving");
+    try {
+      const res = await reorderItemsInCombinationAction(
+        consultancySlug,
+        combinationPublicId,
+        swapped.map((it) => (typeof it === "string" ? it : it.publicId))
+      );
+      setSaveStatus(res.ok ? "saved" : "error");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleUngroupCombination = async (combinationPublicId: string) => {
+    setBlocks((prev) =>
+      prev.map((b) => {
+        if (b.publicId !== activeBlock?.publicId) return b;
+        return {
+          ...b,
+          combinations: (b.combinations || []).filter((c) => c.publicId !== combinationPublicId),
+        };
+      })
+    );
+
+    setSaveStatus("saving");
+    try {
+      const res = await ungroupItemCombinationAction(consultancySlug, combinationPublicId);
+      setSaveStatus(res.ok ? "saved" : "error");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleDuplicateCombination = async (combinationPublicId: string) => {
+    setSaveStatus("saving");
+    try {
+      const res = await duplicateItemCombinationAction(consultancySlug, combinationPublicId);
+      if (res.ok && res.data) {
+        setBlocks((prev) =>
+          prev.map((b) => {
+            if (b.publicId !== activeBlock?.publicId) return b;
+            return {
+              ...b,
+              combinations: [...(b.combinations || []), res.data!],
+            };
+          })
+        );
+        setSaveStatus("saved");
+      } else {
+        setSaveStatus("error");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleDeleteCombination = async (combinationPublicId: string) => {
+    setBlocks((prev) =>
+      prev.map((b) => {
+        if (b.publicId !== activeBlock?.publicId) return b;
+        return {
+          ...b,
+          combinations: (b.combinations || []).filter((c) => c.publicId !== combinationPublicId),
+        };
+      })
+    );
+    setSaveStatus("saving");
+    try {
+      const res = await deleteItemCombinationAction(consultancySlug, combinationPublicId);
+      setSaveStatus(res.ok ? "saved" : "error");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleCombineWithNext = async (itemPublicId: string) => {
+    if (!activeBlock || !activeBlock.items) return;
+    const idx = activeBlock.items.findIndex((i) => i.publicId === itemPublicId);
+    if (idx === -1 || idx >= activeBlock.items.length - 1) return;
+
+    const nextItem = activeBlock.items[idx + 1];
+
+    setSaveStatus("saving");
+    try {
+      const res = await createItemCombinationAction(consultancySlug, {
+        blockPublicId: activeBlock.publicId,
+        combinationType: "BI_SET",
+        title: "Bi-set",
+        restAfterSeconds: 90,
+        itemPublicIds: [itemPublicId, nextItem.publicId],
+      });
+
+      if (res.ok && res.data) {
+        setBlocks((prev) =>
+          prev.map((b) => {
+            if (b.publicId !== activeBlock.publicId) return b;
+            return {
+              ...b,
+              combinations: [...(b.combinations || []), res.data!],
+            };
+          })
+        );
+        setSaveStatus("saved");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  // =========================================================================
+  // 5. TEMPLATES & AI ACTIONS
+  // =========================================================================
+  const handleApplyWholeTemplate = async (templatePublicId: string, replace: boolean) => {
+    setSaveStatus("saving");
+    try {
+      if (replace) {
+        const res = await createWorkoutFromTemplateAction(consultancySlug, templatePublicId, {
+          title: workout.title,
+          targetStudentMembershipPublicId: student?.membershipPublicId,
+        });
+        if (res.ok && res.data) {
+          router.push(
+            `/consultoria/${consultancySlug}/rotinas/${res.data.workoutPublicId}${
+              student ? `?student=${student.membershipPublicId}` : ""
+            }`
+          );
+          router.refresh();
+          return;
+        }
+      } else {
+        const res = await getTemplatePreviewAction(consultancySlug, templatePublicId);
+        if (res.ok && res.data) {
+          const tmpl = res.data;
+          for (const b of tmpl.blocks || []) {
+            await addBlockToDraftAction(consultancySlug, version.publicId, {
+              title: b.title,
+            });
+          }
+          router.refresh();
+          setSaveStatus("saved");
+        }
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleApplySplitFromTemplate = async (templatePublicId: string, blockTitle: string) => {
+    setSaveStatus("saving");
+    try {
+      const res = await addBlockToDraftAction(consultancySlug, version.publicId, {
+        title: blockTitle,
+      });
+      if (res.ok && res.data) {
+        setBlocks((prev) => [...prev, res.data!]);
+        setActiveBlockPublicId(res.data.publicId);
+        setSaveStatus("saved");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleSaveAsTemplate = async () => {
+    setSaveStatus("saving");
+    try {
+      const res = await saveWorkoutAsTemplateAction(consultancySlug, workout.publicId, title);
+      setSaveStatus(res.ok ? "saved" : "error");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleApplyAiSuggestion = async (proposal: {
+    divisions: Array<{
+      title: string;
+      exercises: Array<{ name: string; sets: number; reps: string; rest: number }>;
+    }>;
+  }) => {
+    setSaveStatus("saving");
+    const newBlocks: WorkoutBlockDto[] = proposal.divisions.map((div, dIdx) => ({
+      publicId: crypto.randomUUID(),
+      blockType: "SINGLE",
+      title: div.title,
+      sortOrder: dIdx + 1,
+      rounds: null,
+      restBetweenItemsSeconds: null,
+      restBetweenRoundsSeconds: null,
+      restAfterBlockSeconds: null,
+      instructions: null,
+      items: div.exercises.map((e, eIdx) => ({
+        publicId: crypto.randomUUID(),
+        exercisePublicId: null,
+        exerciseNameSnapshot: e.name,
+        muscleGroupSnapshot: null,
+        equipmentSnapshot: null,
+        instructionsSnapshot: null,
+        prescriptionMode: "SETS",
+        targetCadence: null,
+        targetRpe: null,
+        targetRir: null,
+        methodConfig: null,
+        customVideoUrl: null,
+        notes: null,
+        pinnedMedia: [],
+        sortOrder: eIdx + 1,
+        sets: Array.from({ length: e.sets }).map((_, sIdx) => ({
+          setNumber: sIdx + 1,
+          setType: "NORMAL" as const,
+          targetReps: 10,
+          targetRepsMax: null,
+          targetLoadKg: null,
+          targetRestSeconds: e.rest,
+        })),
+      })),
+    }));
+
+    setBlocks(newBlocks);
+    if (newBlocks.length > 0) {
+      setActiveBlockPublicId(newBlocks[0].publicId);
+    }
+    setSaveStatus("saved");
+  };
+
+  // =========================================================================
+  // 6. PUBLISHING & STUDENT ASSIGNMENT
+  // =========================================================================
+  const handlePublish = async () => {
+    setSaveStatus("saving");
+    try {
+      const res = await publishWorkoutAction(consultancySlug, version.publicId);
+      if (res.ok) {
+        // If student is linked, assign workout version to student
+        if (student) {
+          await assignWorkoutVersionAction(
+            consultancySlug,
+            workout.publicId,
+            version.publicId,
+            student.membershipPublicId
+          );
+        }
+
+        setSaveStatus("saved");
+        setActiveDrawer(null);
+
+        // Redirect to student page or rotinas
+        if (student) {
+          router.push(
+            `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?published=true`
+          );
+        } else {
+          router.push(`/consultoria/${consultancySlug}/rotinas?published=true`);
+        }
+        router.refresh();
+      } else {
+        setSaveStatus("error");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  return (
+    <div className="w-full min-h-screen bg-[#F5F5F0] text-[#1E2922] font-sans flex flex-col justify-between selection:bg-[#176B49] selection:text-white pb-20">
+      {/* 1. CABEÇALHO DO EDITOR 4.0 */}
+      <EditorHeader
+        title={title}
+        onUpdateTitle={handleUpdateTitle}
+        student={student}
+        onOpenStudentSelector={() => setActiveDrawer("student-select")}
+        saveStatus={saveStatus}
+        backHref={backHref}
+        onOpenPreview={() => setActiveDrawer("preview")}
+        onOpenFinalize={() => setActiveDrawer("finalize")}
+        isDraft={isDraft}
+        versionNumber={version.versionNumber}
+      />
+
+      {/* 2. ÁREA DE MONTAGEM */}
+      <main className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-6 flex-1 space-y-4">
+        {/* Faixa Compacta de Divisões (Treino A, B, C...) */}
+        <DivisionsBar
+          blocks={blocks}
+          activeBlockPublicId={activeBlockPublicId}
+          onSelectBlock={(id) => setActiveBlockPublicId(id)}
+          onAddBlock={handleAddBlock}
+          onRenameBlock={handleRenameBlock}
+          onDuplicateBlock={handleDuplicateBlock}
+          onDeleteBlock={handleDeleteBlock}
+        />
+
+        {/* Divisão Ativa com Exercícios e "+ Inserir aqui" */}
+        {activeBlock && (
+          <DivisionWorkspace
+            block={activeBlock}
+            onUpdateItemConfig={handleUpdateItemConfig}
+            onMoveItemUp={(id) => handleMoveItem(id, "up")}
+            onMoveItemDown={(id) => handleMoveItem(id, "down")}
+            onDuplicateItem={handleDuplicateItem}
+            onDeleteItem={handleDeleteItem}
+            onOpenAddModal={(idx) => {
+              setInsertTarget({ blockPublicId: activeBlock.publicId, insertIndex: idx });
+              setActiveDrawer("add");
+            }}
+            onOpenMethodModal={(m) => {
+              handleCreateMethod(m);
+            }}
+            onOpenModelsDrawer={(idx) => {
+              setInsertTarget({ blockPublicId: activeBlock.publicId, insertIndex: idx });
+              setActiveDrawer("models");
+            }}
+            onOpenAiDrawer={(idx) => {
+              setInsertTarget({ blockPublicId: activeBlock.publicId, insertIndex: idx });
+              setActiveDrawer("ai");
+            }}
+            onSwapCombinationOrder={handleSwapCombinationOrder}
+            onUngroupCombination={handleUngroupCombination}
+            onDuplicateCombination={handleDuplicateCombination}
+            onDeleteCombination={handleDeleteCombination}
+            onAddItemToCombination={() => {
+              setActiveDrawer("add");
+            }}
+            onRemoveItemFromCombination={async (combId, itemId) => {
+              await removeItemFromCombinationAction(consultancySlug, combId, itemId);
+              setBlocks((prev) =>
+                prev.map((b) => {
+                  if (b.publicId !== activeBlock.publicId) return b;
+                  return {
+                    ...b,
+                    combinations: (b.combinations || []).map((c) =>
+                      c.publicId === combId
+                        ? {
+                            ...c,
+                            items: (c.items || []).filter((it) =>
+                              typeof it === "string" ? it !== itemId : it.publicId !== itemId
+                            ),
+                          }
+                        : c
+                    ),
+                  };
+                })
+              );
+            }}
+            onCombineWithNext={handleCombineWithNext}
+          />
+        )}
+      </main>
+
+      {/* 3. BARRA DE ATALHOS FIXA (DOCK) */}
+      <ShortcutsDock
+        onOpenAdd={() => {
+          setInsertTarget(null);
+          setActiveDrawer("add");
+        }}
+        onOpenModels={() => setActiveDrawer("models")}
+        onOpenAi={() => setActiveDrawer("ai")}
+        onOpenReorder={() => setActiveDrawer("reorder")}
+        onOpenFinalize={() => setActiveDrawer("finalize")}
+      />
+
+      {/* 4. MODAIS E DRAWERS CONTEXTUAIS */}
+      {/* Modal Adicionar Exercício / Método */}
+      <AddItemModal
+        isOpen={activeDrawer === "add"}
+        onClose={() => {
+          setActiveDrawer(null);
+          setInsertTarget(null);
+        }}
+        consultancySlug={consultancySlug}
+        onSelectExercise={handleSelectExercise}
+        onCreateMethod={handleCreateMethod}
+        targetIndex={insertTarget?.insertIndex}
+      />
+
+      {/* Drawer Modelos */}
+      <ModelsDrawer
+        isOpen={activeDrawer === "models"}
+        onClose={() => {
+          setActiveDrawer(null);
+          setInsertTarget(null);
+        }}
+        consultancySlug={consultancySlug}
+        currentWorkoutPublicId={workout.publicId}
+        hasExistingItems={blocks.some((b) => (b.items || []).length > 0)}
+        onApplyWholeTemplate={handleApplyWholeTemplate}
+        onApplySplitFromTemplate={handleApplySplitFromTemplate}
+        onSaveCurrentAsTemplate={handleSaveAsTemplate}
+      />
+
+      {/* Drawer Me ajuda (IA) */}
+      <AiHelperDrawer
+        isOpen={activeDrawer === "ai"}
+        onClose={() => {
+          setActiveDrawer(null);
+          setInsertTarget(null);
+        }}
+        consultancySlug={consultancySlug}
+        blocks={blocks}
+        activeBlockPublicId={activeBlockPublicId}
+        onApplyAiSuggestion={handleApplyAiSuggestion}
+        onReplaceExerciseWithAlternative={async (itemPublicId, newName) => {
+          // Replace name
+          setBlocks((prev) =>
+            prev.map((b) => ({
+              ...b,
+              items: (b.items || []).map((it) =>
+                it.publicId === itemPublicId ? { ...it, exerciseNameSnapshot: newName } : it
+              ),
+            }))
+          );
+        }}
+        onAddBiSetSuggestion={async () => {
+          handleCreateMethod("BI_SET");
+        }}
+      />
+
+      {/* Drawer Organizar */}
+      {activeBlock && (
+        <ReorderDrawer
+          isOpen={activeDrawer === "reorder"}
+          onClose={() => setActiveDrawer(null)}
+          block={activeBlock}
+          onSaveNewOrder={async (newIds) => {
+            const reordered = newIds
+              .map((id) => activeBlock.items?.find((i) => i.publicId === id))
+              .filter(Boolean) as WorkoutBlockItemDto[];
+
+            setBlocks((prev) =>
+              prev.map((b) => (b.publicId === activeBlock.publicId ? { ...b, items: reordered } : b))
+            );
+
+            await reorderItemsAction(consultancySlug, activeBlock.publicId, newIds);
+          }}
+        />
+      )}
+
+      {/* Drawer Finalizar */}
+      <FinalizeDrawer
+        isOpen={activeDrawer === "finalize"}
+        onClose={() => setActiveDrawer(null)}
+        title={title}
+        student={student}
+        blocks={blocks}
+        onOpenStudentSelector={() => setActiveDrawer("student-select")}
+        onPublish={handlePublish}
+        onSaveAsTemplate={handleSaveAsTemplate}
+        isTemplate={workout.isTemplate}
+      />
+
+      {/* Modal Selecionar Aluno */}
+      <StudentSelectModal
+        isOpen={activeDrawer === "student-select"}
+        onClose={() => setActiveDrawer(null)}
+        consultancySlug={consultancySlug}
+        onSelectStudent={async (st) => {
+          setStudent(st);
+        }}
+      />
+
+      {/* Modal Prévia de Aluno (Full screen preview) */}
+      {activeDrawer === "preview" && (
+        <div className="fixed inset-0 z-50 bg-[#F5F5F0] overflow-y-auto p-4 sm:p-6 animate-in fade-in duration-150">
+          <div className="max-w-4xl mx-auto space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs">
+              <span className="text-xs font-bold text-[#102E23]">
+                Prévia exata da visualização do Aluno
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveDrawer(null)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#102E23] text-white hover:bg-[#176B49] transition-colors cursor-pointer"
+              >
+                Fechar prévia ✕
+              </button>
+            </div>
+
+            <StudentWorkoutRenderer
+              workout={{
+                assignmentPublicId: "preview-mode",
+                consultancyName: "TREVO ONE",
+                startsOn: null,
+                endsOn: null,
+                versionNumber: version.versionNumber || 1,
+                title,
+                subtitle: workout.subtitle,
+                objective: workout.objective,
+                estimatedDurationMinutes: workout.estimatedDurationMinutes,
+                difficultyLevel: workout.difficultyLevel,
+                notesForStudent: version.notes || null,
+                blocks,
+              }}
+              isPreview={true}
+              isDraft={isDraft}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

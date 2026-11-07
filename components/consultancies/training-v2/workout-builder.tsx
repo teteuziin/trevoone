@@ -68,6 +68,7 @@ import {
 } from "./workout-next-exercise-default-modal";
 import { TrainingStudioAssistant } from "./training-studio-assistant";
 import { parseRepsInput } from "@/lib/training-v2/reps-normalizer";
+import { WorkoutEditor4 } from "./workout-editor-4/workout-editor-4";
 
 function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -262,7 +263,12 @@ const CATEGORY_PRESETS = [
   "Finalização",
 ];
 
-export function WorkoutBuilder({
+export function WorkoutBuilder(props: WorkoutBuilderProps) {
+  // TrevoOne Editor de Treinos 4.0 - Experiência oficial e canônica de criação e edição
+  return <WorkoutEditor4 {...props} />;
+}
+
+export function LegacyWorkoutBuilderInner({
   consultancySlug,
   workout,
   initialVersion,

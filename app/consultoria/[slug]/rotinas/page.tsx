@@ -58,6 +58,17 @@ function AlertTriangleIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
+function formatDate(val: unknown): string {
+  if (!val) return "—";
+  try {
+    const d = new Date(val as string | number | Date);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("pt-BR");
+  } catch {
+    return "—";
+  }
+}
+
 type PageProps = {
   params: Promise<{
     slug: string;
@@ -386,7 +397,6 @@ export default async function ConsultancyWorkoutsPage({
                             w.assignedStudentMembershipPublicId ? (
                               <Link
                                 href={`/consultoria/${slug}/progresso/alunos/${w.assignedStudentMembershipPublicId}`}
-                                onClick={(e) => e.stopPropagation()}
                                 className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-[#EDF5F0] text-[#102E23] border border-[#D5E4D8] hover:bg-[#E2EDE5] transition-colors"
                               >
                                 <span className="w-4 h-4 rounded-full bg-[#176B49] text-white text-[9px] flex items-center justify-center font-bold">
@@ -428,7 +438,7 @@ export default async function ConsultancyWorkoutsPage({
 
                           {/* Data de Atualização */}
                           <span className="text-[#8C9890] text-[11px]">
-                            · Atualizado em {new Date(w.updatedAt).toLocaleDateString("pt-BR")}
+                            · Atualizado em {formatDate(w.updatedAt)}
                           </span>
                         </div>
                       </div>

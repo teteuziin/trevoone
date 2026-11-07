@@ -27,6 +27,7 @@ export type WorkoutListControlsProps = {
   currentSort: string;
   isTemplatesTab?: boolean;
   totalResults: number;
+  hasError?: boolean;
 };
 
 export function WorkoutListControls({
@@ -36,6 +37,7 @@ export function WorkoutListControls({
   currentSort,
   isTemplatesTab = false,
   totalResults,
+  hasError = false,
 }: WorkoutListControlsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -192,6 +194,8 @@ export function WorkoutListControls({
         <div className="text-xs text-[#6B7870] font-medium shrink-0">
           {isPending ? (
             <span className="animate-pulse">Atualizando...</span>
+          ) : hasError ? (
+            <span className="text-rose-600 font-semibold">Consulta indisponível</span>
           ) : totalResults > 0 ? (
             <span>
               {totalResults} {totalResults === 1 ? (isTemplatesTab ? "modelo cadastrado" : "ficha encontrada") : (isTemplatesTab ? "modelos cadastrados" : "fichas encontradas")}

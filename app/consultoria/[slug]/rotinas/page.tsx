@@ -241,6 +241,7 @@ export default async function ConsultancyWorkoutsPage({
               currentSort={validSort}
               isTemplatesTab={isTemplatesTab}
               totalResults={total}
+              hasError={Boolean(loadError)}
             />
 
             {/* =====================================================================

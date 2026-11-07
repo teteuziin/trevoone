@@ -723,7 +723,7 @@ export function WorkoutEditor4({
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#F5F5F0] text-[#1E2922] font-sans flex flex-col justify-between selection:bg-[#176B49] selection:text-white pb-20">
+    <div className="w-full min-h-screen bg-[#F5F5F0] text-[#1E2922] font-sans flex flex-col justify-between selection:bg-[#176B49] selection:text-white pb-32 sm:pb-28">
       {/* 1. CABEÇALHO DO EDITOR 4.0 */}
       <EditorHeader
         title={title}

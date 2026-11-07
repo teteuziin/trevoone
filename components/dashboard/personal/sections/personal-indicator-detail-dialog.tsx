@@ -110,7 +110,7 @@ export function PersonalIndicatorDetailContent({
         {/* Informações detalhadas */}
         <div className="p-4 rounded-xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] space-y-2.5 text-xs text-[var(--text-secondary)] leading-relaxed">
           <p className="font-semibold text-[var(--text-primary)]">
-            Transparência Trevo One:
+            Transparência trevoone:
           </p>
           <p>
             • Não geramos notas simuladas, aleatórias ou fictícias em produção.

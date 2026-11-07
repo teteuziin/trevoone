@@ -140,22 +140,6 @@ function CheckCircleIcon({ className = "w-3.5 h-3.5" }: { className?: string }) 
   );
 }
 
-function RefreshCwIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-    </svg>
-  );
-}
-
-function XCircleIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
-
 function AlertCircleIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -193,6 +177,7 @@ export function DashboardPersonalView({
   void todayConsultations;
   void totalWorkouts;
   void totalPlans;
+  void satisfactionData;
 
   // Normalização de treinos para identificar o rascunho mais recente
   const activeWorkouts = useMemo(() => workouts || recentPlans || [], [workouts, recentPlans]);
@@ -271,24 +256,19 @@ export function DashboardPersonalView({
   // SUBCOMPONENTES ESTRUTURAIS — TREVO ONE 3.0 (PAINEL OPERACIONAL)
   // =========================================================================
 
-  // 1. CARD PRINCIPAL: PROGRAMAS DE TREINO (COM DONUT SVG E STATUS)
-  const renderProgramasDeTreino = () => {
+  // 1. CARD PRINCIPAL: SITUAÇÃO DOS TREINOS
+  const renderSituacaoDosTreinos = () => {
     const total = computedMetrics.totalStudents;
+    const semTreino = computedMetrics.semTreinoCount;
+    const comTreino = Math.max(0, total - semTreino);
+    const percentComTreino = total > 0 ? Math.round((comTreino / total) * 100) : 0;
     const circumference = 238.761; // 2 * PI * 38
-
-    const emDiaLen = total > 0 ? (computedMetrics.emDiaCount / total) * circumference : 0;
-    const aVencerLen = total > 0 ? (computedMetrics.aVencerCount / total) * circumference : 0;
-    const vencidosLen = total > 0 ? (computedMetrics.vencidosCount / total) * circumference : 0;
-    const semTreinoLen = total > 0 ? (computedMetrics.semTreinoCount / total) * circumference : 0;
-
-    const emDiaOffset = 0;
-    const aVencerOffset = -emDiaLen;
-    const vencidosOffset = -(emDiaLen + aVencerLen);
-    const semTreinoOffset = -(emDiaLen + aVencerLen + vencidosLen);
+    const comTreinoLen = total > 0 ? (comTreino / total) * circumference : 0;
+    const semTreinoLen = total > 0 ? (semTreino / total) * circumference : 0;
 
     return (
       <section
-        aria-label="Programas de treino"
+        aria-label="Situação dos treinos"
         className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col justify-between h-full space-y-4"
       >
         <div>
@@ -296,12 +276,10 @@ export function DashboardPersonalView({
           <div className="flex items-start justify-between gap-2 mb-3">
             <div>
               <h2 className="text-base sm:text-xl font-bold text-[#102E23] leading-tight font-sans">
-                Programas de treino
+                Situação dos treinos
               </h2>
               <p className="text-xs text-[#526058] font-normal mt-0.5">
-                {total > 0
-                  ? `${computedMetrics.emDiaCount} de ${total} alunos com treino em dia.`
-                  : "Nenhum aluno cadastrado na consultoria."}
+                Situação dos treinos dos seus alunos.
               </p>
             </div>
             <Link
@@ -314,17 +292,15 @@ export function DashboardPersonalView({
             </Link>
           </div>
 
-          {/* Gráfico Donut + Status List */}
+          {/* Gráfico Donut + 2 Indicadores Principais Claros */}
           <div className="flex flex-row items-center gap-4 sm:gap-6 pt-1">
             {/* SVG Donut */}
             <div className="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0 flex items-center justify-center">
               <svg className="w-full h-full drop-shadow-xs" viewBox="0 0 100 100">
-                {/* Track */}
                 <circle cx="50" cy="50" r="38" stroke="#EAEFE9" strokeWidth="10" fill="none" />
-
                 {total > 0 ? (
                   <g transform="rotate(-90 50 50)">
-                    {emDiaLen > 0 && (
+                    {comTreinoLen > 0 && (
                       <circle
                         cx="50"
                         cy="50"
@@ -332,33 +308,9 @@ export function DashboardPersonalView({
                         stroke="#176B49"
                         strokeWidth="10"
                         fill="none"
-                        strokeDasharray={`${emDiaLen} ${circumference}`}
-                        strokeDashoffset={emDiaOffset}
-                        strokeLinecap={computedMetrics.emDiaCount === total ? "round" : "butt"}
-                      />
-                    )}
-                    {aVencerLen > 0 && (
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="38"
-                        stroke="#D97706"
-                        strokeWidth="10"
-                        fill="none"
-                        strokeDasharray={`${aVencerLen} ${circumference}`}
-                        strokeDashoffset={aVencerOffset}
-                      />
-                    )}
-                    {vencidosLen > 0 && (
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="38"
-                        stroke="#DC2626"
-                        strokeWidth="10"
-                        fill="none"
-                        strokeDasharray={`${vencidosLen} ${circumference}`}
-                        strokeDashoffset={vencidosOffset}
+                        strokeDasharray={`${comTreinoLen} ${circumference}`}
+                        strokeDashoffset={0}
+                        strokeLinecap={comTreino === total ? "round" : "butt"}
                       />
                     )}
                     {semTreinoLen > 0 && (
@@ -366,11 +318,11 @@ export function DashboardPersonalView({
                         cx="50"
                         cy="50"
                         r="38"
-                        stroke="#94A3B8"
+                        stroke="#8C5D39"
                         strokeWidth="10"
                         fill="none"
                         strokeDasharray={`${semTreinoLen} ${circumference}`}
-                        strokeDashoffset={semTreinoOffset}
+                        strokeDashoffset={-comTreinoLen}
                       />
                     )}
                   </g>
@@ -378,133 +330,103 @@ export function DashboardPersonalView({
               </svg>
 
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-2xl sm:text-3xl font-black text-[#102E23] leading-none font-sans">
-                  {computedMetrics.emDiaPercent}%
+                <span className="text-2xl sm:text-3xl font-black text-[#102E23] leading-none font-sans tabular-nums">
+                  {percentComTreino}%
                 </span>
                 <span className="text-[10px] font-bold text-[#6B7870] leading-tight mt-0.5 tracking-tight">
-                  Em dia
+                  Com treino
                 </span>
               </div>
             </div>
 
-            {/* Lista com os 4 status mutuamente exclusivos */}
-            <div className="flex-1 min-w-0 space-y-2 sm:space-y-2.5">
-              {/* Vencidos */}
-              <Link
-                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=expired`}
-                prefetch={false}
-                className="flex items-center justify-between text-xs sm:text-sm py-0.5 hover:opacity-80 transition-opacity"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-5 h-5 rounded-full bg-[#FDF2F2] border border-[#FECACA] text-[#DC2626] flex items-center justify-center shrink-0">
-                    <XCircleIcon className="w-3.5 h-3.5" />
-                  </span>
-                  <span className="text-[#4A5568] font-medium truncate">Vencidos</span>
-                </div>
-                <span className="font-bold text-[#102E23] tabular-nums ml-2">
-                  {computedMetrics.vencidosCount}
-                </span>
-              </Link>
-
-              {/* A vencer */}
-              <Link
-                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=expiring`}
-                prefetch={false}
-                className="flex items-center justify-between text-xs sm:text-sm py-0.5 hover:opacity-80 transition-opacity"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-5 h-5 rounded-full bg-[#FFFBEB] border border-[#FDE68A] text-[#D97706] flex items-center justify-center shrink-0">
-                    <RefreshCwIcon className="w-3.5 h-3.5" />
-                  </span>
-                  <span className="text-[#4A5568] font-medium truncate">A vencer</span>
-                </div>
-                <span className="font-bold text-[#102E23] tabular-nums ml-2">
-                  {computedMetrics.aVencerCount}
-                </span>
-              </Link>
-
-              {/* Em dia */}
+            {/* As duas categorias objetivas exigidas */}
+            <div className="flex-1 min-w-0 space-y-2 sm:space-y-3">
+              {/* Com treino ativo */}
               <Link
                 href={`/consultoria/${consultancySlug}/progresso/alunos?filter=active`}
                 prefetch={false}
-                className="flex items-center justify-between text-xs sm:text-sm py-0.5 hover:opacity-80 transition-opacity"
+                className="group flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-[#F6F8F5] hover:bg-[#EEF3ED] border border-[#E5EBE2] transition-colors"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-5 h-5 rounded-full bg-[#EDF5F0] border border-[#C6E2D1] text-[#176B49] flex items-center justify-center shrink-0">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-6 h-6 rounded-full bg-[#EDF5F0] border border-[#C6E2D1] text-[#176B49] flex items-center justify-center shrink-0">
                     <CheckCircleIcon className="w-3.5 h-3.5" />
                   </span>
-                  <span className="text-[#102E23] font-semibold truncate">Em dia</span>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors truncate">
+                      Com treino ativo
+                    </p>
+                    <p className="text-[10px] sm:text-[11px] text-[#6B7870] truncate">
+                      Prescrição em andamento
+                    </p>
+                  </div>
                 </div>
-                <span className="font-bold text-[#102E23] tabular-nums ml-2">
-                  {computedMetrics.emDiaCount}
-                </span>
+                <div className="text-right shrink-0 ml-2">
+                  <span className="text-base sm:text-lg font-black text-[#102E23] tabular-nums">
+                    {comTreino}
+                  </span>
+                </div>
               </Link>
 
               {/* Sem treino ativo */}
               <Link
                 href={`/consultoria/${consultancySlug}/progresso/alunos?filter=without_workout`}
                 prefetch={false}
-                className="flex items-center justify-between text-xs sm:text-sm py-0.5 hover:opacity-80 transition-opacity"
+                className="group flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-[#FAF6F2] hover:bg-[#F5EDE4] border border-[#ECD9CC] transition-colors"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-5 h-5 rounded-full bg-[#F1F5F9] border border-[#E2E8F0] text-[#64748B] flex items-center justify-center shrink-0">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-6 h-6 rounded-full bg-[#F5EDE4] border border-[#ECD9CC] text-[#8C5D39] flex items-center justify-center shrink-0">
                     <AlertCircleIcon className="w-3.5 h-3.5" />
                   </span>
-                  <span className="text-[#4A5568] font-medium truncate">Sem treino ativo</span>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-bold text-[#8C5D39] group-hover:text-[#734A2C] transition-colors truncate">
+                      Sem treino ativo
+                    </p>
+                    <p className="text-[10px] sm:text-[11px] text-[#8A6A52] truncate">
+                      Precisam de prescrição
+                    </p>
+                  </div>
                 </div>
-                <span className="font-bold text-[#102E23] tabular-nums ml-2">
-                  {computedMetrics.semTreinoCount}
-                </span>
+                <div className="text-right shrink-0 ml-2">
+                  <span className="text-base sm:text-lg font-black text-[#8C5D39] tabular-nums">
+                    {semTreino}
+                  </span>
+                </div>
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Satisfação dos alunos quando houver avaliações reais */}
-        {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 && (
-          <div className="pt-3 border-t border-[#F0F2ED] flex items-center justify-between text-xs sm:text-sm">
-            <span className="text-[#526058] font-medium">Satisfação dos alunos</span>
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center text-amber-500">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <svg
-                    key={star}
-                    className={`w-4 h-4 ${
-                      star <= Math.round(satisfactionData.averageRating || 0)
-                        ? "fill-amber-400 text-amber-400"
-                        : "fill-neutral-200 text-neutral-200"
-                    }`}
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                ))}
-              </div>
-              <span className="text-xs font-bold text-[#102E23] ml-1">
-                {satisfactionData.averageRating.toFixed(1).replace(".", ",")} de 5 · {satisfactionData.totalReviews} avaliações
-              </span>
-            </div>
-          </div>
-        )}
+        {/* Rodapé informativo discreto com total de alunos */}
+        <div className="pt-2.5 border-t border-[#F0F2ED] flex items-center justify-between text-xs text-[#6B7870]">
+          <span>Total: <strong className="text-[#102E23] font-bold">{total}</strong> {total === 1 ? "aluno" : "alunos"}</span>
+          <Link
+            href={`/consultoria/${consultancySlug}/rotinas`}
+            prefetch={false}
+            className="text-xs font-bold text-[#102E23] hover:text-[#176B49] transition-colors inline-flex items-center gap-1"
+          >
+            <span>Ver treinos</span>
+            <span aria-hidden="true">→</span>
+          </Link>
+        </div>
       </section>
     );
   };
 
-  // 2. CARD SECUNDÁRIO 1: CARTEIRA DE ALUNOS
-  const renderCarteiraDeAlunos = () => {
+  // 2. CARD SECUNDÁRIO 1: MEUS ALUNOS
+  const renderMeusAlunos = () => {
     const total = computedMetrics.totalStudents;
     const activeCount = total;
     const inactiveCount = 0;
 
     return (
       <section
-        aria-label="Carteira de alunos"
+        aria-label="Meus alunos"
         className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between h-full"
       >
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <h3 className="text-sm sm:text-base font-bold text-[#102E23]">
-              Carteira de alunos
+              Meus alunos
             </h3>
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#F0F5F2] text-[#176B49] flex items-center justify-center shrink-0">
               <UsersIcon className="w-4 h-4" />
@@ -516,7 +438,7 @@ export function DashboardPersonalView({
               {total}
             </div>
             <p className="text-xs text-[#526058] font-medium mt-0.5">
-              {total === 1 ? "Aluno vinculado" : "Alunos vinculados"}
+              {total === 1 ? "aluno acompanhado" : "alunos acompanhados"}
             </p>
           </div>
 
@@ -563,7 +485,8 @@ export function DashboardPersonalView({
   const renderAvaliacaoFisica = () => {
     const pending = assessmentStats?.pendingAssessmentsCount ?? 0;
     const completed = assessmentStats?.completedAssessmentsCount ?? 0;
-    const hasAnyAssessment = pending > 0 || completed > 0;
+    const totalAssessments = pending + completed;
+    const hasAnyAssessment = totalAssessments > 0;
 
     return (
       <section
@@ -583,13 +506,22 @@ export function DashboardPersonalView({
           {hasAnyAssessment ? (
             <div className="py-1">
               <div className="text-3xl sm:text-4xl font-black text-[#102E23] tracking-tight tabular-nums font-sans">
-                {pending > 0 ? pending : completed}
+                {totalAssessments}
               </div>
               <p className="text-xs text-[#526058] font-medium mt-0.5">
-                {pending > 0
-                  ? (pending === 1 ? "Avaliação pendente de revisão" : "Avaliações pendentes de revisão")
-                  : (completed === 1 ? "Avaliação realizada" : "Avaliações realizadas")}
+                {totalAssessments === 1 ? "Avaliação registrada" : "Avaliações registradas"}
               </p>
+
+              <div className="mt-3 pt-3 border-t border-[#F0F2ED] space-y-1.5 text-xs">
+                <div className="flex items-center justify-between py-0.5 text-[#4A5568]">
+                  <span>Concluídas</span>
+                  <span className="font-bold text-[#102E23] tabular-nums">{completed}</span>
+                </div>
+                <div className="flex items-center justify-between py-0.5 text-[#4A5568]">
+                  <span>Aguardando revisão</span>
+                  <span className="font-bold text-[#102E23] tabular-nums">{pending}</span>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="py-1">
@@ -601,19 +533,6 @@ export function DashboardPersonalView({
               </p>
             </div>
           )}
-
-          {hasAnyAssessment && (
-            <div className="mt-3 pt-3 border-t border-[#F0F2ED] space-y-1.5 text-xs">
-              <div className="flex items-center justify-between py-0.5 text-[#4A5568]">
-                <span>Concluídas</span>
-                <span className="font-bold text-[#102E23] tabular-nums">{completed}</span>
-              </div>
-              <div className="flex items-center justify-between py-0.5 text-[#4A5568]">
-                <span>Aguardando revisão</span>
-                <span className="font-bold text-[#102E23] tabular-nums">{pending}</span>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="pt-3 mt-2 border-t border-[#F0F2ED]">
@@ -622,7 +541,7 @@ export function DashboardPersonalView({
             prefetch={false}
             className="text-xs font-bold text-[#102E23] hover:text-[#176B49] transition-colors flex items-center justify-between min-h-[36px]"
           >
-            <span>{hasAnyAssessment ? `Ver avaliações (${completed + pending})` : "Acessar avaliações físicas"}</span>
+            <span>{hasAnyAssessment ? `Ver avaliações (${totalAssessments})` : "Ver avaliações físicas"}</span>
             <span className="text-[#8A958E] text-sm" aria-hidden="true">→</span>
           </Link>
         </div>
@@ -630,10 +549,10 @@ export function DashboardPersonalView({
     );
   };
 
-  // 4. CARD DE PENDÊNCIAS ("Precisam de atenção")
-  const renderPendencias = (isMobileLayout = false) => (
+  // 4. CARD DE PENDÊNCIAS: ALUNOS QUE PRECISAM DE TREINO
+  const renderAlunosQuePrecisamDeTreino = (isMobileLayout = false) => (
     <section
-      aria-label="Atendimento: Precisam de atenção"
+      aria-label="Alunos que precisam de treino"
       className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col justify-between h-full space-y-4"
     >
       <div>
@@ -643,7 +562,7 @@ export function DashboardPersonalView({
               ATENDIMENTO
             </div>
             <h2 className="text-base sm:text-xl font-bold text-[#102E23] leading-tight font-sans">
-              Precisam de atenção
+              Alunos que precisam de treino
             </h2>
           </div>
 
@@ -665,7 +584,7 @@ export function DashboardPersonalView({
               Todos os alunos estão com treino ativo.
             </p>
             <p className="text-xs text-[#526058] mt-1">
-              Nenhum aluno com pendência de prescrição no momento.
+              Nenhuma pendência de prescrição no momento.
             </p>
           </div>
         ) : (
@@ -741,7 +660,7 @@ export function DashboardPersonalView({
             prefetch={false}
             className="text-xs font-bold text-[#102E23] hover:text-[#176B49] hover:underline inline-flex items-center gap-1 min-h-[40px]"
           >
-            <span>Ver todas as pendências ({sortedStudents.length})</span>
+            <span>Ver todos os alunos sem treino ({sortedStudents.length})</span>
             <span aria-hidden="true">→</span>
           </Link>
         </div>
@@ -749,37 +668,60 @@ export function DashboardPersonalView({
     </section>
   );
 
-  // 5. CARD RASCUNHO DE TREINO ("RASCUNHO DE TREINO")
+  // 5. CARD RASCUNHO DE TREINO COM FOTOGRAFIA REAL INTEGRADA
   const renderRascunho = () => (
     <section
       aria-label="Rascunho de treino"
-      className="relative overflow-hidden rounded-2xl bg-[#0F2F24] border border-[#163E27] shadow-xs text-white p-4 sm:p-6 flex flex-col justify-between h-full min-h-[175px] sm:min-h-[195px]"
+      className="relative overflow-hidden rounded-2xl bg-[#0F2F24] border border-[#163E27] shadow-xs text-white p-4 sm:p-6 flex flex-col justify-between h-full min-h-[195px] sm:min-h-[210px] group"
     >
-      <div className="space-y-3">
-        <div className="text-[10px] font-bold text-[#4ADE80] tracking-wider uppercase border-b-2 border-[#4ADE80] inline-block pb-0.5">
+      {/* Fotografia real de musculação integrada no fundo */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/images/personal/workout-draft.webp"
+        alt=""
+        role="presentation"
+        aria-hidden="true"
+        loading="lazy"
+        className="absolute inset-0 w-full h-full object-cover object-right pointer-events-none select-none transition-transform duration-700 ease-out group-hover:scale-105 opacity-65"
+      />
+
+      {/* Degradê verde-floresta para legibilidade dos dados à esquerda */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none select-none bg-gradient-to-r from-[#092219] via-[#0D2B20]/90 to-transparent sm:to-[#0F2F24]/40"
+      />
+      {/* Gradiente adicional vertical suave para mobile */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none select-none bg-gradient-to-t from-[#092219] via-transparent to-transparent sm:hidden"
+      />
+
+      {/* Conteúdo em primeiro plano */}
+      <div className="relative z-10 space-y-3">
+        <div className="text-[10px] font-bold text-[#4ADE80] tracking-wider uppercase border-b-2 border-[#4ADE80] inline-block pb-0.5 drop-shadow-xs">
           RASCUNHO DE TREINO
         </div>
 
         {primaryDraft ? (
           <>
             <div>
-              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug drop-shadow-sm line-clamp-2">
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug drop-shadow-md line-clamp-2">
                 {primaryDraft.title}
               </h3>
 
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 {primaryDraft.difficultyLevel && (
-                  <span className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-white/10 text-white border border-white/10 backdrop-blur-xs">
+                  <span className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#102E23]/80 text-white border border-white/15 backdrop-blur-xs">
                     Nível {formatDifficultyLevel(primaryDraft.difficultyLevel)}
                   </span>
                 )}
-                <span className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-white/10 text-emerald-300 border border-white/10 backdrop-blur-xs">
+                <span className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#102E23]/80 text-emerald-300 border border-white/15 backdrop-blur-xs">
                   Rascunho em edição
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-white/80 font-medium pt-0.5">
+            <div className="flex items-center gap-2 text-xs text-white/90 font-medium pt-0.5 drop-shadow-xs">
               <DumbbellIcon className="w-4 h-4 text-emerald-300 shrink-0" />
               <span>
                 {primaryDraft.blocksCount || 0} {primaryDraft.blocksCount === 1 ? "bloco cadastrado" : "blocos cadastrados"}
@@ -788,17 +730,17 @@ export function DashboardPersonalView({
           </>
         ) : (
           <div className="py-2 space-y-1.5">
-            <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug">
+            <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug drop-shadow-md">
               Nenhum rascunho em edição
             </h3>
-            <p className="text-xs sm:text-sm text-white/70 leading-relaxed">
+            <p className="text-xs sm:text-sm text-white/80 leading-relaxed max-w-sm drop-shadow-xs">
               Você não possui treinos em rascunho no momento. Inicie uma nova prescrição para seus alunos.
             </p>
           </div>
         )}
       </div>
 
-      <div className="pt-3">
+      <div className="relative z-10 pt-3">
         <Link
           href={
             primaryDraft
@@ -806,7 +748,7 @@ export function DashboardPersonalView({
               : `/consultoria/${consultancySlug}/rotinas/novo`
           }
           prefetch={false}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#EBF3ED] hover:bg-white text-[#0F2F24] shadow-sm transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px]"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#EBF3ED] hover:bg-white text-[#0F2F24] shadow-md transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px]"
         >
           <span>{primaryDraft ? "Retomar edição" : "+ Criar novo treino"}</span>
           <span aria-hidden="true">→</span>
@@ -893,25 +835,25 @@ export function DashboardPersonalView({
       {/* ============================================================== */}
       {/* 2. LAYOUT DESKTOP (>= 1024px / lg)                             */}
       {/* Com a remoção da sidebar, o conteúdo utiliza largura total:    */}
-      {/* Linha 1: Programas de treino (7 cols) | Carteira & Avaliação (5)*/}
-      {/* Linha 2: Precisam de atenção (6 cols) | Rascunho (6 cols)      */}
+      {/* Linha 1: Situação dos treinos (7 cols) | Meus alunos & Aval.  */}
+      {/* Linha 2: Alunos que precisam de treino (6) | Rascunho com foto */}
       {/* Linha 3: Financeiro a receber (quando autorizado)              */}
       {/* ============================================================== */}
       <div className="hidden lg:flex lg:flex-col gap-6">
         {/* Linha 1: Cockpit Principal */}
         <div className="grid grid-cols-12 gap-6 items-stretch">
           <div className="col-span-7 flex flex-col">
-            {renderProgramasDeTreino()}
+            {renderSituacaoDosTreinos()}
           </div>
           <div className="col-span-5 grid grid-cols-2 gap-4 h-full">
-            {renderCarteiraDeAlunos()}
+            {renderMeusAlunos()}
             {renderAvaliacaoFisica()}
           </div>
         </div>
 
-        {/* Linha 2: Atendimento e Rascunho */}
+        {/* Linha 2: Atendimento e Rascunho com Fotografia */}
         <div className="grid grid-cols-2 gap-6 items-stretch">
-          {renderPendencias(false)}
+          {renderAlunosQuePrecisamDeTreino(false)}
           {renderRascunho()}
         </div>
 
@@ -926,26 +868,26 @@ export function DashboardPersonalView({
       {/* ============================================================== */}
       {/* 3. LAYOUT PRÓPRIO TABLET / IPAD (768px - 1023px / md to lg)    */}
       {/* Estrutura dedicada conforme exigência:                         */}
-      {/* 1. Programas de treino em largura total                        */}
-      {/* 2. Carteira de alunos e Avaliação física em duas colunas       */}
-      {/* 3. Precisam de atenção e Rascunho em duas colunas confortáveis  */}
+      {/* 1. Situação dos treinos em largura total                       */}
+      {/* 2. Meus alunos e Avaliação física em duas colunas              */}
+      {/* 3. Alunos que precisam de treino e Rascunho em duas colunas    */}
       {/* 4. Financeiro em largura total conforme disponibilidade        */}
       {/* ============================================================== */}
       <div className="hidden md:flex lg:hidden flex-col gap-5">
-        {/* 1. Programas de treino em largura total */}
+        {/* 1. Situação dos treinos em largura total */}
         <div className="w-full">
-          {renderProgramasDeTreino()}
+          {renderSituacaoDosTreinos()}
         </div>
 
-        {/* 2. Carteira de alunos e Avaliação física em duas colunas */}
+        {/* 2. Meus alunos e Avaliação física em duas colunas */}
         <div className="grid grid-cols-2 gap-5 items-stretch">
-          {renderCarteiraDeAlunos()}
+          {renderMeusAlunos()}
           {renderAvaliacaoFisica()}
         </div>
 
-        {/* 3. Precisam de atenção e Rascunho em duas colunas confortáveis */}
+        {/* 3. Alunos que precisam de treino e Rascunho em duas colunas confortáveis */}
         <div className="grid grid-cols-2 gap-5 items-stretch">
-          {renderPendencias(false)}
+          {renderAlunosQuePrecisamDeTreino(false)}
           {renderRascunho()}
         </div>
 
@@ -960,20 +902,20 @@ export function DashboardPersonalView({
       {/* ============================================================== */}
       {/* 4. FLUXO MOBILE (< 768px / md)                                 */}
       {/* Ordem lógica e verticalizada:                                  */}
-      {/* 1. Programas de treino                                         */}
-      {/* 2. Grid 2 colunas: Carteira de alunos & Avaliação física       */}
-      {/* 3. Pendências ("Precisam de atenção")                          */}
-      {/* 4. Rascunho de treino                                          */}
+      {/* 1. Situação dos treinos                                        */}
+      {/* 2. Grid 2 colunas: Meus alunos & Avaliação física              */}
+      {/* 3. Alunos que precisam de treino                               */}
+      {/* 4. Rascunho de treino com fotografia                           */}
       {/* 5. Financeiro / A receber (quando autorizado)                  */}
       {/* ============================================================== */}
       <div className="flex flex-col gap-4 md:hidden">
-        {renderProgramasDeTreino()}
+        {renderSituacaoDosTreinos()}
         {/* Em 320px: empilha Carteira e Avaliação se < 375px; em >= 375px: 2 colunas confortáveis */}
         <div className="grid grid-cols-1 min-[375px]:grid-cols-2 gap-3 sm:gap-4 items-stretch">
-          {renderCarteiraDeAlunos()}
+          {renderMeusAlunos()}
           {renderAvaliacaoFisica()}
         </div>
-        {renderPendencias(true)}
+        {renderAlunosQuePrecisamDeTreino(true)}
         {renderRascunho()}
         {hasFinanceAccess && renderFinanceiro()}
       </div>

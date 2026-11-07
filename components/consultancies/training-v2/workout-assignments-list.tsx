@@ -8,7 +8,6 @@ import {
   terminateWorkoutAssignmentAction,
   updateWorkoutAssignmentCustomTitleAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 function RefreshIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -57,6 +56,20 @@ function EditIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+
+function formatDate(val: unknown): string {
+  if (!val) return "—";
+  try {
+    const d = new Date(val as string | number | Date);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("pt-BR");
+  } catch {
+    return "—";
+  }
+}
+
+type AssignmentFilterTab = "ALL" | "ACTIVE" | "UPDATES" | "ENDED";
+
 type WorkoutAssignmentsListProps = {
   slug: string;
   initialItems: ProfessionalAssignmentListItem[];
@@ -69,8 +82,8 @@ export function WorkoutAssignmentsList({
 }: WorkoutAssignmentsListProps) {
   const router = useRouter();
   const [items, setItems] = useState<ProfessionalAssignmentListItem[]>(initialItems);
-  const [activeTab, setActiveTab] = useState<"ACTIVE" | "ENDED" | "ALL">("ACTIVE");
-  const [confirmUpdateItem, setConfirmUpdateItem] = useState<ProfessionalAssignmentListItem | null>(null);
+  const [activeTab, setActiveTab] = useState<AssignmentFilterTab>("ACTIVE");
+  const [reviewUpdateItem, setReviewUpdateItem] = useState<ProfessionalAssignmentListItem | null>(null);
   const [confirmEndItem, setConfirmEndItem] = useState<ProfessionalAssignmentListItem | null>(null);
   const [editTitleItem, setEditTitleItem] = useState<ProfessionalAssignmentListItem | null>(null);
   const [editedCustomTitle, setEditedCustomTitle] = useState("");
@@ -78,9 +91,16 @@ export function WorkoutAssignmentsList({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  const activeCount = items.filter((i) => i.status === "ACTIVE").length;
+  const updatesCount = items.filter((i) => i.status === "ACTIVE" && i.hasNewerPublishedVersion).length;
+  const endedCount = items.filter((i) => i.status === "ENDED").length;
+
   const filteredItems = items.filter((item) => {
     if (activeTab === "ALL") return true;
-    return item.status === activeTab;
+    if (activeTab === "ACTIVE") return item.status === "ACTIVE";
+    if (activeTab === "UPDATES") return item.status === "ACTIVE" && item.hasNewerPublishedVersion;
+    if (activeTab === "ENDED") return item.status === "ENDED";
+    return true;
   });
 
   function handleSaveCustomTitle() {
@@ -121,8 +141,8 @@ export function WorkoutAssignmentsList({
     });
   }
 
-  function handleUpdateVersion() {
-    if (!confirmUpdateItem || !confirmUpdateItem.currentPublishedVersionPublicId) return;
+  function handleConfirmUpdateVersion() {
+    if (!reviewUpdateItem || !reviewUpdateItem.currentPublishedVersionPublicId) return;
 
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -130,24 +150,24 @@ export function WorkoutAssignmentsList({
     startTransition(async () => {
       const res = await updateWorkoutAssignmentVersionAction(
         slug,
-        confirmUpdateItem.assignmentPublicId,
-        confirmUpdateItem.currentPublishedVersionPublicId!
+        reviewUpdateItem.assignmentPublicId,
+        reviewUpdateItem.currentPublishedVersionPublicId!
       );
 
       if (!res.ok) {
-        setErrorMessage(res.error || "Erro ao atualizar versão da prescrição.");
-        setConfirmUpdateItem(null);
+        setErrorMessage(res.error || "Erro ao atualizar treino do aluno.");
+        setReviewUpdateItem(null);
         return;
       }
 
       // Update locally
       setItems((prev) =>
         prev.map((item) => {
-          if (item.assignmentPublicId === confirmUpdateItem.assignmentPublicId) {
+          if (item.assignmentPublicId === reviewUpdateItem.assignmentPublicId) {
             return {
               ...item,
-              assignedVersionPublicId: confirmUpdateItem.currentPublishedVersionPublicId!,
-              assignedVersionNumber: confirmUpdateItem.currentPublishedVersionNumber!,
+              assignedVersionPublicId: reviewUpdateItem.currentPublishedVersionPublicId!,
+              assignedVersionNumber: reviewUpdateItem.currentPublishedVersionNumber!,
               hasNewerPublishedVersion: false,
             };
           }
@@ -156,9 +176,9 @@ export function WorkoutAssignmentsList({
       );
 
       setSuccessMessage(
-        `Prescrição de ${confirmUpdateItem.studentName} atualizada para a Versão ${confirmUpdateItem.currentPublishedVersionNumber}!`
+        `Treino de ${reviewUpdateItem.studentName} atualizado com sucesso!`
       );
-      setConfirmUpdateItem(null);
+      setReviewUpdateItem(null);
       router.refresh();
     });
   }
@@ -176,7 +196,7 @@ export function WorkoutAssignmentsList({
       );
 
       if (!res.ok) {
-        setErrorMessage(res.error || "Erro ao encerrar prescrição.");
+        setErrorMessage(res.error || "Erro ao encerrar treino.");
         setConfirmEndItem(null);
         return;
       }
@@ -194,237 +214,326 @@ export function WorkoutAssignmentsList({
         })
       );
 
-      setSuccessMessage(`Prescrição de ${confirmEndItem.studentName} encerrada com sucesso.`);
+      setSuccessMessage(`Treino de ${confirmEndItem.studentName} encerrado com sucesso.`);
       setConfirmEndItem(null);
       router.refresh();
     });
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 font-sans">
       {/* Feedback Messages */}
       {errorMessage && (
-        <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+        <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
           {errorMessage}
         </div>
       )}
 
       {successMessage && (
-        <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
-          <CheckCircleIcon className="w-4 h-4 shrink-0" />
+        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+          <CheckCircleIcon className="w-4 h-4 shrink-0 text-[#176B49]" />
           <span>{successMessage}</span>
         </div>
       )}
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-1 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-2xl w-fit shadow-inner">
+      {/* Filter Tabs - Ivory Design */}
+      <div className="flex items-center gap-1 p-1 bg-[#EAECE6] border border-[#DEE2DA] rounded-2xl w-full sm:w-fit shadow-2xs overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab("ACTIVE")}
-          className={`px-3.5 py-1.5 text-xs rounded-xl select-none transition-all min-h-[36px] flex items-center gap-1.5 depth-interactive ${
+          className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
             activeTab === "ACTIVE"
-              ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
-              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent font-medium"
+              ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
+              : "text-[#526058] hover:text-[#102E23] hover:bg-black/5 font-semibold"
           }`}
         >
-          <span>Ativas</span>
-          <span className="text-[11px] opacity-75 font-mono">({items.filter((i) => i.status === "ACTIVE").length})</span>
+          <span>Ativos</span>
+          <span className="text-[11px] opacity-75 font-mono">({activeCount})</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("UPDATES")}
+          className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            activeTab === "UPDATES"
+              ? "bg-white text-[#8C5D00] font-bold shadow-2xs border border-[#FBE3A4]"
+              : "text-[#526058] hover:text-[#8C5D00] hover:bg-black/5 font-semibold"
+          }`}
+        >
+          <span>Atualizações</span>
+          {updatesCount > 0 ? (
+            <span className="px-1.5 py-0.2 rounded-full bg-[#FFF8E6] text-[#8C5D00] border border-[#FBE3A4] text-[10px] font-bold">
+              {updatesCount}
+            </span>
+          ) : (
+            <span className="text-[11px] opacity-75 font-mono">(0)</span>
+          )}
+        </button>
+
         <button
           type="button"
           onClick={() => setActiveTab("ENDED")}
-          className={`px-3.5 py-1.5 text-xs rounded-xl select-none transition-all min-h-[36px] flex items-center gap-1.5 depth-interactive ${
+          className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
             activeTab === "ENDED"
-              ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
-              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent font-medium"
+              ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
+              : "text-[#526058] hover:text-[#102E23] hover:bg-black/5 font-semibold"
           }`}
         >
-          <span>Encerradas</span>
-          <span className="text-[11px] opacity-75 font-mono">({items.filter((i) => i.status === "ENDED").length})</span>
+          <span>Encerrados</span>
+          <span className="text-[11px] opacity-75 font-mono">({endedCount})</span>
         </button>
+
         <button
           type="button"
           onClick={() => setActiveTab("ALL")}
-          className={`px-3.5 py-1.5 text-xs rounded-xl select-none transition-all min-h-[36px] flex items-center gap-1.5 depth-interactive ${
+          className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
             activeTab === "ALL"
-              ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
-              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent font-medium"
+              ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
+              : "text-[#526058] hover:text-[#102E23] hover:bg-black/5 font-semibold"
           }`}
         >
-          <span>Todas</span>
+          <span>Todos</span>
           <span className="text-[11px] opacity-75 font-mono">({items.length})</span>
         </button>
       </div>
 
       {/* Empty State */}
       {filteredItems.length === 0 ? (
-        <div className="p-8 sm:p-10 text-center rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-2">
-          <p className="text-sm font-bold text-[var(--text-primary)]">
-            Nenhuma prescrição encontrada
-          </p>
-          <p className="text-xs text-[var(--text-secondary)] max-w-sm mx-auto leading-relaxed">
-            {activeTab === "ACTIVE"
-              ? "Abra um treino publicado e use a opção 'Prescrever para Aluno' para associar rotinas aos seus alunos."
-              : "Nenhuma prescrição no filtro selecionado."}
-          </p>
+        <div className="p-8 sm:p-12 text-center rounded-3xl border border-[#E5E8E2] bg-white shadow-2xs space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-[#EDF5F0] text-[#176B49] flex items-center justify-center mx-auto">
+            <UserIcon className="w-6 h-6" />
+          </div>
+          <div className="space-y-1 max-w-md mx-auto">
+            <h3 className="text-base font-bold text-[#102E23]">
+              Nenhum treino encontrado nesta categoria
+            </h3>
+            <p className="text-xs text-[#526058] leading-relaxed">
+              {activeTab === "ACTIVE"
+                ? "Abra um treino publicado e use a opção 'Prescrever para aluno' para associar fichas aos seus alunos."
+                : activeTab === "UPDATES"
+                ? "Todos os alunos com treinos ativos já estão utilizando as versões mais recentes."
+                : "Nenhum treino no filtro selecionado."}
+            </p>
+          </div>
         </div>
       ) : (
-        /* Assignments Grid / List */
+        /* Assignments List */
         <div className="space-y-3">
-          {filteredItems.map((item) => (
-            <div
-              key={item.assignmentPublicId}
-              className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-strong)] shadow-xs transition-all space-y-3 depth-surface"
-            >
-              {/* Header: Student and Status Badge */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--brand)] shrink-0 shadow-2xs font-bold text-xs">
-                    <UserIcon className="w-4 h-4" />
+          {filteredItems.map((item) => {
+            const isActive = item.status === "ACTIVE";
+            const hasUpdate = isActive && item.hasNewerPublishedVersion;
+            const studentInitials = item.studentName
+              ? item.studentName.slice(0, 2).toUpperCase()
+              : "AL";
+
+            return (
+              <div
+                key={item.assignmentPublicId}
+                className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E5E8E2] hover:border-[#CCD5CB] shadow-2xs hover:shadow-xs transition-all space-y-3"
+              >
+                {/* Header: Student and Status Badge */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-[#EDF5F0] text-[#176B49] border border-[#D5E4D8] flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                      {studentInitials}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm sm:text-base font-bold text-[#102E23] truncate leading-tight">
+                        {item.studentName}
+                      </h3>
+                      <p className="text-xs text-[#6B7870] truncate mt-0.5">
+                        {item.studentEmail}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
-                      {item.studentName}
-                    </h3>
-                    <p className="text-xs text-[var(--text-tertiary)] font-mono truncate">
-                      {item.studentEmail}
-                    </p>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {item.status === "ACTIVE" ? (
-                    <Badge variant="success" size="sm">
-                      Ativa
-                    </Badge>
-                  ) : (
-                    <Badge variant="neutral" size="sm">
-                      Encerrada
-                    </Badge>
-                  )}
-
-                  {item.hasNewerPublishedVersion && item.status === "ACTIVE" && (
-                    <Badge variant="warning" size="sm" className="animate-pulse">
-                      Nova versão disponível (V{item.currentPublishedVersionNumber})
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* Workout details and version comparison */}
-              <div className="pt-2 border-t border-[var(--border-default)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1 min-w-0">
-                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">
-                    {item.workoutTitle}
-                  </p>
-                  {item.baseWorkoutTitle && item.baseWorkoutTitle !== item.workoutTitle && (
-                    <p className="text-[11px] font-normal text-[var(--text-tertiary)] truncate">
-                      Modelo base: {item.baseWorkoutTitle}
-                    </p>
-                  )}
-                  <p className="text-xs text-[var(--text-secondary)] font-medium">
-                    Prescrito: <strong className="text-[var(--text-primary)]">Versão {item.assignedVersionNumber}</strong>
-                    {item.currentPublishedVersionNumber && (
-                      <span> · Publicado atual: <strong className="text-[var(--text-primary)]">Versão {item.currentPublishedVersionNumber}</strong></span>
+                  <div className="flex items-center gap-2 flex-wrap shrink-0">
+                    {hasUpdate ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-[#FFF8E6] text-[#8C5D00] border border-[#FBE3A4] shadow-2xs">
+                        <span className="w-2 h-2 rounded-full bg-[#E58900] animate-pulse" />
+                        <span>Atualização disponível</span>
+                      </span>
+                    ) : isActive ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-[#EBF7EE] text-[#12583B] border border-[#CDEED5]">
+                        <span className="w-2 h-2 rounded-full bg-[#176B49]" />
+                        <span>Treino ativo</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-semibold bg-[#F5F5F0] text-[#6B7870] border border-[#E5E8E2]">
+                        Treino encerrado
+                      </span>
                     )}
-                    <span> · Início: {item.startsOn}</span>
-                    {item.endsOn && <span> · Término: {item.endsOn}</span>}
-                  </p>
-                  {item.notesForStudent && (
-                    <p className="text-xs text-[var(--text-tertiary)] italic pt-0.5">
-                      &ldquo;{item.notesForStudent}&rdquo;
-                    </p>
-                  )}
+                  </div>
                 </div>
 
-                {/* Actions */}
-                {item.status === "ACTIVE" && (
-                  <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditTitleItem(item);
-                        setEditedCustomTitle(item.customTitle || "");
-                      }}
-                      disabled={isPending}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-all flex items-center gap-1.5 min-h-[36px] depth-interactive"
-                      title="Renomear ficha do aluno"
-                    >
-                      <EditIcon className="w-3.5 h-3.5" />
-                      <span>Renomear ficha</span>
-                    </button>
+                {/* Workout details and update prompt */}
+                <div className="pt-3 border-t border-[#F0F2ED] flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <p className="text-sm font-bold text-[#102E23] truncate">
+                      {item.workoutTitle}
+                    </p>
+                    {item.baseWorkoutTitle && item.baseWorkoutTitle !== item.workoutTitle && (
+                      <p className="text-xs text-[#6B7870] truncate">
+                        Modelo base: {item.baseWorkoutTitle}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 flex-wrap text-xs text-[#526058] pt-0.5">
+                      <span className="font-medium text-[#102E23]">
+                        Treino em uso pelo aluno
+                      </span>
+                      <span>·</span>
+                      <span>Início em {formatDate(item.startsOn)}</span>
+                      {item.endsOn && (
+                        <>
+                          <span>·</span>
+                          <span>Término: {formatDate(item.endsOn)}</span>
+                        </>
+                      )}
+                    </div>
+                    {item.notesForStudent && (
+                      <p className="text-xs text-[#6B7870] italic pt-1">
+                        &ldquo;{item.notesForStudent}&rdquo;
+                      </p>
+                    )}
+                  </div>
 
-                    {item.hasNewerPublishedVersion && (
+                  {/* Direct Actions */}
+                  {isActive && (
+                    <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0">
+                      {/* Secondary action: Rename workout for student */}
                       <button
                         type="button"
-                        onClick={() => setConfirmUpdateItem(item)}
+                        onClick={() => {
+                          setEditTitleItem(item);
+                          setEditedCustomTitle(item.customTitle || "");
+                        }}
                         disabled={isPending}
-                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-[var(--brand-foreground)] shadow-xs transition-all flex items-center gap-1.5 min-h-[36px] depth-interactive"
+                        className="px-3 py-2 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] border border-[#DEE2DA] transition-all flex items-center gap-1.5 min-h-[38px] cursor-pointer"
+                        title="Renomear ficha do aluno"
                       >
-                        <RefreshIcon className="w-3.5 h-3.5" />
-                        <span>Atualizar para V{item.currentPublishedVersionNumber}</span>
+                        <EditIcon className="w-3.5 h-3.5 text-[#6B7870]" />
+                        <span>Renomear ficha</span>
                       </button>
-                    )}
 
-                    <button
-                      type="button"
-                      onClick={() => setConfirmEndItem(item)}
-                      disabled={isPending}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-rose-600 hover:bg-rose-500/10 border border-[var(--border-default)] hover:border-rose-500/20 transition-all flex items-center gap-1.5 min-h-[36px] depth-interactive"
-                    >
-                      <StopCircleIcon className="w-3.5 h-3.5" />
-                      <span>Encerrar</span>
-                    </button>
-                  </div>
-                )}
+                      {/* Primary action if update exists: 3-step comparison */}
+                      {hasUpdate && (
+                        <button
+                          type="button"
+                          onClick={() => setReviewUpdateItem(item)}
+                          disabled={isPending}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all flex items-center gap-1.5 min-h-[38px] cursor-pointer"
+                        >
+                          <RefreshIcon className="w-3.5 h-3.5 text-white" />
+                          <span>Conferir atualização</span>
+                        </button>
+                      )}
+
+                      {/* Secondary action: End assignment */}
+                      <button
+                        type="button"
+                        onClick={() => setConfirmEndItem(item)}
+                        disabled={isPending}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold text-[#6B7870] hover:text-rose-600 hover:bg-rose-50 border border-[#DEE2DA] hover:border-rose-200 transition-all flex items-center gap-1.5 min-h-[38px] cursor-pointer"
+                        title="Encerrar treino do aluno"
+                      >
+                        <StopCircleIcon className="w-3.5 h-3.5" />
+                        <span>Encerrar</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Confirmation Modal: Update Version */}
-      {confirmUpdateItem && (
+      {/* =========================================================================
+          MODAL DE 3 MOMENTOS: CONFERIR ATUALIZAÇÃO
+          Momento 1: Entender
+          Momento 2: Conferir (Comparação)
+          Momento 3: Decidir
+          ========================================================================= */}
+      {reviewUpdateItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl p-6 space-y-4 animate-in zoom-in-95 duration-200 depth-surface">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--brand)]">
-                <RefreshIcon className="w-5 h-5" />
+          <div className="w-full max-w-lg rounded-3xl bg-white border border-[#E5E8E2] shadow-2xl p-6 sm:p-7 space-y-5 animate-in zoom-in-95 duration-200 font-sans">
+            {/* Header / Momento 1: Entender */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5">
+                <span className="w-9 h-9 rounded-2xl bg-[#FFF8E6] text-[#8C5D00] border border-[#FBE3A4] flex items-center justify-center shrink-0">
+                  <RefreshIcon className="w-4 h-4" />
+                </span>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-[#102E23]">
+                    Atualização disponível para {reviewUpdateItem.studentName}
+                  </h3>
+                  <p className="text-xs text-[#6B7870]">
+                    Você editou a ficha base e há uma nova versão pronta para envio.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">
-                  Atualizar Versão da Prescrição?
-                </h3>
-                <p className="text-xs text-[var(--text-secondary)] font-medium">
-                  Aluno: {confirmUpdateItem.studentName}
-                </p>
+
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F0] border border-[#E5E8E2] text-xs text-[#526058] leading-relaxed">
+                <strong className="text-[#102E23] block mb-0.5">Momento 1: Entender o que acontece</strong>
+                O aluno continua visualizando o treino anterior até você confirmar o envio. Ao atualizar, o aplicativo do aluno receberá a versão mais recente imediatamente.
               </div>
             </div>
 
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              O aluno atualmente consome a <strong className="text-[var(--text-primary)]">Versão {confirmUpdateItem.assignedVersionNumber}</strong> do treino{" "}
-              <strong className="text-[var(--text-primary)]">&ldquo;{confirmUpdateItem.workoutTitle}&rdquo;</strong>.
-              Ao confirmar, a prescrição será explicitamente vinculada à nova <strong className="text-[var(--text-primary)]">Versão {confirmUpdateItem.currentPublishedVersionNumber}</strong>.
-            </p>
+            {/* Momento 2: Conferir (Comparação lado a lado ou empilhada) */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[#102E23] block">
+                Momento 2: Conferir as fichas
+              </label>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Lado A: O que o aluno usa hoje */}
+                <div className="p-3.5 rounded-2xl bg-[#FAFAFA] border border-[#E5E8E2] space-y-2">
+                  <span className="text-[10px] font-bold text-[#6B7870] uppercase tracking-wider block">
+                    Treino atual do aluno
+                  </span>
+                  <p className="text-xs font-bold text-[#102E23] truncate">
+                    {reviewUpdateItem.workoutTitle}
+                  </p>
+                  <p className="text-[11px] text-[#6B7870]">
+                    Ficha em uso no aplicativo
+                  </p>
+                </div>
+
+                {/* Lado B: A nova versão pronta */}
+                <div className="p-3.5 rounded-2xl bg-[#EBF7EE] border border-[#CDEED5] space-y-2">
+                  <span className="text-[10px] font-bold text-[#12583B] uppercase tracking-wider block">
+                    Nova versão atualizada
+                  </span>
+                  <p className="text-xs font-bold text-[#102E23] truncate">
+                    {reviewUpdateItem.workoutTitle}
+                  </p>
+                  <p className="text-[11px] text-[#12583B] font-medium">
+                    Pronta para envio ao aluno
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Momento 3: Decidir */}
+            <div className="pt-2 border-t border-[#F0F2ED] flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5">
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setConfirmUpdateItem(null)}
+                onClick={() => setReviewUpdateItem(null)}
                 disabled={isPending}
-                className="font-semibold min-h-[44px] sm:min-h-[40px]"
+                className="w-full sm:w-auto font-semibold min-h-[42px] cursor-pointer"
               >
-                Cancelar
+                Manter treino atual
               </Button>
               <Button
                 variant="primary"
                 size="sm"
-                onClick={handleUpdateVersion}
+                onClick={handleConfirmUpdateVersion}
                 disabled={isPending}
-                className="font-bold min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 shadow-sm"
+                className="w-full sm:w-auto font-bold min-h-[42px] bg-[#176B49] hover:bg-[#12583B] text-white flex items-center justify-center gap-2 shadow-xs cursor-pointer"
               >
-                {isPending ? "Atualizando..." : `Confirmar Atualização (V${confirmUpdateItem.currentPublishedVersionNumber})`}
+                <RefreshIcon className="w-4 h-4 text-white" />
+                <span>{isPending ? "Atualizando..." : "Atualizar treino do aluno"}</span>
               </Button>
             </div>
           </div>
@@ -434,24 +543,24 @@ export function WorkoutAssignmentsList({
       {/* Confirmation Modal: Terminate Assignment */}
       {confirmEndItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl p-6 space-y-4 animate-in zoom-in-95 duration-200 depth-surface">
+          <div className="w-full max-w-md rounded-3xl bg-white border border-[#E5E8E2] shadow-2xl p-6 sm:p-7 space-y-4 animate-in zoom-in-95 duration-200 font-sans">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
                 <StopCircleIcon className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">
-                  Encerrar Prescrição?
+                <h3 className="text-base font-bold text-[#102E23]">
+                  Encerrar treino do aluno?
                 </h3>
-                <p className="text-xs text-[var(--text-secondary)] font-medium">
+                <p className="text-xs text-[#6B7870] font-medium">
                   Aluno: {confirmEndItem.studentName}
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              Deseja encerrar o treino <strong className="text-[var(--text-primary)]">&ldquo;{confirmEndItem.workoutTitle}&rdquo;</strong> para este aluno?
-              O treino não aparecerá mais na lista ativa do aluno, mas o histórico permanece preservado no sistema.
+            <p className="text-xs text-[#526058] leading-relaxed">
+              Deseja encerrar o treino <strong className="text-[#102E23]">&ldquo;{confirmEndItem.workoutTitle}&rdquo;</strong> para este aluno?
+              O treino não aparecerá mais como ativo no aplicativo dele, mas o histórico permanece 100% seguro e preservado.
             </p>
 
             <div className="flex items-center justify-end gap-2.5 pt-2">
@@ -460,7 +569,7 @@ export function WorkoutAssignmentsList({
                 size="sm"
                 onClick={() => setConfirmEndItem(null)}
                 disabled={isPending}
-                className="font-semibold min-h-[44px] sm:min-h-[40px]"
+                className="font-semibold min-h-[42px] cursor-pointer"
               >
                 Cancelar
               </Button>
@@ -469,9 +578,9 @@ export function WorkoutAssignmentsList({
                 size="sm"
                 onClick={handleTerminate}
                 disabled={isPending}
-                className="font-bold min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 shadow-sm"
+                className="font-bold min-h-[42px] cursor-pointer"
               >
-                {isPending ? "Encerrando..." : "Sim, Encerrar Prescrição"}
+                {isPending ? "Encerrando..." : "Sim, encerrar treino"}
               </Button>
             </div>
           </div>
@@ -481,23 +590,23 @@ export function WorkoutAssignmentsList({
       {/* Modal: Edit Custom Title */}
       {editTitleItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl p-6 space-y-4 animate-in zoom-in-95 duration-200 depth-surface">
+          <div className="w-full max-w-md rounded-3xl bg-white border border-[#E5E8E2] shadow-2xl p-6 sm:p-7 space-y-4 animate-in zoom-in-95 duration-200 font-sans">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--brand)]">
+              <div className="w-10 h-10 rounded-2xl bg-[#EDF5F0] border border-[#D5E4D8] flex items-center justify-center text-[#176B49]">
                 <EditIcon className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">
-                  Renomear Ficha do Aluno
+                <h3 className="text-base font-bold text-[#102E23]">
+                  Renomear ficha do aluno
                 </h3>
-                <p className="text-xs text-[var(--text-secondary)] font-medium">
+                <p className="text-xs text-[#6B7870] font-medium">
                   Aluno: {editTitleItem.studentName}
                 </p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-[var(--text-secondary)]">
+              <label className="text-xs font-semibold text-[#102E23]">
                 Nome de exibição da ficha para este aluno
               </label>
               <input
@@ -506,9 +615,9 @@ export function WorkoutAssignmentsList({
                 onChange={(e) => setEditedCustomTitle(e.target.value)}
                 placeholder={`Ex: Treino de ${editTitleItem.studentName}`}
                 disabled={isPending}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] transition-colors min-h-[44px]"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F5F5F0] border border-[#DEE2DA] text-sm text-[#102E23] focus:outline-none focus:ring-2 focus:ring-[#176B49] focus:bg-white transition-all min-h-[44px]"
               />
-              <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
+              <p className="text-[11px] text-[#6B7870] leading-relaxed">
                 Deixe em branco para restaurar automaticamente o nome padrão &quot;Treino de {editTitleItem.studentName}&quot;.
               </p>
             </div>
@@ -519,7 +628,7 @@ export function WorkoutAssignmentsList({
                 size="sm"
                 onClick={() => setEditTitleItem(null)}
                 disabled={isPending}
-                className="font-semibold min-h-[44px] sm:min-h-[40px]"
+                className="font-semibold min-h-[42px] cursor-pointer"
               >
                 Cancelar
               </Button>
@@ -528,9 +637,9 @@ export function WorkoutAssignmentsList({
                 size="sm"
                 onClick={handleSaveCustomTitle}
                 disabled={isPending}
-                className="font-bold min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 shadow-sm"
+                className="font-bold min-h-[42px] bg-[#176B49] hover:bg-[#12583B] text-white cursor-pointer"
               >
-                {isPending ? "Salvando..." : "Salvar Nome"}
+                {isPending ? "Salvando..." : "Salvar nome"}
               </Button>
             </div>
           </div>

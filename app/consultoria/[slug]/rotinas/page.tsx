@@ -12,6 +12,7 @@ import { WorkoutAssignmentsList } from "@/components/consultancies/training-v2/w
 import { WorkoutCardActions } from "@/components/consultancies/training-v2/workout-card-actions";
 import { WorkoutCreationSheet } from "@/components/consultancies/training-v2/workout-creation-sheet";
 import { WorkoutListControls } from "@/components/consultancies/training-v2/workout-list-controls";
+import { WorkoutQuickActions } from "@/components/consultancies/training-v2/workout-quick-actions";
 
 function DumbbellIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -151,11 +152,14 @@ export default async function ConsultancyWorkoutsPage({
   const { items, total, limit } = workoutsData;
   const totalPages = Math.ceil(total / limit) || 1;
 
-  const pageTitle = isAssignmentsTab
-    ? "Prescrições"
+  const pageTitle = "Treinos";
+  const pageSubtitle = isAssignmentsTab
+    ? "Acompanhe e atualize os treinos dos seus alunos."
     : isTemplatesTab
-    ? "Modelos de Treino"
-    : "Treinos";
+    ? "Modelos prontos para acelerar a prescrição de treinos aos seus alunos."
+    : "Crie, encontre e acompanhe seus treinos.";
+
+  const latestDraft = workoutsData.items.find((w) => w.hasActiveDraft);
 
   return (
     <ConsultancyAppShell
@@ -173,7 +177,7 @@ export default async function ConsultancyWorkoutsPage({
       showDashboardWallpaper={false}
       maxWidth="wide"
     >
-      <div className="w-full max-w-6xl mx-auto space-y-6 pb-24 sm:pb-16 font-sans">
+      <div className="w-full max-w-6xl mx-auto space-y-6 pb-32 sm:pb-16 font-sans">
         {/* =========================================================================
             1. CABEÇALHO TREVOONE
             Identidade visual limpa: Título "Treinos", subtítulo claro, CTA primário "+ Criar treino"
@@ -184,11 +188,7 @@ export default async function ConsultancyWorkoutsPage({
               {pageTitle}
             </h1>
             <p className="text-xs sm:text-sm text-[#526058] mt-1">
-              {isAssignmentsTab
-                ? "Acompanhe e gerencie as prescrições ativas de treino dos seus alunos."
-                : isTemplatesTab
-                ? "Modelos padronizados para acelerar a prescrição de treinos aos seus alunos."
-                : "Crie, encontre e acompanhe suas fichas de treino."}
+              {pageSubtitle}
             </p>
           </div>
 
@@ -198,8 +198,26 @@ export default async function ConsultancyWorkoutsPage({
         </div>
 
         {/* =========================================================================
-            2. ABAS DE CONTEXTO
-            Estilo TrevoOne marfim: Minhas fichas | Modelos | Prescrições
+            2. HERO COM ATALHOS RÁPIDOS E CONTINUAÇÃO DE RASCUNHO
+            ========================================================================= */}
+        <WorkoutQuickActions
+          consultancySlug={slug}
+          latestDraft={
+            latestDraft
+              ? {
+                  publicId: latestDraft.publicId,
+                  title: latestDraft.title,
+                  updatedAt: latestDraft.updatedAt,
+                  blocksCount: latestDraft.blocksCount,
+                }
+              : null
+          }
+          activeTab={isAssignmentsTab ? "assignments" : isTemplatesTab ? "templates" : "routines"}
+        />
+
+        {/* =========================================================================
+            3. ABAS DE CONTEXTO
+            Estilo TrevoOne marfim: Meus treinos | Modelos prontos | Treinos dos alunos
             ========================================================================= */}
         <div className="flex items-center gap-1 p-1 bg-[#EAECE6] border border-[#DEE2DA] rounded-2xl w-full sm:w-fit shadow-2xs">
           <Link
@@ -210,7 +228,7 @@ export default async function ConsultancyWorkoutsPage({
                 : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
             }`}
           >
-            Minhas fichas
+            Meus treinos
           </Link>
           <Link
             href={`/consultoria/${slug}/rotinas?tab=templates`}
@@ -220,7 +238,7 @@ export default async function ConsultancyWorkoutsPage({
                 : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
             }`}
           >
-            Modelos
+            Modelos prontos
           </Link>
           <Link
             href={`/consultoria/${slug}/rotinas?tab=assignments`}
@@ -230,7 +248,7 @@ export default async function ConsultancyWorkoutsPage({
                 : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
             }`}
           >
-            Prescrições
+            Treinos dos alunos
           </Link>
         </div>
 
@@ -375,11 +393,11 @@ export default async function ConsultancyWorkoutsPage({
                           {/* Status Badge */}
                           {hasDraft ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-[#FFF8E6] text-[#8C5D00] border border-[#F0D699]">
-                              Rascunho V{w.draftVersionNumber || 1}
+                              Em elaboração
                             </span>
                           ) : isPublished ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-[#EBF7EE] text-[#12583B] border border-[#C3E6CC]">
-                              Publicado V{w.publishedVersionNumber}
+                              Publicado
                             </span>
                           ) : (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[11px] font-medium bg-[#F0F2ED] text-[#6B7870] border border-[#DEE2D9]">
@@ -458,7 +476,7 @@ export default async function ConsultancyWorkoutsPage({
                             href={`/consultoria/${slug}/rotinas/${w.publicId}`}
                             className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all cursor-pointer min-h-[38px]"
                           >
-                            <span>Continuar edição</span>
+                            <span>Continuar treino</span>
                             <span aria-hidden="true">→</span>
                           </Link>
                         ) : (
@@ -466,7 +484,7 @@ export default async function ConsultancyWorkoutsPage({
                             href={`/consultoria/${slug}/rotinas/${w.publicId}`}
                             className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-white hover:bg-[#F5F5F0] text-[#102E23] border border-[#D5DDD6] transition-all cursor-pointer min-h-[38px]"
                           >
-                            <span>Abrir treino</span>
+                            <span>Ver treino</span>
                             <span aria-hidden="true">→</span>
                           </Link>
                         )}
@@ -514,6 +532,22 @@ export default async function ConsultancyWorkoutsPage({
             )}
           </>
         )}
+
+        {/* =========================================================================
+            6. BOTÃO FLUTUANTE CONTEXTUAL MOBILE
+            Garante acesso com 1 toque em telas pequenas sem cobrir a barra inferior
+            ========================================================================= */}
+        <div className="fixed bottom-20 right-4 sm:hidden z-40 pointer-events-auto">
+          <Link
+            href={`/consultoria/${slug}/rotinas/novo${isTemplatesTab ? "?isTemplate=true" : ""}`}
+            className="flex items-center gap-2 px-4 py-3 rounded-full bg-[#176B49] text-white font-bold text-xs shadow-lg hover:bg-[#12583B] active:scale-95 transition-all min-h-[44px]"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            <span>Novo treino</span>
+          </Link>
+        </div>
       </div>
     </ConsultancyAppShell>
   );

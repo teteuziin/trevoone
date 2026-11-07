@@ -107,13 +107,13 @@ export function WorkoutListControls({
 
   const statusOptions = [
     { id: "ALL", label: "Todos" },
-    { id: "DRAFT", label: "Rascunhos" },
+    { id: "DRAFT", label: "Em elaboração" },
     { id: "PUBLISHED", label: "Publicados" },
     { id: "ARCHIVED", label: "Arquivados" },
   ];
 
   const sortOptions = [
-    { id: "recent", label: "Atualizadas recentemente" },
+    { id: "recent", label: "Mais recentes" },
     { id: "oldest", label: "Mais antigas" },
     { id: "title_asc", label: "Nome A-Z" },
   ];
@@ -128,11 +128,7 @@ export function WorkoutListControls({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={
-              isTemplatesTab
-                ? "Buscar por nome do modelo..."
-                : "Buscar treino ou aluno..."
-            }
+            placeholder="Buscar treino, modelo ou aluno..."
             className="w-full pl-10 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-[#E5E8E2] bg-[#FDFDFC] focus:outline-none focus:ring-2 focus:ring-[#176B49] focus:border-transparent text-[#102E23] placeholder-[#8C9890] transition-all min-h-[40px]"
           />
           {searchTerm && (
@@ -198,7 +194,7 @@ export function WorkoutListControls({
             <span className="text-rose-600 font-semibold">Consulta indisponível</span>
           ) : totalResults > 0 ? (
             <span>
-              {totalResults} {totalResults === 1 ? (isTemplatesTab ? "modelo cadastrado" : "ficha encontrada") : (isTemplatesTab ? "modelos cadastrados" : "fichas encontradas")}
+              {totalResults} {totalResults === 1 ? (isTemplatesTab ? "modelo pronto" : "treino encontrado") : (isTemplatesTab ? "modelos prontos" : "treinos encontrados")}
             </span>
           ) : (
             <span className="text-[#8C9890]">

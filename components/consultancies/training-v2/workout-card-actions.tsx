@@ -124,7 +124,7 @@ export function WorkoutCardActions({
   const mobileOptions: ActionSheetOption[] = [
     {
       id: "open",
-      label: isTemplate ? "Abrir modelo" : isDraft ? "Continuar edição" : "Abrir treino",
+      label: isTemplate ? "Ver modelo" : isDraft ? "Continuar treino" : "Ver treino",
       icon: <ExternalIcon className="w-4 h-4 text-[#176B49]" />,
       onClick: () => {
         router.push(`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`);
@@ -144,7 +144,7 @@ export function WorkoutCardActions({
       : []),
     {
       id: "duplicate",
-      label: isTemplate ? "Duplicar modelo" : "Duplicar ficha",
+      label: isTemplate ? "Duplicar modelo" : "Duplicar treino",
       icon: <CopyIcon className="w-4 h-4 text-[#102E23]" />,
       onClick: handleDuplicate,
       disabled: isPending,
@@ -159,7 +159,7 @@ export function WorkoutCardActions({
     },
     {
       id: "delete",
-      label: isTemplate ? "Excluir modelo" : isDraft ? "Excluir rascunho" : "Excluir ficha",
+      label: isTemplate ? "Excluir modelo" : isDraft ? "Excluir rascunho" : "Arquivar treino",
       icon: <TrashIcon className="w-4 h-4 text-rose-500" />,
       variant: "danger" as const,
       onClick: () => {
@@ -193,7 +193,7 @@ export function WorkoutCardActions({
             onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all min-h-[36px] cursor-pointer"
           >
-            <span>Continuar edição</span>
+            <span>Continuar treino</span>
             <span aria-hidden="true">→</span>
           </Link>
         ) : (
@@ -202,7 +202,7 @@ export function WorkoutCardActions({
             onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-[#F5F5F0] text-[#102E23] border border-[#D5DDD6] transition-all min-h-[36px] cursor-pointer"
           >
-            <span>Abrir treino</span>
+            <span>Ver treino</span>
             <span aria-hidden="true">→</span>
           </Link>
         )
@@ -233,7 +233,7 @@ export function WorkoutCardActions({
                   className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F5F0] flex items-center gap-2 text-left cursor-pointer transition-colors"
                 >
                   <ExternalIcon className="w-3.5 h-3.5 text-[#176B49]" />
-                  <span>{isTemplate ? "Abrir modelo" : isDraft ? "Continuar edição" : "Abrir treino"}</span>
+                  <span>{isTemplate ? "Ver modelo" : isDraft ? "Continuar treino" : "Ver treino"}</span>
                 </Link>
 
                 {isTemplate && (
@@ -257,7 +257,7 @@ export function WorkoutCardActions({
                   className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F5F0] flex items-center gap-2 text-left cursor-pointer disabled:opacity-50 transition-colors"
                 >
                   <CopyIcon className="w-3.5 h-3.5 text-[#526058]" />
-                  <span>{isTemplate ? "Duplicar modelo" : "Duplicar ficha"}</span>
+                  <span>{isTemplate ? "Duplicar modelo" : "Duplicar treino"}</span>
                 </button>
 
                 <a

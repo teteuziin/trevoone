@@ -51,7 +51,7 @@ export function PersonalHeader({
             {consultancyName}
           </p>
           <p className="text-xs text-[#6B7870] font-normal leading-tight mt-0.5">
-            Trevo One
+            trevoone
           </p>
         </div>
 

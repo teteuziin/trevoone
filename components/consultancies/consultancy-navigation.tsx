@@ -1270,9 +1270,9 @@ export function ConsultancyNavigation({
                 className="flex items-center gap-2 group focus-visible:outline-2 focus-visible:outline-[#176B49] rounded-xl py-1"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/trevo-one-logo.png" alt="Trevo One" className="w-6 h-6 object-contain" />
+                <img src="/trevo-one-logo.png" alt="trevoone" className="w-6 h-6 object-contain" />
                 <span className="font-bold text-base tracking-tight text-[#102E23] font-sans">
-                  trevo<span className="text-[#176B49]">.one</span>
+                  trevo<span className="text-[#176B49]">one</span>
                 </span>
               </Link>
 

@@ -300,8 +300,8 @@ export function DashboardPersonalView({
               </h2>
               <p className="text-xs text-[#526058] font-normal mt-0.5">
                 {total > 0
-                  ? `${computedMetrics.emDiaCount} de ${total} alunos com treino em dia (${computedMetrics.emDiaPercent}%)`
-                  : "Nenhum aluno cadastrado na consultoria"}
+                  ? `${computedMetrics.emDiaCount} de ${total} alunos com treino em dia.`
+                  : "Nenhum aluno cadastrado na consultoria."}
               </p>
             </div>
             <Link
@@ -460,38 +460,32 @@ export function DashboardPersonalView({
           </div>
         </div>
 
-        {/* Satisfação dos alunos integrada no rodapé */}
-        <div className="pt-3.5 border-t border-[#F0F2ED] flex items-center justify-between text-xs sm:text-sm">
-          <span className="text-[#526058] font-medium">Satisfação dos alunos</span>
-          <div className="flex items-center gap-1.5">
-            {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 ? (
-              <>
-                <div className="flex items-center text-amber-500">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <svg
-                      key={star}
-                      className={`w-4 h-4 ${
-                        star <= Math.round(satisfactionData.averageRating || 0)
-                          ? "fill-amber-400 text-amber-400"
-                          : "fill-neutral-200 text-neutral-200"
-                      }`}
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                </div>
-                <span className="text-xs font-bold text-[#102E23] ml-1">
-                  {satisfactionData.averageRating.toFixed(1).replace(".", ",")} de 5 · {satisfactionData.totalReviews} avaliações registradas
-                </span>
-              </>
-            ) : (
-              <span className="text-xs text-[#6B7870] font-normal">
-                Satisfação: nenhuma avaliação registrada.
+        {/* Satisfação dos alunos quando houver avaliações reais */}
+        {satisfactionData?.averageRating != null && satisfactionData.totalReviews > 0 && (
+          <div className="pt-3 border-t border-[#F0F2ED] flex items-center justify-between text-xs sm:text-sm">
+            <span className="text-[#526058] font-medium">Satisfação dos alunos</span>
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center text-amber-500">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <svg
+                    key={star}
+                    className={`w-4 h-4 ${
+                      star <= Math.round(satisfactionData.averageRating || 0)
+                        ? "fill-amber-400 text-amber-400"
+                        : "fill-neutral-200 text-neutral-200"
+                    }`}
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              <span className="text-xs font-bold text-[#102E23] ml-1">
+                {satisfactionData.averageRating.toFixed(1).replace(".", ",")} de 5 · {satisfactionData.totalReviews} avaliações
               </span>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </section>
     );
   };
@@ -600,10 +594,10 @@ export function DashboardPersonalView({
           ) : (
             <div className="py-1">
               <p className="text-sm sm:text-base font-bold text-[#102E23] leading-snug">
-                Nenhuma avaliação registrada
+                Nenhuma avaliação física registrada.
               </p>
               <p className="text-xs text-[#526058] font-normal mt-1 leading-relaxed">
-                Nenhum registro de avaliação física ou antropometria para os alunos vinculados.
+                Histórico corporal e medidas dos alunos.
               </p>
             </div>
           )}
@@ -628,7 +622,7 @@ export function DashboardPersonalView({
             prefetch={false}
             className="text-xs font-bold text-[#102E23] hover:text-[#176B49] transition-colors flex items-center justify-between min-h-[36px]"
           >
-            <span>{hasAnyAssessment ? `Ver avaliações (${completed + pending})` : "Acessar avaliações"}</span>
+            <span>{hasAnyAssessment ? `Ver avaliações (${completed + pending})` : "Acessar avaliações físicas"}</span>
             <span className="text-[#8A958E] text-sm" aria-hidden="true">→</span>
           </Link>
         </div>
@@ -759,7 +753,7 @@ export function DashboardPersonalView({
   const renderRascunho = () => (
     <section
       aria-label="Rascunho de treino"
-      className="relative overflow-hidden rounded-2xl bg-[#0F2F24] border border-[#163E27] shadow-xs text-white p-4 sm:p-6 flex flex-col justify-between h-full min-h-[190px] sm:min-h-[210px]"
+      className="relative overflow-hidden rounded-2xl bg-[#0F2F24] border border-[#163E27] shadow-xs text-white p-4 sm:p-6 flex flex-col justify-between h-full min-h-[175px] sm:min-h-[195px]"
     >
       <div className="space-y-3">
         <div className="text-[10px] font-bold text-[#4ADE80] tracking-wider uppercase border-b-2 border-[#4ADE80] inline-block pb-0.5">
@@ -788,7 +782,7 @@ export function DashboardPersonalView({
             <div className="flex items-center gap-2 text-xs text-white/80 font-medium pt-0.5">
               <DumbbellIcon className="w-4 h-4 text-emerald-300 shrink-0" />
               <span>
-                {primaryDraft.blocksCount || 0} {primaryDraft.blocksCount === 1 ? "exercício cadastrado" : "exercícios cadastrados"}
+                {primaryDraft.blocksCount || 0} {primaryDraft.blocksCount === 1 ? "bloco cadastrado" : "blocos cadastrados"}
               </span>
             </div>
           </>
@@ -838,8 +832,8 @@ export function DashboardPersonalView({
           </p>
           <p className="text-xs text-[#4A6356] font-medium mt-1">
             {upcomingChargesList.length > 0
-              ? `${upcomingChargesList.length} ${upcomingChargesList.length === 1 ? "cobrança com vencimento próximo" : "cobranças com vencimento próximo"}`
-              : "Nenhuma cobrança com vencimento próximo cadastrada."}
+              ? `${upcomingChargesList.length} ${upcomingChargesList.length === 1 ? "vencimento próximo" : "vencimentos próximos"}`
+              : "Nenhum vencimento próximo cadastrado."}
           </p>
         </div>
 

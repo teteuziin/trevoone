@@ -63,24 +63,13 @@ interface TrainingAiGenerateModalProps {
   targetStudentMembershipId?: number;
 }
 
-const QUICK_OBJECTIVES = [
-  { id: "hipertrofia", label: "Hipertrofia", desc: "Ganho de massa", icon: "💪", full: "Hipertrofia e Ganho de Massa Muscular" },
-  { id: "emagrecimento", label: "Emagrecimento", desc: "Perda de gordura", icon: "🔥", full: "Emagrecimento e Definição" },
-  { id: "definicao", label: "Definição", desc: "Tônus muscular", icon: "✨", full: "Definição Muscular e Tônus" },
-  { id: "forca", label: "Força", desc: "Cargas e potência", icon: "⚡", full: "Força e Potência Muscular" },
-  { id: "condicionamento", label: "Condicionamento", desc: "Resistência geral", icon: "🏃", full: "Condicionamento Geral e Resistência" },
-  { id: "outro", label: "Outro", desc: "Personalizado", icon: "✏️", full: "" },
+const PRIMARY_OBJECTIVES = [
+  { id: "massa", label: "Ganhar massa", internal: "Hipertrofia e Ganho de Massa Muscular" },
+  { id: "gordura", label: "Perder gordura", internal: "Emagrecimento e Definição" },
+  { id: "forca", label: "Ganhar força", internal: "Força e Potência Muscular" },
+  { id: "condicionamento", label: "Condicionamento", internal: "Condicionamento Geral e Resistência" },
+  { id: "outro", label: "Outro objetivo", internal: "" },
 ];
-
-const SPLIT_DESCRIPTIONS: Record<number, string> = {
-  1: "Treino único completo (Full Body / Corpo inteiro)",
-  2: "Divisão A / B (ex: Membros Superiores e Membros Inferiores)",
-  3: "Divisão A / B / C (ex: Push / Pull / Legs)",
-  4: "Divisão A / B / C / D (ex: Peito/Tríceps, Costas/Bíceps, Pernas, Ombros)",
-  5: "Divisão A / B / C / D / E (Grupamentos isolados por dia)",
-  6: "Divisão A / B / C 2x por semana (Rotina de alta frequência)",
-  7: "Divisão diária contínua com dias regenerativos",
-};
 
 export function TrainingAiGenerateModal({
   consultancySlug,
@@ -90,31 +79,32 @@ export function TrainingAiGenerateModal({
 }: TrainingAiGenerateModalProps) {
   const router = useRouter();
 
-  // Steps: 'FORM' | 'DESCRIBE' | 'CLARIFY' | 'SUMMARY' | 'GENERATING' | 'PREVIEW' | 'SAVING'
-  const [step, setStep] = useState<"FORM" | "DESCRIBE" | "CLARIFY" | "SUMMARY" | "GENERATING" | "PREVIEW" | "SAVING">("FORM");
+  // Navigation steps: 'INITIAL' (3 decisions) | 'DETAILS' (perguntar só o que falta) | 'GENERATING' | 'PREVIEW' | 'SAVING'
+  const [step, setStep] = useState<"INITIAL" | "DETAILS" | "DESCRIBE" | "CLARIFY" | "SUMMARY" | "GENERATING" | "PREVIEW" | "SAVING">("INITIAL");
 
-  // Core Form states (Simple, guided, no prompts required)
-  const [selectedObjectiveId, setSelectedObjectiveId] = useState<string>("hipertrofia");
-  const [customObjectiveText, setCustomObjectiveText] = useState("");
-  const [selectedDays, setSelectedDays] = useState<number>(4);
-  const [selectedEquipment, setSelectedEquipment] = useState<string>(EQUIPMENT_OPTIONS[0]);
-  const [selectedDuration, setSelectedDuration] = useState<number>(50);
-  const [selectedLevel, setSelectedLevel] = useState<string>("Intermediário");
-
-  // Restrictions check
-  const [hasRestrictions, setHasRestrictions] = useState<boolean | null>(false);
-  const [restrictionsText, setRestrictionsText] = useState("");
-
-  // Optional customizations accordion
-  const [focusMuscles, setFocusMuscles] = useState<string>("");
-  const [preferencesText, setPreferencesText] = useState("");
-  const [customTitle, setCustomTitle] = useState("");
-
-  // Student selection state
-  const [students, setStudents] = useState<StudentOption[]>([]);
+  // Step 1: 3 Initial Decisions (zero fictitious defaults)
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
     targetStudentMembershipId || null
   );
+  const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
+  const [customObjectiveText, setCustomObjectiveText] = useState("");
+  const [selectedDays, setSelectedDays] = useState<number | null>(null);
+  const [showOtherDays, setShowOtherDays] = useState(false);
+
+  // Step 2: "Perguntar só o que falta"
+  const [selectedEquipment, setSelectedEquipment] = useState<string>(EQUIPMENT_OPTIONS[0]);
+  const [selectedDuration, setSelectedDuration] = useState<number>(50);
+  const [selectedLevel, setSelectedLevel] = useState<string>("Intermediário");
+  const [hasRestrictions, setHasRestrictions] = useState<boolean | null>(null);
+  const [restrictionsText, setRestrictionsText] = useState("");
+
+  // Optional: Personalizar mais
+  const [focusMuscles, setFocusMuscles] = useState<string>("");
+  const [freeTextExplanation, setFreeTextExplanation] = useState("");
+  const [customTitle, setCustomTitle] = useState("");
+
+  // Student data & prefill
+  const [students, setStudents] = useState<StudentOption[]>([]);
   const [studentPrefillNote, setStudentPrefillNote] = useState<string | null>(null);
 
   // Proposal preview and persistence state
@@ -134,13 +124,11 @@ export function TrainingAiGenerateModal({
 
   // Idempotency key per generation workflow
   const idempotencyKeyRef = useRef<string>("");
-
-  // Loading animation message index
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
 
   const handleClose = useCallback(() => {
     if (step === "GENERATING" || step === "SAVING") return;
-    setStep("FORM");
+    setStep("INITIAL");
     setErrorMessage(null);
     setProposal(null);
     idempotencyKeyRef.current = "";
@@ -150,63 +138,57 @@ export function TrainingAiGenerateModal({
   const applyStudentData = useCallback((currentStudent: StudentOption) => {
     const notes: string[] = [];
 
-    // 1. Objective prefill
+    // Objective prefill
     if (currentStudent.objective) {
       const lower = currentStudent.objective.toLowerCase();
-      if (lower.includes("hipertrofia") || lower.includes("massa")) {
-        setSelectedObjectiveId("hipertrofia");
-        notes.push("Objetivo: Hipertrofia");
-      } else if (lower.includes("emagrec") || lower.includes("gordura") || lower.includes("peso")) {
-        setSelectedObjectiveId("emagrecimento");
-        notes.push("Objetivo: Emagrecimento");
-      } else if (lower.includes("defini")) {
-        setSelectedObjectiveId("definicao");
-        notes.push("Objetivo: Definição");
+      if (lower.includes("hipertrofia") || lower.includes("massa") || lower.includes("ganhar")) {
+        setSelectedObjectiveId("massa");
+        notes.push("Ganhar massa");
+      } else if (lower.includes("emagrec") || lower.includes("gordura") || lower.includes("peso") || lower.includes("perder")) {
+        setSelectedObjectiveId("gordura");
+        notes.push("Perder gordura");
       } else if (lower.includes("força") || lower.includes("forca")) {
         setSelectedObjectiveId("forca");
-        notes.push("Objetivo: Força");
-      } else if (lower.includes("condicionamento") || lower.includes("saúde") || lower.includes("saude")) {
+        notes.push("Ganhar força");
+      } else if (lower.includes("condicionamento") || lower.includes("saúde") || lower.includes("saude") || lower.includes("resistencia")) {
         setSelectedObjectiveId("condicionamento");
-        notes.push("Objetivo: Condicionamento");
+        notes.push("Condicionamento");
       } else {
         setSelectedObjectiveId("outro");
         setCustomObjectiveText(currentStudent.objective);
-        notes.push(`Objetivo: ${currentStudent.objective}`);
+        notes.push(currentStudent.objective);
       }
     }
 
-    // 2. Frequency prefill
+    // Frequency prefill
     if (currentStudent.frequency) {
       const match = currentStudent.frequency.match(/([1-7])\s*(?:dias|x|vezes)/i);
       if (match && match[1]) {
         const days = Number(match[1]);
         if (days >= 1 && days <= 7) {
           setSelectedDays(days);
-          notes.push(`Frequência: ${days} dias/sem`);
+          notes.push(`${days} dias/sem`);
         }
       }
     }
 
-    // 3. Experience prefill
+    // Experience prefill
     if (currentStudent.experience) {
       const lowerExp = currentStudent.experience.toLowerCase();
       if (lowerExp.includes("iniciante") || lowerExp.includes("começando") || lowerExp.includes("nunca")) {
         setSelectedLevel("Iniciante");
-        notes.push("Nível: Iniciante");
       } else if (lowerExp.includes("avançado") || lowerExp.includes("avancado") || lowerExp.includes("anos")) {
         setSelectedLevel("Avançado");
-        notes.push("Nível: Avançado");
       } else {
         setSelectedLevel("Intermediário");
-        notes.push("Nível: Intermediário");
       }
     }
 
-    // 4. Restrictions / injuries prefill
+    // Restrictions prefill
     if (currentStudent.restrictions && currentStudent.restrictions.trim().length > 0) {
       setHasRestrictions(true);
       setRestrictionsText(currentStudent.restrictions.trim());
-      notes.push(`Restrições: ${currentStudent.restrictions.trim()}`);
+      notes.push(`Restrição: ${currentStudent.restrictions.trim()}`);
     }
 
     if (notes.length > 0) {
@@ -264,14 +246,14 @@ export function TrainingAiGenerateModal({
       .catch(() => {});
   }, [isOpen, consultancySlug, targetStudentMembershipId, selectedStudentId, applyStudentData]);
 
-  // Loading animation message cycle
+  // Loading animation cycle
   useEffect(() => {
     if (step !== "GENERATING") return;
     const messages = [
-      "Estruturando as divisões do treino...",
-      "Selecionando os melhores exercícios...",
-      "Configurando séries, repetições e intervalos ideais...",
-      "Garantindo equilíbrio muscular e segurança biomecânica...",
+      "Preparando a rotina de treino...",
+      "Selecionando os exercícios ideais...",
+      "Calculando séries, repetições e intervalos...",
+      "Garantindo equilíbrio muscular e segurança...",
     ];
     const timer = setInterval(() => {
       setLoadingMsgIndex((prev) => (prev + 1) % messages.length);
@@ -285,7 +267,7 @@ export function TrainingAiGenerateModal({
     () => false
   );
 
-  // Lock body scroll when modal is open
+  // Lock body scroll when open
   useEffect(() => {
     if (!isOpen) return;
     const originalOverflow = document.body.style.overflow;
@@ -295,7 +277,7 @@ export function TrainingAiGenerateModal({
     };
   }, [isOpen]);
 
-  // Handle ESC key to dismiss
+  // Handle ESC
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -309,36 +291,54 @@ export function TrainingAiGenerateModal({
 
   if (!isOpen || !mounted) return null;
 
-  // Selected student entity
   const activeStudent = students.find((s) => s.membershipId === selectedStudentId);
 
-  // Resolved final objective string
+  // Resolved objective string
   const resolvedObjective =
     selectedObjectiveId === "outro"
       ? customObjectiveText.trim() || "Treino Personalizado"
-      : QUICK_OBJECTIVES.find((o) => o.id === selectedObjectiveId)?.full || "Hipertrofia e Ganho de Massa Muscular";
+      : PRIMARY_OBJECTIVES.find((o) => o.id === selectedObjectiveId)?.internal || "Hipertrofia e Ganho de Massa Muscular";
 
-  // Auto-generate title suggestion
+  const daysNumber = selectedDays || 3;
+
   const suggestedTitle =
     customTitle.trim() ||
-    (selectedDays === 1
-      ? `Ficha ${resolvedObjective.split(" ")[0]} - Treino Único`
-      : `Ficha ${resolvedObjective.split(" ")[0]} ${selectedDays}D`);
+    (daysNumber === 1
+      ? `Ficha ${resolvedObjective.split(" ")[0]} - Sessão Única`
+      : `Ficha ${resolvedObjective.split(" ")[0]} ${daysNumber}D`);
 
-  // Handle Generation
-  const handleGenerateFromEasyForm = async () => {
+  // Proceed from Step 1 (Initial Decisions) to Step 2 (Perguntar só o que falta)
+  const handleProceedToDetails = () => {
+    if (!selectedObjectiveId) {
+      setErrorMessage("Por favor, selecione qual é o objetivo do treino.");
+      return;
+    }
+    if (selectedObjectiveId === "outro" && !customObjectiveText.trim()) {
+      setErrorMessage("Por favor, informe o objetivo do treino.");
+      return;
+    }
+    if (!selectedDays) {
+      setErrorMessage("Por favor, selecione quantos dias por semana o aluno irá treinar.");
+      return;
+    }
+    setErrorMessage(null);
+    setStep("DETAILS");
+  };
+
+  // Generate Workout Proposal via AI
+  const handleGenerateProposal = async () => {
     setErrorMessage(null);
     setStep("GENERATING");
 
     const frequencyText =
-      selectedDays === 1
+      daysNumber === 1
         ? "1 dia (sessão única / treino completo Full Body)"
-        : `${selectedDays} dias por semana`;
+        : `${daysNumber} dias por semana`;
 
     const orientationText =
-      selectedDays === 1
+      daysNumber === 1
         ? `Monte uma rotina de treino estruturada de sessão única (1 bloco ou divisão principal completa). Crie uma categoria válida (ex: "Treino Principal" ou "Full Body") com seus exercícios adequados aos equipamentos (${selectedEquipment}) e à duração de ${selectedDuration} min.`
-        : `Monte uma rotina de treino estruturada e dividida exatamente em ${selectedDays} sessões. Para cada divisão (ex: Treino A, Treino B, etc.), crie uma categoria com seus exercícios adequados aos equipamentos (${selectedEquipment}) e à duração de ${selectedDuration} min.`;
+        : `Monte uma rotina de treino estruturada e dividida exatamente em ${daysNumber} sessões. Para cada divisão (ex: Treino A, Treino B, etc.), crie uma categoria com seus exercícios adequados aos equipamentos (${selectedEquipment}) e à duração de ${selectedDuration} min.`;
 
     const composedPrompt = `PROPOSTA DE TREINO PERSONALIZADO
 Título sugerido: ${suggestedTitle}
@@ -351,17 +351,16 @@ Parâmetros acordados:
 - Nível de aptidão: ${selectedLevel}
 ${focusMuscles.trim() ? `- Foco / Grupos prioritários: ${focusMuscles.trim()}\n` : ""}
 ${hasRestrictions && restrictionsText.trim() ? `- Restrições e cuidados de saúde: ${restrictionsText.trim()}\n` : "- Sem restrições de saúde relatadas\n"}
-${preferencesText.trim() ? `- Observações e preferências do profissional: ${preferencesText.trim()}\n` : ""}
+${freeTextExplanation.trim() ? `- Observações e preferências do profissional: ${freeTextExplanation.trim()}\n` : ""}
 
 Orientações de prescrição:
 ${orientationText}
 Defina séries, repetições e intervalos de descanso para cada exercício. Respeite com fidelidade as restrições informadas sem extrapolações clínicas.`;
 
-    // Retain compatibility with analyzeWorkoutDescription
     try {
       analyzeWorkoutDescription(composedPrompt);
     } catch {
-      // Non-blocking analysis
+      // Non-blocking
     }
 
     try {
@@ -412,11 +411,11 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
       setStep("PREVIEW");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Falha na geração do treino com IA.");
-      setStep("FORM");
+      setStep("DETAILS");
     }
   };
 
-  // STEP: Save proposal as official DRAFT and redirect to workout builder (Editor 4.0)
+  // Save proposal as official DRAFT and redirect to editor
   const handleSaveDraft = async () => {
     if (!proposal) return;
     if (!editableCategories || editableCategories.length === 0) {
@@ -468,96 +467,99 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
       onClick={handleClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="ai-generate-modal-title"
     >
       <div
-        className="w-full h-[95vh] sm:h-auto sm:max-h-[90vh] sm:max-w-2xl lg:max-w-3xl bg-[#F5F5F0] dark:bg-[#121316] rounded-t-3xl sm:rounded-3xl border-t sm:border border-[#E5E8E2] dark:border-zinc-800 flex flex-col shadow-2xl overflow-hidden text-zinc-900 dark:text-zinc-100 font-sans"
+        className="w-full h-auto max-h-[92vh] sm:max-h-[85vh] sm:max-w-lg lg:max-w-xl bg-[#FDFDFC] dark:bg-[#151619] rounded-t-3xl sm:rounded-3xl border-t sm:border border-[#E5E8E2] dark:border-zinc-800 flex flex-col shadow-2xl overflow-hidden text-[#102E23] dark:text-zinc-100 font-sans"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="px-5 sm:px-6 py-4 border-b border-[#E5E8E2] dark:border-zinc-800 flex items-center justify-between shrink-0 bg-white dark:bg-[#181A1D]">
-          <div className="flex items-center gap-3 min-w-0 pr-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#176B49]/10 dark:bg-emerald-500/20 text-[#176B49] dark:text-emerald-400 flex items-center justify-center shrink-0 border border-[#176B49]/20">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+        {/* Header - 100% Light Trevo One Official Theme */}
+        <div className="px-5 sm:px-6 py-3.5 sm:py-4 border-b border-[#E5E8E2] dark:border-zinc-800 flex items-center justify-between shrink-0 bg-white dark:bg-[#1A1C20]">
+          <div className="flex items-center gap-3 min-w-0 pr-2">
+            <div className="w-9 h-9 rounded-xl bg-[#176B49]/10 text-[#176B49] dark:text-emerald-400 flex items-center justify-center shrink-0 border border-[#176B49]/20 font-bold">
+              ⚡
             </div>
             <div className="min-w-0">
-              <h2 id="ai-generate-modal-title" className="text-base sm:text-lg font-bold text-[#102E23] dark:text-white leading-tight">
-                {step === "PREVIEW" ? "Revisar proposta gerada" : "Vamos montar seu treino?"}
+              <h2 id="ai-generate-modal-title" className="text-base sm:text-lg font-extrabold text-[#102E23] dark:text-white leading-tight">
+                {step === "PREVIEW" ? "Revisar proposta de treino" : "Criar treino com IA"}
               </h2>
               <p className="text-xs text-[#526058] dark:text-zinc-400 mt-0.5">
                 {step === "PREVIEW"
-                  ? "Confira as divisões e exercícios antes de abrir no editor"
-                  : "Escolha o básico. A IA ajuda com o resto."}
+                  ? "Confira o treino antes de abrir no editor"
+                  : step === "DETAILS"
+                  ? "Só mais alguns detalhes rápidos"
+                  : "Vamos preparar seu treino juntos."}
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleClose}
-            disabled={step === "GENERATING" || step === "SAVING"}
-            className="min-h-[44px] min-w-[44px] p-2 rounded-xl text-[#526058] hover:text-[#102E23] dark:text-zinc-400 dark:hover:text-white hover:bg-[#E5E8E2]/60 dark:hover:bg-zinc-800 transition flex items-center justify-center cursor-pointer shrink-0"
-            aria-label="Fechar"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Cota discreta sem jargão técnico */}
+            {quota && quota.remainingToday > 0 && (
+              <span className="hidden sm:inline-flex text-[11px] font-bold text-[#176B49] dark:text-emerald-400 bg-[#176B49]/10 dark:bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-[#176B49]/20">
+                {quota.remainingToday} criações disponíveis hoje
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={step === "GENERATING" || step === "SAVING"}
+              className="min-h-[40px] min-w-[40px] p-2 rounded-xl text-[#526058] hover:text-[#102E23] hover:bg-[#F5F5F0] dark:hover:bg-zinc-800 transition flex items-center justify-center cursor-pointer"
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 space-y-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6">
-          {/* Quota Banner */}
-          {quota && (
-            <div className="p-2.5 px-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 text-xs flex items-center justify-between shadow-2xs">
-              <span className="text-[#526058] dark:text-zinc-400">
-                Cota diária: <strong className="text-[#102E23] dark:text-white">{quota.usedToday}</strong> de{" "}
-                <strong className="text-[#102E23] dark:text-white">{quota.dailyLimit}</strong> fichas utilizadas
-              </span>
-              <span className="font-bold text-[#176B49] dark:text-emerald-400">
-                Restam: {quota.remainingToday}
-              </span>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6">
+          {/* Cota discreta no mobile */}
+          {quota && quota.remainingToday > 0 && (
+            <div className="sm:hidden flex items-center justify-between text-xs font-semibold text-[#176B49] bg-[#176B49]/10 px-3 py-1.5 rounded-xl border border-[#176B49]/20">
+              <span>Cota de criação</span>
+              <strong>{quota.remainingToday} disponíveis hoje</strong>
             </div>
           )}
 
           {/* Contextual Error Message */}
           {errorMessage && step !== "PREVIEW" && (
-            <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-700 dark:text-rose-400 font-medium">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">
               {errorMessage}
             </div>
           )}
 
           {/* ======================================================== */}
-          {/* STEP: FORM — O NOVO FLUXO INTUITIVO E SIMPLES COM IA     */}
+          {/* ETAPA 1: PRIMEIRA TELA — SOMENTE TRÊS DECISÕES           */}
           {/* ======================================================== */}
-          {step === "FORM" && (
+          {step === "INITIAL" && (
             <div className="space-y-4">
               {/* 1. Para quem é o treino? */}
-              <div className="bg-white dark:bg-[#181A1D] border border-[#E5E8E2] dark:border-zinc-800 rounded-2xl p-4 space-y-2 shadow-2xs">
+              <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider">
-                  Para quem é o treino?
+                  1. Para quem é o treino?
                 </label>
 
                 {targetStudentMembershipId && activeStudent ? (
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-[#F5F5F0] dark:bg-zinc-800/60 border border-[#E5E8E2] dark:border-zinc-700">
-                    <div className="w-9 h-9 rounded-full bg-[#176B49] text-white font-bold flex items-center justify-center text-xs shrink-0">
-                      {activeStudent.name.charAt(0).toUpperCase()}
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-[#F5F5F0] dark:bg-zinc-800/50 border border-[#E5E8E2] dark:border-zinc-700 text-xs">
+                    <div className="min-w-0 flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-[#176B49] text-white font-bold flex items-center justify-center text-xs shrink-0">
+                        {activeStudent.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-[#102E23] dark:text-white truncate">
+                          {activeStudent.name}
+                        </p>
+                        <p className="text-[#526058] dark:text-zinc-400 text-[11px] truncate">
+                          {activeStudent.email}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-[#102E23] dark:text-white truncate">
-                        {activeStudent.name}
-                      </p>
-                      <p className="text-xs text-[#526058] dark:text-zinc-400 truncate">
-                        {activeStudent.email}
-                      </p>
-                    </div>
-                    <span className="text-[11px] font-semibold text-[#176B49] dark:text-emerald-400 bg-[#176B49]/10 px-2 py-0.5 rounded-md shrink-0">
+                    <span className="text-[11px] font-bold text-[#176B49] dark:text-emerald-400 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded-md border border-[#E5E8E2] dark:border-zinc-700 shrink-0">
                       Aluno selecionado
                     </span>
                   </div>
@@ -567,7 +569,7 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
                     onChange={(e) =>
                       handleStudentSelect(e.target.value ? Number(e.target.value) : null)
                     }
-                    className="w-full rounded-xl bg-[#F5F5F0] dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3.5 py-2.5 text-sm text-[#102E23] dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#176B49] min-h-[44px]"
+                    className="w-full rounded-2xl bg-white dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3.5 py-2.5 text-xs sm:text-sm text-[#102E23] dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#176B49] min-h-[44px] cursor-pointer"
                   >
                     <option value="">Ficha geral / modelo base (sem aluno vinculado)</option>
                     {students.map((st) => (
@@ -578,341 +580,391 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
                   </select>
                 )}
 
-                {/* Pre-fill information banner from student intake data */}
+                {/* Nota de dados pré-existentes na ficha do aluno */}
                 {studentPrefillNote && (
-                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-900 dark:text-emerald-300 flex items-start gap-2.5">
-                    <span className="text-sm">📋</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold">
-                        Dados aproveitados da ficha do aluno:
-                      </p>
-                      <p className="text-[11px] text-emerald-800 dark:text-emerald-300 mt-0.5">
-                        {studentPrefillNote}
-                      </p>
-                      <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-1 italic">
-                        Campos pré-ajustados. Você pode alterar qualquer opção abaixo.
-                      </p>
-                    </div>
-                  </div>
+                  <p className="text-[11px] text-[#176B49] dark:text-emerald-400 font-medium pt-0.5">
+                    ✓ Aproveitando histórico do aluno: {studentPrefillNote}
+                  </p>
                 )}
               </div>
 
-              {/* 2. O que deseja trabalhar? (Objetivos) */}
-              <div className="bg-white dark:bg-[#181A1D] border border-[#E5E8E2] dark:border-zinc-800 rounded-2xl p-4 space-y-2.5 shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider">
-                    O que deseja trabalhar?
-                  </label>
-                  <span className="text-[11px] text-[#526058] dark:text-zinc-400">
-                    Escolha o objetivo principal
-                  </span>
-                </div>
+              {/* 2. Qual é o objetivo? */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider">
+                  2. Qual é o objetivo?
+                </label>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {QUICK_OBJECTIVES.map((obj) => {
+                  {PRIMARY_OBJECTIVES.map((obj) => {
                     const isSelected = selectedObjectiveId === obj.id;
                     return (
                       <button
                         key={obj.id}
                         type="button"
                         onClick={() => setSelectedObjectiveId(obj.id)}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer min-h-[48px] flex flex-col justify-center ${
+                        className={`py-3 px-3 rounded-2xl border text-center font-bold text-xs sm:text-sm transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                           isSelected
-                            ? "bg-[#102E23] text-white border-[#102E23] shadow-xs"
-                            : "bg-[#FAFBF9] dark:bg-zinc-800/40 text-[#102E23] dark:text-zinc-200 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
+                            ? "bg-[#176B49] text-white border-[#176B49] shadow-xs"
+                            : "bg-white dark:bg-zinc-900 text-[#102E23] dark:text-zinc-200 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
                         }`}
                       >
-                        <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm">
-                          <span>{obj.icon}</span>
-                          <span>{obj.label}</span>
-                        </div>
-                        <span
-                          className={`text-[11px] mt-0.5 ${
-                            isSelected ? "text-emerald-200" : "text-[#526058] dark:text-zinc-400"
-                          }`}
-                        >
-                          {obj.desc}
-                        </span>
+                        <span>{obj.label}</span>
                       </button>
                     );
                   })}
                 </div>
 
                 {selectedObjectiveId === "outro" && (
-                  <div className="pt-1 animate-in fade-in duration-150">
+                  <div className="pt-1.5 animate-in fade-in duration-150">
                     <input
                       type="text"
                       value={customObjectiveText}
                       onChange={(e) => setCustomObjectiveText(e.target.value)}
-                      placeholder="Ex: Treino funcional de estabilidade, preparação para TAF, reabilitação de joelho..."
-                      className="w-full rounded-xl bg-[#F5F5F0] dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3.5 py-2.5 text-xs text-[#102E23] dark:text-zinc-100 placeholder:text-[#8C9890] focus:outline-none focus:ring-2 focus:ring-[#176B49] min-h-[44px]"
+                      placeholder="Qual é o objetivo específico? (Ex: Treino para corrida, reabilitação...)"
+                      className="w-full rounded-2xl bg-white dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3.5 py-2.5 text-xs text-[#102E23] dark:text-zinc-100 placeholder:text-[#8C9890] focus:outline-none focus:ring-2 focus:ring-[#176B49] min-h-[42px]"
                       autoFocus
                     />
                   </div>
                 )}
               </div>
 
-              {/* 3. Quantos dias por semana? (Frequência) */}
-              <div className="bg-white dark:bg-[#181A1D] border border-[#E5E8E2] dark:border-zinc-800 rounded-2xl p-4 space-y-2.5 shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider">
-                    Quantos dias por semana?
-                  </label>
-                  <span className="text-[11px] font-bold text-[#176B49] dark:text-emerald-400">
-                    {selectedDays === 1 ? "1 dia (Único)" : `${selectedDays} dias por semana`}
-                  </span>
-                </div>
+              {/* 3. Quantos dias por semana? */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider">
+                  3. Quantos dias por semana?
+                </label>
 
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {[1, 2, 3, 4, 5, 6].map((days) => {
-                    const isSelected = selectedDays === days;
+                <div className="grid grid-cols-5 gap-2">
+                  {[2, 3, 4, 5].map((days) => {
+                    const isSelected = selectedDays === days && !showOtherDays;
                     return (
                       <button
                         key={days}
                         type="button"
-                        onClick={() => setSelectedDays(days)}
-                        className={`py-2.5 px-3 rounded-xl border text-center font-bold text-xs sm:text-sm transition-all cursor-pointer min-h-[44px] flex flex-col items-center justify-center ${
+                        onClick={() => {
+                          setSelectedDays(days);
+                          setShowOtherDays(false);
+                        }}
+                        className={`py-3 rounded-2xl border text-center font-bold text-xs sm:text-sm transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                           isSelected
                             ? "bg-[#176B49] text-white border-[#176B49] shadow-xs"
-                            : "bg-[#FAFBF9] dark:bg-zinc-800/40 text-[#102E23] dark:text-zinc-200 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
+                            : "bg-white dark:bg-zinc-900 text-[#102E23] dark:text-zinc-200 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
                         }`}
                       >
-                        <span>{days === 1 ? "1 dia" : `${days} dias`}</span>
+                        <span>{days}</span>
                       </button>
                     );
                   })}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOtherDays(true);
+                      if (selectedDays === 2 || selectedDays === 3 || selectedDays === 4 || selectedDays === 5) {
+                        setSelectedDays(null);
+                      }
+                    }}
+                    className={`py-3 rounded-2xl border text-center font-bold text-xs sm:text-sm transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
+                      showOtherDays
+                        ? "bg-[#176B49] text-white border-[#176B49] shadow-xs"
+                        : "bg-white dark:bg-zinc-900 text-[#102E23] dark:text-zinc-200 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
+                    }`}
+                  >
+                    <span>Outro</span>
+                  </button>
                 </div>
 
-                <p className="text-xs text-[#526058] dark:text-zinc-400 leading-relaxed bg-[#F5F5F0] dark:bg-zinc-800/50 p-2.5 rounded-xl border border-[#E5E8E2] dark:border-zinc-700/60">
-                  <strong className="text-[#102E23] dark:text-white">Divisão sugerida:</strong>{" "}
-                  {SPLIT_DESCRIPTIONS[selectedDays] || "Divisão personalizada"}
-                </p>
-              </div>
-
-              {/* 4. Perguntar só o que falta (Equipamentos, Duração, Nível e Restrições) */}
-              <div className="bg-white dark:bg-[#181A1D] border border-[#E5E8E2] dark:border-zinc-800 rounded-2xl p-4 space-y-4 shadow-2xs">
-                <span className="block text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider">
-                  Detalhes essenciais
-                </span>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Local / Equipamento */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold text-[#526058] dark:text-zinc-400 uppercase tracking-wider">
-                      Onde vai treinar?
-                    </label>
-                    <select
-                      value={selectedEquipment}
-                      onChange={(e) => setSelectedEquipment(e.target.value)}
-                      className="w-full rounded-xl bg-[#F5F5F0] dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3 py-2 text-xs font-semibold text-[#102E23] dark:text-white focus:outline-none min-h-[42px]"
-                    >
-                      {EQUIPMENT_OPTIONS.map((eq) => (
-                        <option key={eq} value={eq}>
-                          {eq}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Duração por sessão */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold text-[#526058] dark:text-zinc-400 uppercase tracking-wider">
-                      Duração média por treino
-                    </label>
-                    <select
-                      value={selectedDuration}
-                      onChange={(e) => setSelectedDuration(Number(e.target.value))}
-                      className="w-full rounded-xl bg-[#F5F5F0] dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3 py-2 text-xs font-semibold text-[#102E23] dark:text-white focus:outline-none min-h-[42px]"
-                    >
-                      {[30, 40, 45, 50, 60, 75, 90].map((m) => (
-                        <option key={m} value={m}>
-                          Até {m} minutos
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-[#E5E8E2] dark:border-zinc-800/80">
-                  {/* Nível do aluno */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold text-[#526058] dark:text-zinc-400 uppercase tracking-wider">
-                      Experiência / Nível
-                    </label>
-                    <div className="flex gap-2">
-                      {LEVEL_OPTIONS.map((lvl) => {
-                        const isSelected = selectedLevel === lvl;
-                        return (
-                          <button
-                            key={lvl}
-                            type="button"
-                            onClick={() => setSelectedLevel(lvl)}
-                            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold border transition cursor-pointer min-h-[40px] text-center ${
-                              isSelected
-                                ? "bg-[#102E23] text-white border-[#102E23]"
-                                : "bg-[#FAFBF9] dark:bg-zinc-800/40 text-[#526058] dark:text-zinc-300 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
-                            }`}
-                          >
-                            {lvl}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Dores ou restrições */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold text-[#526058] dark:text-zinc-400 uppercase tracking-wider">
-                      Dores ou restrições de saúde?
-                    </label>
-                    <div className="flex gap-2">
+                {showOtherDays && (
+                  <div className="pt-1.5 flex items-center gap-2 animate-in fade-in duration-150">
+                    <span className="text-xs text-[#526058] dark:text-zinc-400 font-semibold">
+                      Outras frequências:
+                    </span>
+                    {[1, 6, 7].map((d) => (
                       <button
+                        key={d}
                         type="button"
-                        onClick={() => {
-                          setHasRestrictions(false);
-                          setRestrictionsText("");
-                        }}
-                        className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold border transition cursor-pointer min-h-[40px] text-center ${
-                          hasRestrictions === false
-                            ? "bg-[#102E23] text-white border-[#102E23]"
-                            : "bg-[#FAFBF9] dark:bg-zinc-800/40 text-[#526058] dark:text-zinc-300 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
-                        }`}
-                      >
-                        Sem restrições
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setHasRestrictions(true)}
-                        className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold border transition cursor-pointer min-h-[40px] text-center ${
-                          hasRestrictions === true
+                        onClick={() => setSelectedDays(d)}
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer min-h-[36px] ${
+                          selectedDays === d
                             ? "bg-[#176B49] text-white border-[#176B49]"
-                            : "bg-[#FAFBF9] dark:bg-zinc-800/40 text-[#526058] dark:text-zinc-300 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
+                            : "bg-white text-[#102E23] border-[#E5E8E2] hover:border-[#176B49]"
                         }`}
                       >
-                        Possui dor/restrição
+                        {d === 1 ? "1 dia (Único)" : `${d} dias`}
                       </button>
-                    </div>
-                  </div>
-                </div>
-
-                {hasRestrictions && (
-                  <div className="pt-1 animate-in fade-in duration-150">
-                    <input
-                      type="text"
-                      value={restrictionsText}
-                      onChange={(e) => setRestrictionsText(e.target.value)}
-                      placeholder="Ex: Dor no joelho esquerdo, evitar agachamento profundo, hérnia de disco L5-S1..."
-                      className="w-full rounded-xl bg-[#F5F5F0] dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3.5 py-2.5 text-xs text-[#102E23] dark:text-zinc-100 placeholder:text-[#8C9890] focus:outline-none focus:ring-2 focus:ring-[#176B49] min-h-[42px]"
-                      autoFocus
-                    />
+                    ))}
                   </div>
                 )}
               </div>
 
-              {/* 5. Quero personalizar mais (Accordion expansível) */}
-              <details className="bg-white dark:bg-[#181A1D] border border-[#E5E8E2] dark:border-zinc-800 rounded-2xl p-4 text-xs group shadow-2xs">
-                <summary className="font-bold text-[#102E23] dark:text-white cursor-pointer select-none list-none flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span>⚙️</span>
-                    <span>Quero personalizar mais (opcional)</span>
-                  </div>
-                  <span className="text-[#8C9890] group-open:rotate-180 transition-transform text-sm">
-                    ▼
-                  </span>
-                </summary>
-
-                <div className="pt-4 space-y-3.5 border-t border-[#E5E8E2] dark:border-zinc-800 mt-3">
-                  {/* Foco muscular prioritário */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold text-[#526058] dark:text-zinc-400 uppercase tracking-wider">
-                      Foco ou grupamentos prioritários
-                    </label>
-                    <input
-                      type="text"
-                      value={focusMuscles}
-                      onChange={(e) => setFocusMuscles(e.target.value)}
-                      placeholder="Ex: Ênfase em glúteos e posterior de coxa, foco em deltoide lateral..."
-                      className="w-full rounded-xl bg-[#F5F5F0] dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3.5 py-2.5 text-xs text-[#102E23] dark:text-zinc-100 placeholder:text-[#8C9890] focus:outline-none min-h-[42px]"
-                    />
-                  </div>
-
-                  {/* Exercícios a preferir ou evitar */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold text-[#526058] dark:text-zinc-400 uppercase tracking-wider">
-                      Exercícios que prefere ou deseja evitar
-                    </label>
-                    <input
-                      type="text"
-                      value={preferencesText}
-                      onChange={(e) => setPreferencesText(e.target.value)}
-                      placeholder="Ex: Prefere halteres a barras; evitar leg press 45..."
-                      className="w-full rounded-xl bg-[#F5F5F0] dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3.5 py-2.5 text-xs text-[#102E23] dark:text-zinc-100 placeholder:text-[#8C9890] focus:outline-none min-h-[42px]"
-                    />
-                  </div>
-
-                  {/* Título customizado */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold text-[#526058] dark:text-zinc-400 uppercase tracking-wider">
-                      Nome da ficha (opcional)
-                    </label>
-                    <input
-                      type="text"
-                      value={customTitle}
-                      onChange={(e) => setCustomTitle(e.target.value)}
-                      placeholder={`Sugerido: ${suggestedTitle}`}
-                      className="w-full rounded-xl bg-[#F5F5F0] dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3.5 py-2.5 text-xs font-semibold text-[#102E23] dark:text-zinc-100 placeholder:text-[#8C9890] focus:outline-none min-h-[42px]"
-                    />
-                  </div>
-                </div>
-              </details>
-
-              {/* Action Buttons */}
-              <div className="pt-2 flex items-center justify-between gap-3 border-t border-[#E5E8E2] dark:border-zinc-800">
+              {/* Botão de Avanço */}
+              <div className="pt-2">
                 <button
                   type="button"
-                  onClick={onClose}
-                  className="px-4 py-2.5 min-h-[46px] rounded-xl text-xs sm:text-sm font-semibold text-[#526058] dark:text-zinc-300 hover:bg-[#E5E8E2]/60 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  onClick={handleProceedToDetails}
+                  disabled={!selectedObjectiveId || !selectedDays || (selectedObjectiveId === "outro" && !customObjectiveText.trim())}
+                  className="w-full py-3.5 px-4 rounded-2xl text-sm font-bold text-white bg-[#176B49] hover:bg-[#12583B] active:bg-[#0E442E] disabled:opacity-50 transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer min-h-[48px]"
                 >
-                  Cancelar
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleGenerateFromEasyForm}
-                  disabled={quota?.remainingToday === 0}
-                  className="px-6 py-2.5 min-h-[48px] rounded-xl text-xs sm:text-sm font-bold text-white bg-[#176B49] hover:bg-[#12583B] active:bg-[#0E442E] disabled:opacity-50 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
-                >
-                  <svg className="w-4 h-4 text-emerald-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  <span>Gerar treino com IA</span>
+                  <span>Continuar</span>
+                  <span>→</span>
                 </button>
               </div>
             </div>
           )}
 
           {/* ======================================================== */}
-          {/* STEP: GENERATING — FEEDBACK VISUAL PREMIUM               */}
+          {/* ETAPA 2: PERGUNTAR SÓ O QUE FALTA                        */}
+          {/* ======================================================== */}
+          {step === "DETAILS" && (
+            <div className="space-y-4">
+              {/* Resumo compacto das 3 decisões anteriores */}
+              <div className="p-3 rounded-2xl bg-[#F5F5F0] dark:bg-zinc-800/50 border border-[#E5E8E2] dark:border-zinc-700 flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <span className="font-bold text-[#102E23] dark:text-white">
+                    {activeStudent ? activeStudent.name : "Ficha geral"}
+                  </span>
+                  <span>·</span>
+                  <span className="text-[#176B49] dark:text-emerald-400 font-semibold">
+                    {PRIMARY_OBJECTIVES.find((o) => o.id === selectedObjectiveId)?.label || customObjectiveText}
+                  </span>
+                  <span>·</span>
+                  <span>{selectedDays === 1 ? "1 dia" : `${selectedDays} dias/sem`}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStep("INITIAL")}
+                  className="text-xs font-bold text-[#176B49] hover:underline shrink-0 cursor-pointer"
+                >
+                  Alterar
+                </button>
+              </div>
+
+              {/* Se for ficha geral, aviso amigável */}
+              {!activeStudent && (
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-300">
+                  <strong>Ficha geral:</strong> esta rotina servirá de base reutilizável e poderá ser individualizada para cada aluno ao prescrever.
+                </div>
+              )}
+
+              {/* Informações que faltam */}
+              <div className="space-y-3.5">
+                {/* 1. Local de treino */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider">
+                    Onde vai treinar?
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedEquipment(EQUIPMENT_OPTIONS[0])}
+                      className={`p-3 rounded-2xl border text-xs font-bold transition text-left cursor-pointer min-h-[42px] ${
+                        selectedEquipment === EQUIPMENT_OPTIONS[0]
+                          ? "bg-[#176B49] text-white border-[#176B49]"
+                          : "bg-white dark:bg-zinc-900 text-[#102E23] dark:text-zinc-200 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
+                      }`}
+                    >
+                      🏋️ Academia completa
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedEquipment(EQUIPMENT_OPTIONS[1])}
+                      className={`p-3 rounded-2xl border text-xs font-bold transition text-left cursor-pointer min-h-[42px] ${
+                        selectedEquipment === EQUIPMENT_OPTIONS[1]
+                          ? "bg-[#176B49] text-white border-[#176B49]"
+                          : "bg-white dark:bg-zinc-900 text-[#102E23] dark:text-zinc-200 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
+                      }`}
+                    >
+                      🏠 Em casa / Halteres
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Tempo por sessão */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider">
+                    Tempo disponível por sessão
+                  </label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[30, 45, 50, 60, 75].map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setSelectedDuration(m)}
+                        className={`py-2 rounded-xl border text-xs font-bold transition text-center cursor-pointer min-h-[38px] ${
+                          selectedDuration === m
+                            ? "bg-[#176B49] text-white border-[#176B49]"
+                            : "bg-white dark:bg-zinc-900 text-[#102E23] dark:text-zinc-200 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
+                        }`}
+                      >
+                        {m} min
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Nível de experiência */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider">
+                    Nível de experiência
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {LEVEL_OPTIONS.map((lvl) => (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => setSelectedLevel(lvl)}
+                        className={`py-2.5 rounded-2xl border text-xs font-bold transition text-center cursor-pointer min-h-[40px] ${
+                          selectedLevel === lvl
+                            ? "bg-[#176B49] text-white border-[#176B49]"
+                            : "bg-white dark:bg-zinc-900 text-[#102E23] dark:text-zinc-200 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
+                        }`}
+                      >
+                        {lvl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 4. Dores ou restrições (nunca presumir ausência) */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider">
+                    Possui alguma dor ou restrição física?
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHasRestrictions(false);
+                        setRestrictionsText("");
+                      }}
+                      className={`py-2.5 px-3 rounded-2xl border text-xs font-bold transition text-center cursor-pointer min-h-[40px] ${
+                        hasRestrictions === false
+                          ? "bg-[#176B49] text-white border-[#176B49]"
+                          : "bg-white dark:bg-zinc-900 text-[#102E23] dark:text-zinc-200 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
+                      }`}
+                    >
+                      Não possui
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHasRestrictions(true)}
+                      className={`py-2.5 px-3 rounded-2xl border text-xs font-bold transition text-center cursor-pointer min-h-[40px] ${
+                        hasRestrictions === true
+                          ? "bg-[#176B49] text-white border-[#176B49]"
+                          : "bg-white dark:bg-zinc-900 text-[#102E23] dark:text-zinc-200 border-[#E5E8E2] dark:border-zinc-800 hover:border-[#176B49]"
+                      }`}
+                    >
+                      Sim, possui
+                    </button>
+                  </div>
+
+                  {hasRestrictions === true && (
+                    <div className="pt-1.5 animate-in fade-in duration-150">
+                      <input
+                        type="text"
+                        value={restrictionsText}
+                        onChange={(e) => setRestrictionsText(e.target.value)}
+                        placeholder="Descreva (ex: dor no joelho esquerdo, evitar agachamento profundo...)"
+                        className="w-full rounded-2xl bg-white dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3.5 py-2.5 text-xs text-[#102E23] dark:text-zinc-100 placeholder:text-[#8C9890] focus:outline-none focus:ring-2 focus:ring-[#176B49] min-h-[42px]"
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Personalizar mais (Acordeão opcional) */}
+                <details className="rounded-2xl border border-[#E5E8E2] dark:border-zinc-800 bg-[#F5F5F0]/60 dark:bg-zinc-900/40 p-3.5 text-xs group">
+                  <summary className="font-bold text-[#102E23] dark:text-white cursor-pointer select-none list-none flex items-center justify-between">
+                    <span>Personalizar mais (opcional)</span>
+                    <span className="text-[#8C9890] group-open:rotate-180 transition-transform text-xs">▼</span>
+                  </summary>
+
+                  <div className="pt-3 space-y-3">
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-[#526058] dark:text-zinc-400 uppercase tracking-wider">
+                        Foco ou ênfase muscular
+                      </label>
+                      <input
+                        type="text"
+                        value={focusMuscles}
+                        onChange={(e) => setFocusMuscles(e.target.value)}
+                        placeholder="Ex: Foco em glúteos e posteriores de coxa, dar ênfase em ombros..."
+                        className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3 py-2 text-xs text-[#102E23] dark:text-zinc-100 placeholder:text-[#8C9890] focus:outline-none min-h-[40px]"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-[#526058] dark:text-zinc-400 uppercase tracking-wider">
+                        Quero explicar do meu jeito
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={freeTextExplanation}
+                        onChange={(e) => setFreeTextExplanation(e.target.value)}
+                        placeholder="Ex: Não prescrever leg press; priorizar exercícios livres com halteres..."
+                        className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 p-2.5 text-xs text-[#102E23] dark:text-zinc-100 placeholder:text-[#8C9890] focus:outline-none resize-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-[#526058] dark:text-zinc-400 uppercase tracking-wider">
+                        Nome da ficha
+                      </label>
+                      <input
+                        type="text"
+                        value={customTitle}
+                        onChange={(e) => setCustomTitle(e.target.value)}
+                        placeholder={`Sugerido: ${suggestedTitle}`}
+                        className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 px-3 py-2 text-xs font-semibold text-[#102E23] dark:text-zinc-100 placeholder:text-[#8C9890] focus:outline-none min-h-[40px]"
+                      />
+                    </div>
+                  </div>
+                </details>
+              </div>
+
+              {/* Botões do Rodapé */}
+              <div className="pt-2 flex items-center justify-between gap-3 border-t border-[#E5E8E2] dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setStep("INITIAL")}
+                  className="px-4 py-2.5 rounded-2xl text-xs font-semibold text-[#526058] hover:bg-[#F5F5F0] transition cursor-pointer min-h-[44px]"
+                >
+                  ← Voltar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleGenerateProposal}
+                  disabled={quota?.remainingToday === 0}
+                  className="px-6 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-[#176B49] hover:bg-[#12583B] active:bg-[#0E442E] disabled:opacity-50 transition shadow-sm flex items-center gap-2 cursor-pointer min-h-[46px]"
+                >
+                  <span>⚡ Gerar treino com IA</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* ETAPA 3: GENERATING                                      */}
           {/* ======================================================== */}
           {step === "GENERATING" && (
-            <div className="py-20 flex flex-col items-center justify-center text-center space-y-5">
-              <div className="w-16 h-16 rounded-3xl bg-[#176B49]/10 dark:bg-emerald-500/20 flex items-center justify-center border border-[#176B49]/20 text-[#176B49] dark:text-emerald-400 animate-pulse">
-                <svg className="w-9 h-9 animate-spin" fill="none" viewBox="0 0 24 24">
+            <div className="py-16 flex flex-col items-center justify-center text-center space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-[#176B49]/10 text-[#176B49] dark:text-emerald-400 flex items-center justify-center border border-[#176B49]/20 animate-pulse">
+                <svg className="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
               </div>
-              <div className="space-y-1.5 max-w-sm">
-                <p className="text-base font-bold text-[#102E23] dark:text-white">
-                  Construindo sua ficha de treino...
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-[#102E23] dark:text-white">
+                  Construindo sua ficha personalizada...
                 </p>
-                <p className="text-xs text-[#526058] dark:text-zinc-400 font-medium min-h-[20px] transition-all">
+                <p className="text-xs text-[#526058] dark:text-zinc-400">
                   {[
-                    "Estruturando as divisões do treino...",
-                    "Selecionando os melhores exercícios...",
-                    "Configurando séries, repetições e intervalos ideais...",
-                    "Garantindo equilíbrio muscular e segurança biomecânica...",
+                    "Preparando a rotina de treino...",
+                    "Selecionando os exercícios ideais...",
+                    "Calculando séries, repetições e intervalos...",
+                    "Garantindo equilíbrio muscular e segurança...",
                   ][loadingMsgIndex]}
                 </p>
               </div>
@@ -920,15 +972,15 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
           )}
 
           {/* ======================================================== */}
-          {/* STEP: PREVIEW — REVISÃO E ABERTURA NO EDITOR 4.0         */}
+          {/* ETAPA 4: PREVIEW (REVISÃO ANTES DO EDITOR)                */}
           {/* ======================================================== */}
           {step === "PREVIEW" && proposal && (
             <div className="space-y-4">
-              {/* Contextual Banner: Never show conflicting success & error banners */}
+              {/* Banner contextual de sucesso ou erro */}
               {errorMessage ? (
-                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between gap-2">
+                <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-rose-600 dark:text-rose-400">⚠️ Erro ao salvar:</span>
+                    <span className="font-bold">⚠️ Erro ao salvar:</span>
                     <span>{errorMessage}</span>
                   </div>
                   <button
@@ -940,7 +992,7 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
                   </button>
                 </div>
               ) : (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-[#176B49] dark:text-emerald-300 flex items-center gap-2">
                   <span className="font-bold">✓ Proposta pronta para revisão!</span>
                   <span>Esta ficha será salva estritamente como Rascunho para você revisar no editor.</span>
                 </div>
@@ -948,20 +1000,19 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
 
               <div>
                 <label htmlFor="ai-preview-title" className="block text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider mb-1">
-                  Título da Ficha
+                  Título do Treino
                 </label>
                 <input
                   id="ai-preview-title"
                   type="text"
                   value={workoutTitle}
                   onChange={(e) => setWorkoutTitle(e.target.value)}
-                  className="w-full bg-white dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[#102E23] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#176B49] min-h-[44px]"
+                  className="w-full bg-white dark:bg-zinc-900 border border-[#E5E8E2] dark:border-zinc-800 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-[#102E23] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#176B49] min-h-[44px]"
                 />
               </div>
 
-              <div className="space-y-4 max-h-[58vh] sm:max-h-[62vh] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[50vh] sm:max-h-[55vh] overflow-y-auto pr-1">
                 {editableCategories.map((cat, cIdx) => {
-                  // Group contiguous exercises by combinationIndex if present
                   type Cluster =
                     | {
                         type: "COMBINATION";
@@ -1039,21 +1090,21 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
                   return (
                     <div
                       key={`cat-${cIdx}`}
-                      className="border border-[#E5E8E2] dark:border-zinc-800 rounded-2xl p-4 bg-white dark:bg-[#181A1D] space-y-3 shadow-2xs"
+                      className="border border-[#E5E8E2] dark:border-zinc-800 rounded-2xl p-3.5 bg-white dark:bg-zinc-900 space-y-2.5 shadow-2xs"
                     >
-                      <div className="flex items-center justify-between text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider pb-1.5 border-b border-[#E5E8E2] dark:border-zinc-800">
+                      <div className="flex items-center justify-between text-xs font-bold text-[#102E23] dark:text-white uppercase tracking-wider pb-1 border-b border-[#F0F2ED] dark:border-zinc-800">
                         <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded-md bg-[#176B49]/10 text-[#176B49] dark:text-emerald-400 text-[11px] font-bold">
+                          <span className="px-2 py-0.5 rounded-md bg-[#176B49]/10 text-[#176B49] text-[11px] font-bold">
                             Divisão {String.fromCharCode(65 + cIdx)}
                           </span>
-                          <span className="text-[#102E23] dark:text-white text-xs">{cat.name}</span>
+                          <span>{cat.name}</span>
                         </div>
-                        <span className="text-[11px] text-[#526058] dark:text-zinc-400 font-normal font-mono">
+                        <span className="text-[11px] text-[#526058] font-mono">
                           {cat.exercises.length} {cat.exercises.length === 1 ? "exercício" : "exercícios"}
                         </span>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {clusters.map((cluster, clIdx) => {
                           if (cluster.type === "COMBINATION") {
                             const typeLabel =
@@ -1066,64 +1117,27 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
                             return (
                               <div
                                 key={`comb-${cIdx}-${clIdx}`}
-                                className="bg-[#176B49]/[0.04] dark:bg-emerald-500/[0.06] border border-[#176B49]/20 rounded-xl p-3 space-y-2.5"
+                                className="bg-[#176B49]/[0.04] border border-[#176B49]/20 rounded-xl p-2.5 space-y-2"
                               >
-                                <div className="flex flex-wrap items-center justify-between gap-2 text-xs pb-1.5 border-b border-[#176B49]/15">
-                                  <div className="flex items-center gap-1.5 font-bold text-[#176B49] dark:text-emerald-400">
-                                    <span className="text-sm">⚡</span>
-                                    <span>{typeLabel}</span>
-                                    <span className="font-normal text-[#526058] dark:text-zinc-400 font-mono text-[11px]">
-                                      ({cluster.items.length} exercícios)
-                                    </span>
-                                  </div>
-                                  <div className="text-[11px] text-[#526058] dark:text-zinc-400 font-mono">
-                                    {cluster.rounds} rodadas · {cluster.restSeconds}s descanso final
-                                  </div>
+                                <div className="flex items-center justify-between text-xs pb-1 border-b border-[#176B49]/15">
+                                  <span className="font-bold text-[#176B49]">⚡ {typeLabel} ({cluster.items.length} exercícios)</span>
+                                  <span className="text-[11px] text-[#526058] font-mono">{cluster.rounds} rodadas · {cluster.restSeconds}s descanso</span>
                                 </div>
-
-                                <div className="space-y-2 pl-0.5 sm:pl-1">
+                                <div className="space-y-1.5 pl-1">
                                   {cluster.items.map((ex, mIdx) => (
                                     <div
                                       key={`comb-m-${cIdx}-${clIdx}-${mIdx}`}
-                                      className="bg-white dark:bg-[#121316] border border-[#E5E8E2] dark:border-zinc-800 rounded-lg p-2.5 text-xs flex items-start gap-2.5 shadow-2xs"
+                                      className="bg-white dark:bg-zinc-800 border border-[#E5E8E2] dark:border-zinc-700 rounded-lg p-2 text-xs flex items-center justify-between"
                                     >
-                                      <span className="w-5 h-5 rounded-full bg-[#176B49]/10 text-[#176B49] dark:text-emerald-400 font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5 border border-[#176B49]/20">
-                                        {String.fromCharCode(65 + mIdx)}
-                                      </span>
-                                      <div className="flex-1 min-w-0 space-y-1">
-                                        <div className="flex flex-wrap items-center justify-between gap-1.5">
-                                          <span className="font-semibold text-[#102E23] dark:text-white break-words">
-                                            {ex.exerciseNameSnapshot}
-                                          </span>
-                                          {ex.matchStatus === "MATCHED" ? (
-                                            <span className="text-[10px] font-semibold text-[#176B49] dark:text-emerald-400 bg-[#176B49]/10 px-2 py-0.5 rounded-md border border-[#176B49]/20 shrink-0">
-                                              ✓ Na biblioteca
-                                            </span>
-                                          ) : ex.matchStatus === "AMBIGUOUS" ? (
-                                            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 shrink-0">
-                                              ⚠️ Similar
-                                            </span>
-                                          ) : (
-                                            <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20 shrink-0">
-                                              ✨ Personalizado
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div className="text-[11px] text-[#526058] dark:text-zinc-400 font-mono flex flex-wrap items-center gap-x-2">
-                                          <span>
-                                            {ex.sets || 3} séries ×{" "}
-                                            {ex.reps
-                                              ? ex.repsMax && ex.repsMax > ex.reps
-                                                ? `${ex.reps}–${ex.repsMax} reps`
-                                                : `${ex.reps} reps`
-                                              : ex.durationSeconds
-                                              ? formatDurationNatural(ex.durationSeconds, ex.durationUnit)
-                                              : "livre"}
-                                          </span>
-                                          {ex.load ? <span>· Carga: {ex.load}kg</span> : null}
-                                          {ex.notes ? <span className="italic text-zinc-400">· {ex.notes}</span> : null}
-                                        </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="w-4 h-4 rounded-full bg-[#176B49]/10 text-[#176B49] font-bold flex items-center justify-center text-[9px]">
+                                          {String.fromCharCode(65 + mIdx)}
+                                        </span>
+                                        <span className="font-semibold text-[#102E23] dark:text-white">{ex.exerciseNameSnapshot}</span>
                                       </div>
+                                      <span className="text-[11px] text-[#526058] font-mono">
+                                        {ex.sets || 3} × {ex.reps || "8-12"}
+                                      </span>
                                     </div>
                                   ))}
                                 </div>
@@ -1131,50 +1145,17 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
                             );
                           }
 
-                          // Single Exercise
                           const ex = cluster.item;
                           return (
                             <div
                               key={`single-${cIdx}-${cluster.originalIndex}`}
-                              className="bg-white dark:bg-[#121316] border border-[#E5E8E2] dark:border-zinc-800 rounded-lg p-2.5 text-xs space-y-1 shadow-2xs"
+                              className="bg-[#FAFBF9] dark:bg-zinc-800/60 border border-[#E5E8E2] dark:border-zinc-700/60 rounded-xl p-2.5 text-xs flex items-center justify-between"
                             >
-                              <div className="flex flex-wrap items-center justify-between gap-1.5">
-                                <div className="font-semibold text-[#102E23] dark:text-white break-words flex items-center gap-2">
-                                  <span>{ex.exerciseNameSnapshot}</span>
-                                  {ex.muscleGroupSnapshot ? (
-                                    <span className="text-[10px] text-[#526058] dark:text-zinc-400 px-1.5 py-0.5 rounded bg-[#F5F5F0] dark:bg-zinc-800">
-                                      {ex.muscleGroupSnapshot}
-                                    </span>
-                                  ) : null}
-                                </div>
-                                {ex.matchStatus === "MATCHED" ? (
-                                  <span className="text-[10px] font-semibold text-[#176B49] dark:text-emerald-400 bg-[#176B49]/10 px-2 py-0.5 rounded-md border border-[#176B49]/20 shrink-0">
-                                    ✓ Na biblioteca
-                                  </span>
-                                ) : ex.matchStatus === "AMBIGUOUS" ? (
-                                  <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 shrink-0">
-                                    ⚠️ Similar
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20 shrink-0">
-                                    ✨ Personalizado
-                                  </span>
-                                )}
+                              <div className="font-semibold text-[#102E23] dark:text-white truncate max-w-[220px] sm:max-w-xs">
+                                {ex.exerciseNameSnapshot}
                               </div>
-                              <div className="text-[11px] text-[#526058] dark:text-zinc-400 font-mono flex flex-wrap items-center gap-x-2">
-                                <span>
-                                  {ex.sets || 3} séries ×{" "}
-                                  {ex.reps
-                                    ? ex.repsMax && ex.repsMax > ex.reps
-                                      ? `${ex.reps}–${ex.repsMax} reps`
-                                      : `${ex.reps} reps`
-                                    : ex.durationSeconds
-                                    ? formatDurationNatural(ex.durationSeconds, ex.durationUnit)
-                                    : "livre"}
-                                </span>
-                                {ex.restSeconds ? <span>· Descanso: {ex.restSeconds}s</span> : null}
-                                {ex.load ? <span>· Carga: {ex.load}kg</span> : null}
-                                {ex.notes ? <span className="italic text-zinc-400">· {ex.notes}</span> : null}
+                              <div className="text-[11px] text-[#526058] font-mono shrink-0">
+                                {ex.sets || 3} × {ex.reps ? `${ex.reps} reps` : ex.durationSeconds ? formatDurationNatural(ex.durationSeconds, ex.durationUnit) : "livre"}
                               </div>
                             </div>
                           );
@@ -1185,11 +1166,11 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
                 })}
               </div>
 
-              <div className="pt-3 flex items-center justify-between gap-3 border-t border-[#E5E8E2] dark:border-zinc-800">
+              <div className="pt-2 flex items-center justify-between gap-3 border-t border-[#E5E8E2] dark:border-zinc-800">
                 <button
                   type="button"
-                  onClick={() => setStep("FORM")}
-                  className="px-4 py-2.5 min-h-[44px] rounded-xl text-xs sm:text-sm font-semibold text-[#526058] dark:text-zinc-300 hover:bg-[#E5E8E2]/60 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  onClick={() => setStep("DETAILS")}
+                  className="px-4 py-2.5 rounded-2xl text-xs font-semibold text-[#526058] hover:bg-[#F5F5F0] transition cursor-pointer min-h-[44px]"
                 >
                   ← Ajustar opções
                 </button>
@@ -1197,11 +1178,8 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
                 <button
                   type="button"
                   onClick={handleSaveDraft}
-                  className="px-5 py-2.5 min-h-[48px] rounded-xl text-xs sm:text-sm font-bold text-white bg-[#176B49] hover:bg-[#12583B] active:bg-[#0E442E] transition-colors shadow-sm flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-[#176B49] hover:bg-[#12583B] active:bg-[#0E442E] transition shadow-sm flex items-center gap-2 cursor-pointer min-h-[46px]"
                 >
-                  <svg className="w-4 h-4 text-emerald-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
                   <span>Salvar rascunho e abrir no editor</span>
                 </button>
               </div>
@@ -1209,22 +1187,22 @@ Defina séries, repetições e intervalos de descanso para cada exercício. Resp
           )}
 
           {/* ======================================================== */}
-          {/* STEP: SAVING — TRANSIÇÃO SUAVE PARA O EDITOR             */}
+          {/* ETAPA 5: SAVING                                          */}
           {/* ======================================================== */}
           {step === "SAVING" && (
-            <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-3xl bg-[#176B49]/10 flex items-center justify-center border border-[#176B49]/20 animate-pulse text-[#176B49]">
-                <svg className="w-9 h-9 animate-spin" fill="none" viewBox="0 0 24 24">
+            <div className="py-16 flex flex-col items-center justify-center text-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-[#176B49]/10 text-[#176B49] flex items-center justify-center border border-[#176B49]/20 animate-pulse">
+                <svg className="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
               </div>
               <div className="space-y-1">
-                <p className="text-base font-bold text-[#102E23] dark:text-white">
+                <p className="text-sm font-bold text-[#102E23]">
                   Salvando rascunho de treino...
                 </p>
-                <p className="text-xs text-[#526058] dark:text-zinc-400">
-                  Abrindo no editor para você conferir, personalizar e aplicar métodos avançados.
+                <p className="text-xs text-[#526058]">
+                  Abrindo no editor para você conferir e personalizar os detalhes.
                 </p>
               </div>
             </div>

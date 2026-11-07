@@ -119,17 +119,18 @@ export function WorkoutListControls({
   ];
 
   return (
-    <div className="p-3.5 sm:p-4 rounded-2xl border border-[#E5E8E2] bg-white shadow-2xs space-y-3.5 font-sans">
-      <div className="flex flex-col sm:flex-row gap-3">
+    <div id="workout-search-container" className="p-3 sm:p-3.5 rounded-2xl border border-[#E5E8E2] bg-white shadow-2xs space-y-3 font-sans">
+      <div className="flex flex-col sm:flex-row gap-2.5">
         {/* Search Field with Magnifying Glass and Clear Button */}
         <form onSubmit={handleSearchSubmit} className="relative flex-1">
           <SearchIcon className="w-4 h-4 text-[#8C9890] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
+            id="workout-search-input"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar treino, modelo ou aluno..."
-            className="w-full pl-10 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-[#E5E8E2] bg-[#FDFDFC] focus:outline-none focus:ring-2 focus:ring-[#176B49] focus:border-transparent text-[#102E23] placeholder-[#8C9890] transition-all min-h-[40px]"
+            className="w-full pl-10 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-[#E5E8E2] bg-[#FDFDFC] focus:outline-none focus:ring-2 focus:ring-[#176B49] focus:border-transparent text-[#102E23] placeholder-[#8C9890] transition-all min-h-[38px] sm:min-h-[40px]"
           />
           {searchTerm && (
             <button
@@ -152,7 +153,7 @@ export function WorkoutListControls({
             id="sort-select"
             value={currentSort}
             onChange={(e) => updateFilters({ sort: e.target.value })}
-            className="px-3 py-2 text-xs font-semibold rounded-xl border border-[#E5E8E2] bg-[#FDFDFC] text-[#102E23] focus:outline-none focus:ring-2 focus:ring-[#176B49] transition-all min-h-[40px] cursor-pointer"
+            className="w-full sm:w-auto px-3 py-2 text-xs font-semibold rounded-xl border border-[#E5E8E2] bg-[#FDFDFC] text-[#102E23] focus:outline-none focus:ring-2 focus:ring-[#176B49] transition-all min-h-[38px] sm:min-h-[40px] cursor-pointer"
           >
             {sortOptions.map((opt) => (
               <option key={opt.id} value={opt.id}>
@@ -163,28 +164,34 @@ export function WorkoutListControls({
         </div>
       </div>
 
-      {/* Row 2: Status Pills & Counter */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-2.5 border-t border-[#F0F2ED]">
+      {/* Row 2: Status Pills & Counter (omits status pills if on Templates tab) */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t border-[#F0F2ED]">
         {/* Status Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
-          {statusOptions.map((tab) => {
-            const isActive = currentStatus === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => updateFilters({ status: tab.id })}
-                className={`px-3 py-1.5 rounded-xl text-xs select-none transition-all min-h-[34px] flex items-center justify-center whitespace-nowrap cursor-pointer ${
-                  isActive
-                    ? "bg-[#102E23] text-white font-bold shadow-2xs"
-                    : "bg-[#F5F5F0] text-[#526058] hover:text-[#102E23] hover:bg-[#EAECE6] border border-[#E5E8E2] font-medium"
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+        {!isTemplatesTab ? (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+            {statusOptions.map((tab) => {
+              const isActive = currentStatus === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => updateFilters({ status: tab.id })}
+                  className={`px-3 py-1.5 rounded-xl text-xs select-none transition-all min-h-[32px] sm:min-h-[34px] flex items-center justify-center whitespace-nowrap cursor-pointer ${
+                    isActive
+                      ? "bg-[#102E23] text-white font-bold shadow-2xs"
+                      : "bg-[#F5F5F0] text-[#526058] hover:text-[#102E23] hover:bg-[#EAECE6] border border-[#E5E8E2] font-medium"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-xs text-[#526058] font-medium">
+            Modelos reutilizáveis prontos para prescrição
+          </div>
+        )}
 
         {/* Results Counter */}
         <div className="text-xs text-[#6B7870] font-medium shrink-0">

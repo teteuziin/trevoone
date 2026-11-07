@@ -2635,6 +2635,67 @@ export async function archiveWorkout(
   }
 }
 
+/**
+ * Renames a workout root and its active draft version (if one exists).
+ */
+export async function renameWorkout(
+  ctx: TrainingAccessContext,
+  workoutPublicId: string,
+  newTitle: string
+): Promise<{ ok: boolean }> {
+  assertCanAuthorTraining(ctx);
+
+  const cleanTitle = newTitle.trim();
+  if (!cleanTitle) {
+    throw new TrainingAuthorizationError("O título do treino não pode ser vazio.", "VALIDATION_FAILED", 400);
+  }
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+
+    const [wRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, consultancy_id, created_by_membership_id
+       FROM workouts
+       WHERE public_id = ? AND deleted_at IS NULL
+       LIMIT 1;`,
+      [workoutPublicId]
+    );
+
+    if (!wRows || wRows.length === 0) {
+      throw new TrainingAuthorizationError("Treino não encontrado.", "NOT_FOUND", 404);
+    }
+    const w = wRows[0];
+
+    if (Number(w.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado ao treino de outra consultoria.", "FORBIDDEN", 403);
+    }
+    const isCreator = ctx.membershipId && Number(w.created_by_membership_id) === ctx.membershipId;
+    if (!isCreator && !ctx.canManageConsultancy) {
+      throw new TrainingAuthorizationError("Apenas o autor ou administrador podem editar este treino.", "FORBIDDEN", 403);
+    }
+
+    await connection.execute<ResultSetHeader>(
+      `UPDATE workouts
+       SET title = ?, updated_at = NOW(3)
+       WHERE id = ?;`,
+      [cleanTitle, w.id]
+    );
+
+    // Also update draft version title if one exists
+    await connection.execute<ResultSetHeader>(
+      `UPDATE workout_versions
+       SET title = ?, updated_at = NOW(3)
+       WHERE workout_id = ? AND status = 'DRAFT';`,
+      [cleanTitle, w.id]
+    );
+
+    return { ok: true };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
 // ============================================================================
 // PRODUCT01-E1 EXTENSIONS: BUILDER CRUD, LIST & SET FOUNDATION
 // ============================================================================

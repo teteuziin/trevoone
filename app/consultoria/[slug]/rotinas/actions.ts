@@ -34,6 +34,7 @@ import {
   updateCardioConfigurationForDraftItem,
   updateWarmupConfigurationForDraftItem,
   archiveWorkout,
+  renameWorkout,
   deleteWorkout,
   deleteWorkoutDraft,
   createWorkoutSubBlock,
@@ -569,6 +570,28 @@ export async function archiveWorkoutAction(
 }
 
 /**
+ * Renames a workout root and active draft version.
+ */
+export async function renameWorkoutAction(
+  slug: string,
+  workoutPublicId: string,
+  newTitle: string
+): Promise<ActionResponse<{ ok: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const res = await renameWorkout(ctx, workoutPublicId, newTitle);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidatePath(`/consultoria/${slug}/rotinas/${workoutPublicId}`);
+    return { ok: true, data: res };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao renomear treino.",
+    };
+  }
+}
+
+/**
  * Searches published library exercises for the unified exercise picker.
  * Strictly filters out drafts and enforces tenant/creator isolation.
  */
@@ -916,12 +939,21 @@ export async function duplicateWorkoutAction(
 export async function saveWorkoutAsTemplateAction(
   slug: string,
   workoutPublicId: string,
-  versionPublicId: string,
+  versionPublicId?: string,
   options?: { title?: string }
 ): Promise<ActionResponse<{ templatePublicId: string; versionPublicId: string }>> {
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
-    const result = await saveWorkoutAsTemplate(ctx, workoutPublicId, versionPublicId, options);
+    let targetVersionPublicId = versionPublicId;
+    if (!targetVersionPublicId) {
+      const versions = await listWorkoutVersions(ctx, workoutPublicId);
+      if (!versions || versions.length === 0) {
+        return { ok: false, error: "Nenhuma versão encontrada para salvar como modelo." };
+      }
+      const published = versions.find((v) => v.status === "PUBLISHED");
+      targetVersionPublicId = (published || versions[0]).publicId;
+    }
+    const result = await saveWorkoutAsTemplate(ctx, workoutPublicId, targetVersionPublicId, options);
 
     revalidatePath(`/consultoria/${slug}/rotinas`);
     return {

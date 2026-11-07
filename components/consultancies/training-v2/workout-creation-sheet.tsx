@@ -226,29 +226,34 @@ export function WorkoutCreationSheet({
           {isTemplatesTab ? (
             <Link
               href={`/consultoria/${consultancySlug}/rotinas/novo?isTemplate=true`}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all font-sans cursor-pointer min-h-[40px]"
+              aria-label="Criar novo modelo de treino"
+              className="inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all font-sans cursor-pointer min-h-[38px] sm:min-h-[40px]"
             >
               <PlusIcon className="w-4 h-4" />
-              <span>Novo modelo</span>
+              <span className="sm:hidden">Criar</span>
+              <span className="hidden sm:inline">Novo modelo</span>
             </Link>
           ) : (
             <div className="flex items-center gap-2">
               <Link
                 href={`/consultoria/${consultancySlug}/rotinas/novo`}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all font-sans cursor-pointer min-h-[40px]"
+                aria-label="Criar novo treino"
+                className="inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all font-sans cursor-pointer min-h-[38px] sm:min-h-[40px]"
               >
                 <PlusIcon className="w-4 h-4" />
-                <span>Criar treino</span>
+                <span className="sm:hidden">Criar</span>
+                <span className="hidden sm:inline">Criar treino</span>
               </Link>
               <button
                 ref={triggerRef}
                 type="button"
                 onClick={() => setIsAiGenerateModalOpen(true)}
                 title="Criar treino com Inteligência Artificial"
-                aria-label="Criar com IA"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-[#F5F5F0] text-[#102E23] border border-[#E5E8E2] shadow-2xs transition-all cursor-pointer min-h-[40px] font-sans text-xs font-semibold"
+                aria-label="Criar treino com Inteligência Artificial"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-[#F5F5F0] text-[#102E23] border border-[#E5E8E2] shadow-2xs transition-all cursor-pointer min-h-[38px] sm:min-h-[40px] font-sans text-xs font-semibold"
               >
                 <SparklesIcon className="w-4 h-4 text-[#176B49]" />
+                <span className="sm:hidden">IA</span>
                 <span className="hidden sm:inline">Criar com IA</span>
               </button>
             </div>

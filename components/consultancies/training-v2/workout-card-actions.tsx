@@ -6,9 +6,30 @@ import { useRouter } from "next/navigation";
 import {
   deleteWorkoutAction,
   duplicateWorkoutAction,
+  renameWorkoutAction,
+  saveWorkoutAsTemplateAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
 import { TemplateAssignModal } from "./template-assign-modal";
 import { MobileActionSheet, MobileConfirmSheet, type ActionSheetOption } from "@/components/ui/mobile";
+
+function EditIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
+
+function LayersIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points="2 12 12 17 22 12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function MoreVertical({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -93,6 +114,8 @@ export function WorkoutCardActions({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState(workoutTitle);
   const [isPending, startTransition] = useTransition();
 
   const handleDuplicate = () => {
@@ -105,6 +128,32 @@ export function WorkoutCardActions({
         router.refresh();
       } else {
         alert(res.error || "Erro ao duplicar.");
+      }
+    });
+  };
+
+  const handleRename = () => {
+    if (!renameValue.trim()) return;
+    startTransition(async () => {
+      const res = await renameWorkoutAction(consultancySlug, workoutPublicId, renameValue.trim());
+      if (res.ok) {
+        setIsRenameModalOpen(false);
+        router.refresh();
+      } else {
+        alert(res.error || "Erro ao renomear treino.");
+      }
+    });
+  };
+
+  const handleSaveAsTemplate = () => {
+    setIsMenuOpen(false);
+    startTransition(async () => {
+      const res = await saveWorkoutAsTemplateAction(consultancySlug, workoutPublicId);
+      if (res.ok) {
+        alert("Ficha salva como modelo com sucesso!");
+        router.refresh();
+      } else {
+        alert(res.error || "Erro ao salvar modelo.");
       }
     });
   };
@@ -130,6 +179,16 @@ export function WorkoutCardActions({
         router.push(`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`);
       },
     },
+    {
+      id: "rename",
+      label: isTemplate ? "Renomear modelo" : "Renomear treino",
+      icon: <EditIcon className="w-4 h-4 text-[#102E23]" />,
+      onClick: () => {
+        setRenameValue(workoutTitle);
+        setIsRenameModalOpen(true);
+      },
+      disabled: isPending,
+    },
     ...(isTemplate
       ? [
           {
@@ -141,7 +200,15 @@ export function WorkoutCardActions({
             },
           },
         ]
-      : []),
+      : [
+          {
+            id: "save-template",
+            label: "Salvar como modelo",
+            icon: <LayersIcon className="w-4 h-4 text-[#6B46C1]" />,
+            onClick: handleSaveAsTemplate,
+            disabled: isPending,
+          },
+        ]),
     {
       id: "duplicate",
       label: isTemplate ? "Duplicar modelo" : "Duplicar treino",
@@ -236,7 +303,20 @@ export function WorkoutCardActions({
                   <span>{isTemplate ? "Ver modelo" : isDraft ? "Continuar treino" : "Ver treino"}</span>
                 </Link>
 
-                {isTemplate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setRenameValue(workoutTitle);
+                    setIsRenameModalOpen(true);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F5F0] flex items-center gap-2 text-left cursor-pointer transition-colors text-[#102E23]"
+                >
+                  <EditIcon className="w-3.5 h-3.5 text-[#526058]" />
+                  <span>{isTemplate ? "Renomear modelo" : "Renomear treino"}</span>
+                </button>
+
+                {isTemplate ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -247,6 +327,16 @@ export function WorkoutCardActions({
                   >
                     <UserCheckIcon className="w-3.5 h-3.5" />
                     <span>Atribuir a um aluno</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={handleSaveAsTemplate}
+                    className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F5F0] flex items-center gap-2 text-left cursor-pointer disabled:opacity-50 transition-colors text-[#102E23]"
+                  >
+                    <LayersIcon className="w-3.5 h-3.5 text-[#6B46C1]" />
+                    <span>Salvar como modelo</span>
                   </button>
                 )}
 
@@ -282,13 +372,68 @@ export function WorkoutCardActions({
                   className="w-full px-3 py-2 rounded-xl hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left cursor-pointer transition-colors"
                 >
                   <TrashIcon className="w-3.5 h-3.5" />
-                  <span>{isTemplate ? "Excluir modelo" : isDraft ? "Excluir rascunho" : "Excluir ficha"}</span>
+                  <span>{isTemplate ? "Excluir modelo" : isDraft ? "Excluir rascunho" : "Arquivar treino"}</span>
                 </button>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* RENAME WORKOUT MODAL */}
+      {isRenameModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-3xl bg-white border border-[#E5E8E2] shadow-2xl p-5 space-y-4 font-sans animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#EDF5F0] text-[#176B49] flex items-center justify-center shrink-0">
+                <EditIcon className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[#102E23]">
+                  {isTemplate ? "Renomear modelo" : "Renomear treino"}
+                </h3>
+                <p className="text-xs text-[#6B7870]">
+                  Altere o nome exibido para este treino
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="rename-workout-input" className="text-xs font-semibold text-[#102E23]">
+                Nome do treino
+              </label>
+              <input
+                id="rename-workout-input"
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                autoFocus
+                disabled={isPending}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-[#DEE2DA] bg-[#FDFDFC] text-sm text-[#102E23] focus:outline-none focus:ring-2 focus:ring-[#176B49] min-h-[42px]"
+              />
+            </div>
+
+            <div className="pt-2 border-t border-[#F0F2ED] flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setIsRenameModalOpen(false)}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[#526058] hover:bg-[#F5F5F0] transition-colors cursor-pointer min-h-[38px]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isPending || !renameValue.trim()}
+                onClick={handleRename}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-colors cursor-pointer min-h-[38px] disabled:opacity-50"
+              >
+                {isPending ? "Salvando..." : "Salvar nome"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MOBILE ACTION SHEET */}
       <div className="sm:hidden">

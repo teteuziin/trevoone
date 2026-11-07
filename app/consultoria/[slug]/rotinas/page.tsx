@@ -13,38 +13,12 @@ import { WorkoutCardActions } from "@/components/consultancies/training-v2/worko
 import { WorkoutCreationSheet } from "@/components/consultancies/training-v2/workout-creation-sheet";
 import { WorkoutListControls } from "@/components/consultancies/training-v2/workout-list-controls";
 import { WorkoutQuickActions } from "@/components/consultancies/training-v2/workout-quick-actions";
+import { WorkoutMobileScrollActions } from "@/components/consultancies/training-v2/workout-mobile-scroll-actions";
 
 function DumbbellIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M6.5 6.5l11 11M6.5 17.5l11-11M3 8l3-3m0 0l3 3M3 16l3 3m0 0l3-3m9-8l3-3m0 0l3 3m-3 11l3-3m0 0l3 3" />
-    </svg>
-  );
-}
-
-function LayersIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <polygon points="12 2 2 7 12 12 22 7 12 2" />
-      <polyline points="2 17 12 22 22 17" strokeLinecap="round" strokeLinejoin="round" />
-      <polyline points="2 12 12 17 22 12" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function UserIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-    </svg>
-  );
-}
-
-function ClockIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
     </svg>
   );
 }
@@ -222,7 +196,7 @@ export default async function ConsultancyWorkoutsPage({
         <div className="flex items-center gap-1 p-1 bg-[#EAECE6] border border-[#DEE2DA] rounded-2xl w-full sm:w-fit shadow-2xs">
           <Link
             href={`/consultoria/${slug}/rotinas`}
-            className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center cursor-pointer ${
+            className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center cursor-pointer ${
               !isTemplatesTab && !isAssignmentsTab
                 ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
                 : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
@@ -232,23 +206,25 @@ export default async function ConsultancyWorkoutsPage({
           </Link>
           <Link
             href={`/consultoria/${slug}/rotinas?tab=templates`}
-            className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center cursor-pointer ${
+            className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center cursor-pointer ${
               isTemplatesTab
                 ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
                 : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
             }`}
           >
-            Modelos prontos
+            <span className="sm:hidden">Modelos</span>
+            <span className="hidden sm:inline">Modelos prontos</span>
           </Link>
           <Link
             href={`/consultoria/${slug}/rotinas?tab=assignments`}
-            className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center cursor-pointer ${
+            className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center cursor-pointer ${
               isAssignmentsTab
                 ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
                 : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
             }`}
           >
-            Treinos dos alunos
+            <span className="sm:hidden">Dos alunos</span>
+            <span className="hidden sm:inline">Treinos dos alunos</span>
           </Link>
         </div>
 
@@ -361,112 +337,71 @@ export default async function ConsultancyWorkoutsPage({
                   const hasDraft = Boolean(w.hasActiveDraft);
                   const isPublished = Boolean(w.publishedVersionNumber != null && !hasDraft);
                   const studentName = w.assignedStudentName;
-                  const studentInitials = studentName
-                    ? studentName.slice(0, 2).toUpperCase()
-                    : null;
 
                   return (
                     <div
                       key={w.publicId}
-                      className="group bg-white rounded-2xl border border-[#E5E8E2] hover:border-[#CCD5CB] p-4 sm:p-5 shadow-2xs hover:shadow-xs transition-all flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+                      className="group bg-white rounded-2xl border border-[#E5E8E2] hover:border-[#CCD5CB] p-3.5 sm:p-4 shadow-2xs hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                     >
-                      {/* Left: Título, objetivo e badges */}
-                      <div className="min-w-0 flex-1 space-y-2.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <Link
-                              href={`/consultoria/${slug}/rotinas/${w.publicId}`}
-                              className="font-bold text-base sm:text-lg text-[#102E23] group-hover:text-[#176B49] transition-colors block truncate leading-tight"
-                            >
-                              {w.title}
-                            </Link>
-                            {w.objective && (
-                              <p className="text-xs text-[#526058] truncate mt-0.5 max-w-xl">
-                                {w.objective}
-                              </p>
-                            )}
-                          </div>
-                        </div>
+                      {/* Left: Título e linha única de metadados úteis */}
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <Link
+                          href={`/consultoria/${slug}/rotinas/${w.publicId}`}
+                          className="font-bold text-sm sm:text-base text-[#102E23] group-hover:text-[#176B49] transition-colors block truncate leading-tight"
+                        >
+                          {w.title}
+                        </Link>
 
-                        {/* Metadados: Status, Aluno, Blocos, Atualização */}
-                        <div className="flex items-center gap-2 flex-wrap text-xs">
+                        {/* Metadados essenciais em uma linha */}
+                        <div className="flex items-center gap-2 flex-wrap text-xs text-[#526058]">
                           {/* Status Badge */}
                           {hasDraft ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-[#FFF8E6] text-[#8C5D00] border border-[#F0D699]">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#FFF8E6] text-[#8C5D00] border border-[#F0D699]">
                               Em elaboração
                             </span>
                           ) : isPublished ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-[#EBF7EE] text-[#12583B] border border-[#C3E6CC]">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#EBF7EE] text-[#12583B] border border-[#C3E6CC]">
                               Publicado
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[11px] font-medium bg-[#F0F2ED] text-[#6B7870] border border-[#DEE2D9]">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-[#F0F2ED] text-[#6B7870] border border-[#DEE2D9]">
                               Arquivado
                             </span>
                           )}
 
                           {/* Student Pill / Template Tag */}
                           {w.isTemplate ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-                              <LayersIcon className="w-3 h-3" />
-                              <span>Modelo padrão</span>
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700">
+                              <span>·</span>
+                              <span>Modelo pronto</span>
                             </span>
                           ) : studentName ? (
-                            w.assignedStudentMembershipPublicId ? (
-                              <Link
-                                href={`/consultoria/${slug}/progresso/alunos/${w.assignedStudentMembershipPublicId}`}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-[#EDF5F0] text-[#102E23] border border-[#D5E4D8] hover:bg-[#E2EDE5] transition-colors"
-                              >
-                                <span className="w-4 h-4 rounded-full bg-[#176B49] text-white text-[9px] flex items-center justify-center font-bold">
-                                  {studentInitials}
-                                </span>
-                                <span className="truncate max-w-[140px] sm:max-w-[180px]">{studentName}</span>
-                              </Link>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-[#EDF5F0] text-[#102E23] border border-[#D5E4D8]">
-                                <span className="w-4 h-4 rounded-full bg-[#176B49] text-white text-[9px] flex items-center justify-center font-bold">
-                                  {studentInitials}
-                                </span>
-                                <span className="truncate max-w-[140px] sm:max-w-[180px]">{studentName}</span>
-                              </span>
-                            )
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-normal text-[#8C9890] bg-[#F5F5F0] border border-[#E5E8E2]">
-                              <UserIcon className="w-3 h-3 text-[#A0AAA3]" />
-                              <span>Sem aluno atribuído</span>
+                            <span className="inline-flex items-center gap-1 font-semibold text-[#102E23]">
+                              <span>·</span>
+                              <span className="truncate max-w-[140px] sm:max-w-[180px]">{studentName}</span>
                             </span>
-                          )}
+                          ) : null}
 
-                          {/* Divisões / Blocos */}
-                          <span className="text-[#526058] font-medium inline-flex items-center gap-1">
+                          {/* Divisões */}
+                          <span className="inline-flex items-center gap-1">
                             <span>·</span>
-                            <span>
-                              {w.blocksCount} {w.blocksCount === 1 ? "divisão" : "divisões"}
-                            </span>
+                            <span>{w.blocksCount} {w.blocksCount === 1 ? "divisão" : "divisões"}</span>
                           </span>
 
-                          {/* Duração Estimada */}
-                          {w.estimatedDurationMinutes != null && (
-                            <span className="text-[#6B7870] font-normal inline-flex items-center gap-1">
-                              <span>·</span>
-                              <ClockIcon className="w-3 h-3 text-[#8C9890]" />
-                              <span>~{w.estimatedDurationMinutes} min</span>
-                            </span>
-                          )}
-
                           {/* Data de Atualização */}
-                          <span className="text-[#8C9890] text-[11px]">
-                            · Atualizado em {formatDate(w.updatedAt)}
+                          <span className="text-[#8C9890] text-[11px] hidden sm:inline-flex items-center gap-1">
+                            <span>·</span>
+                            <span>Atualizado {formatDate(w.updatedAt)}</span>
                           </span>
                         </div>
                       </div>
 
                       {/* Right: Ações Diretas */}
-                      <div className="flex items-center justify-between sm:justify-end gap-2.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#F0F2ED] shrink-0">
+                      <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#F0F2ED] shrink-0">
                         {w.isTemplate ? (
                           <Link
                             href={`/consultoria/${slug}/rotinas/${w.publicId}`}
-                            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all cursor-pointer min-h-[38px]"
+                            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all cursor-pointer min-h-[36px]"
                           >
                             <span>Usar modelo</span>
                             <span aria-hidden="true">→</span>
@@ -474,15 +409,15 @@ export default async function ConsultancyWorkoutsPage({
                         ) : hasDraft ? (
                           <Link
                             href={`/consultoria/${slug}/rotinas/${w.publicId}`}
-                            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all cursor-pointer min-h-[38px]"
+                            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all cursor-pointer min-h-[36px]"
                           >
-                            <span>Continuar treino</span>
+                            <span>Continuar</span>
                             <span aria-hidden="true">→</span>
                           </Link>
                         ) : (
                           <Link
                             href={`/consultoria/${slug}/rotinas/${w.publicId}`}
-                            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-white hover:bg-[#F5F5F0] text-[#102E23] border border-[#D5DDD6] transition-all cursor-pointer min-h-[38px]"
+                            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-[#F5F5F0] text-[#102E23] border border-[#D5DDD6] transition-all cursor-pointer min-h-[36px]"
                           >
                             <span>Ver treino</span>
                             <span aria-hidden="true">→</span>
@@ -534,20 +469,13 @@ export default async function ConsultancyWorkoutsPage({
         )}
 
         {/* =========================================================================
-            6. BOTÃO FLUTUANTE CONTEXTUAL MOBILE
-            Garante acesso com 1 toque em telas pequenas sem cobrir a barra inferior
+            6. AÇÕES FLUTUANTES CONTEXTUAIS MOBILE (APENAS APÓS ROLAGEM)
+            Aparece discretamente após rolar para não competir com o cabeçalho
             ========================================================================= */}
-        <div className="fixed bottom-20 right-4 sm:hidden z-40 pointer-events-auto">
-          <Link
-            href={`/consultoria/${slug}/rotinas/novo${isTemplatesTab ? "?isTemplate=true" : ""}`}
-            className="flex items-center gap-2 px-4 py-3 rounded-full bg-[#176B49] text-white font-bold text-xs shadow-lg hover:bg-[#12583B] active:scale-95 transition-all min-h-[44px]"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            <span>Novo treino</span>
-          </Link>
-        </div>
+        <WorkoutMobileScrollActions
+          consultancySlug={slug}
+          isTemplatesTab={isTemplatesTab}
+        />
       </div>
     </ConsultancyAppShell>
   );

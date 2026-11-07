@@ -329,59 +329,47 @@ export function WorkoutAssignmentsList({
             return (
               <div
                 key={item.assignmentPublicId}
-                className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E5E8E2] hover:border-[#CCD5CB] shadow-2xs hover:shadow-xs transition-all space-y-3"
+                className="p-3.5 sm:p-4 rounded-2xl bg-white border border-[#E5E8E2] hover:border-[#CCD5CB] shadow-2xs hover:shadow-xs transition-all space-y-2.5"
               >
                 {/* Header: Student and Status Badge */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-[#EDF5F0] text-[#176B49] border border-[#D5E4D8] flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-[#EDF5F0] text-[#176B49] border border-[#D5E4D8] flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
                       {studentInitials}
                     </div>
                     <div className="min-w-0">
                       <h3 className="text-sm sm:text-base font-bold text-[#102E23] truncate leading-tight">
                         {item.studentName}
                       </h3>
-                      <p className="text-xs text-[#6B7870] truncate mt-0.5">
-                        {item.studentEmail}
-                      </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap shrink-0">
                     {hasUpdate ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-[#FFF8E6] text-[#8C5D00] border border-[#FBE3A4] shadow-2xs">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-[#FFF8E6] text-[#8C5D00] border border-[#FBE3A4] shadow-2xs">
                         <span className="w-2 h-2 rounded-full bg-[#E58900] animate-pulse" />
                         <span>Atualização disponível</span>
                       </span>
                     ) : isActive ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-[#EBF7EE] text-[#12583B] border border-[#CDEED5]">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-[#EBF7EE] text-[#12583B] border border-[#CDEED5]">
                         <span className="w-2 h-2 rounded-full bg-[#176B49]" />
                         <span>Treino ativo</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-semibold bg-[#F5F5F0] text-[#6B7870] border border-[#E5E8E2]">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-[#F5F5F0] text-[#6B7870] border border-[#E5E8E2]">
                         Treino encerrado
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Workout details and update prompt */}
-                <div className="pt-3 border-t border-[#F0F2ED] flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div className="space-y-1 min-w-0 flex-1">
+                {/* Workout details and direct actions */}
+                <div className="pt-2.5 border-t border-[#F0F2ED] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="space-y-0.5 min-w-0 flex-1">
                     <p className="text-sm font-bold text-[#102E23] truncate">
                       {item.workoutTitle}
                     </p>
-                    {item.baseWorkoutTitle && item.baseWorkoutTitle !== item.workoutTitle && (
-                      <p className="text-xs text-[#6B7870] truncate">
-                        Modelo base: {item.baseWorkoutTitle}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 flex-wrap text-xs text-[#526058] pt-0.5">
-                      <span className="font-medium text-[#102E23]">
-                        Treino em uso pelo aluno
-                      </span>
-                      <span>·</span>
+                    <div className="flex items-center gap-2 flex-wrap text-xs text-[#526058]">
                       <span>Início em {formatDate(item.startsOn)}</span>
                       {item.endsOn && (
                         <>
@@ -389,18 +377,20 @@ export function WorkoutAssignmentsList({
                           <span>Término: {formatDate(item.endsOn)}</span>
                         </>
                       )}
+                      {item.notesForStudent && (
+                        <>
+                          <span>·</span>
+                          <span className="italic text-[#6B7870] truncate max-w-[200px]">
+                            &ldquo;{item.notesForStudent}&rdquo;
+                          </span>
+                        </>
+                      )}
                     </div>
-                    {item.notesForStudent && (
-                      <p className="text-xs text-[#6B7870] italic pt-1">
-                        &ldquo;{item.notesForStudent}&rdquo;
-                      </p>
-                    )}
                   </div>
 
                   {/* Direct Actions */}
-                  {isActive && (
-                    <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0">
-                      {/* Secondary action: Rename workout for student */}
+                  <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
+                    {isActive && (
                       <button
                         type="button"
                         onClick={() => {
@@ -408,39 +398,55 @@ export function WorkoutAssignmentsList({
                           setEditedCustomTitle(item.customTitle || "");
                         }}
                         disabled={isPending}
-                        className="px-3 py-2 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] border border-[#DEE2DA] transition-all flex items-center gap-1.5 min-h-[38px] cursor-pointer"
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] border border-[#DEE2DA] transition-all flex items-center gap-1 min-h-[36px] cursor-pointer"
                         title="Renomear ficha do aluno"
                       >
                         <EditIcon className="w-3.5 h-3.5 text-[#6B7870]" />
-                        <span>Renomear ficha</span>
+                        <span className="hidden sm:inline">Renomear</span>
                       </button>
+                    )}
 
-                      {/* Primary action if update exists: 3-step comparison */}
-                      {hasUpdate && (
-                        <button
-                          type="button"
-                          onClick={() => setReviewUpdateItem(item)}
-                          disabled={isPending}
-                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all flex items-center gap-1.5 min-h-[38px] cursor-pointer"
-                        >
-                          <RefreshIcon className="w-3.5 h-3.5 text-white" />
-                          <span>Conferir atualização</span>
-                        </button>
-                      )}
+                    {hasUpdate ? (
+                      <button
+                        type="button"
+                        onClick={() => setReviewUpdateItem(item)}
+                        disabled={isPending}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all flex items-center gap-1.5 min-h-[36px] cursor-pointer"
+                      >
+                        <RefreshIcon className="w-3.5 h-3.5 text-white" />
+                        <span>Conferir atualização</span>
+                      </button>
+                    ) : isActive ? (
+                      <a
+                        href={`/consultoria/${slug}/rotinas/${item.workoutPublicId}`}
+                        className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all min-h-[36px] cursor-pointer"
+                      >
+                        <span>Ver treino</span>
+                        <span aria-hidden="true">→</span>
+                      </a>
+                    ) : (
+                      <a
+                        href={`/consultoria/${slug}/rotinas/${item.workoutPublicId}`}
+                        className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-[#F5F5F0] text-[#102E23] border border-[#D5DDD6] transition-all min-h-[36px] cursor-pointer"
+                      >
+                        <span>Ver histórico</span>
+                        <span aria-hidden="true">→</span>
+                      </a>
+                    )}
 
-                      {/* Secondary action: End assignment */}
+                    {isActive && (
                       <button
                         type="button"
                         onClick={() => setConfirmEndItem(item)}
                         disabled={isPending}
-                        className="px-3 py-2 rounded-xl text-xs font-semibold text-[#6B7870] hover:text-rose-600 hover:bg-rose-50 border border-[#DEE2DA] hover:border-rose-200 transition-all flex items-center gap-1.5 min-h-[38px] cursor-pointer"
+                        className="p-2 rounded-xl text-[#6B7870] hover:text-rose-600 hover:bg-rose-50 border border-[#DEE2DA] hover:border-rose-200 transition-all flex items-center justify-center min-h-[36px] min-w-[36px] cursor-pointer"
                         title="Encerrar treino do aluno"
+                        aria-label="Encerrar treino do aluno"
                       >
                         <StopCircleIcon className="w-3.5 h-3.5" />
-                        <span>Encerrar</span>
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             );

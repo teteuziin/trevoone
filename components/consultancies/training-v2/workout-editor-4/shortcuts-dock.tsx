@@ -60,62 +60,72 @@ export function ShortcutsDock({
   return (
     <aside
       aria-label="Barra de ações do editor"
-      className="fixed bottom-3 inset-x-0 z-40 px-3 flex justify-center pointer-events-none"
+      className="fixed inset-x-0 bottom-0 z-40 px-2 sm:px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex justify-center pointer-events-none"
     >
-      <div className="pointer-events-auto bg-[#102E23] text-white rounded-2xl sm:rounded-full p-1.5 shadow-2xl border border-[#163E27] flex items-center justify-between sm:justify-center gap-1 sm:gap-2 max-w-lg w-full">
+      <div className="pointer-events-auto bg-[#102E23] text-white rounded-2xl sm:rounded-full p-1 sm:p-1.5 shadow-2xl border border-[#163E27] grid grid-cols-5 sm:flex sm:items-center sm:justify-center gap-1 sm:gap-2 w-full max-w-lg">
         {/* 1. Adicionar */}
         <button
           type="button"
           onClick={onOpenAdd}
-          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-xl sm:rounded-full font-bold text-xs bg-[#176B49] hover:bg-emerald-600 text-white transition-colors min-h-[44px] cursor-pointer shadow-xs"
+          className="min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 py-1.5 sm:py-2 px-1 sm:px-3.5 rounded-xl sm:rounded-full text-white bg-[#176B49] hover:bg-emerald-600 transition-colors min-h-[44px] cursor-pointer shadow-xs"
           title="Adicionar exercício, bi-set, tri-set ou circuito"
         >
-          <PlusIcon />
-          <span>Adicionar</span>
+          <PlusIcon className="w-4 h-4 shrink-0 text-white" />
+          <span className="text-[10px] sm:text-xs font-bold tracking-tight truncate w-full text-center leading-tight">
+            Adicionar
+          </span>
         </button>
 
         {/* 2. Modelos */}
         <button
           type="button"
           onClick={onOpenModels}
-          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl sm:rounded-full font-semibold text-xs text-white/90 hover:text-white hover:bg-white/10 transition-colors min-h-[44px] cursor-pointer"
+          className="min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 py-1.5 sm:py-2 px-1 sm:px-3 rounded-xl sm:rounded-full text-white/90 hover:text-white hover:bg-white/10 transition-colors min-h-[44px] cursor-pointer"
           title="Modelos de treino prontos"
         >
-          <BookOpenIcon />
-          <span>Modelos</span>
+          <BookOpenIcon className="w-4 h-4 shrink-0" />
+          <span className="text-[10px] sm:text-xs font-semibold tracking-tight truncate w-full text-center leading-tight">
+            Modelos
+          </span>
         </button>
 
         {/* 3. Me ajuda (IA) */}
         <button
           type="button"
           onClick={onOpenAi}
-          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl sm:rounded-full font-bold text-xs text-emerald-300 hover:text-emerald-200 hover:bg-white/10 transition-colors min-h-[44px] cursor-pointer"
+          className="min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 py-1.5 sm:py-2 px-1 sm:px-3 rounded-xl sm:rounded-full text-emerald-300 hover:text-emerald-200 hover:bg-white/10 transition-colors min-h-[44px] cursor-pointer"
           title="Me ajuda — IA para sugestões, alternativas e montagem"
         >
-          <SparklesIcon className="text-emerald-400" />
-          <span>Me ajuda</span>
+          <SparklesIcon className="w-4 h-4 shrink-0 text-emerald-400" />
+          <span className="text-[10px] sm:text-xs font-bold tracking-tight truncate w-full text-center leading-tight">
+            Me ajuda
+          </span>
         </button>
 
         {/* 4. Organizar */}
         <button
           type="button"
           onClick={onOpenReorder}
-          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl sm:rounded-full font-semibold text-xs text-white/90 hover:text-white hover:bg-white/10 transition-colors min-h-[44px] cursor-pointer"
+          className="min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 py-1.5 sm:py-2 px-1 sm:px-3 rounded-xl sm:rounded-full text-white/90 hover:text-white hover:bg-white/10 transition-colors min-h-[44px] cursor-pointer"
           title="Reorganizar ordem dos exercícios"
         >
-          <ArrowsUpDownIcon />
-          <span>Organizar</span>
+          <ArrowsUpDownIcon className="w-4 h-4 shrink-0" />
+          <span className="text-[10px] sm:text-xs font-semibold tracking-tight truncate w-full text-center leading-tight">
+            Organizar
+          </span>
         </button>
 
         {/* 5. Finalizar */}
         <button
           type="button"
           onClick={onOpenFinalize}
-          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold text-xs bg-white text-[#102E23] hover:bg-[#EBF3ED] transition-colors min-h-[44px] cursor-pointer shadow-xs"
+          className="min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 py-1.5 sm:py-2 px-1 sm:px-3.5 rounded-xl sm:rounded-full bg-white text-[#102E23] hover:bg-[#EBF3ED] transition-colors min-h-[44px] cursor-pointer shadow-xs"
           title="Conferir e publicar ficha"
         >
-          <CheckCircleIcon className="text-[#176B49]" />
-          <span>Finalizar</span>
+          <CheckCircleIcon className="w-4 h-4 shrink-0 text-[#176B49]" />
+          <span className="text-[10px] sm:text-xs font-bold tracking-tight truncate w-full text-center leading-tight">
+            Finalizar
+          </span>
         </button>
       </div>
     </aside>

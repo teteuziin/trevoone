@@ -75,7 +75,35 @@ export function FinalizeDrawer({
     );
   }
 
-  const canPublish = totalExercises > 0 && title.trim().length > 0;
+  // Check incomplete combinations (bi-sets, tri-sets, circuits, supersets)
+  let hasIncompleteCombinations = false;
+  blocks.forEach((b) => {
+    (b.combinations || []).forEach((c) => {
+      const itemsCount = (c.items || []).length;
+      const type = c.combinationType;
+      const required = type === "TRI_SET" ? 3 : 2;
+      const label =
+        type === "TRI_SET"
+          ? "Tri-set"
+          : type === "CIRCUIT"
+          ? "Circuito"
+          : (type as string) === "SUPERSET"
+          ? "Supersérie"
+          : "Bi-set";
+      if (itemsCount < required) {
+        hasIncompleteCombinations = true;
+        issues.push(
+          `Na divisão "${b.title}": o ${label} está incompleto (${itemsCount}/${required} exercícios). Adicione os exercícios faltantes ou desfaça a combinação.`
+        );
+      }
+    });
+  });
+
+  const canPublish =
+    totalExercises > 0 &&
+    title.trim().length > 0 &&
+    !hasIncompleteCombinations &&
+    emptyBlocks.length === 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">

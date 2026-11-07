@@ -7,6 +7,7 @@ import type {
   WorkoutVersionDto,
   WorkoutBlockDto,
   WorkoutBlockItemDto,
+  WorkoutItemCombinationDto,
   ExerciseItemDto,
 } from "@/lib/training-v2/types";
 import type { WorkoutVersionSummaryDto } from "@/lib/training-v2/workout-repository";
@@ -397,38 +398,74 @@ export function WorkoutEditor4({
   };
 
   // =========================================================================
-  // 4. COMBINATIONS (BI-SET, TRI-SET, CIRCUIT)
+  // 4. COMBINATIONS (BI-SET, TRI-SET, CIRCUIT, SUPERSET)
   // =========================================================================
-  const handleCreateMethod = async (method: "BI_SET" | "TRI_SET" | "CIRCUIT") => {
+  const handleCreateMethod = async (
+    method: "BI_SET" | "TRI_SET" | "CIRCUIT" | "SUPERSET"
+  ) => {
     if (!activeBlock) return;
     setSaveStatus("saving");
 
     try {
-      // Pick first exercises if available or add placeholders
-      const existingItems = activeBlock.items || [];
-      const neededCount = method === "BI_SET" ? 2 : method === "TRI_SET" ? 3 : 3;
+      const existingItems = [...(activeBlock.items || [])];
+      const neededCount = method === "BI_SET" || method === "SUPERSET" ? 2 : 3;
 
-      let itemIds: string[] = [];
-      if (existingItems.length >= neededCount) {
-        itemIds = existingItems.slice(0, neededCount).map((i) => i.publicId);
+      // If we don't have enough exercises in the block, fetch popular exercises and add them
+      if (existingItems.length < neededCount) {
+        const { searchExercisesForPickerAction } = await import(
+          "@/app/consultoria/[slug]/rotinas/actions"
+        );
+        const searchRes = await searchExercisesForPickerAction(consultancySlug, {});
+        const pool = searchRes.ok && searchRes.data ? searchRes.data : [];
+        const missingCount = neededCount - existingItems.length;
+
+        for (let i = 0; i < missingCount; i++) {
+          const exToUse = pool[i % pool.length];
+          if (exToUse) {
+            const addRes = await addExerciseItemToBlockAction(
+              consultancySlug,
+              activeBlock.publicId,
+              exToUse.publicId
+            );
+            if (addRes.ok && addRes.data) {
+              existingItems.push(addRes.data);
+            }
+          }
+        }
       }
+
+      const itemIds = existingItems.slice(0, neededCount).map((i) => i.publicId);
+
+      const titleMap: Record<string, string> = {
+        BI_SET: "Bi-set",
+        TRI_SET: "Tri-set",
+        SUPERSET: "Supersérie",
+        CIRCUIT: "Circuito",
+      };
 
       const res = await createItemCombinationAction(consultancySlug, {
         blockPublicId: activeBlock.publicId,
         combinationType: method,
-        title: method === "BI_SET" ? "Bi-set" : method === "TRI_SET" ? "Tri-set" : "Circuito",
+        title: titleMap[method] || "Combinação",
         restAfterSeconds: 90,
         itemPublicIds: itemIds,
       });
 
       if (res.ok && res.data) {
         const newComb = res.data;
+        const combItems = existingItems.filter((it) => itemIds.includes(it.publicId));
+        const fullNewComb: WorkoutItemCombinationDto = {
+          ...newComb,
+          items: combItems,
+        };
+
         setBlocks((prev) =>
           prev.map((b) => {
             if (b.publicId !== activeBlock.publicId) return b;
             return {
               ...b,
-              combinations: [...(b.combinations || []), newComb],
+              items: existingItems,
+              combinations: [...(b.combinations || []), fullNewComb],
             };
           })
         );
@@ -754,6 +791,7 @@ export function WorkoutEditor4({
         {/* Divisão Ativa com Exercícios e "+ Inserir aqui" */}
         {activeBlock && (
           <DivisionWorkspace
+            consultancySlug={consultancySlug}
             block={activeBlock}
             onUpdateItemConfig={handleUpdateItemConfig}
             onMoveItemUp={(id) => handleMoveItem(id, "up")}
@@ -764,6 +802,7 @@ export function WorkoutEditor4({
               setInsertTarget({ blockPublicId: activeBlock.publicId, insertIndex: idx });
               setActiveDrawer("add");
             }}
+            onSelectExercise={handleSelectExercise}
             onOpenMethodModal={(m) => {
               handleCreateMethod(m);
             }}

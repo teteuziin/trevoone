@@ -9,7 +9,7 @@ interface AddItemModalProps {
   onClose: () => void;
   consultancySlug: string;
   onSelectExercise: (exercise: ExerciseItemDto) => Promise<void>;
-  onCreateMethod: (method: "BI_SET" | "TRI_SET" | "CIRCUIT") => Promise<void>;
+  onCreateMethod: (method: "BI_SET" | "TRI_SET" | "CIRCUIT" | "SUPERSET") => Promise<void>;
   targetIndex?: number;
 }
 
@@ -102,22 +102,22 @@ export function AddItemModal({
               onClick={() => setActiveTab("exercises")}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === "exercises"
-                  ? "bg-[#102E23] text-white shadow-2xs"
+                  ? "bg-[#176B49] text-white shadow-2xs"
                   : "bg-[#F5F5F0] text-[#526058] hover:text-[#102E23]"
               }`}
             >
-              🏋️ Exercícios da biblioteca
+              🏋️ Exercícios
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("methods")}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === "methods"
-                  ? "bg-[#102E23] text-white shadow-2xs"
+                  ? "bg-[#176B49] text-white shadow-2xs"
                   : "bg-[#F5F5F0] text-[#526058] hover:text-[#102E23]"
               }`}
             >
-              ⚡ Métodos avançados
+              ⚡ Métodos Avançados
             </button>
           </div>
 
@@ -130,54 +130,56 @@ export function AddItemModal({
           </button>
         </div>
 
-        {/* Content Tab 1: Exercícios */}
+        {/* Content Tab 1: Exercícios da Biblioteca */}
         {activeTab === "exercises" && (
-          <div className="flex flex-col flex-1 min-h-0">
-            {/* Search Input */}
-            <div className="p-3 sm:p-4 border-b border-[#F0F2ED] space-y-2.5">
+          <div className="flex flex-col flex-1 overflow-hidden">
+            {/* Search + Muscle Filters */}
+            <div className="p-3 sm:p-4 border-b border-[#F0F2ED] space-y-2.5 bg-[#FAFBF9]">
               <div className="relative">
                 <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7870] w-4 h-4" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Pesquisar por nome do exercício (ex: Supino, Agachamento, Puxada...)"
-                  className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium bg-[#F5F5F0] border border-[#E5E8E2] rounded-2xl text-[#102E23] focus:outline-none focus:ring-2 focus:ring-[#176B49]/30"
-                  autoFocus
+                  placeholder="Buscar exercício pelo nome..."
+                  className="w-full pl-10 pr-4 py-2 rounded-xl bg-white border border-[#E5E8E2] focus:border-[#176B49] text-sm text-[#102E23] placeholder-[#6B7870] outline-none shadow-2xs font-sans"
                 />
               </div>
 
-              {/* Muscle Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-                {MUSCLE_GROUPS.map((group) => (
-                  <button
-                    key={group}
-                    type="button"
-                    onClick={() => setSelectedMuscle(group)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                      selectedMuscle === group
-                        ? "bg-[#176B49] text-white"
-                        : "bg-[#F5F5F0] text-[#526058] hover:text-[#102E23]"
-                    }`}
-                  >
-                    {group}
-                  </button>
-                ))}
+              {/* Muscle Group Chips */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {MUSCLE_GROUPS.map((mg) => {
+                  const isSelected = selectedMuscle === mg;
+                  return (
+                    <button
+                      key={mg}
+                      type="button"
+                      onClick={() => setSelectedMuscle(mg)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-[#102E23] text-white"
+                          : "bg-white text-[#526058] hover:bg-[#E8F0EA] border border-[#E5E8E2]"
+                      }`}
+                    >
+                      {mg}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Exercise Results List */}
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1.5 divide-y divide-[#F5F7F4]">
+            {/* List of Exercises */}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 divide-y divide-[#F0F2ED]">
               {isLoading ? (
-                <div className="py-12 text-center text-xs text-[#6B7870] animate-pulse">
-                  Buscando exercícios...
+                <div className="p-8 text-center text-xs text-[#526058]">
+                  Carregando exercícios...
                 </div>
               ) : results.length === 0 ? (
-                <div className="py-12 text-center space-y-1">
+                <div className="p-8 text-center space-y-2">
                   <p className="text-sm font-bold text-[#102E23]">
                     Nenhum exercício encontrado
                   </p>
-                  <p className="text-xs text-[#6B7870]">
+                  <p className="text-xs text-[#526058]">
                     Tente buscar por outro termo ou selecione outro grupo muscular.
                   </p>
                 </div>
@@ -188,15 +190,16 @@ export function AddItemModal({
                     onClick={() => {
                       startTransition(async () => {
                         await onSelectExercise(exercise);
+                        onClose();
                       });
                     }}
-                    className="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl hover:bg-[#F0F5F2] cursor-pointer transition-colors group"
+                    className="py-3 px-2 sm:px-3 flex items-center justify-between gap-3 hover:bg-[#F5F5F0] rounded-xl transition-colors cursor-pointer group"
                   >
-                    <div className="min-w-0 pr-2">
-                      <p className="text-sm font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors leading-snug">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors truncate">
                         {exercise.name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-[#6B7870]">
+                      </h4>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-[#526058]">
                         {exercise.muscleGroupPrimary && (
                           <span className="font-semibold text-[#176B49]">
                             {exercise.muscleGroupPrimary}
@@ -233,18 +236,18 @@ export function AddItemModal({
                 Estruturas de Treinamento Avançado
               </h3>
               <p className="text-xs text-[#526058]">
-                Selecione um método para criar a estrutura na divisão. Você poderá escolher os exercícios em seguida.
+                Selecione um método para criar a estrutura na divisão.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Bi-set */}
               <div
                 onClick={() => {
                   onCreateMethod("BI_SET");
                   onClose();
                 }}
-                className="p-4 rounded-2xl border-2 border-[#D5E2D7] hover:border-blue-500 bg-white hover:bg-blue-50/20 p-4 transition-all cursor-pointer space-y-2 shadow-xs group"
+                className="p-4 rounded-2xl border-2 border-[#D5E2D7] hover:border-blue-500 bg-white hover:bg-blue-50/20 transition-all cursor-pointer space-y-2 shadow-xs group"
               >
                 <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-black text-sm">
                   ⚡
@@ -253,7 +256,7 @@ export function AddItemModal({
                   Bi-set
                 </h4>
                 <p className="text-xs text-[#526058] leading-relaxed">
-                  2 exercícios executados em sequência sem pausa entre eles.
+                  2 exercícios executados em sequência para o mesmo grupo muscular.
                 </p>
               </div>
 
@@ -263,7 +266,7 @@ export function AddItemModal({
                   onCreateMethod("TRI_SET");
                   onClose();
                 }}
-                className="p-4 rounded-2xl border-2 border-[#D5E2D7] hover:border-purple-500 bg-white hover:bg-purple-50/20 p-4 transition-all cursor-pointer space-y-2 shadow-xs group"
+                className="p-4 rounded-2xl border-2 border-[#D5E2D7] hover:border-purple-500 bg-white hover:bg-purple-50/20 transition-all cursor-pointer space-y-2 shadow-xs group"
               >
                 <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-black text-sm">
                   ⚡
@@ -276,13 +279,32 @@ export function AddItemModal({
                 </p>
               </div>
 
+              {/* Supersérie */}
+              <div
+                onClick={() => {
+                  onCreateMethod("SUPERSET");
+                  onClose();
+                }}
+                className="p-4 rounded-2xl border-2 border-[#D5E2D7] hover:border-emerald-500 bg-white hover:bg-emerald-50/20 transition-all cursor-pointer space-y-2 shadow-xs group"
+              >
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black text-sm">
+                  ⚡
+                </div>
+                <h4 className="font-extrabold text-sm text-[#102E23] group-hover:text-emerald-700 transition-colors">
+                  Supersérie
+                </h4>
+                <p className="text-xs text-[#526058] leading-relaxed">
+                  2 exercícios combinados para grupos opostos/antagônicos sem intervalo.
+                </p>
+              </div>
+
               {/* Circuito */}
               <div
                 onClick={() => {
                   onCreateMethod("CIRCUIT");
                   onClose();
                 }}
-                className="p-4 rounded-2xl border-2 border-[#D5E2D7] hover:border-amber-500 bg-white hover:bg-amber-50/20 p-4 transition-all cursor-pointer space-y-2 shadow-xs group"
+                className="p-4 rounded-2xl border-2 border-[#D5E2D7] hover:border-amber-500 bg-white hover:bg-amber-50/20 transition-all cursor-pointer space-y-2 shadow-xs group"
               >
                 <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center font-black text-sm">
                   🔄

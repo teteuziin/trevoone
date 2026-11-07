@@ -73,14 +73,18 @@ export function CombinationCard({
     BI_SET: "BI-SET",
     TRI_SET: "TRI-SET",
     CIRCUIT: "CIRCUITO",
-    SUPER_SET: "SUPER-SÉRIE",
+    SUPERSET: "SUPERSÉRIE",
+    SUPER_SET: "SUPERSÉRIE",
+    GIANT_SET: "SÉRIE GIGANTE",
   };
 
   const badgeColors: Record<string, string> = {
     BI_SET: "bg-blue-50 text-blue-700 border-blue-200",
     TRI_SET: "bg-purple-50 text-purple-700 border-purple-200",
     CIRCUIT: "bg-amber-50 text-amber-800 border-amber-200",
+    SUPERSET: "bg-emerald-50 text-emerald-800 border-emerald-200",
     SUPER_SET: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    GIANT_SET: "bg-orange-50 text-orange-800 border-orange-200",
   };
 
   const currentType = combination.combinationType || "BI_SET";

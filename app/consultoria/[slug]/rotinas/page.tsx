@@ -151,28 +151,29 @@ export default async function ConsultancyWorkoutsPage({
       showDashboardWallpaper={false}
       maxWidth="wide"
     >
-      <div className="w-full max-w-6xl mx-auto space-y-6 pb-32 sm:pb-16 font-sans">
+      <div className="w-full max-w-6xl mx-auto space-y-5 pb-32 sm:pb-16 font-sans">
         {/* =========================================================================
-            1. CABEÇALHO TREVOONE
-            Identidade visual limpa: Título "Treinos", subtítulo claro, CTA primário "+ Criar treino"
+            1. CABEÇALHO TREVOONE COMPACTO
+            Desktop: Título "Treinos", subtítulo claro, Ações: "+ Criar treino" e "Criar com IA"
+            Mobile: Linha única compacta com "Criar" e "IA" (nomes acessíveis completos)
             ========================================================================= */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-1 sm:pt-2">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#102E23] tracking-tight font-sans">
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-3xl font-extrabold text-[#102E23] tracking-tight font-sans">
               {pageTitle}
             </h1>
-            <p className="text-xs sm:text-sm text-[#526058] mt-1">
+            <p className="text-xs sm:text-sm text-[#526058] mt-0.5 truncate sm:whitespace-normal">
               {pageSubtitle}
             </p>
           </div>
 
-          <div className="shrink-0">
+          <div id="top-header-actions" className="shrink-0">
             <WorkoutCreationSheet consultancySlug={slug} isTemplatesTab={isTemplatesTab} />
           </div>
         </div>
 
         {/* =========================================================================
-            2. HERO COM ATALHOS RÁPIDOS E CONTINUAÇÃO DE RASCUNHO
+            2. HERO COM CONTINUAÇÃO DE RASCUNHO (COMPACTO E SEM DUPLICAÇÕES)
             ========================================================================= */}
         <WorkoutQuickActions
           consultancySlug={slug}
@@ -192,11 +193,12 @@ export default async function ConsultancyWorkoutsPage({
         {/* =========================================================================
             3. ABAS DE CONTEXTO
             Estilo TrevoOne marfim: Meus treinos | Modelos prontos | Treinos dos alunos
+            Mobile: Meus treinos | Modelos | Dos alunos
             ========================================================================= */}
         <div className="flex items-center gap-1 p-1 bg-[#EAECE6] border border-[#DEE2DA] rounded-2xl w-full sm:w-fit shadow-2xs">
           <Link
             href={`/consultoria/${slug}/rotinas`}
-            className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center cursor-pointer ${
+            className={`flex-1 sm:flex-initial text-center px-2.5 sm:px-4 py-2 text-[11px] sm:text-xs font-semibold rounded-xl select-none transition-all min-h-[36px] sm:min-h-[38px] flex items-center justify-center whitespace-nowrap cursor-pointer ${
               !isTemplatesTab && !isAssignmentsTab
                 ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
                 : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
@@ -206,7 +208,7 @@ export default async function ConsultancyWorkoutsPage({
           </Link>
           <Link
             href={`/consultoria/${slug}/rotinas?tab=templates`}
-            className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center cursor-pointer ${
+            className={`flex-1 sm:flex-initial text-center px-2.5 sm:px-4 py-2 text-[11px] sm:text-xs font-semibold rounded-xl select-none transition-all min-h-[36px] sm:min-h-[38px] flex items-center justify-center whitespace-nowrap cursor-pointer ${
               isTemplatesTab
                 ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
                 : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
@@ -217,7 +219,7 @@ export default async function ConsultancyWorkoutsPage({
           </Link>
           <Link
             href={`/consultoria/${slug}/rotinas?tab=assignments`}
-            className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] flex items-center justify-center cursor-pointer ${
+            className={`flex-1 sm:flex-initial text-center px-2.5 sm:px-4 py-2 text-[11px] sm:text-xs font-semibold rounded-xl select-none transition-all min-h-[36px] sm:min-h-[38px] flex items-center justify-center whitespace-nowrap cursor-pointer ${
               isAssignmentsTab
                 ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
                 : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
@@ -237,7 +239,7 @@ export default async function ConsultancyWorkoutsPage({
         ) : (
           <>
             {/* =====================================================================
-                3. BUSCA, FILTROS RÁPIDOS E ORDENAÇÃO
+                4. BUSCA, FILTROS RÁPIDOS E ORDENAÇÃO
                 ===================================================================== */}
             <WorkoutListControls
               consultancySlug={slug}
@@ -250,7 +252,7 @@ export default async function ConsultancyWorkoutsPage({
             />
 
             {/* =====================================================================
-                4. ESTADOS VAZIOS OU LISTA DE CARDS
+                5. ESTADOS VAZIOS OU LISTA DE CARDS COMPACTOS
                 ===================================================================== */}
             {loadError ? (
               <div className="p-8 sm:p-12 text-center rounded-3xl border border-rose-200 bg-rose-50/50 text-[#102E23] shadow-2xs space-y-3">
@@ -330,9 +332,9 @@ export default async function ConsultancyWorkoutsPage({
               )
             ) : (
               /* =================================================================
-                 5. LISTA DE FICHAS DE TREINO (CARDS RESPONSIVOS SEM SOBREPOSIÇÃO)
+                 6. LISTA DE FICHAS DE TREINO (CARDS COMPACTOS EM LINHA ÚNICA)
                  ================================================================= */
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {items.map((w) => {
                   const hasDraft = Boolean(w.hasActiveDraft);
                   const isPublished = Boolean(w.publishedVersionNumber != null && !hasDraft);
@@ -341,10 +343,10 @@ export default async function ConsultancyWorkoutsPage({
                   return (
                     <div
                       key={w.publicId}
-                      className="group bg-white rounded-2xl border border-[#E5E8E2] hover:border-[#CCD5CB] p-3.5 sm:p-4 shadow-2xs hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                      className="group bg-white rounded-2xl border border-[#E5E8E2] hover:border-[#CCD5CB] p-3 sm:p-3.5 shadow-2xs hover:shadow-xs transition-all flex items-center justify-between gap-2.5 sm:gap-3"
                     >
-                      {/* Left: Título e linha única de metadados úteis */}
-                      <div className="min-w-0 flex-1 space-y-1.5">
+                      {/* Left: Título e linha única de metadados essenciais */}
+                      <div className="min-w-0 flex-1 space-y-1">
                         <Link
                           href={`/consultoria/${slug}/rotinas/${w.publicId}`}
                           className="font-bold text-sm sm:text-base text-[#102E23] group-hover:text-[#176B49] transition-colors block truncate leading-tight"
@@ -353,18 +355,18 @@ export default async function ConsultancyWorkoutsPage({
                         </Link>
 
                         {/* Metadados essenciais em uma linha */}
-                        <div className="flex items-center gap-2 flex-wrap text-xs text-[#526058]">
+                        <div className="flex items-center gap-1.5 flex-wrap text-xs text-[#526058]">
                           {/* Status Badge */}
                           {hasDraft ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#FFF8E6] text-[#8C5D00] border border-[#F0D699]">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-[#FFF8E6] text-[#8C5D00] border border-[#F0D699]">
                               Em elaboração
                             </span>
                           ) : isPublished ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#EBF7EE] text-[#12583B] border border-[#C3E6CC]">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-[#EBF7EE] text-[#12583B] border border-[#C3E6CC]">
                               Publicado
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-[#F0F2ED] text-[#6B7870] border border-[#DEE2D9]">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-[#F0F2ED] text-[#6B7870] border border-[#DEE2D9]">
                               Arquivado
                             </span>
                           )}
@@ -378,7 +380,7 @@ export default async function ConsultancyWorkoutsPage({
                           ) : studentName ? (
                             <span className="inline-flex items-center gap-1 font-semibold text-[#102E23]">
                               <span>·</span>
-                              <span className="truncate max-w-[140px] sm:max-w-[180px]">{studentName}</span>
+                              <span className="truncate max-w-[120px] sm:max-w-[180px]">{studentName}</span>
                             </span>
                           ) : null}
 
@@ -397,11 +399,11 @@ export default async function ConsultancyWorkoutsPage({
                       </div>
 
                       {/* Right: Ações Diretas */}
-                      <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#F0F2ED] shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {w.isTemplate ? (
                           <Link
                             href={`/consultoria/${slug}/rotinas/${w.publicId}`}
-                            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all cursor-pointer min-h-[36px]"
+                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all cursor-pointer min-h-[34px] sm:min-h-[36px]"
                           >
                             <span>Usar modelo</span>
                             <span aria-hidden="true">→</span>
@@ -409,7 +411,7 @@ export default async function ConsultancyWorkoutsPage({
                         ) : hasDraft ? (
                           <Link
                             href={`/consultoria/${slug}/rotinas/${w.publicId}`}
-                            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all cursor-pointer min-h-[36px]"
+                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all cursor-pointer min-h-[34px] sm:min-h-[36px]"
                           >
                             <span>Continuar</span>
                             <span aria-hidden="true">→</span>
@@ -417,7 +419,7 @@ export default async function ConsultancyWorkoutsPage({
                         ) : (
                           <Link
                             href={`/consultoria/${slug}/rotinas/${w.publicId}`}
-                            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-[#F5F5F0] text-[#102E23] border border-[#D5DDD6] transition-all cursor-pointer min-h-[36px]"
+                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-[#F5F5F0] text-[#102E23] border border-[#D5DDD6] transition-all cursor-pointer min-h-[34px] sm:min-h-[36px]"
                           >
                             <span>Ver treino</span>
                             <span aria-hidden="true">→</span>
@@ -469,7 +471,7 @@ export default async function ConsultancyWorkoutsPage({
         )}
 
         {/* =========================================================================
-            6. AÇÕES FLUTUANTES CONTEXTUAIS MOBILE (APENAS APÓS ROLAGEM)
+            7. AÇÕES FLUTUANTES CONTEXTUAIS MOBILE (APENAS APÓS ROLAGEM)
             Aparece discretamente após rolar para não competir com o cabeçalho
             ========================================================================= */}
         <WorkoutMobileScrollActions

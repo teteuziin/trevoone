@@ -14,14 +14,6 @@ export interface WorkoutQuickActionsProps {
   activeTab?: string;
 }
 
-function ArrowRightIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-    </svg>
-  );
-}
-
 export function WorkoutQuickActions({
   consultancySlug,
   latestDraft,
@@ -34,22 +26,22 @@ export function WorkoutQuickActions({
 
   return (
     <div className="w-full font-sans">
-      <div className="p-3 sm:py-2.5 sm:px-4 rounded-2xl bg-[#102E23] text-white border border-[#163E27] shadow-2xs flex items-center justify-between gap-3 animate-in fade-in duration-200">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-7 h-7 rounded-lg bg-white/10 text-emerald-300 flex items-center justify-center shrink-0 border border-white/10 text-xs">
+      <div className="p-2.5 sm:py-2.5 sm:px-4 rounded-2xl bg-[#102E23] text-white border border-[#163E27] shadow-2xs flex items-center justify-between gap-2.5 animate-in fade-in duration-150">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-6 h-6 rounded-lg bg-white/10 text-emerald-300 flex items-center justify-center shrink-0 border border-white/10 text-xs">
             ⚡
           </span>
-          <div className="min-w-0 flex items-center gap-2 flex-wrap">
+          <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] font-semibold text-emerald-300 shrink-0">
               Continue de onde parou:
             </span>
             <Link
               href={`/consultoria/${consultancySlug}/rotinas/${latestDraft.publicId}`}
-              className="text-xs sm:text-sm font-bold text-white hover:text-emerald-200 transition-colors truncate max-w-[180px] sm:max-w-md"
+              className="text-xs sm:text-sm font-bold text-white hover:text-emerald-200 transition-colors truncate max-w-[150px] sm:max-w-md"
             >
               {latestDraft.title}
             </Link>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#FFF8E6]/20 text-[#FBE3A4] border border-[#FBE3A4]/30 shrink-0">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-[#FFF8E6]/20 text-[#FBE3A4] border border-[#FBE3A4]/30 shrink-0">
               Em elaboração
             </span>
           </div>
@@ -58,10 +50,10 @@ export function WorkoutQuickActions({
         <div className="shrink-0">
           <Link
             href={`/consultoria/${consultancySlug}/rotinas/${latestDraft.publicId}`}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-[#EBF3ED] text-[#102E23] transition-all cursor-pointer min-h-[36px] shadow-xs"
+            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-[#EBF3ED] text-[#102E23] transition-all cursor-pointer min-h-[34px] shadow-xs"
           >
             <span>Continuar</span>
-            <ArrowRightIcon />
+            <span aria-hidden="true">→</span>
           </Link>
         </div>
       </div>

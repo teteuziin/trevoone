@@ -346,13 +346,13 @@ export function PersonalOverviewHeader({
                     Criar manualmente
                   </p>
                   <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-normal">
-                    Monte uma ficha em branco escolhendo blocos e exercícios.
+                    Escolha os exercícios e monte a ficha.
                   </p>
                 </div>
                 <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
               </Link>
 
-              {/* Opção 2: Criar do zero com IA */}
+              {/* Opção 2: Criar com IA */}
               <button
                 type="button"
                 onClick={() => {
@@ -366,10 +366,10 @@ export function PersonalOverviewHeader({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-[#17191D] dark:text-white leading-tight">
-                    Criar do zero com IA
+                    Criar com IA
                   </p>
                   <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-normal">
-                    Descreva o treino e deixe a IA estruturar a ficha completa.
+                    Gere uma ficha a partir das suas orientações.
                   </p>
                 </div>
                 <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />
@@ -392,7 +392,7 @@ export function PersonalOverviewHeader({
                     Importar com IA
                   </p>
                   <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-1 leading-normal">
-                    Transforme um PDF, foto ou texto em ficha de treino.
+                    Transforme um treino existente em ficha.
                   </p>
                 </div>
                 <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] dark:text-[#6B7280] shrink-0" />

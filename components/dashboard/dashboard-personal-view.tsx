@@ -246,30 +246,58 @@ export function DashboardPersonalView({
 
   // Indicadores de treinamento matematicamente consistentes
   const computedMetrics: PersonalTrainingMetrics = useMemo(() => {
-    if (trainingMetrics) return trainingMetrics;
-    if (totalStudents === null && sortedStudents.length === 0) {
+    if (trainingMetrics) {
+      const total = trainingMetrics.totalStudents;
+      const semTreino = trainingMetrics.semTreinoCount;
+      const comTreino = trainingMetrics.comTreinoCount ?? Math.max(0, total - semTreino);
+      const emDiaPercent = trainingMetrics.emDiaPercent ?? (total > 0 ? Math.round((comTreino / total) * 100) : 0);
+      return {
+        ...trainingMetrics,
+        totalStudents: total,
+        comTreinoCount: comTreino,
+        semTreinoCount: semTreino,
+        emDiaPercent,
+        loadStatus: trainingMetrics.loadStatus || "SUCCESS",
+      };
+    }
+    if (totalStudents === null) {
       return {
         totalStudents: 0,
+        comTreinoCount: 0,
         semTreinoCount: 0,
         vencidosCount: 0,
         aVencerCount: 0,
         emDiaCount: 0,
         emDiaPercent: 0,
+        loadStatus: "LOADING",
       };
     }
-    const total = totalStudents ?? sortedStudents.length;
-    const semTreino = sortedStudents.length;
-    const emDia = Math.max(0, total - semTreino);
-    const emDiaPercent = total > 0 ? Math.round((emDia / total) * 100) : 0;
+    if (totalStudents === 0) {
+      return {
+        totalStudents: 0,
+        comTreinoCount: 0,
+        semTreinoCount: 0,
+        vencidosCount: 0,
+        aVencerCount: 0,
+        emDiaCount: 0,
+        emDiaPercent: 0,
+        loadStatus: "SUCCESS",
+      };
+    }
+    // Quando trainingMetrics não foi fornecido mas totalStudents > 0:
+    // NUNCA mascarar como 0 com treino se houver alunos! Trata como erro/indisponível.
     return {
-      totalStudents: total,
-      semTreinoCount: semTreino,
+      totalStudents,
+      comTreinoCount: 0,
+      semTreinoCount: 0,
       vencidosCount: 0,
       aVencerCount: 0,
-      emDiaCount: emDia,
-      emDiaPercent,
+      emDiaCount: 0,
+      emDiaPercent: 0,
+      loadStatus: "ERROR",
+      errorMessage: "Métricas de treino indisponíveis",
     };
-  }, [trainingMetrics, totalStudents, sortedStudents.length]);
+  }, [trainingMetrics, totalStudents]);
 
   // Indicadores de finanças com dados estritamente reais (sem simulações ou fallbacks falsos)
   const hasFinanceAccess = financeSummary?.hasAccess ?? false;
@@ -302,10 +330,53 @@ export function DashboardPersonalView({
 
   // 1. CARD PRINCIPAL: SITUAÇÃO DOS TREINOS
   const renderSituacaoDosTreinos = () => {
+    if (computedMetrics.loadStatus === "ERROR") {
+      return (
+        <section
+          aria-label="Situação dos treinos"
+          className="bg-white border border-[#ECD9CC] rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col justify-between h-full space-y-4"
+        >
+          <div>
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <div>
+                <h2 className="text-base sm:text-xl font-bold text-[#102E23] leading-tight font-sans">
+                  Situação dos treinos
+                </h2>
+                <p className="text-xs text-[#8C5D39] font-normal mt-0.5">
+                  Situação dos treinos dos seus alunos.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+              <span className="w-10 h-10 rounded-full bg-[#FAF6F2] border border-[#ECD9CC] text-[#8C5D39] flex items-center justify-center">
+                <AlertCircleIcon className="w-5 h-5" />
+              </span>
+              <div className="max-w-xs space-y-1">
+                <p className="text-sm font-bold text-[#102E23]">
+                  Não foi possível carregar os indicadores
+                </p>
+                <p className="text-xs text-[#526058]">
+                  Ocorreu uma instabilidade ao consultar as prescrições dos alunos.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#176B49] text-white text-xs font-bold hover:bg-[#102E23] transition-colors shadow-2xs mt-1"
+              >
+                <span>Tentar novamente</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
     const total = computedMetrics.totalStudents;
     const semTreino = computedMetrics.semTreinoCount;
-    const comTreino = Math.max(0, total - semTreino);
-    const percentComTreino = total > 0 ? Math.round((comTreino / total) * 100) : 0;
+    const comTreino = computedMetrics.comTreinoCount ?? Math.max(0, total - semTreino);
+    const percentComTreino = computedMetrics.emDiaPercent;
     const circumference = 238.761; // 2 * PI * 38
     const comTreinoLen = total > 0 ? (comTreino / total) * circumference : 0;
     const semTreinoLen = total > 0 ? (semTreino / total) * circumference : 0;

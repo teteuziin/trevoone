@@ -319,7 +319,7 @@ export async function listPersonalStudents(params: {
             a.student_membership_id,
             a.public_id AS assignment_public_id,
             p.public_id AS plan_public_id,
-            COALESCE(v.title, p.title) AS plan_title,
+            v.title AS plan_title,
             v.version_number,
             v.public_id AS version_public_id,
             a.starts_on
@@ -1516,7 +1516,7 @@ export async function getPersonalStudentDetail(params: {
           na.notes_for_student,
           na.created_at AS assigned_at,
           p.public_id AS plan_public_id,
-          COALESCE(nv.title, p.title) AS plan_title,
+          nv.title AS plan_title,
           nv.public_id AS version_public_id,
           nv.version_number
          FROM nutrition_v2_assignments na
@@ -1554,7 +1554,7 @@ export async function getPersonalStudentDetail(params: {
           p.public_id AS plan_public_id,
           v.public_id AS version_public_id,
           v.version_number,
-          COALESCE(v.title, p.title) AS draft_title,
+          v.title AS draft_title,
           v.updated_at
          FROM nutrition_v2_assignments a
          INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
@@ -1694,6 +1694,9 @@ export interface PersonalTrainingMetrics {
   vencidosCount: number;
   semTreinoCount: number;
   emDiaPercent: number;
+  comTreinoCount?: number;
+  loadStatus?: "SUCCESS" | "ERROR" | "LOADING";
+  errorMessage?: string;
 }
 
 export function computePersonalTrainingMetrics(
@@ -1732,10 +1735,12 @@ export function computePersonalTrainingMetrics(
   return {
     totalStudents,
     emDiaCount,
+    comTreinoCount: emDiaCount + aVencerCount + vencidosCount,
     aVencerCount,
     vencidosCount,
     semTreinoCount,
     emDiaPercent,
+    loadStatus: "SUCCESS",
   };
 }
 

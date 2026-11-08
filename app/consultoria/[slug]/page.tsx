@@ -40,6 +40,7 @@ import {
   computePersonalTrainingMetrics,
   getPersonalAssessmentsCount,
 } from "@/lib/consultancies/personal-student-hub";
+import { getAuthoritativeTrainingMetrics } from "@/lib/training-v2/training-metrics-service";
 import dynamic from "next/dynamic";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { listUnreadAnnouncementsForUser } from "@/lib/consultancies/announcements";
@@ -240,18 +241,30 @@ export default async function ConsultancyPage({ params }: PageProps) {
           const tz = context.consultancyTimezone || "America/Sao_Paulo";
           const todayDateStr = getConsultancyLocalDate(tz, new Date());
 
-          const [res, personalStudents, upcomingConsultations, assessmentStats] = await Promise.all([
-            listWorkoutsForProfessional(tCtx, { limit: 50 }),
-            listPersonalStudents({ consultancyId: context.consultancyId }).catch(() => null),
+          const [res, personalStudents, upcomingConsultations, assessmentStats, authoritativeMetrics] = await Promise.all([
+            listWorkoutsForProfessional(tCtx, { limit: 50 }).catch((err) => {
+              console.error("[PersonalWorkouts] listWorkouts error:", err);
+              return { items: [], total: 0 };
+            }),
+            listPersonalStudents({ consultancyId: context.consultancyId }).catch((err) => {
+              console.error("[PersonalWorkouts] listPersonalStudents error:", err);
+              return null;
+            }),
             context.membershipId
               ? listUpcomingConsultationsForProfessional(context.consultancyId, context.membershipId, 50).catch(() => null)
               : Promise.resolve(null),
             getPersonalAssessmentsCount(context.consultancyId).catch(() => ({ pendingAssessmentsCount: 0, completedAssessmentsCount: 0 })),
+            getAuthoritativeTrainingMetrics(context.consultancyId, todayDateStr).catch((err) => {
+              console.error("[PersonalWorkouts] getAuthoritativeTrainingMetrics error:", err);
+              return null;
+            }),
           ]);
 
-          const trainingMetrics = personalStudents
-            ? computePersonalTrainingMetrics(personalStudents, todayDateStr)
-            : null;
+          const trainingMetrics = authoritativeMetrics && authoritativeMetrics.loadStatus === "SUCCESS"
+            ? authoritativeMetrics
+            : (personalStudents
+                ? computePersonalTrainingMetrics(personalStudents, todayDateStr)
+                : authoritativeMetrics);
 
           const todayConsultations = upcomingConsultations
             ? upcomingConsultations
@@ -275,17 +288,23 @@ export default async function ConsultancyPage({ params }: PageProps) {
                 }))
             : [];
 
-          const studentsWithoutWorkout = personalStudents
-            ? personalStudents
-                .filter((s) => !s.latestWorkoutTitle || s.latestAssignmentStatus !== "ACTIVE")
-                .map((s) => ({
-                  membershipPublicId: s.membershipPublicId,
-                  userPublicId: s.userPublicId,
-                  name: s.name,
-                  email: s.email,
-                  joinedAt: s.joinedAt,
-                }))
-            : [];
+          const studentsWithoutWorkout = authoritativeMetrics && authoritativeMetrics.loadStatus === "SUCCESS"
+            ? authoritativeMetrics.studentsWithoutWorkout
+            : (personalStudents
+                ? personalStudents
+                    .filter((s) => !s.latestWorkoutTitle || s.latestAssignmentStatus !== "ACTIVE")
+                    .map((s) => ({
+                      membershipPublicId: s.membershipPublicId,
+                      userPublicId: s.userPublicId,
+                      name: s.name,
+                      email: s.email,
+                      joinedAt: s.joinedAt,
+                    }))
+                : []);
+
+          const totalStudents = authoritativeMetrics && authoritativeMetrics.loadStatus === "SUCCESS"
+            ? authoritativeMetrics.totalStudents
+            : (personalStudents ? personalStudents.length : null);
 
           const prescribedBlocksCount = (res.items || []).reduce(
             (acc, w) => acc + (w.blocksCount || 0),
@@ -294,7 +313,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
 
           return {
             total: res.total,
-            totalStudents: personalStudents ? personalStudents.length : null,
+            totalStudents,
             prescribedBlocksCount,
             todayConsultations,
             studentsWithoutWorkout,
@@ -527,6 +546,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     studentConsultations,
     studentChats,
     studentDailyWorkout,
+    authoritativeTrainingFallback,
   ] = await Promise.all([
     needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) ? getStudentOnboardingStatus(session.userId, slug).catch(() => null) : Promise.resolve(null),
     needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer)
@@ -570,7 +590,21 @@ export default async function ConsultancyPage({ params }: PageProps) {
     studentConsultationsPromise,
     studentChatPromise,
     studentDailyWorkoutPromise,
+    needPersonalData
+      ? getAuthoritativeTrainingMetrics(
+          context.consultancyId,
+          getConsultancyLocalDate(context.consultancyTimezone || "America/Sao_Paulo", new Date())
+        ).catch(() => null)
+      : Promise.resolve(null),
   ]);
+
+  // Authoritative training metrics (Single Source of Truth)
+  const effectiveTrainingMetrics =
+    personalPlansResult?.trainingMetrics ?? authoritativeTrainingFallback;
+  const effectiveStudentsWithoutWorkout =
+    personalPlansResult?.studentsWithoutWorkout ?? authoritativeTrainingFallback?.studentsWithoutWorkout ?? [];
+  const effectiveTotalStudents =
+    personalPlansResult?.totalStudents ?? authoritativeTrainingFallback?.totalStudents ?? adminOverview?.students;
 
   // Derived metrics for Nutritionist cockpit
   // Não truncar sobre pageSize: só calcula se todos os planos da consultoria couberam na página (total <= items.length)
@@ -773,11 +807,11 @@ export default async function ConsultancyPage({ params }: PageProps) {
             workouts={personalPlansResult?.items || []}
             totalPlans={personalPlansResult?.total}
             totalWorkouts={personalPlansResult?.total}
-            totalStudents={personalPlansResult?.totalStudents ?? adminOverview?.students}
+            totalStudents={effectiveTotalStudents}
             prescribedBlocksCount={personalPlansResult?.prescribedBlocksCount}
-            studentsWithoutWorkout={personalPlansResult?.studentsWithoutWorkout || []}
+            studentsWithoutWorkout={effectiveStudentsWithoutWorkout}
             todayConsultations={personalPlansResult?.todayConsultations ?? null}
-            trainingMetrics={personalPlansResult?.trainingMetrics}
+            trainingMetrics={effectiveTrainingMetrics}
             assessmentStats={personalPlansResult?.assessmentStats}
             activeRoleMode={effectiveMode}
             financeSummary={personalFinanceResult}
@@ -835,11 +869,11 @@ export default async function ConsultancyPage({ params }: PageProps) {
             workouts={personalPlansResult?.items || []}
             totalPlans={personalPlansResult?.total}
             totalWorkouts={personalPlansResult?.total}
-            totalStudents={personalPlansResult?.totalStudents ?? adminOverview?.students}
+            totalStudents={effectiveTotalStudents}
             prescribedBlocksCount={personalPlansResult?.prescribedBlocksCount}
-            studentsWithoutWorkout={personalPlansResult?.studentsWithoutWorkout || []}
+            studentsWithoutWorkout={effectiveStudentsWithoutWorkout}
             todayConsultations={personalPlansResult?.todayConsultations ?? null}
-            trainingMetrics={personalPlansResult?.trainingMetrics}
+            trainingMetrics={effectiveTrainingMetrics}
             assessmentStats={personalPlansResult?.assessmentStats}
             financeSummary={personalFinanceResult}
           />

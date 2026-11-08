@@ -775,7 +775,7 @@ export async function getClinicalConsultationDetail(
               a.measurement_date,
               a.public_id AS anthro_public_id,
               pv.version_number,
-              p.title AS plan_title,
+              pv.title AS plan_title,
               p.public_id AS plan_public_id
        FROM nutrition_v2_consultations c
        JOIN consultancy_members sm ON sm.id = c.student_membership_id
@@ -784,7 +784,7 @@ export async function getClinicalConsultationDetail(
        JOIN users pu ON pu.id = pm.user_id
        LEFT JOIN nutrition_v2_patient_anthropometrics a ON a.id = c.anthropometric_entry_id
        LEFT JOIN nutrition_v2_plan_versions pv ON pv.id = c.active_plan_version_id
-       LEFT JOIN nutrition_v2_plans p ON p.id = pv.plan_id
+       LEFT JOIN nutrition_v2_plans p ON p.id = pv.nutrition_plan_id
        WHERE c.consultancy_id = ? AND c.public_id = ?
        LIMIT 1`,
       [consultancyId, publicId]

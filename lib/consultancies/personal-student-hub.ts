@@ -265,7 +265,7 @@ export async function listPersonalStudents(params: {
           u.full_name,
           u.email,
           cm.created_at AS joined_at,
-          COALESCE(wv.title, w.title) AS latest_workout_title,
+          COALESCE(NULLIF(TRIM(latest_wa.custom_title), ''), wv.title, w.title) AS latest_workout_title,
           COALESCE(w.status, wv.status) AS latest_workout_status,
           latest_wa.status AS latest_assignment_status,
           latest_wa.starts_on AS latest_assignment_starts_on,
@@ -292,6 +292,7 @@ export async function listPersonalStudents(params: {
           SELECT
             wa.student_membership_id,
             wa.workout_version_id,
+            wa.custom_title,
             wa.status,
             wa.starts_on,
             wa.ends_on
@@ -307,6 +308,7 @@ export async function listPersonalStudents(params: {
               ) AS rn
             FROM workout_assignments wa_inner
             WHERE wa_inner.deleted_at IS NULL
+              AND wa_inner.consultancy_id = ?
           ) wa
           WHERE wa.rn = 1
         ) latest_wa ON latest_wa.student_membership_id = cm.id
@@ -333,7 +335,7 @@ export async function listPersonalStudents(params: {
           AND u.deleted_at IS NULL
       `;
 
-      const queryParams: (string | number)[] = [consultancyId, consultancyId];
+      const queryParams: (string | number)[] = [consultancyId, consultancyId, consultancyId];
 
       if (search && search.trim()) {
         const q = `%${search.trim()}%`;

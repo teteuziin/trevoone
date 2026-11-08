@@ -64,6 +64,8 @@ import {
   getTemplatePreview,
   listWorkoutVersions,
   listPublishedTemplatesForPicker,
+  listWorkoutsForProfessional,
+  type WorkoutListItemDto,
   type CreateWorkoutInput,
   type UpdateWorkoutDraftMetadataInput,
   type SimpleNormalSetInput,
@@ -1113,6 +1115,29 @@ export async function listPublishedTemplatesAction(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Erro ao carregar modelos de treino.",
+    };
+  }
+}
+
+/**
+ * Lists authored workouts in the consultancy to clone into a template.
+ */
+export async function listExistingWorkoutsForCloneAction(
+  slug: string,
+  query?: string
+): Promise<ActionResponse<WorkoutListItemDto[]>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const result = await listWorkoutsForProfessional(ctx, {
+      query: query?.trim() || undefined,
+      isTemplate: false,
+      limit: 30,
+    });
+    return { ok: true, data: result.items };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao carregar treinos existentes.",
     };
   }
 }

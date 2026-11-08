@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { createCustomExerciseAction } from "@/app/consultoria/[slug]/rotinas/actions";
+import React, { useState, useRef, useEffect } from "react";
+import {
+  createCustomExerciseAction,
+  searchExercisesForPickerAction,
+} from "@/app/consultoria/[slug]/rotinas/actions";
 import { createConsultancyExerciseDraftAction } from "@/app/consultoria/[slug]/exercicios/actions";
 import type { ExerciseItemDto, WorkoutBlockItemDto } from "@/lib/training-v2/types";
 
@@ -63,6 +66,20 @@ function CheckCircleIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function SparklesIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+    </svg>
+  );
+}
+
+interface SuggestedVideo {
+  name: string;
+  mediaUrl: string;
+  mediaPublicId?: string;
+}
+
 export function CreateExerciseModal({
   isOpen,
   onClose,
@@ -87,7 +104,61 @@ export function CreateExerciseModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // AI Library Video Match state
+  const [suggestedLibraryVideo, setSuggestedLibraryVideo] = useState<SuggestedVideo | null>(null);
+  const [isSearchingVideoMatch, setIsSearchingVideoMatch] = useState(false);
+  const [dismissedSuggestionForName, setDismissedSuggestionForName] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Search catalog for matching video when name changes and no user video is attached
+  useEffect(() => {
+    if (!isOpen) return;
+    const trimmed = name.trim();
+    if (trimmed.length < 3 || selectedFile || previewUrl || dismissedSuggestionForName === trimmed) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingVideoMatch(true);
+      try {
+        const res = await searchExercisesForPickerAction(consultancySlug, {
+          query: trimmed,
+          source: "TREVO_ONE",
+        });
+
+        if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+          // Find first item with actual video or media asset
+          const matchWithMedia = res.data.find(
+            (ex) =>
+              (ex.media && ex.media.length > 0 && ex.media[0]?.mediaAsset?.publicId) ||
+              ex.customVideoUrl
+          );
+
+          if (matchWithMedia) {
+            const assetPublicId = matchWithMedia.media?.[0]?.mediaAsset?.publicId;
+            const url = assetPublicId
+              ? `/api/training-v2/media/${assetPublicId}`
+              : matchWithMedia.customVideoUrl || "";
+
+            if (url) {
+              setSuggestedLibraryVideo({
+                name: matchWithMedia.name,
+                mediaUrl: url,
+                mediaPublicId: assetPublicId || undefined,
+              });
+            }
+          }
+        }
+      } catch {
+        // Non-blocking background suggestion failure
+      } finally {
+        setIsSearchingVideoMatch(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [name, consultancySlug, isOpen, selectedFile, previewUrl, dismissedSuggestionForName]);
 
   if (!isOpen) return null;
 
@@ -124,6 +195,7 @@ export function CreateExerciseModal({
     const objUrl = URL.createObjectURL(file);
     setPreviewUrl(objUrl);
     setUploadedMediaPublicId(null);
+    setSuggestedLibraryVideo(null);
   };
 
   const handleRemoveMedia = () => {
@@ -136,6 +208,18 @@ export function CreateExerciseModal({
     setUploadError(null);
     setUploadProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleAcceptLibraryVideo = (suggestion: SuggestedVideo) => {
+    setPreviewUrl(suggestion.mediaUrl);
+    setUploadedMediaPublicId(suggestion.mediaPublicId || null);
+    setIsGif(suggestion.mediaUrl.toLowerCase().endsWith(".gif"));
+    setSuggestedLibraryVideo(null);
+  };
+
+  const handleDismissLibraryVideo = () => {
+    setDismissedSuggestionForName(name.trim());
+    setSuggestedLibraryVideo(null);
   };
 
   // Upload file to server
@@ -204,7 +288,7 @@ export function CreateExerciseModal({
       }
 
       if (addToWorkout && blockPublicId) {
-        // Salva e adiciona à divisão atual do treino
+        // Salva e adiciona à divisão atual do treino (vídeo é estritamente opcional)
         const res = await createCustomExerciseAction(consultancySlug, blockPublicId, {
           name: name.trim(),
           description: description.trim() || null,
@@ -233,7 +317,7 @@ export function CreateExerciseModal({
           instructions: res.data.instructionsSnapshot || null,
           difficultyLevel: "INTERMEDIATE",
           isCustomExercise: true,
-          customVideoUrl: mediaPublicId ? `/api/training-v2/media/${mediaPublicId}` : undefined,
+          customVideoUrl: previewUrl || (mediaPublicId ? `/api/training-v2/media/${mediaPublicId}` : undefined),
         };
 
         if (onExerciseCreated) {
@@ -241,7 +325,7 @@ export function CreateExerciseModal({
         }
         onClose();
       } else {
-        // Salva somente na biblioteca da consultoria
+        // Salva somente na biblioteca da consultoria (vídeo é estritamente opcional)
         const res = await createConsultancyExerciseDraftAction(consultancySlug, {
           name: name.trim(),
           description: description.trim() || null,
@@ -321,11 +405,79 @@ export function CreateExerciseModal({
             />
           </div>
 
+          {/* Sugestão Inteligente de Vídeo da Biblioteca (se detectada e sem vídeo) */}
+          {suggestedLibraryVideo && !previewUrl && !selectedFile && (
+            <div className="p-3.5 rounded-2xl bg-[#EBF7EE] border border-[#C3E6CC] space-y-2.5 animate-in fade-in duration-150">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-emerald-800">
+                  <SparklesIcon className="w-4 h-4 text-[#176B49]" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#176B49]">
+                    Sugestão de Vídeo da Biblioteca
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDismissLibraryVideo}
+                  className="text-[11px] font-semibold text-[#6B7870] hover:text-[#102E23] cursor-pointer"
+                >
+                  Ignorar
+                </button>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold text-[#102E23]">
+                  Encontramos um vídeo oficial compatível:
+                </p>
+                <p className="text-xs font-semibold text-[#176B49]">
+                  {suggestedLibraryVideo.name}
+                </p>
+              </div>
+
+              {suggestedLibraryVideo.mediaUrl && (
+                <div className="relative rounded-xl overflow-hidden bg-black max-h-36 flex items-center justify-center">
+                  <video
+                    src={suggestedLibraryVideo.mediaUrl}
+                    playsInline
+                    loop
+                    muted
+                    autoPlay
+                    className="max-h-36 w-auto object-contain"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleAcceptLibraryVideo(suggestedLibraryVideo)}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] text-white hover:bg-[#12583B] transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>✓ Usar este vídeo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDismissLibraryVideo}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-[#526058] hover:bg-white/60 transition-colors cursor-pointer"
+                >
+                  Não, obrigado
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* 2. Upload de Vídeo ou GIF */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#102E23]">
-              Vídeo ou GIF demonstrativo <span className="text-[#8C9890] font-normal">(opcional)</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[#102E23]">
+                Vídeo ou GIF demonstrativo <span className="text-[#8C9890] font-normal">(opcional)</span>
+              </label>
+              {isSearchingVideoMatch && (
+                <span className="text-[10px] text-[#176B49] font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#176B49] animate-ping" />
+                  Buscando vídeo na biblioteca...
+                </span>
+              )}
+            </div>
 
             <input
               ref={fileInputRef}
@@ -392,7 +544,7 @@ export function CreateExerciseModal({
                 <div className="flex items-center justify-between text-xs pt-1">
                   <span className="text-[#12583B] font-bold flex items-center gap-1 truncate max-w-[200px]">
                     <CheckCircleIcon className="w-4 h-4 text-[#176B49]" />
-                    <span>{selectedFile?.name || "Mídia selecionada"}</span>
+                    <span>{selectedFile?.name || "Vídeo vinculado"}</span>
                   </span>
 
                   <div className="flex items-center gap-2">

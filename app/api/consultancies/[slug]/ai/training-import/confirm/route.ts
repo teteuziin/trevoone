@@ -38,6 +38,7 @@ export async function POST(request: Request, context: RouteContext) {
       targetStudentMembershipId,
       confirmedTitle,
       confirmedCategories,
+      isTemplate,
     } = body;
 
     if (!jobPublicId || !confirmedCategories || !Array.isArray(confirmedCategories)) {
@@ -56,6 +57,7 @@ export async function POST(request: Request, context: RouteContext) {
       targetStudentMembershipId: targetStudentMembershipId ? Number(targetStudentMembershipId) : null,
       confirmedTitle,
       confirmedCategories,
+      isTemplate: Boolean(isTemplate),
     });
 
     return NextResponse.json({

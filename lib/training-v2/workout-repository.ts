@@ -2748,6 +2748,7 @@ export type WorkoutListItemDto = {
   assignedStudentName?: string | null;
   assignedStudentMembershipPublicId?: string | null;
   blocksCount: number;
+  exercisesCount?: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -2860,6 +2861,7 @@ export async function listWorkoutsForProfessional(
               wv.estimated_duration_minutes AS current_version_duration,
               wv.updated_at AS current_version_updated_at,
               (SELECT COUNT(*) FROM workout_blocks wb WHERE wb.workout_version_id = wv.id) AS blocks_count,
+              (SELECT COUNT(*) FROM workout_block_items wbi JOIN workout_blocks wb2 ON wb2.id = wbi.workout_block_id WHERE wb2.workout_version_id = wv.id) AS exercises_count,
               (SELECT wv_d.version_number FROM workout_versions wv_d WHERE wv_d.workout_id = w.id AND wv_d.status = 'DRAFT' LIMIT 1) AS draft_version_number,
               (SELECT wv_p.version_number FROM workout_versions wv_p WHERE wv_p.workout_id = w.id AND wv_p.status = 'PUBLISHED' ORDER BY wv_p.version_number DESC LIMIT 1) AS published_version_number,
               (SELECT wv_p.public_id FROM workout_versions wv_p WHERE wv_p.workout_id = w.id AND wv_p.status = 'PUBLISHED' ORDER BY wv_p.version_number DESC LIMIT 1) AS published_version_public_id,
@@ -2908,6 +2910,7 @@ export async function listWorkoutsForProfessional(
       assignedStudentName: r.assigned_student_name ? String(r.assigned_student_name) : null,
       assignedStudentMembershipPublicId: r.assigned_student_membership_public_id ? String(r.assigned_student_membership_public_id) : null,
       blocksCount: Number(r.blocks_count || 0),
+      exercisesCount: Number(r.exercises_count || 0),
       createdAt: new Date(r.created_at),
       updatedAt: new Date(r.current_version_updated_at || r.updated_at),
     }));

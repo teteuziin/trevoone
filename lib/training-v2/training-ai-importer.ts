@@ -611,6 +611,7 @@ export async function confirmTrainingAiImport(params: {
   targetStudentMembershipId?: number | bigint | null;
   confirmedTitle?: string;
   confirmedCategories: ResolvedTrainingCategory[];
+  isTemplate?: boolean;
 }): Promise<{
   workoutPublicId: string;
   versionPublicId: string;
@@ -625,6 +626,7 @@ export async function confirmTrainingAiImport(params: {
     targetStudentMembershipId,
     confirmedTitle,
     confirmedCategories,
+    isTemplate = false,
   } = params;
 
   // Validate at least one category and exercise exists to form a valid workout draft
@@ -672,9 +674,9 @@ export async function confirmTrainingAiImport(params: {
     // 1. Insert workout root
     const [wRes] = await db.query<ResultSetHeader>(
       `INSERT INTO workouts (
-        public_id, consultancy_id, created_by_membership_id, title, status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, 'ACTIVE', NOW(3), NOW(3))`,
-      [workoutPublicId, consultancyId, memberId, title]
+        public_id, consultancy_id, created_by_membership_id, title, status, is_template, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'ACTIVE', ?, NOW(3), NOW(3))`,
+      [workoutPublicId, consultancyId, memberId, title, isTemplate ? 1 : 0]
     );
     const workoutId = wRes.insertId;
 

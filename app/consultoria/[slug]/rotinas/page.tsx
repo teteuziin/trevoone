@@ -384,10 +384,16 @@ export default async function ConsultancyWorkoutsPage({
                             </span>
                           ) : null}
 
-                          {/* Divisões */}
+                          {/* Divisões e Exercícios */}
                           <span className="inline-flex items-center gap-1">
                             <span>·</span>
                             <span>{w.blocksCount} {w.blocksCount === 1 ? "divisão" : "divisões"}</span>
+                            {w.exercisesCount != null && w.exercisesCount > 0 && (
+                              <span className="hidden sm:inline-flex items-center gap-1">
+                                <span>·</span>
+                                <span>{w.exercisesCount} {w.exercisesCount === 1 ? "exercício" : "exercícios"}</span>
+                              </span>
+                            )}
                           </span>
 
                           {/* Data de Atualização */}

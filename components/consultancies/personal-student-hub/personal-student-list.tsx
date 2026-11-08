@@ -156,13 +156,13 @@ export function PersonalStudentList({
       .filter((student) => {
         // Status filter
         if (isEffectiveNutritionist) {
-          if (filter === "with_plan" || filter === "with_workout") {
+          if (filter === "with_plan" || filter === "with_workout" || filter === "active") {
             if (!student.hasActiveNutritionPlan) return false;
           } else if (filter === "without_plan" || filter === "without_workout") {
             if (student.hasActiveNutritionPlan) return false;
           }
         } else {
-          if (filter === "with_workout") {
+          if (filter === "with_workout" || filter === "active") {
             if (student.latestAssignmentStatus !== "ACTIVE" || !student.latestWorkoutTitle) return false;
           } else if (filter === "without_workout") {
             if (student.latestWorkoutTitle && student.latestAssignmentStatus === "ACTIVE") return false;

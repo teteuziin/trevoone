@@ -387,7 +387,7 @@ export function DashboardPersonalView({
             <div className="flex-1 min-w-0 space-y-2 sm:space-y-3">
               {/* Com treino ativo */}
               <Link
-                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=active`}
+                href={`/consultoria/${consultancySlug}/progresso/alunos?filter=with_workout`}
                 prefetch={false}
                 className="group flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-[#F6F8F5] hover:bg-[#EEF3ED] border border-[#E5EBE2] transition-colors"
               >
@@ -442,7 +442,13 @@ export function DashboardPersonalView({
 
         {/* Rodapé informativo discreto com total de alunos */}
         <div className="pt-2.5 border-t border-[#F0F2ED] flex items-center justify-between text-xs text-[#6B7870]">
-          <span>Total: <strong className="text-[#102E23] font-bold">{total}</strong> {total === 1 ? "aluno" : "alunos"}</span>
+          <Link
+            href={`/consultoria/${consultancySlug}/progresso/alunos?filter=all`}
+            prefetch={false}
+            className="hover:text-[#176B49] transition-colors"
+          >
+            <span>Total: <strong className="text-[#102E23] font-bold">{total}</strong> {total === 1 ? "aluno" : "alunos"}</span>
+          </Link>
           <Link
             href={`/consultoria/${consultancySlug}/rotinas`}
             prefetch={false}

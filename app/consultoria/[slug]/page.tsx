@@ -777,6 +777,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
             prescribedBlocksCount={personalPlansResult?.prescribedBlocksCount}
             studentsWithoutWorkout={personalPlansResult?.studentsWithoutWorkout || []}
             todayConsultations={personalPlansResult?.todayConsultations ?? null}
+            trainingMetrics={personalPlansResult?.trainingMetrics}
+            assessmentStats={personalPlansResult?.assessmentStats}
             activeRoleMode={effectiveMode}
             financeSummary={personalFinanceResult}
           />

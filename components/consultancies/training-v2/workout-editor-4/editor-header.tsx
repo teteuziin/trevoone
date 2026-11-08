@@ -12,6 +12,7 @@ interface EditorHeaderProps {
   onRemoveStudent?: () => void;
   saveStatus: AutoSaveStatus;
   backHref: string;
+  onBackClick?: () => void;
   onOpenPreview: () => void;
   onOpenFinalize: () => void;
   isDraft: boolean;
@@ -75,6 +76,7 @@ export function EditorHeader({
   onOpenStudentSelector,
   saveStatus,
   backHref,
+  onBackClick,
   onOpenPreview,
   onOpenFinalize,
   isDraft,
@@ -114,14 +116,25 @@ export function EditorHeader({
         <div className="flex flex-col gap-2 sm:hidden">
           {/* Row 1: Voltar + Nome do Treino + Status de Salvamento */}
           <div className="flex items-center justify-between gap-2">
-            <Link
-              href={backHref}
-              prefetch={false}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-white border border-[#E5E8E2] text-[#102E23] hover:bg-[#E8F0EA] transition-colors shrink-0 shadow-2xs"
-              title="Voltar"
-            >
-              <ArrowLeftIcon className="w-4 h-4 text-[#526058]" />
-            </Link>
+            {onBackClick ? (
+              <button
+                type="button"
+                onClick={onBackClick}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-white border border-[#E5E8E2] text-[#102E23] hover:bg-[#E8F0EA] transition-colors shrink-0 shadow-2xs cursor-pointer"
+                title="Voltar"
+              >
+                <ArrowLeftIcon className="w-4 h-4 text-[#526058]" />
+              </button>
+            ) : (
+              <Link
+                href={backHref}
+                prefetch={false}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-white border border-[#E5E8E2] text-[#102E23] hover:bg-[#E8F0EA] transition-colors shrink-0 shadow-2xs"
+                title="Voltar"
+              >
+                <ArrowLeftIcon className="w-4 h-4 text-[#526058]" />
+              </Link>
+            )}
 
             {/* Nome editável inline */}
             <div className="min-w-0 flex-1">
@@ -237,14 +250,26 @@ export function EditorHeader({
         <div className="hidden sm:flex items-center justify-between gap-3">
           {/* Lado Esquerdo: Voltar + Nome Editável + Status Natural + Status Salvamento */}
           <div className="flex items-center gap-3 min-w-0">
-            <Link
-              href={backHref}
-              prefetch={false}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E5E8E2] text-xs font-bold text-[#102E23] hover:bg-[#E8F0EA] transition-colors min-h-[36px] shadow-2xs shrink-0"
-            >
-              <ArrowLeftIcon className="w-3.5 h-3.5 text-[#526058]" />
-              <span>Voltar</span>
-            </Link>
+            {onBackClick ? (
+              <button
+                type="button"
+                onClick={onBackClick}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E5E8E2] text-xs font-bold text-[#102E23] hover:bg-[#E8F0EA] transition-colors min-h-[36px] shadow-2xs shrink-0 cursor-pointer"
+                title="Voltar"
+              >
+                <ArrowLeftIcon className="w-3.5 h-3.5 text-[#526058]" />
+                <span>Voltar</span>
+              </button>
+            ) : (
+              <Link
+                href={backHref}
+                prefetch={false}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E5E8E2] text-xs font-bold text-[#102E23] hover:bg-[#E8F0EA] transition-colors min-h-[36px] shadow-2xs shrink-0"
+              >
+                <ArrowLeftIcon className="w-3.5 h-3.5 text-[#526058]" />
+                <span>Voltar</span>
+              </Link>
+            )}
 
             {/* Nome do Treino Inline Edit */}
             {isEditingTitle ? (

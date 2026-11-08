@@ -744,7 +744,7 @@ export function DashboardPersonalView({
         <Link
           href={
             primaryDraft
-              ? `/consultoria/${consultancySlug}/rotinas/${primaryDraft.publicId}/editor`
+              ? `/consultoria/${consultancySlug}/rotinas/${primaryDraft.publicId}`
               : `/consultoria/${consultancySlug}/rotinas/novo`
           }
           prefetch={false}

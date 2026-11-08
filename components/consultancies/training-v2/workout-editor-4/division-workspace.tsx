@@ -366,6 +366,7 @@ export function DivisionWorkspace({
           <React.Fragment key={entry.type === "item" ? entry.item.publicId : entry.combination.publicId}>
             {entry.type === "item" ? (
               <ExerciseCard
+                key={entry.item.publicId}
                 item={entry.item}
                 index={entryIdx}
                 totalItems={displayEntries.length}

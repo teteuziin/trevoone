@@ -175,6 +175,7 @@ export function CombinationCard({
               </div>
 
               <ExerciseCard
+                key={item.publicId}
                 item={item}
                 index={itemIdx}
                 totalItems={items.length}

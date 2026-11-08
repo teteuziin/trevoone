@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import type { WorkoutBlockItemDto } from "@/lib/training-v2/types";
 
 interface ExerciseCardProps {
@@ -70,7 +70,7 @@ export function ExerciseCard({
   isFirst = false,
   isLast = false,
 }: ExerciseCardProps) {
-  // Normalize sets
+  // Normalize initial values from item
   const setsCount = item.sets?.length || 3;
   const firstSet = item.sets?.[0];
   const initialReps =
@@ -82,35 +82,256 @@ export function ExerciseCard({
   const initialLoad = firstSet?.targetLoadKg ?? null;
   const initialRest = firstSet?.targetRestSeconds ?? 60;
 
-  const [sets, setSets] = useState<number>(setsCount);
-  const [reps, setReps] = useState<string>(initialReps);
-  const [load, setLoad] = useState<string>(initialLoad !== null ? String(initialLoad) : "");
-  const [rest, setRest] = useState<number>(initialRest);
-  const [notes, setNotes] = useState<string>(item.notes || "");
+  // Local string states allowing complete clearing, temporary empty strings, and normal typing
+  const [setsStr, setSetsStr] = useState<string>(String(setsCount));
+  const [repsStr, setRepsStr] = useState<string>(initialReps);
+  const [loadStr, setLoadStr] = useState<string>(initialLoad !== null ? String(initialLoad) : "");
+  const [restStr, setRestStr] = useState<string>(String(initialRest));
+  const [notesStr, setNotesStr] = useState<string>(item.notes || "");
   const [isNotesOpen, setIsNotesOpen] = useState<boolean>(Boolean(item.notes));
   const [isAdvancedOpen, setIsAdvancedOpen] = useState<boolean>(Boolean(item.targetCadence || item.targetRpe));
-  const [tempo, setTempo] = useState<string>(item.targetCadence || "");
-  const [rpe, setRpe] = useState<string>(item.targetRpe ? String(item.targetRpe) : "");
+  const [tempoStr, setTempoStr] = useState<string>(item.targetCadence || "");
+  const [rpeStr, setRpeStr] = useState<string>(item.targetRpe ? String(item.targetRpe) : "");
 
-  // Debounced auto-save when parameters change
+  // Track last committed values to prevent duplicate action invocations
+  const lastCommittedRef = useRef<{
+    setsCount: number;
+    reps: string;
+    loadKg: number | null;
+    restSeconds: number | null;
+    notes: string;
+    tempo?: string;
+    rpeTarget: number | null;
+  }>({
+    setsCount,
+    reps: initialReps,
+    loadKg: initialLoad,
+    restSeconds: initialRest,
+    notes: item.notes || "",
+    tempo: item.targetCadence || undefined,
+    rpeTarget: item.targetRpe ?? null,
+  });
+
+  // Keep ref in sync if item changes from outside
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const parsedLoad = load.trim() ? parseFloat(load.replace(",", ".")) : null;
-      const parsedRpe = rpe.trim() ? parseFloat(rpe) : null;
+    lastCommittedRef.current = {
+      setsCount,
+      reps: initialReps,
+      loadKg: initialLoad,
+      restSeconds: initialRest,
+      notes: item.notes || "",
+      tempo: item.targetCadence || undefined,
+      rpeTarget: item.targetRpe ?? null,
+    };
+  }, [item.publicId, setsCount, initialReps, initialLoad, initialRest, item.notes, item.targetCadence, item.targetRpe]);
 
-      onUpdateConfig(item.publicId, {
-        setsCount: sets,
-        reps,
-        loadKg: Number.isNaN(parsedLoad) ? null : parsedLoad,
-        restSeconds: rest,
-        notes: notes.trim(),
-        tempo: tempo.trim() || undefined,
-        rpeTarget: Number.isNaN(parsedRpe) ? null : parsedRpe,
-      });
-    }, 600);
+  const commitUpdates = useCallback(
+    (overrides?: {
+      setsCount?: number;
+      reps?: string;
+      loadKg?: number | null;
+      restSeconds?: number | null;
+      notes?: string;
+      tempo?: string;
+      rpeTarget?: number | null;
+    }) => {
+      // Parse sets
+      let setsVal = overrides?.setsCount;
+      if (setsVal === undefined) {
+        const parsed = parseInt(setsStr.trim(), 10);
+        setsVal = !isNaN(parsed) && parsed > 0 ? Math.min(30, parsed) : lastCommittedRef.current.setsCount;
+      }
+
+      // Parse reps
+      let repsVal = overrides?.reps;
+      if (repsVal === undefined) {
+        repsVal = repsStr.trim() || lastCommittedRef.current.reps || "10";
+      }
+
+      // Parse load
+      let loadVal = overrides?.loadKg;
+      if (loadVal === undefined) {
+        const trimmed = loadStr.trim();
+        if (!trimmed) {
+          loadVal = null;
+        } else {
+          const parsed = parseFloat(trimmed.replace(",", "."));
+          loadVal = !isNaN(parsed) && parsed >= 0 ? parsed : null;
+        }
+      }
+
+      // Parse rest
+      let restVal = overrides?.restSeconds;
+      if (restVal === undefined) {
+        const parsed = parseInt(restStr.trim(), 10);
+        restVal = !isNaN(parsed) && parsed >= 0 ? Math.min(900, parsed) : lastCommittedRef.current.restSeconds;
+      }
+
+      // Notes & Advanced
+      const notesVal = overrides?.notes !== undefined ? overrides.notes : notesStr.trim();
+      const tempoVal = overrides?.tempo !== undefined ? overrides.tempo : tempoStr.trim() || undefined;
+
+      let rpeVal = overrides?.rpeTarget;
+      if (rpeVal === undefined) {
+        const trimmed = rpeStr.trim();
+        if (!trimmed) {
+          rpeVal = null;
+        } else {
+          const parsed = parseFloat(trimmed.replace(",", "."));
+          rpeVal = !isNaN(parsed) && parsed >= 1 && parsed <= 10 ? parsed : null;
+        }
+      }
+
+      // Check if anything actually changed compared to last committed
+      const last = lastCommittedRef.current;
+      const isChanged =
+        last.setsCount !== setsVal ||
+        last.reps !== repsVal ||
+        last.loadKg !== loadVal ||
+        last.restSeconds !== restVal ||
+        last.notes !== notesVal ||
+        last.tempo !== tempoVal ||
+        last.rpeTarget !== rpeVal;
+
+      if (!isChanged) return;
+
+      const payload = {
+        setsCount: setsVal,
+        reps: repsVal,
+        loadKg: loadVal,
+        restSeconds: restVal,
+        notes: notesVal,
+        tempo: tempoVal,
+        rpeTarget: rpeVal,
+      };
+
+      lastCommittedRef.current = payload;
+      onUpdateConfig(item.publicId, payload);
+    },
+    [setsStr, repsStr, loadStr, restStr, notesStr, tempoStr, rpeStr, item.publicId, onUpdateConfig]
+  );
+
+  // Debounced auto-save while typing:
+  // Holds off commit if user is in an intermediate empty state, so they can erase and type without interference
+  useEffect(() => {
+    const trimmedSets = setsStr.trim();
+    const trimmedRest = restStr.trim();
+
+    // If a required field is temporarily empty while typing, do not fire debounced auto-save
+    if (trimmedSets === "" || trimmedRest === "") {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      commitUpdates();
+    }, 500);
 
     return () => clearTimeout(timer);
-  }, [sets, reps, load, rest, notes, tempo, rpe, item.publicId, onUpdateConfig]);
+  }, [setsStr, repsStr, loadStr, restStr, notesStr, tempoStr, rpeStr, commitUpdates]);
+
+  // Flush on unmount if any pending valid change
+  useEffect(() => {
+    return () => {
+      commitUpdates();
+    };
+  }, [commitUpdates]);
+
+  // ---------------------------------------------------------------------------
+  // Handlers for onBlur (normalize and immediately commit without debounce)
+  // ---------------------------------------------------------------------------
+  const handleSetsBlur = () => {
+    const trimmed = setsStr.trim();
+    if (!trimmed) {
+      const fallback = String(lastCommittedRef.current.setsCount || 3);
+      setSetsStr(fallback);
+      commitUpdates({ setsCount: parseInt(fallback, 10) });
+      return;
+    }
+    const parsed = parseInt(trimmed, 10);
+    if (isNaN(parsed) || parsed < 1) {
+      setSetsStr("1");
+      commitUpdates({ setsCount: 1 });
+    } else if (parsed > 30) {
+      setSetsStr("30");
+      commitUpdates({ setsCount: 30 });
+    } else {
+      setSetsStr(String(parsed));
+      commitUpdates({ setsCount: parsed });
+    }
+  };
+
+  const handleRestBlur = () => {
+    const trimmed = restStr.trim();
+    if (!trimmed) {
+      const fallback = String(lastCommittedRef.current.restSeconds ?? 60);
+      setRestStr(fallback);
+      commitUpdates({ restSeconds: parseInt(fallback, 10) });
+      return;
+    }
+    const parsed = parseInt(trimmed, 10);
+    if (isNaN(parsed) || parsed < 0) {
+      setRestStr("0");
+      commitUpdates({ restSeconds: 0 });
+    } else if (parsed > 900) {
+      setRestStr("900");
+      commitUpdates({ restSeconds: 900 });
+    } else {
+      setRestStr(String(parsed));
+      commitUpdates({ restSeconds: parsed });
+    }
+  };
+
+  const handleLoadBlur = () => {
+    const trimmed = loadStr.trim();
+    if (!trimmed) {
+      setLoadStr("");
+      commitUpdates({ loadKg: null });
+      return;
+    }
+    const parsed = parseFloat(trimmed.replace(",", "."));
+    if (isNaN(parsed) || parsed < 0) {
+      setLoadStr("");
+      commitUpdates({ loadKg: null });
+    } else {
+      setLoadStr(String(parsed));
+      commitUpdates({ loadKg: parsed });
+    }
+  };
+
+  const handleRepsBlur = () => {
+    const trimmed = repsStr.trim();
+    if (!trimmed) {
+      setRepsStr("10");
+      commitUpdates({ reps: "10" });
+    } else {
+      commitUpdates({ reps: trimmed });
+    }
+  };
+
+  const handleRpeBlur = () => {
+    const trimmed = rpeStr.trim();
+    if (!trimmed) {
+      setRpeStr("");
+      commitUpdates({ rpeTarget: null });
+      return;
+    }
+    const parsed = parseFloat(trimmed.replace(",", "."));
+    if (isNaN(parsed) || parsed < 1 || parsed > 10) {
+      setRpeStr("");
+      commitUpdates({ rpeTarget: null });
+    } else {
+      setRpeStr(String(parsed));
+      commitUpdates({ rpeTarget: parsed });
+    }
+  };
+
+  const handleTempoBlur = () => {
+    commitUpdates({ tempo: tempoStr.trim() || undefined });
+  };
+
+  const handleNotesBlur = () => {
+    commitUpdates({ notes: notesStr.trim() });
+  };
 
   const indexPadded = String(index + 1).padStart(2, "0");
 
@@ -202,11 +423,14 @@ export function ExerciseCard({
           </label>
           <div className="flex items-center gap-1.5">
             <input
-              type="number"
-              min={1}
-              max={20}
-              value={sets}
-              onChange={(e) => setSets(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={setsStr}
+              onChange={(e) => setSetsStr(e.target.value)}
+              onBlur={handleSetsBlur}
+              onFocus={(e) => e.target.select()}
+              placeholder="3"
               className="w-full text-sm font-bold text-[#102E23] bg-transparent focus:outline-none"
             />
           </div>
@@ -219,8 +443,11 @@ export function ExerciseCard({
           </label>
           <input
             type="text"
-            value={reps}
-            onChange={(e) => setReps(e.target.value)}
+            inputMode="text"
+            value={repsStr}
+            onChange={(e) => setRepsStr(e.target.value)}
+            onBlur={handleRepsBlur}
+            onFocus={(e) => e.target.select()}
             placeholder="Ex: 8-12"
             className="w-full text-sm font-bold text-[#102E23] bg-transparent focus:outline-none"
           />
@@ -233,8 +460,11 @@ export function ExerciseCard({
           </label>
           <input
             type="text"
-            value={load}
-            onChange={(e) => setLoad(e.target.value)}
+            inputMode="decimal"
+            value={loadStr}
+            onChange={(e) => setLoadStr(e.target.value)}
+            onBlur={handleLoadBlur}
+            onFocus={(e) => e.target.select()}
             placeholder="Opcional"
             className="w-full text-sm font-bold text-[#102E23] bg-transparent focus:outline-none"
           />
@@ -247,12 +477,14 @@ export function ExerciseCard({
           </label>
           <div className="flex items-center gap-1">
             <input
-              type="number"
-              step={5}
-              min={0}
-              max={600}
-              value={rest}
-              onChange={(e) => setRest(Math.max(0, parseInt(e.target.value, 10) || 0))}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={restStr}
+              onChange={(e) => setRestStr(e.target.value)}
+              onBlur={handleRestBlur}
+              onFocus={(e) => e.target.select()}
+              placeholder="60"
               className="w-full text-sm font-bold text-[#102E23] bg-transparent focus:outline-none"
             />
             <span className="text-xs text-[#6B7870] font-semibold">s</span>
@@ -297,8 +529,10 @@ export function ExerciseCard({
           <div className="pt-1 animate-in fade-in duration-100">
             <input
               type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              value={notesStr}
+              onChange={(e) => setNotesStr(e.target.value)}
+              onBlur={handleNotesBlur}
+              onFocus={(e) => e.target.select()}
               placeholder="Ex: Foco no pico de contração; segurar 1s embaixo..."
               className="w-full px-3 py-1.5 text-xs text-[#102E23] bg-[#FBFBF9] border border-[#EAEFEA] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#176B49]"
             />
@@ -314,8 +548,10 @@ export function ExerciseCard({
               </label>
               <input
                 type="text"
-                value={tempo}
-                onChange={(e) => setTempo(e.target.value)}
+                value={tempoStr}
+                onChange={(e) => setTempoStr(e.target.value)}
+                onBlur={handleTempoBlur}
+                onFocus={(e) => e.target.select()}
                 placeholder="Ex: 3-0-1-0"
                 className="w-full text-xs font-bold text-[#102E23] bg-transparent focus:outline-none"
               />
@@ -325,12 +561,12 @@ export function ExerciseCard({
                 RPE Alvo (1 a 10)
               </label>
               <input
-                type="number"
-                min={1}
-                max={10}
-                step={0.5}
-                value={rpe}
-                onChange={(e) => setRpe(e.target.value)}
+                type="text"
+                inputMode="decimal"
+                value={rpeStr}
+                onChange={(e) => setRpeStr(e.target.value)}
+                onBlur={handleRpeBlur}
+                onFocus={(e) => e.target.select()}
                 placeholder="Ex: 8.5"
                 className="w-full text-xs font-bold text-[#102E23] bg-transparent focus:outline-none"
               />

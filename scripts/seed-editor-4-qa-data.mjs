@@ -30,7 +30,22 @@ export async function seedQaData() {
     consultancyPublicId = cRows[0].public_id;
   }
 
-  console.log("--- 2. Treinador / Admin User ---");
+  // Garantir assinatura ativa para liberar acesso operacional ao Personal
+  const [subRows] = await pool.query(
+    "SELECT id FROM consultancy_platform_subscriptions WHERE consultancy_id = ? LIMIT 1;",
+    [consultancyId]
+  );
+  if (subRows.length === 0) {
+    await pool.query(
+      "INSERT INTO consultancy_platform_subscriptions (public_id, consultancy_id, administrative_status) VALUES (UUID(), ?, 'ACTIVE');",
+      [consultancyId]
+    );
+  } else {
+    await pool.query(
+      "UPDATE consultancy_platform_subscriptions SET administrative_status = 'ACTIVE' WHERE consultancy_id = ?;",
+      [consultancyId]
+    );
+  }
   let [tRows] = await pool.query(
     "SELECT id, public_id FROM users WHERE email = 'treinador.teste@trevoone.com' LIMIT 1;"
   );
@@ -67,10 +82,26 @@ export async function seedQaData() {
     trainerMemberPublicId = tmRows[0].public_id;
   }
 
+  await pool.query("DELETE FROM consultancy_member_roles WHERE member_id = ?;", [trainerMemberId]);
   await pool.query(
-    "INSERT IGNORE INTO consultancy_member_roles (member_id, role, created_at) VALUES (?, 'PERSONAL', NOW(3)), (?, 'CONSULTANCY_ADMIN', NOW(3));",
-    [trainerMemberId, trainerMemberId]
+    "INSERT INTO consultancy_member_roles (member_id, role, created_at) VALUES (?, 'PERSONAL', NOW(3));",
+    [trainerMemberId]
   );
+
+  // Limpar fichas de teste de execuções anteriores para garantir estado limpo
+  await pool.query("SET FOREIGN_KEY_CHECKS = 0;");
+  await pool.query(
+    `DELETE w, wv, wb, wbi, wis, wic, wa FROM workouts w
+     LEFT JOIN workout_versions wv ON wv.workout_id = w.id
+     LEFT JOIN workout_blocks wb ON wb.workout_version_id = wv.id
+     LEFT JOIN workout_block_items wbi ON wbi.block_id = wb.id
+     LEFT JOIN workout_item_sets wis ON wis.block_item_id = wbi.id
+     LEFT JOIN workout_item_combinations wic ON wic.block_id = wb.id
+     LEFT JOIN workout_assignments wa ON wa.workout_version_id = wv.id
+     WHERE w.consultancy_id = ? AND w.is_template = 0;`,
+    [consultancyId]
+  );
+  await pool.query("SET FOREIGN_KEY_CHECKS = 1;");
 
   console.log("--- 3. Aluno Teste ---");
   let [sRows] = await pool.query(

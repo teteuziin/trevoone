@@ -61,9 +61,9 @@ export async function runRoutesNavSuite() {
   const pages = allRoutes.filter((r) => r.type === "PAGE");
   const apis = allRoutes.filter((r) => r.type === "API");
 
-  runTest(`ROUTES INVENTORY: Discovered exactly 112 total routes (${pages.length} pages, ${apis.length} APIs)`, () => {
-    assert.equal(allRoutes.length, 112, "Total routes in App Router must be 112");
-    assert.equal(pages.length, 74, "Page routes in App Router must be 74");
+  runTest(`ROUTES INVENTORY: Discovered exactly 113 total routes (${pages.length} pages, ${apis.length} APIs)`, () => {
+    assert.equal(allRoutes.length, 113, "Total routes in App Router must be 113");
+    assert.equal(pages.length, 75, "Page routes in App Router must be 75");
     assert.equal(apis.length, 38, "API route handlers in App Router must be 38");
   });
 

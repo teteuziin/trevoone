@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type {
   WorkoutRootDto,
@@ -87,6 +87,11 @@ export function WorkoutEditor4({
 
   // Auto-save and drawer management
   const [saveStatus, setSaveStatus] = useState<AutoSaveStatus>("saved");
+  const saveStatusRef = useRef(saveStatus);
+  useEffect(() => {
+    saveStatusRef.current = saveStatus;
+  }, [saveStatus]);
+
   const [activeDrawer, setActiveDrawer] = useState<ActiveDrawerType>(null);
   const [insertTarget, setInsertTarget] = useState<ActiveInsertTarget | null>(null);
   const [activeMethodModal, setActiveMethodModal] = useState<MethodType | null>(null);
@@ -95,6 +100,30 @@ export function WorkoutEditor4({
   const backHref = student
     ? `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`
     : `/consultoria/${consultancySlug}/rotinas${workout.isTemplate ? "?tab=templates" : ""}`;
+
+  const handleBack = async () => {
+    // 1. Blur any focused active element to ensure onBlur fires immediately
+    if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    // 2. Allow blur handlers to synchronously dispatch their updates
+    await new Promise((r) => setTimeout(r, 60));
+
+    // 3. If saving is currently in progress, wait briefly for it to complete
+    if (saveStatusRef.current === "saving") {
+      const start = Date.now();
+      while (saveStatusRef.current === "saving" && Date.now() - start < 1200) {
+        await new Promise((r) => setTimeout(r, 80));
+      }
+    }
+
+    // 4. Safely navigate
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push(backHref);
+    }
+  };
 
   // Fetch initial student details if provided in query params
   useEffect(() => {
@@ -279,9 +308,34 @@ export function WorkoutEditor4({
       rpeTarget?: number | null;
     }
   ) => {
-    const parsedReps = parseRepsInput(updates.reps || "10");
+    let currentItem: WorkoutBlockItemDto | undefined;
+    for (const b of blocks) {
+      const found = b.items?.find((i) => i.publicId === itemPublicId);
+      if (found) {
+        currentItem = found;
+        break;
+      }
+    }
+
+    const existingSetsCount = currentItem?.sets?.length || 3;
+    const finalSetsCount = updates.setsCount !== undefined && updates.setsCount > 0 ? updates.setsCount : existingSetsCount;
+
+    const existingReps = currentItem?.sets?.[0]?.targetReps;
+    const existingRepsMax = currentItem?.sets?.[0]?.targetRepsMax;
+    const existingRepsStr = existingReps && existingRepsMax ? `${existingReps}-${existingRepsMax}` : existingReps ? String(existingReps) : "10";
+
+    const parsedReps = parseRepsInput(updates.reps !== undefined ? updates.reps : existingRepsStr);
     const repsMin = parsedReps?.repsMin ?? 10;
     const repsMax = parsedReps?.repsMax ?? null;
+
+    const existingRest = currentItem?.sets?.[0]?.targetRestSeconds ?? 60;
+    const finalRest = updates.restSeconds !== undefined && updates.restSeconds !== null ? updates.restSeconds : existingRest;
+
+    const existingLoad = currentItem?.sets?.[0]?.targetLoadKg ?? null;
+    const finalLoad = updates.loadKg !== undefined ? updates.loadKg : existingLoad;
+
+    const existingNotes = currentItem?.notes ?? "";
+    const finalNotes = updates.notes !== undefined ? updates.notes : existingNotes;
 
     // Optimistic local update
     setBlocks((prev) =>
@@ -289,7 +343,7 @@ export function WorkoutEditor4({
         ...b,
         items: (b.items || []).map((it) => {
           if (it.publicId !== itemPublicId) return it;
-          const updatedSets = Array.from({ length: updates.setsCount || it.sets?.length || 3 }).map(
+          const updatedSets = Array.from({ length: finalSetsCount }).map(
             (_, sIdx) => ({
               ...(it.sets?.[sIdx] || {
                 setNumber: sIdx + 1,
@@ -298,14 +352,14 @@ export function WorkoutEditor4({
               setNumber: sIdx + 1,
               targetReps: repsMin,
               targetRepsMax: repsMax,
-              targetLoadKg: updates.loadKg !== undefined ? updates.loadKg : (it.sets?.[0]?.targetLoadKg ?? null),
-              targetRestSeconds: updates.restSeconds !== undefined ? updates.restSeconds : (it.sets?.[0]?.targetRestSeconds ?? 60),
+              targetLoadKg: finalLoad,
+              targetRestSeconds: finalRest,
             })
           );
           return {
             ...it,
             sets: updatedSets,
-            notes: updates.notes !== undefined ? updates.notes : it.notes,
+            notes: finalNotes,
             targetCadence: updates.tempo !== undefined ? updates.tempo : it.targetCadence,
             targetRpe: updates.rpeTarget !== undefined ? updates.rpeTarget : it.targetRpe,
           };
@@ -316,12 +370,12 @@ export function WorkoutEditor4({
     setSaveStatus("saving");
     try {
       const res = await updateExerciseQuickConfigAction(consultancySlug, itemPublicId, {
-        seriesCount: updates.setsCount || 3,
+        seriesCount: finalSetsCount,
         reps: repsMin,
         targetRepsMax: repsMax,
-        restSeconds: updates.restSeconds ?? 60,
-        loadKg: updates.loadKg !== undefined ? updates.loadKg : null,
-        notes: updates.notes,
+        restSeconds: finalRest,
+        loadKg: finalLoad,
+        notes: finalNotes,
       });
 
       setSaveStatus(res.ok ? "saved" : "error");
@@ -770,6 +824,7 @@ export function WorkoutEditor4({
         onOpenStudentSelector={() => setActiveDrawer("student-select")}
         saveStatus={saveStatus}
         backHref={backHref}
+        onBackClick={handleBack}
         onOpenPreview={() => setActiveDrawer("preview")}
         onOpenFinalize={() => setActiveDrawer("finalize")}
         isDraft={isDraft}

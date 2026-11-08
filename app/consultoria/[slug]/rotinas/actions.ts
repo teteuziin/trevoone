@@ -108,6 +108,25 @@ export type ActionResponse<T = unknown> = {
   error?: string;
 };
 
+
+/**
+ * Deterministically clears server-side caches for Início (/consultoria/slug),
+ * Training Central (/rotinas, /treinos), and specific workout pages.
+ */
+function revalidateTrainingPaths(slug: string, workoutPublicId?: string, additionalPath?: string) {
+  try {
+    revalidateTrainingPaths(slug);
+    if (workoutPublicId) {
+      revalidatePath(`/consultoria/${slug}/rotinas/${workoutPublicId}`);
+    }
+    if (additionalPath) {
+      revalidatePath(additionalPath);
+    }
+  } catch (err) {
+    console.warn("[revalidateTrainingPaths] Erro ao revalidar rotas:", err);
+  }
+}
+
 async function requireConsultancyProfessionalContext(slug: string) {
   const session = await getCurrentSession();
   if (!session) {
@@ -157,7 +176,7 @@ export async function createWorkoutDraftAction(
       notes: input.notes?.trim() || null,
     });
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return {
       ok: true,
       data: {
@@ -190,8 +209,7 @@ export async function updateWorkoutDraftMetadataAction(
 
     const updated = await updateWorkoutDraftMetadata(ctx, versionPublicId, input);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
-    revalidatePath(`/consultoria/${slug}/rotinas/${updated.workoutPublicId}`);
+    revalidateTrainingPaths(slug, updated.workoutPublicId);
     return { ok: true, data: updated };
   } catch (err: unknown) {
     return {
@@ -218,7 +236,7 @@ export async function addBlockToDraftAction(
       instructions: input?.instructions?.trim() || null,
     });
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: block };
   } catch (err: unknown) {
     return {
@@ -242,7 +260,7 @@ export async function updateBlockTitleAction(
 
     const updated = await updateBlockTitleInDraft(ctx, blockPublicId, title, instructions);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: updated };
   } catch (err: unknown) {
     return {
@@ -324,7 +342,7 @@ export async function addExerciseItemToBlockAction(
       // Ignored if initial set creation fails
     }
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: item };
   } catch (err: unknown) {
     return {
@@ -401,7 +419,7 @@ export async function addCustomItemToBlockAction(
       // Ignored if initial set creation fails
     }
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: item };
   } catch (err: unknown) {
     return {
@@ -423,7 +441,7 @@ export async function duplicateBlockAction(
 
     const duplicated = await duplicateBlockInDraft(ctx, blockPublicId);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: duplicated };
   } catch (err: unknown) {
     return {
@@ -446,7 +464,7 @@ export async function reorderBlocksAction(
 
     await reorderBlocksInDraft(ctx, versionPublicId, blockPublicIdsInOrder);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -468,7 +486,7 @@ export async function removeBlockAction(
 
     await removeBlockFromDraft(ctx, blockPublicId);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -490,7 +508,7 @@ export async function removeItemAction(
 
     await removeItemFromDraft(ctx, itemPublicId);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -513,7 +531,7 @@ export async function reorderItemsAction(
 
     await reorderItemsInDraft(ctx, blockPublicId, itemPublicIdsInOrder);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -537,7 +555,7 @@ export async function updateNormalSetsAction(
 
     const updatedSets = await replaceNormalSetsForDraftItem(ctx, itemPublicId, sets);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: updatedSets };
   } catch (err: unknown) {
     return {
@@ -559,7 +577,7 @@ export async function archiveWorkoutAction(
 
     await archiveWorkout(ctx, workoutPublicId);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { archived: true } };
   } catch (err: unknown) {
     return {
@@ -580,8 +598,7 @@ export async function renameWorkoutAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const res = await renameWorkout(ctx, workoutPublicId, newTitle);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
-    revalidatePath(`/consultoria/${slug}/rotinas/${workoutPublicId}`);
+    revalidateTrainingPaths(slug, workoutPublicId);
     return { ok: true, data: res };
   } catch (err: unknown) {
     return {
@@ -699,7 +716,7 @@ export async function createMethodBlockAction(
       instructions: input.instructions?.trim() || null,
     });
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: block };
   } catch (err: unknown) {
     return {
@@ -722,7 +739,7 @@ export async function updateBlockConfigurationAction(
 
     const block = await updateBlockConfigurationInDraft(ctx, blockPublicId, input);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: block };
   } catch (err: unknown) {
     return {
@@ -745,7 +762,7 @@ export async function replaceDropSetStructureAction(
 
     const sets = await replaceDropSetStructureForDraftItem(ctx, itemPublicId, input);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: sets };
   } catch (err: unknown) {
     return {
@@ -768,7 +785,7 @@ export async function replaceRestPauseStructureAction(
 
     const sets = await replaceRestPauseStructureForDraftItem(ctx, itemPublicId, input);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: sets };
   } catch (err: unknown) {
     return {
@@ -791,7 +808,7 @@ export async function updateCardioConfigurationAction(
 
     const result = await updateCardioConfigurationForDraftItem(ctx, itemPublicId, input);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: result };
   } catch (err: unknown) {
     return {
@@ -814,7 +831,7 @@ export async function updateWarmupConfigurationAction(
 
     const result = await updateWarmupConfigurationForDraftItem(ctx, itemPublicId, input);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: result };
   } catch (err: unknown) {
     return {
@@ -835,8 +852,7 @@ export async function publishWorkoutAction(
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const published = await publishWorkoutVersion(ctx, versionPublicId);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
-    revalidatePath(`/consultoria/${slug}/rotinas/${published.workoutPublicId}`);
+    revalidateTrainingPaths(slug, published.workoutPublicId);
     return { ok: true, data: published };
   } catch (err: unknown) {
     return {
@@ -861,8 +877,7 @@ export async function publishWorkoutWithAutoCustomAction(
       autoConvertUnresolved: true,
     });
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
-    revalidatePath(`/consultoria/${slug}/rotinas/${published.workoutPublicId}`);
+    revalidateTrainingPaths(slug, published.workoutPublicId);
     return { ok: true, data: published };
   } catch (err: unknown) {
     return {
@@ -884,8 +899,7 @@ export async function createNewWorkoutVersionAction(
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const newDraft = await createNewDraftVersionFromPublished(ctx, workoutPublicId);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
-    revalidatePath(`/consultoria/${slug}/rotinas/${workoutPublicId}`);
+    revalidateTrainingPaths(slug, workoutPublicId);
     return { ok: true, data: newDraft };
   } catch (err: unknown) {
     return {
@@ -917,7 +931,7 @@ export async function duplicateWorkoutAction(
     }
     const result = await duplicateWorkout(ctx, workoutPublicId, targetVersionPublicId, options);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return {
       ok: true,
       data: {
@@ -955,7 +969,7 @@ export async function saveWorkoutAsTemplateAction(
     }
     const result = await saveWorkoutAsTemplate(ctx, workoutPublicId, targetVersionPublicId, options);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return {
       ok: true,
       data: {
@@ -983,7 +997,7 @@ export async function createWorkoutFromTemplateAction(
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const result = await createWorkoutFromTemplate(ctx, templatePublicId, options);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return {
       ok: true,
       data: {
@@ -1025,8 +1039,7 @@ export async function assignTemplateToStudentAction(
       options
     );
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
-    revalidatePath(`/consultoria/${slug}/progresso/alunos/${studentMembershipPublicId}`);
+    revalidateTrainingPaths(slug, undefined, `/consultoria/${slug}/progresso/alunos/${studentMembershipPublicId}`);
 
     return {
       ok: true,
@@ -1144,9 +1157,7 @@ export async function assignWorkoutVersionAction(
       customTitle: options?.customTitle?.trim() || null,
     });
 
-    revalidatePath(`/consultoria/${slug}`);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
-    revalidatePath(`/consultoria/${slug}/treinos`);
+    revalidateTrainingPaths(slug);
 
     return {
       ok: true,
@@ -1184,7 +1195,7 @@ export async function updateWorkoutAssignmentVersionAction(
       targetVersionPublicId.trim()
     );
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     revalidatePath(`/consultoria/${slug}/treinos`);
 
     return { ok: true, data: { success: true } };
@@ -1215,9 +1226,7 @@ export async function updateWorkoutAssignmentCustomTitleAction(
       customTitle: customTitle !== null ? customTitle.trim() || null : null,
     });
 
-    revalidatePath(`/consultoria/${slug}`);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
-    revalidatePath(`/consultoria/${slug}/treinos`);
+    revalidateTrainingPaths(slug);
 
     return { ok: true, data: { success, customTitle: customTitle?.trim() || null } };
   } catch (err: unknown) {
@@ -1275,7 +1284,7 @@ export async function terminateWorkoutAssignmentAction(
 
     const success = await terminateAssignment(ctx, assignmentPublicId.trim(), endDate);
 
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     revalidatePath(`/consultoria/${slug}/treinos`);
 
     return { ok: true, data: { success } };
@@ -1378,7 +1387,7 @@ export async function createCategoryAction(
       blockType: "CUSTOM",
       title: title.trim(),
     });
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: block };
   } catch (err: unknown) {
     return {
@@ -1425,7 +1434,7 @@ export async function duplicateExerciseAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const newItem = await duplicateItemInDraft(ctx, itemPublicId);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: newItem };
   } catch (err: unknown) {
     return {
@@ -1443,7 +1452,7 @@ export async function moveExerciseToCategoryAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     await moveItemToBlockInDraft(ctx, itemPublicId, targetCategoryPublicId);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true };
   } catch (err: unknown) {
     return {
@@ -1476,7 +1485,7 @@ export async function updateExerciseQuickConfigAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const sets = await updateItemQuickConfigInDraft(ctx, itemPublicId, config);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: sets };
   } catch (err: unknown) {
     return {
@@ -1497,7 +1506,7 @@ export async function renameExerciseItemAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const result = await renameWorkoutItemInDraft(ctx, itemPublicId, newName);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: result };
   } catch (err: unknown) {
     return {
@@ -1518,7 +1527,7 @@ export async function createSubBlockAction(
       return { ok: false, error: "O nome do grupo é obrigatório." };
     }
     const subBlock = await createWorkoutSubBlock(ctx, blockPublicId, { title: title.trim() });
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: subBlock };
   } catch (err: unknown) {
     return {
@@ -1542,7 +1551,7 @@ export async function renameSubBlockAction(
       return { ok: false, error: "O nome do grupo não pode ser vazio." };
     }
     const subBlock = await renameWorkoutSubBlock(ctx, subBlockPublicId, title.trim());
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: subBlock };
   } catch (err: unknown) {
     return {
@@ -1563,7 +1572,7 @@ export async function reorderSubBlocksAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     await reorderWorkoutSubBlocks(ctx, blockPublicId, subBlockPublicIds);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -1583,7 +1592,7 @@ export async function deleteSubBlockAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     await deleteWorkoutSubBlock(ctx, subBlockPublicId);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -1603,7 +1612,7 @@ export async function duplicateSubBlockAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const duplicated = await duplicateWorkoutSubBlock(ctx, subBlockPublicId);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: duplicated };
   } catch (err: unknown) {
     return {
@@ -1624,7 +1633,7 @@ export async function resolveUnmatchedExerciseItemAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const item = await resolveUnmatchedExerciseItem(ctx, itemPublicId, exercisePublicId);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: item };
   } catch (err: unknown) {
     return {
@@ -1645,7 +1654,7 @@ export async function deleteWorkoutAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     await deleteWorkout(ctx, workoutPublicId);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -1666,7 +1675,7 @@ export async function deleteWorkoutDraftAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     await deleteWorkoutDraft(ctx, versionPublicId);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -1701,7 +1710,7 @@ export async function createItemCombinationAction(
       return { ok: false, error: "Selecione pelo menos 2 exercícios para criar uma combinação." };
     }
     const combination = await createWorkoutItemCombination(ctx, input);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: combination };
   } catch (err: unknown) {
     return {
@@ -1727,7 +1736,7 @@ export async function updateItemCombinationAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const updated = await updateWorkoutItemCombination(ctx, combinationPublicId, input);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: updated };
   } catch (err: unknown) {
     return {
@@ -1747,7 +1756,7 @@ export async function ungroupItemCombinationAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     await ungroupWorkoutItemCombination(ctx, combinationPublicId);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -1768,7 +1777,7 @@ export async function deleteItemCombinationAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     await deleteWorkoutItemCombination(ctx, combinationPublicId, deleteItems);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -1789,7 +1798,7 @@ export async function reorderItemCombinationAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     await reorderWorkoutItemCombination(ctx, combinationPublicId, direction.toUpperCase() as "UP" | "DOWN");
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -1811,7 +1820,7 @@ export async function moveItemInCombinationAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     await moveItemInCombination(ctx, combinationPublicId, itemPublicId, direction.toUpperCase() as "UP" | "DOWN");
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -1832,7 +1841,7 @@ export async function reorderItemsInCombinationAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     await reorderItemsInCombination(ctx, combinationPublicId, orderedItemPublicIds);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -1852,7 +1861,7 @@ export async function duplicateItemCombinationAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const duplicated = await duplicateWorkoutItemCombination(ctx, combinationPublicId);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: duplicated };
   } catch (err: unknown) {
     return {
@@ -1873,7 +1882,7 @@ export async function addItemToCombinationAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     await addItemToCombination(ctx, combinationPublicId, itemPublicId);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -1894,7 +1903,7 @@ export async function removeItemFromCombinationAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     await removeItemFromCombination(ctx, combinationPublicId, itemPublicId);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
     return {
@@ -1965,7 +1974,7 @@ export async function createCustomExerciseAction(
         targetRestSeconds: s.targetRestSeconds ?? 60,
       })),
     });
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: item };
   } catch (err: unknown) {
     return {
@@ -1999,7 +2008,7 @@ export async function convertUnresolvedToCustomExerciseAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const item = await convertUnresolvedToCustomExercise(ctx, input);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: item };
   } catch (err: unknown) {
     return {
@@ -2102,7 +2111,7 @@ export async function updateItemCustomSequenceAction(
     const { updateItemCustomSequence } = await import("@/lib/training-v2/workout-repository");
 
     const item = await updateItemCustomSequence(ctx, input);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: item };
   } catch (err: unknown) {
     return {
@@ -2147,7 +2156,7 @@ export async function updateExerciseAlternativesAction(
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const { updateExerciseAlternativesInDraft } = await import("@/lib/training-v2/workout-repository");
     const updated = await updateExerciseAlternativesInDraft(ctx, itemPublicId, alternatives);
-    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidateTrainingPaths(slug);
     return { ok: true, data: updated };
   } catch (err: unknown) {
     return {

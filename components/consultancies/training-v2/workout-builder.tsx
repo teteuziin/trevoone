@@ -242,6 +242,7 @@ export type WorkoutBuilderProps = {
   allVersions: WorkoutVersionSummaryDto[];
   isConsultancyAdmin: boolean;
   initialStudentPublicId?: string;
+  from?: string;
 };
 const CATEGORY_PRESETS = [
   "Peito",

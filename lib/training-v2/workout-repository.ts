@@ -99,6 +99,28 @@ export type AddSetInput = {
 };
 
 /**
+ * Touches updated_at on both workout_versions and workouts whenever any draft
+ * block, item, configuration, set, or combination is mutated.
+ */
+async function touchWorkoutVersionTimestamp(
+  connection: { execute: (sql: string, params?: unknown[]) => Promise<unknown> },
+  workoutVersionId: number | null | undefined
+): Promise<void> {
+  if (!workoutVersionId) return;
+  try {
+    await connection.execute(
+      `UPDATE workout_versions wv
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       SET wv.updated_at = NOW(3), w.updated_at = NOW(3)
+       WHERE wv.id = ?;`,
+      [workoutVersionId]
+    );
+  } catch (err) {
+    console.warn("[touchWorkoutVersionTimestamp] Erro ao atualizar updated_at:", err);
+  }
+}
+
+/**
  * Creates a new Workout routine root and its initial DRAFT Version (v1).
  */
 export async function createWorkout(
@@ -727,6 +749,8 @@ export async function addBlockToDraft(
       ]
     );
 
+    await touchWorkoutVersionTimestamp(connection, Number(v.id));
+
     return {
       publicId: blockPublicId,
       blockType: parsedBlockType.data,
@@ -761,7 +785,7 @@ export async function addItemToDraftBlock(
 
     // 1. Verify parent block and version status
     const [bRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wb.id, wb.block_type, wv.status, w.consultancy_id
+      `SELECT wb.id, wb.block_type, wb.workout_version_id, wv.status, w.consultancy_id
        FROM workout_blocks wb
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
        INNER JOIN workouts w ON w.id = wv.workout_id
@@ -1016,6 +1040,8 @@ export async function addItemToDraftBlock(
       }
     }
 
+    await touchWorkoutVersionTimestamp(connection, Number(b.workout_version_id));
+
     return {
       publicId: itemPublicId,
       exercisePublicId: input.exercisePublicId || null,
@@ -1062,7 +1088,7 @@ export async function addSetToDraftItem(
 
     // 1. Verify item belongs to a DRAFT version in current consultancy
     const [iRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wbi.id, wv.status, w.consultancy_id
+      `SELECT wbi.id, wb.workout_version_id, wv.status, w.consultancy_id
        FROM workout_block_items wbi
        INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
@@ -1147,6 +1173,8 @@ export async function addSetToDraftItem(
         input.intensityIndicator?.trim() || null,
       ]
     );
+
+    await touchWorkoutVersionTimestamp(connection, Number(item.workout_version_id));
 
     return {
       setNumber,
@@ -3542,6 +3570,8 @@ export async function duplicateBlockInDraft(
       }
     }
 
+    await touchWorkoutVersionTimestamp(connection, Number(sourceBlock.workout_version_id));
+
     await connection.commit();
 
     // Fetch new block tree
@@ -3725,6 +3755,8 @@ export async function removeBlockFromDraft(
       );
     }
 
+    await touchWorkoutVersionTimestamp(connection, Number(b.workout_version_id));
+
     await connection.commit();
     return true;
   } catch (err) {
@@ -3782,7 +3814,7 @@ export async function removeItemFromDraft(
     await connection.beginTransaction();
 
     const [iRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wbi.id, wbi.block_id, wb.block_type, wv.status, w.consultancy_id, w.created_by_membership_id
+      `SELECT wbi.id, wbi.block_id, wb.workout_version_id, wb.block_type, wv.status, w.consultancy_id, w.created_by_membership_id
        FROM workout_block_items wbi
        INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
@@ -3864,6 +3896,8 @@ export async function removeItemFromDraft(
       );
     }
 
+    await touchWorkoutVersionTimestamp(connection, Number(item.workout_version_id));
+
     await connection.commit();
     return true;
   } catch (err) {
@@ -3891,7 +3925,7 @@ export async function reorderItemsInDraft(
     await connection.beginTransaction();
 
     const [bRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wb.id, wv.status, w.consultancy_id, w.created_by_membership_id
+      `SELECT wb.id, wb.workout_version_id, wv.status, w.consultancy_id, w.created_by_membership_id
        FROM workout_blocks wb
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
        INNER JOIN workouts w ON w.id = wv.workout_id
@@ -3967,6 +4001,8 @@ export async function reorderItemsInDraft(
       [b.id]
     );
 
+    await touchWorkoutVersionTimestamp(connection, Number(b.workout_version_id));
+
     await connection.commit();
     return true;
   } catch (err) {
@@ -4005,7 +4041,7 @@ export async function replaceNormalSetsForDraftItem(
     await connection.beginTransaction();
 
     const [iRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wbi.id, wv.status, w.consultancy_id, w.created_by_membership_id
+      `SELECT wbi.id, wb.workout_version_id, wv.status, w.consultancy_id, w.created_by_membership_id
        FROM workout_block_items wbi
        INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
@@ -4092,6 +4128,8 @@ export async function replaceNormalSetsForDraftItem(
       });
     }
 
+    await touchWorkoutVersionTimestamp(connection, Number(item.workout_version_id));
+
     await connection.commit();
     return resultSets;
   } catch (err) {
@@ -4151,6 +4189,8 @@ export async function updateBlockTitleInDraft(
        WHERE id = ?;`,
       [title?.trim() || null, instructions !== undefined ? (instructions?.trim() || null) : null, b.id]
     );
+
+    await touchWorkoutVersionTimestamp(connection, Number(b.workout_version_id));
 
     const tree = await getWorkoutVersionTree(ctx, String(b.version_public_id));
     const updatedBlock = tree?.blocks.find((blk) => blk.publicId === blockPublicId);
@@ -4266,6 +4306,8 @@ export async function updateBlockConfigurationInDraft(
         b.id,
       ]
     );
+
+    await touchWorkoutVersionTimestamp(connection, Number(b.workout_version_id));
 
     const tree = await getWorkoutVersionTree(ctx, String(b.version_public_id));
     const updatedBlock = tree?.blocks.find((blk) => blk.publicId === blockPublicId);
@@ -5183,7 +5225,7 @@ export async function updateItemQuickConfigInDraft(
     await connection.beginTransaction();
 
     const [iRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wbi.id, wbi.exercise_id, wv.status, w.consultancy_id, w.created_by_membership_id
+      `SELECT wbi.id, wbi.exercise_id, wb.workout_version_id, wv.status, w.consultancy_id, w.created_by_membership_id
        FROM workout_block_items wbi
        INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
@@ -5303,6 +5345,8 @@ export async function updateItemQuickConfigInDraft(
       });
     }
 
+    await touchWorkoutVersionTimestamp(connection, Number(item.workout_version_id));
+
     await connection.commit();
     return resultSets;
   } catch (err) {
@@ -5346,7 +5390,7 @@ export async function renameWorkoutItemInDraft(
 
   try {
     const [iRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wbi.id, wbi.exercise_name_snapshot, wv.status, w.consultancy_id, w.created_by_membership_id
+      `SELECT wbi.id, wbi.exercise_name_snapshot, wb.workout_version_id, wv.status, w.consultancy_id, w.created_by_membership_id
        FROM workout_block_items wbi
        INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
@@ -5382,10 +5426,12 @@ export async function renameWorkoutItemInDraft(
 
     await connection.execute(
       `UPDATE workout_block_items
-       SET exercise_name_snapshot = ?, updated_at = NOW()
+       SET exercise_name_snapshot = ?, updated_at = NOW(3)
        WHERE id = ?;`,
       [cleanName, item.id]
     );
+
+    await touchWorkoutVersionTimestamp(connection, Number(item.workout_version_id));
 
     return {
       publicId: itemPublicId,
@@ -5462,6 +5508,8 @@ export async function createWorkoutSubBlock(
       [subBlockPublicId, b.id, cleanTitle, nextOrder]
     );
 
+    await touchWorkoutVersionTimestamp(connection, Number(b.workout_version_id));
+
     await connection.commit();
 
     return {
@@ -5499,7 +5547,7 @@ export async function renameWorkoutSubBlock(
     await connection.beginTransaction();
 
     const [sbRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wsb.id, wsb.sort_order, wv.status, w.consultancy_id, w.created_by_membership_id
+      `SELECT wsb.id, wsb.sort_order, wb.workout_version_id, wv.status, w.consultancy_id, w.created_by_membership_id
        FROM workout_sub_blocks wsb
        INNER JOIN workout_blocks wb ON wb.id = wsb.block_id
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
@@ -5529,6 +5577,8 @@ export async function renameWorkoutSubBlock(
       `UPDATE workout_sub_blocks SET title = ?, updated_at = NOW(3) WHERE id = ?;`,
       [cleanTitle, sb.id]
     );
+
+    await touchWorkoutVersionTimestamp(connection, Number(sb.workout_version_id));
 
     await connection.commit();
 
@@ -5562,7 +5612,7 @@ export async function reorderWorkoutSubBlocks(
     await connection.beginTransaction();
 
     const [bRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wb.id, wv.status, w.consultancy_id, w.created_by_membership_id
+      `SELECT wb.id, wb.workout_version_id, wv.status, w.consultancy_id, w.created_by_membership_id
        FROM workout_blocks wb
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
        INNER JOIN workouts w ON w.id = wv.workout_id
@@ -5589,6 +5639,8 @@ export async function reorderWorkoutSubBlocks(
         [i, orderedPublicIds[i], b.id]
       );
     }
+
+    await touchWorkoutVersionTimestamp(connection, Number(b.workout_version_id));
 
     await connection.commit();
   } catch (err) {
@@ -5618,7 +5670,7 @@ export async function deleteWorkoutSubBlock(
     await connection.beginTransaction();
 
     const [sbRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wsb.id, wsb.block_id, wv.status, w.consultancy_id, w.created_by_membership_id
+      `SELECT wsb.id, wsb.block_id, wb.workout_version_id, wv.status, w.consultancy_id, w.created_by_membership_id
        FROM workout_sub_blocks wsb
        INNER JOIN workout_blocks wb ON wb.id = wsb.block_id
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
@@ -5665,6 +5717,8 @@ export async function deleteWorkoutSubBlock(
 
     // Delete sub-block
     await connection.execute(`DELETE FROM workout_sub_blocks WHERE id = ?;`, [sb.id]);
+
+    await touchWorkoutVersionTimestamp(connection, Number(sb.workout_version_id));
 
     await connection.commit();
     return true;
@@ -6332,6 +6386,8 @@ export async function createWorkoutItemCombination(
       }
     }
 
+    await touchWorkoutVersionTimestamp(connection, Number(b.workout_version_id));
+
     await connection.commit();
 
     const mappedItems: WorkoutBlockItemDto[] = input.itemPublicIds
@@ -6402,7 +6458,7 @@ export async function updateWorkoutItemCombination(
     const [combRows] = await connection.execute<RowDataPacket[]>(
       `SELECT wic.id, wic.public_id, wic.block_id, wic.sub_block_id, wic.combination_type, wic.title,
               wic.sort_order, wic.rounds, wic.rest_after_seconds, wic.rest_after_unit,
-              wb.public_id AS block_public_id, wsb.public_id AS sub_block_public_id,
+              wb.public_id AS block_public_id, wb.workout_version_id, wsb.public_id AS sub_block_public_id,
               wv.status, w.consultancy_id
        FROM workout_item_combinations wic
        INNER JOIN workout_blocks wb ON wb.id = wic.block_id
@@ -6452,6 +6508,8 @@ export async function updateWorkoutItemCombination(
       params
     );
 
+    await touchWorkoutVersionTimestamp(connection, Number(comb.workout_version_id));
+
     await connection.commit();
 
     return {
@@ -6488,7 +6546,7 @@ export async function ungroupWorkoutItemCombination(
     await connection.beginTransaction();
 
     const [combRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wic.id, wv.status, w.consultancy_id
+      `SELECT wic.id, wb.workout_version_id, wv.status, w.consultancy_id
        FROM workout_item_combinations wic
        INNER JOIN workout_blocks wb ON wb.id = wic.block_id
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
@@ -6519,6 +6577,8 @@ export async function ungroupWorkoutItemCombination(
     // Delete combination
     await connection.execute(`DELETE FROM workout_item_combinations WHERE id = ?;`, [comb.id]);
 
+    await touchWorkoutVersionTimestamp(connection, Number(comb.workout_version_id));
+
     await connection.commit();
   } catch (err) {
     await connection.rollback();
@@ -6545,7 +6605,7 @@ export async function deleteWorkoutItemCombination(
     await connection.beginTransaction();
 
     const [combRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wic.id, wv.status, w.consultancy_id
+      `SELECT wic.id, wb.workout_version_id, wv.status, w.consultancy_id
        FROM workout_item_combinations wic
        INNER JOIN workout_blocks wb ON wb.id = wic.block_id
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
@@ -6590,6 +6650,8 @@ export async function deleteWorkoutItemCombination(
     }
 
     await connection.execute(`DELETE FROM workout_item_combinations WHERE id = ?;`, [comb.id]);
+
+    await touchWorkoutVersionTimestamp(connection, Number(comb.workout_version_id));
 
     await connection.commit();
   } catch (err) {

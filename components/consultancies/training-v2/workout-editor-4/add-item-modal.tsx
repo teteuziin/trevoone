@@ -187,6 +187,8 @@ export function AddItemModal({
                 results.map((exercise) => (
                   <div
                     key={exercise.publicId}
+                    data-testid="add-exercise-item"
+                    data-exercise-name={exercise.name}
                     onClick={() => {
                       startTransition(async () => {
                         await onSelectExercise(exercise);
@@ -217,6 +219,13 @@ export function AddItemModal({
                     <button
                       type="button"
                       disabled={isPending}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startTransition(async () => {
+                          await onSelectExercise(exercise);
+                          onClose();
+                        });
+                      }}
                       className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#E8F0EA] text-[#176B49] group-hover:bg-[#176B49] group-hover:text-white transition-all shadow-2xs shrink-0 cursor-pointer"
                     >
                       + Adicionar

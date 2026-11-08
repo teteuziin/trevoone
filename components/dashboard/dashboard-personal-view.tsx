@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { PersonalHeader } from "./personal/personal-header";
 import type { PersonalFinanceIndicatorData } from "./personal/sections/personal-indicators";
@@ -148,6 +148,18 @@ function AlertCircleIcon({ className = "w-3.5 h-3.5" }: { className?: string }) 
   );
 }
 
+// Helper de leitura síncrona do último ID trabalhado localmente neste navegador
+const emptyStorageSubscribe = () => () => {};
+
+function getLocalLastEditedId(slug: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(`trevo_last_edited_workout_${slug}`);
+  } catch {
+    return null;
+  }
+}
+
 export function DashboardPersonalView({
   consultancySlug,
   consultancyName,
@@ -182,9 +194,24 @@ export function DashboardPersonalView({
   // Normalização de treinos para identificar o rascunho mais recente
   const activeWorkouts = useMemo(() => workouts || recentPlans || [], [workouts, recentPlans]);
 
+  const localLastEditedId = useSyncExternalStore(
+    emptyStorageSubscribe,
+    () => getLocalLastEditedId(consultancySlug),
+    () => null
+  );
+
   const draftWorkouts = useMemo(() => {
     return activeWorkouts
-      .filter((w) => w.currentVersionStatus === "DRAFT" || w.status === "DRAFT" || w.hasActiveDraft)
+      .filter(
+        (w) =>
+          (w.currentVersionStatus === "DRAFT" || w.status === "DRAFT" || w.hasActiveDraft) &&
+          !w.isTemplate
+      )
+      .sort((a, b) => {
+        const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return timeB - timeA;
+      })
       .map((w) => ({
         publicId: w.publicId,
         title: w.title,
@@ -195,7 +222,14 @@ export function DashboardPersonalView({
       }));
   }, [activeWorkouts]);
 
-  const primaryDraft = draftWorkouts[0] || null;
+  const primaryDraft = useMemo(() => {
+    if (!draftWorkouts.length) return null;
+    if (localLastEditedId) {
+      const matched = draftWorkouts.find((d) => d.publicId === localLastEditedId);
+      if (matched) return matched;
+    }
+    return draftWorkouts[0];
+  }, [draftWorkouts, localLastEditedId]);
 
   // Ordenação determinística de alunos sem treino
   const sortedStudents = useMemo(() => {
@@ -740,12 +774,12 @@ export function DashboardPersonalView({
         )}
       </div>
 
-      <div className="relative z-10 pt-3">
+      <div className="relative z-10 pt-3 flex flex-wrap items-center gap-2">
         <Link
           href={
             primaryDraft
-              ? `/consultoria/${consultancySlug}/rotinas/${primaryDraft.publicId}`
-              : `/consultoria/${consultancySlug}/rotinas/novo`
+              ? `/consultoria/${consultancySlug}/rotinas/${primaryDraft.publicId}?from=inicio`
+              : `/consultoria/${consultancySlug}/rotinas/novo?from=inicio`
           }
           prefetch={false}
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#EBF3ED] hover:bg-white text-[#0F2F24] shadow-md transition-all cursor-pointer select-none min-h-[44px] active:translate-y-[1px]"
@@ -753,6 +787,15 @@ export function DashboardPersonalView({
           <span>{primaryDraft ? "Retomar edição" : "+ Criar novo treino"}</span>
           <span aria-hidden="true">→</span>
         </Link>
+        {primaryDraft && (
+          <Link
+            href={`/consultoria/${consultancySlug}/rotinas/novo?from=inicio`}
+            prefetch={false}
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white/90 hover:text-white hover:bg-white/10 transition-colors cursor-pointer select-none min-h-[44px]"
+          >
+            <span>+ Novo treino</span>
+          </Link>
+        )}
       </div>
     </section>
   );

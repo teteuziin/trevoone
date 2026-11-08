@@ -94,7 +94,7 @@ export function PersonalHeader({
         </div>
 
         <Link
-          href={`/consultoria/${consultancySlug}/rotinas/novo`}
+          href={`/consultoria/${consultancySlug}/rotinas/novo?from=inicio`}
           prefetch={false}
           aria-label="Criar novo treino"
           className="min-h-[44px] px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#176B49] hover:bg-[#102E23] text-white flex items-center justify-center gap-1.5 shadow-xs transition-colors shrink-0 select-none cursor-pointer active:translate-y-[1px]"

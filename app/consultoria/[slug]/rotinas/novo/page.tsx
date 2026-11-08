@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
@@ -39,6 +39,7 @@ interface PageProps {
     studentName?: string;
     isTemplate?: string;
     manual?: string;
+    from?: string;
   }>;
 }
 
@@ -50,6 +51,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
     studentName,
     isTemplate: isTemplateQuery,
     manual,
+    from,
   } = await searchParams;
 
   const studentMembershipPublicId = studentMembershipPublicIdRaw || studentId;
@@ -121,11 +123,14 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
       const targetStudentId =
         preselectedStudent?.student?.membershipPublicId || studentMembershipPublicId;
 
-      const redirectUrl = targetStudentId
-        ? `/consultoria/${slug}/rotinas/${workout.publicId}?student=${encodeURIComponent(targetStudentId)}`
-        : `/consultoria/${slug}/rotinas/${workout.publicId}${isTemplate ? "?isTemplate=true" : ""}`;
+      const queryParams = new URLSearchParams();
+      if (targetStudentId) queryParams.set("student", targetStudentId);
+      if (isTemplate) queryParams.set("isTemplate", "true");
+      if (from) queryParams.set("from", from);
+      const queryStr = queryParams.toString();
+      const redirectUrl = `/consultoria/${slug}/rotinas/${workout.publicId}${queryStr ? `?${queryStr}` : ""}`;
 
-      redirect(redirectUrl);
+      redirect(redirectUrl, RedirectType.replace);
     } catch (err) {
       // Se redirect() foi chamado, ele lança uma exceção do Next.js (NEXT_REDIRECT) que precisa ser relançada
       if (err && typeof err === "object" && "digest" in err) {

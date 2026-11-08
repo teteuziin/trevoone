@@ -235,6 +235,7 @@ export function DivisionWorkspace({
               {emptySearchResults.map((ex) => (
                 <div
                   key={ex.publicId}
+                  data-testid="empty-search-exercise-item"
                   onClick={() => handleAddFromEmpty(ex)}
                   className="p-3 sm:px-4 flex items-center justify-between gap-3 hover:bg-[#F5F5F0] transition-colors cursor-pointer group"
                 >
@@ -259,6 +260,10 @@ export function DivisionWorkspace({
                   <button
                     type="button"
                     disabled={addingExerciseId === ex.publicId}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddFromEmpty(ex);
+                    }}
                     className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#E8F0EA] text-[#176B49] group-hover:bg-[#176B49] group-hover:text-white transition-all shrink-0 cursor-pointer shadow-2xs"
                   >
                     {addingExerciseId === ex.publicId ? "Adicionando..." : "+ Adicionar"}

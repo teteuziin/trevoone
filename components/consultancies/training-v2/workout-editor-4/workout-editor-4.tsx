@@ -63,6 +63,7 @@ export interface WorkoutEditor4Props {
   allVersions: WorkoutVersionSummaryDto[];
   isConsultancyAdmin: boolean;
   initialStudentPublicId?: string;
+  from?: string;
 }
 
 export function WorkoutEditor4({
@@ -71,6 +72,7 @@ export function WorkoutEditor4({
   initialVersion,
   isDraft,
   initialStudentPublicId,
+  from,
 }: WorkoutEditor4Props) {
   const router = useRouter();
 
@@ -96,9 +98,27 @@ export function WorkoutEditor4({
   const [insertTarget, setInsertTarget] = useState<ActiveInsertTarget | null>(null);
   const [activeMethodModal, setActiveMethodModal] = useState<MethodType | null>(null);
 
+  // Sync last edited draft into local device storage
+  useEffect(() => {
+    if (typeof window !== "undefined" && workout?.publicId && isDraft) {
+      try {
+        localStorage.setItem(`trevo_last_edited_workout_${consultancySlug}`, workout.publicId);
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, [consultancySlug, workout?.publicId, isDraft]);
+
+  const isFromInicio =
+    from === "inicio" ||
+    (typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("from") === "inicio");
+
   // Fallback back URL
   const backHref = student
     ? `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`
+    : isFromInicio
+    ? `/consultoria/${consultancySlug}`
     : `/consultoria/${consultancySlug}/rotinas${workout.isTemplate ? "?tab=templates" : ""}`;
 
   const handleBack = async () => {
@@ -117,12 +137,38 @@ export function WorkoutEditor4({
       }
     }
 
-    // 4. Safely navigate
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push(backHref);
+    // 4. Update last edited workout in local device storage
+    if (typeof window !== "undefined" && workout?.publicId && isDraft) {
+      try {
+        localStorage.setItem(`trevo_last_edited_workout_${consultancySlug}`, workout.publicId);
+      } catch {
+        // ignore storage errors
+      }
     }
+
+    // 5. Navigate deterministically:
+    // Determine whether user arrived from Início or from /rotinas
+    let target = backHref;
+    if (isFromInicio) {
+      target = `/consultoria/${consultancySlug}`;
+    } else if (typeof window !== "undefined" && document.referrer) {
+      try {
+        const refUrl = new URL(document.referrer);
+        const refPath = refUrl.pathname;
+        const inicioPath = `/consultoria/${consultancySlug}`;
+        const rotinasPath = `/consultoria/${consultancySlug}/rotinas`;
+        if (refPath === inicioPath || refPath === `${inicioPath}/`) {
+          target = inicioPath;
+        } else if (refPath === rotinasPath || refPath === `${rotinasPath}/`) {
+          target = rotinasPath;
+        }
+      } catch {
+        // fallback to backHref
+      }
+    }
+
+    router.push(target);
+    router.refresh();
   };
 
   // Fetch initial student details if provided in query params

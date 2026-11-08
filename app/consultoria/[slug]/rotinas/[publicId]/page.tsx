@@ -1,5 +1,6 @@
 import React from "react";
-import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
@@ -16,12 +17,13 @@ type PageProps = {
   searchParams: Promise<{
     version?: string;
     student?: string;
+    from?: string;
   }>;
 };
 
 export default async function WorkoutEditorPage({ params, searchParams }: PageProps) {
   const { slug, publicId } = await params;
-  const { version: requestedVersionPublicId, student } = await searchParams;
+  const { version: requestedVersionPublicId, student, from } = await searchParams;
 
   const session = await getCurrentSession();
   if (!session) {
@@ -44,22 +46,61 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
     redirect(`/consultoria/${slug}`);
   }
 
-  let result;
+  let result = null;
   try {
     result = await getWorkoutWithSpecificVersion(ctx, publicId, requestedVersionPublicId);
   } catch (err) {
     console.error("[WorkoutEditorPage] Erro ao carregar rotina no Builder:", err);
-    // If forbidden or version mismatch (e.g. forged version id or other personal's workout)
-    redirect(`/consultoria/${slug}/rotinas`);
   }
 
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
+
   if (!result || !result.version) {
-    notFound();
+    return (
+      <ConsultancyAppShell
+        consultancyName={context.consultancyName}
+        consultancySlug={context.consultancySlug}
+        consultancyLogoUrl={context.consultancyLogoUrl}
+        roles={context.roles}
+        viewModeState={effectiveState}
+        userName={session.fullName}
+        userEmail={session.email}
+        userPublicId={session.userPublicId}
+        hasProfilePhoto={session.hasProfilePhoto}
+        profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+        themeVariant="trainer-refined"
+        showDashboardWallpaper={false}
+      >
+        <div className="w-full max-w-lg mx-auto py-16 px-4 text-center space-y-4">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center font-bold text-2xl shadow-xs">
+            !
+          </div>
+          <h2 className="text-xl sm:text-2xl font-black text-[#102E23]">
+            Ficha de treino não encontrada
+          </h2>
+          <p className="text-sm text-[#4A6356] leading-relaxed">
+            O treino solicitado não existe, foi arquivado ou não está acessível nesta consultoria.
+          </p>
+          <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href={`/consultoria/${slug}`}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[#102E23] text-white hover:bg-[#176B49] transition-all text-center min-h-[44px] inline-flex items-center justify-center shadow-xs"
+            >
+              Voltar ao Início
+            </Link>
+            <Link
+              href={`/consultoria/${slug}/rotinas`}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-white border border-[#D8E4DA] text-[#102E23] hover:bg-[#F5F5F0] transition-all text-center min-h-[44px] inline-flex items-center justify-center shadow-xs"
+            >
+              Ver todos os treinos
+            </Link>
+          </div>
+        </div>
+      </ConsultancyAppShell>
+    );
   }
 
   const { workout, version, isDraft, allVersions } = result;
-
-  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
 
   return (
     <ConsultancyAppShell
@@ -87,6 +128,7 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
           allVersions={allVersions}
           isConsultancyAdmin={ctx.canManageConsultancy}
           initialStudentPublicId={student}
+          from={from}
         />
       </div>
     </ConsultancyAppShell>

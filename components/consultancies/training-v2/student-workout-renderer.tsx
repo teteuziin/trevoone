@@ -1232,14 +1232,15 @@ export function StudentWorkoutRenderer({
                       key={b.publicId || idx}
                       type="button"
                       onClick={() => setSelectedBlockIndex(idx)}
-                      className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 border ${
+                      className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 border flex items-center gap-1.5 max-w-[220px] sm:max-w-[280px] text-left leading-tight ${
                         isSelected
                           ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
                           : "bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border-[var(--border-default)] hover:bg-[var(--surface-subtle)]"
                       }`}
+                      title={bTitle}
                     >
-                      <span>{bTitle}</span>
-                      <span className="ml-1.5 opacity-80">({b.items?.length || 0})</span>
+                      <span className="line-clamp-2 break-words">{bTitle}</span>
+                      <span className="opacity-80 shrink-0">({b.items?.length || 0})</span>
                     </button>
                   );
                 })}
@@ -2057,7 +2058,7 @@ function BlockCard({
                 )}
               </div>
             )}
-            <h2 className={`text-sm sm:text-base font-bold text-[var(--foreground)] ${methodLabel ? "mt-0.5" : ""}`}>
+            <h2 className={`text-sm sm:text-base font-bold text-[var(--foreground)] break-words leading-snug ${methodLabel ? "mt-0.5" : ""}`}>
               {blockHeading}
             </h2>
             {!methodLabel && isCircuit && block.rounds && (

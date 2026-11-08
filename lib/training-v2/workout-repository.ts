@@ -4226,6 +4226,84 @@ export async function updateBlockTitleInDraft(
   }
 }
 
+/**
+ * Updates titles for multiple blocks in a DRAFT version in a single atomic operation.
+ */
+export async function batchUpdateBlockTitlesInDraft(
+  ctx: TrainingAccessContext,
+  updates: Array<{ blockPublicId: string; title: string | null }>
+): Promise<WorkoutBlockDto[]> {
+  assertCanAuthorTraining(ctx);
+
+  if (!updates || updates.length === 0) return [];
+
+  const blockPublicIds = updates.map((u) => u.blockPublicId).filter(Boolean);
+  if (blockPublicIds.length === 0) return [];
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+
+    const [bRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wb.id, wb.public_id, wb.workout_version_id, wv.status, wv.public_id AS version_public_id, w.consultancy_id, w.created_by_membership_id
+       FROM workout_blocks wb
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wb.public_id IN (${blockPublicIds.map(() => "?").join(",")}) AND w.deleted_at IS NULL;`,
+      blockPublicIds
+    );
+
+    if (!bRows || bRows.length === 0) {
+      throw new TrainingAuthorizationError("Blocos de treino não encontrados.", "NOT_FOUND", 404);
+    }
+
+    const versionIds = new Set<number>();
+    const versionPublicIds = new Set<string>();
+
+    for (const b of bRows) {
+      if (Number(b.consultancy_id) !== ctx.consultancyId) {
+        throw new TrainingAuthorizationError("Acesso negado ao treino de outra consultoria.", "FORBIDDEN", 403);
+      }
+      const isCreator = ctx.membershipId && Number(b.created_by_membership_id) === ctx.membershipId;
+      if (!isCreator && !ctx.canManageConsultancy) {
+        throw new TrainingAuthorizationError("Apenas o autor ou administrador podem editar blocos.", "FORBIDDEN", 403);
+      }
+      if (b.status !== "DRAFT") {
+        throw new TrainingAuthorizationError("Não é permitido alterar blocos de uma versão já publicada ou arquivada.", "IMMUTABLE_VERSION", 400);
+      }
+      versionIds.add(Number(b.workout_version_id));
+      versionPublicIds.add(String(b.version_public_id));
+    }
+
+    for (const update of updates) {
+      const match = bRows.find((r) => r.public_id === update.blockPublicId);
+      if (match) {
+        await connection.execute<ResultSetHeader>(
+          `UPDATE workout_blocks
+           SET title = ?,
+               updated_at = NOW(3)
+           WHERE id = ?;`,
+          [update.title?.trim() || null, match.id]
+        );
+      }
+    }
+
+    for (const vId of versionIds) {
+      await touchWorkoutVersionTimestamp(connection, vId);
+    }
+
+    const primaryVersionPublicId = Array.from(versionPublicIds)[0];
+    if (primaryVersionPublicId) {
+      const tree = await getWorkoutVersionTree(ctx, primaryVersionPublicId);
+      return tree?.blocks || [];
+    }
+
+    return [];
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
 export type UpdateBlockConfigurationInput = {
   title?: string | null;
   instructions?: string | null;

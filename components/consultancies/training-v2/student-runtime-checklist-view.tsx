@@ -660,14 +660,15 @@ export function StudentRuntimeChecklistView({
                     key={b.publicId}
                     type="button"
                     onClick={() => setUserSelectedBlockPublicId(b.publicId)}
-                    className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 border ${
+                    className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 border flex items-center gap-1.5 max-w-[220px] text-left leading-tight ${
                       isSelected
                         ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
                         : "bg-white dark:bg-[#181A1E] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                     }`}
+                    title={b.title}
                   >
-                    <span>{b.title}</span>
-                    <span className="ml-1.5 opacity-80">({bCount})</span>
+                    <span className="line-clamp-2 break-words">{b.title}</span>
+                    <span className="opacity-80 shrink-0">({bCount})</span>
                   </button>
                 );
               })}

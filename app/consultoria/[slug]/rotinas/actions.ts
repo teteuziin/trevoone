@@ -28,6 +28,7 @@ import {
   reorderItemsInDraft,
   replaceNormalSetsForDraftItem,
   updateBlockTitleInDraft,
+  batchUpdateBlockTitlesInDraft,
   updateBlockConfigurationInDraft,
   replaceDropSetStructureForDraftItem,
   replaceRestPauseStructureForDraftItem,
@@ -268,6 +269,28 @@ export async function updateBlockTitleAction(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Erro ao renomear categoria.",
+    };
+  }
+}
+
+/**
+ * Updates titles of multiple blocks in DRAFT atomically.
+ */
+export async function batchUpdateBlockTitlesAction(
+  slug: string,
+  updates: Array<{ blockPublicId: string; title: string | null }>
+): Promise<ActionResponse<WorkoutBlockDto[]>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+
+    const updated = await batchUpdateBlockTitlesInDraft(ctx, updates);
+
+    revalidateTrainingPaths(slug);
+    return { ok: true, data: updated };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao atualizar formatos das divisões.",
     };
   }
 }

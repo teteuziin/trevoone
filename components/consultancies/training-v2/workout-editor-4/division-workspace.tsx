@@ -220,7 +220,7 @@ export function DivisionWorkspace({
   // Convert WorkoutBlockItemDto to ExerciseItemDto for preview
   const openPreviewFromBlockItem = (item: WorkoutBlockItemDto) => {
     const ex: ExerciseItemDto = {
-      publicId: item.exercisePublicId || item.publicId,
+      publicId: item.exercisePublicId || item.customExercisePublicId || item.publicId,
       name: item.exerciseNameSnapshot || "Exercício",
       muscleGroupPrimary: item.muscleGroupSnapshot || "Geral",
       equipment: item.equipmentSnapshot || "Livre",
@@ -231,14 +231,22 @@ export function DivisionWorkspace({
       scope: item.isCustomExercise ? "CONSULTANCY" : "GLOBAL",
       visibility: item.isCustomExercise ? "CONSULTANCY" : "GLOBAL",
       customVideoUrl: item.customVideoUrl || undefined,
-      media: item.pinnedMediaAssets?.map((p) => ({
+      media: (item.pinnedMedia || []).map((p) => ({
+        role: p.role,
+        sortOrder: p.sortOrder,
         mediaAsset: {
-          publicId: p.publicId,
-          mediaType: p.mediaType,
-          mimeType: p.mimeType,
-          scope: "CONSULTANCY",
-          visibility: "CONSULTANCY",
-          fileSizeBytes: p.fileSizeBytes,
+          publicId: p.mediaAsset.publicId,
+          scope: p.mediaAsset.scope || (item.isCustomExercise ? "CONSULTANCY" : "GLOBAL"),
+          visibility: p.mediaAsset.visibility || (item.isCustomExercise ? "CONSULTANCY" : "GLOBAL"),
+          mediaType: p.mediaAsset.mediaType,
+          storageProvider: p.mediaAsset.storageProvider || "LOCAL",
+          mimeType: p.mediaAsset.mimeType,
+          fileSizeBytes: p.mediaAsset.fileSizeBytes,
+          durationSeconds: p.mediaAsset.durationSeconds ?? null,
+          width: p.mediaAsset.width ?? null,
+          height: p.mediaAsset.height ?? null,
+          consultancyPublicId: p.mediaAsset.consultancyPublicId ?? null,
+          createdAt: p.mediaAsset.createdAt || new Date(),
         },
       })),
     };

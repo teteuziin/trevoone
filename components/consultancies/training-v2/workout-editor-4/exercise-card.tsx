@@ -317,9 +317,9 @@ export function ExerciseCard({
   const indexPadded = String(index + 1).padStart(2, "0");
 
   const hasMedia = Boolean(
-    item.customVideoUrl ||
-      item.mediaAssetPublicId ||
-      item.pinnedMediaAssets?.length
+    (item.customVideoUrl && item.customVideoUrl.trim().length > 0) ||
+      (item.pinnedMedia && item.pinnedMedia.length > 0) ||
+      item.exercisePublicId
   );
 
   return (

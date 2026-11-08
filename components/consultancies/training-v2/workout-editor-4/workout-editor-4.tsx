@@ -22,6 +22,7 @@ import {
   updateWorkoutDraftMetadataAction,
   addBlockToDraftAction,
   updateBlockTitleAction,
+  batchUpdateBlockTitlesAction,
   duplicateBlockAction,
   removeBlockAction,
   addExerciseItemToBlockAction,
@@ -256,6 +257,34 @@ export function WorkoutEditor4({
     try {
       const res = await updateBlockTitleAction(consultancySlug, blockPublicId, newTitle);
       setSaveStatus(res.ok ? "saved" : "error");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleBatchRenameBlocks = async (
+    updates: Array<{ blockPublicId: string; title: string }>
+  ) => {
+    const titleMap = new Map(updates.map((u) => [u.blockPublicId, u.title]));
+    setBlocks((prev) =>
+      prev.map((b) => (titleMap.has(b.publicId) ? { ...b, title: titleMap.get(b.publicId)! } : b))
+    );
+    setSaveStatus("saving");
+    try {
+      const res = await batchUpdateBlockTitlesAction(consultancySlug, updates);
+      if (res.ok && res.data && res.data.length > 0) {
+        setBlocks((prev) =>
+          prev.map((b) => {
+            const updated = res.data!.find((ub) => ub.publicId === b.publicId);
+            return updated ? { ...b, title: updated.title } : b;
+          })
+        );
+        setSaveStatus("saved");
+      } else if (res.ok) {
+        setSaveStatus("saved");
+      } else {
+        setSaveStatus("error");
+      }
     } catch {
       setSaveStatus("error");
     }
@@ -982,6 +1011,7 @@ export function WorkoutEditor4({
           onSelectBlock={(id) => setActiveBlockPublicId(id)}
           onAddBlock={handleAddBlock}
           onRenameBlock={handleRenameBlock}
+          onBatchRenameBlocks={handleBatchRenameBlocks}
           onDuplicateBlock={handleDuplicateBlock}
           onDeleteBlock={handleDeleteBlock}
         />

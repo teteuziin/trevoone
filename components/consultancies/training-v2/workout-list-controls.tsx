@@ -108,7 +108,11 @@ export function WorkoutListControls({
   const primaryStatusOptions = [
     { id: "ALL", label: "Todos" },
     { id: "DRAFT", label: "Em elaboração" },
+  ];
+
+  const secondaryStatusOptions = [
     { id: "PUBLISHED", label: "Publicados" },
+    { id: "ARCHIVED", label: "Arquivados" },
   ];
 
   const sortOptions = [
@@ -187,18 +191,27 @@ export function WorkoutListControls({
               );
             })}
 
-            {/* Secondary: Arquivados */}
-            <button
-              type="button"
-              onClick={() => updateFilters({ status: currentStatus === "ARCHIVED" ? "ALL" : "ARCHIVED" })}
-              className={`px-2 sm:px-2.5 py-1 rounded-xl text-xs select-none transition-all min-h-[30px] sm:min-h-[32px] flex items-center justify-center whitespace-nowrap cursor-pointer ${
-                currentStatus === "ARCHIVED"
-                  ? "bg-[#102E23] text-white font-bold shadow-2xs"
-                  : "bg-transparent text-[#8C9890] hover:text-[#526058] hover:bg-[#F5F5F0] font-medium"
-              }`}
-            >
-              Arquivados
-            </button>
+            <div className="w-[1px] h-4 bg-[#E5E8E2] mx-1 self-center shrink-0" />
+
+            {/* Secondary Status Options */}
+            {secondaryStatusOptions.map((opt) => {
+              const isActive = currentStatus === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => updateFilters({ status: isActive ? "ALL" : opt.id })}
+                  className={`px-2.5 py-1 rounded-xl text-xs select-none transition-all min-h-[30px] sm:min-h-[32px] flex items-center justify-center whitespace-nowrap cursor-pointer ${
+                    isActive
+                      ? "bg-[#102E23] text-white font-bold shadow-2xs"
+                      : "bg-transparent text-[#6B7870] hover:text-[#102E23] hover:bg-[#F5F5F0] font-medium"
+                  }`}
+                  title={opt.id === "PUBLISHED" ? "Fichas publicadas criadas por você" : "Fichas arquivadas"}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         ) : (
           <div className="text-xs text-[#526058] font-medium">
@@ -223,6 +236,15 @@ export function WorkoutListControls({
           )}
         </div>
       </div>
+
+      {/* Informative helper callout when filtering by PUBLISHED */}
+      {!isTemplatesTab && currentStatus === "PUBLISHED" && (
+        <div className="text-[11px] text-[#526058] bg-[#F5F5F0] border border-[#E5E8E2] rounded-xl px-3 py-1.5 flex items-center justify-between gap-2">
+          <span>
+            ℹ️ Exibindo fichas e modelos de treino criados por você com status publicado. Para ver os treinos prescritos e ativos dos alunos, acesse a aba <strong>Treinos dos alunos</strong>.
+          </span>
+        </div>
+      )}
     </div>
   );
 }

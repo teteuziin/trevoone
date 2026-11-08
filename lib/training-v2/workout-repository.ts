@@ -2813,11 +2813,11 @@ export async function listWorkoutsForProfessional(
 
     if (options?.status && options.status !== "ALL") {
       if (options.status === "DRAFT") {
-        whereClauses.push("wv.status = 'DRAFT'");
+        whereClauses.push("(wv.status = 'DRAFT' OR EXISTS (SELECT 1 FROM workout_versions wv_d WHERE wv_d.workout_id = w.id AND wv_d.status = 'DRAFT'))");
       } else if (options.status === "PUBLISHED") {
-        whereClauses.push("wv.status = 'PUBLISHED'");
+        whereClauses.push("(wv.status = 'PUBLISHED' OR EXISTS (SELECT 1 FROM workout_versions wv_p WHERE wv_p.workout_id = w.id AND wv_p.status = 'PUBLISHED'))");
       } else if (options.status === "ARCHIVED") {
-        whereClauses.push("(w.status = 'ARCHIVED' OR wv.status = 'ARCHIVED')");
+        whereClauses.push("(w.status = 'ARCHIVED' OR wv.status = 'ARCHIVED' OR EXISTS (SELECT 1 FROM workout_versions wv_a WHERE wv_a.workout_id = w.id AND wv_a.status = 'ARCHIVED'))");
       }
     }
 
@@ -3078,11 +3078,34 @@ export async function getWorkoutWithSpecificVersion(
     }
 
     const versionTree = await getWorkoutVersionTree(ctx, targetVersionPublicId);
+
+    // Resolve assigned student if this workout has an active assignment
+    let assignedStudent: { membershipPublicId: string; name: string; email: string } | null = null;
+    const [assignedStudentRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.public_id AS membership_public_id, u.full_name, u.email
+       FROM workout_assignments wa
+       JOIN workout_versions wv ON wv.id = wa.workout_version_id
+       JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+       JOIN users u ON u.id = cm.user_id
+       WHERE wv.workout_id = ? AND wa.status = 'ACTIVE' AND wa.deleted_at IS NULL
+       ORDER BY wa.id DESC
+       LIMIT 1;`,
+      [w.id]
+    );
+    if (assignedStudentRows && assignedStudentRows.length > 0) {
+      assignedStudent = {
+        membershipPublicId: String(assignedStudentRows[0].membership_public_id),
+        name: String(assignedStudentRows[0].full_name),
+        email: String(assignedStudentRows[0].email),
+      };
+    }
+
     return {
       workout: workoutDto,
       version: versionTree,
       isDraft,
       allVersions,
+      assignedStudent,
     };
   } finally {
     if (connection) connection.release();

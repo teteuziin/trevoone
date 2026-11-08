@@ -295,13 +295,20 @@ export async function listPersonalStudents(params: {
             wa.status,
             wa.starts_on,
             wa.ends_on
-          FROM workout_assignments wa
-          INNER JOIN (
-            SELECT student_membership_id, MAX(id) AS max_id
-            FROM workout_assignments
-            WHERE deleted_at IS NULL
-            GROUP BY student_membership_id
-          ) max_wa ON wa.id = max_wa.max_id
+          FROM (
+            SELECT
+              wa_inner.*,
+              ROW_NUMBER() OVER (
+                PARTITION BY wa_inner.student_membership_id
+                ORDER BY
+                  (wa_inner.status = 'ACTIVE' AND wa_inner.deleted_at IS NULL AND (wa_inner.ends_on IS NULL OR wa_inner.ends_on >= CURRENT_DATE())) DESC,
+                  (wa_inner.status = 'ACTIVE' AND wa_inner.deleted_at IS NULL) DESC,
+                  wa_inner.id DESC
+              ) AS rn
+            FROM workout_assignments wa_inner
+            WHERE wa_inner.deleted_at IS NULL
+          ) wa
+          WHERE wa.rn = 1
         ) latest_wa ON latest_wa.student_membership_id = cm.id
         LEFT JOIN workout_versions wv ON wv.id = latest_wa.workout_version_id
         LEFT JOIN workouts w ON w.id = wv.workout_id

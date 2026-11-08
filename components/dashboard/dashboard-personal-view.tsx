@@ -247,6 +247,16 @@ export function DashboardPersonalView({
   // Indicadores de treinamento matematicamente consistentes
   const computedMetrics: PersonalTrainingMetrics = useMemo(() => {
     if (trainingMetrics) return trainingMetrics;
+    if (totalStudents === null && sortedStudents.length === 0) {
+      return {
+        totalStudents: 0,
+        semTreinoCount: 0,
+        vencidosCount: 0,
+        aVencerCount: 0,
+        emDiaCount: 0,
+        emDiaPercent: 0,
+      };
+    }
     const total = totalStudents ?? sortedStudents.length;
     const semTreino = sortedStudents.length;
     const emDia = Math.max(0, total - semTreino);

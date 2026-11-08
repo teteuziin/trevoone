@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import type { WorkoutBlockItemDto } from "@/lib/training-v2/types";
 
 interface ExerciseCardProps {
@@ -20,9 +20,18 @@ interface ExerciseCardProps {
   onMoveDown: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
-  onStartBiSet?: () => void;
+  onOpenMethodMenu?: () => void;
+  onPreviewVideo?: () => void;
+  onSwapSlot?: () => void;
+  onReplaceExercise?: () => void;
+  slotLabel?: string;
   isFirst?: boolean;
   isLast?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onLongPressReorder?: () => void;
+  isDragging?: boolean;
 }
 
 function ArrowUpIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
@@ -58,6 +67,36 @@ function TrashIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   );
 }
 
+function DragHandleIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <circle cx="9" cy="6" r="1.5" />
+      <circle cx="15" cy="6" r="1.5" />
+      <circle cx="9" cy="12" r="1.5" />
+      <circle cx="15" cy="12" r="1.5" />
+      <circle cx="9" cy="18" r="1.5" />
+      <circle cx="15" cy="18" r="1.5" />
+    </svg>
+  );
+}
+
+function PlayCircleIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function ArrowsRightLeftIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+    </svg>
+  );
+}
+
 export function ExerciseCard({
   item,
   index,
@@ -66,9 +105,18 @@ export function ExerciseCard({
   onMoveDown,
   onDuplicate,
   onDelete,
-  onStartBiSet,
+  onOpenMethodMenu,
+  onPreviewVideo,
+  onSwapSlot,
+  onReplaceExercise,
+  slotLabel,
   isFirst = false,
   isLast = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onLongPressReorder,
+  isDragging = false,
 }: ExerciseCardProps) {
   // Normalize initial values from item
   const setsCount = item.sets?.length || 3;
@@ -82,51 +130,104 @@ export function ExerciseCard({
   const initialLoad = firstSet?.targetLoadKg ?? null;
   const initialRest = firstSet?.targetRestSeconds ?? 60;
 
-  // Local string states allowing complete clearing, temporary empty strings, and normal typing
-  const [setsStr, setSetsStr] = useState<string>(String(setsCount));
+  // Local state for fast typing
   const [repsStr, setRepsStr] = useState<string>(initialReps);
   const [loadStr, setLoadStr] = useState<string>(initialLoad !== null ? String(initialLoad) : "");
   const [restStr, setRestStr] = useState<string>(String(initialRest));
   const [notesStr, setNotesStr] = useState<string>(item.notes || "");
-  const [isNotesOpen, setIsNotesOpen] = useState<boolean>(Boolean(item.notes));
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState<boolean>(Boolean(item.targetCadence || item.targetRpe));
-  const [tempoStr, setTempoStr] = useState<string>(item.targetCadence || "");
-  const [rpeStr, setRpeStr] = useState<string>(item.targetRpe ? String(item.targetRpe) : "");
+  const [rpeStr, setRpeStr] = useState<string>(
+    firstSet?.rpeTarget != null ? String(firstSet.rpeTarget) : ""
+  );
+  const [tempoStr, setTempoStr] = useState<string>(firstSet?.tempo || "");
 
-  // Track last committed values to prevent duplicate action invocations
-  const lastCommittedRef = useRef<{
-    setsCount: number;
-    reps: string;
-    loadKg: number | null;
-    restSeconds: number | null;
-    notes: string;
-    tempo?: string;
-    rpeTarget: number | null;
-  }>({
-    setsCount,
+  // Expandable sections
+  const [isNotesOpen, setIsNotesOpen] = useState(Boolean(item.notes));
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(
+    Boolean(firstSet?.rpeTarget != null || firstSet?.tempo)
+  );
+
+  // Sync external changes during render
+  const [prevSync, setPrevSync] = useState({
     reps: initialReps,
-    loadKg: initialLoad,
-    restSeconds: initialRest,
+    load: initialLoad,
+    rest: initialRest,
     notes: item.notes || "",
-    tempo: item.targetCadence || undefined,
-    rpeTarget: item.targetRpe ?? null,
   });
 
-  // Keep ref in sync if item changes from outside
-  useEffect(() => {
-    lastCommittedRef.current = {
-      setsCount,
+  if (
+    prevSync.reps !== initialReps ||
+    prevSync.load !== initialLoad ||
+    prevSync.rest !== initialRest ||
+    prevSync.notes !== (item.notes || "")
+  ) {
+    setPrevSync({
       reps: initialReps,
-      loadKg: initialLoad,
-      restSeconds: initialRest,
+      load: initialLoad,
+      rest: initialRest,
       notes: item.notes || "",
-      tempo: item.targetCadence || undefined,
-      rpeTarget: item.targetRpe ?? null,
-    };
-  }, [item.publicId, setsCount, initialReps, initialLoad, initialRest, item.notes, item.targetCadence, item.targetRpe]);
+    });
+    setRepsStr(initialReps);
+    setLoadStr(initialLoad !== null ? String(initialLoad) : "");
+    setRestStr(String(initialRest));
+    setNotesStr(item.notes || "");
+  }
 
+  // Mobile Long-Press Detection
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const [isLongPressing, setIsLongPressing] = useState(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // If touched an interactive control (input, button, textarea), don't trigger long press
+    const target = e.target as HTMLElement;
+    if (target.closest("input, button, textarea, a, select")) {
+      return;
+    }
+
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+
+    longPressTimer.current = setTimeout(() => {
+      setIsLongPressing(true);
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        try {
+          navigator.vibrate(50);
+        } catch {
+          // ignore vibration errors
+        }
+      }
+      if (onLongPressReorder) {
+        onLongPressReorder();
+      }
+    }, 380);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartPos.current || !longPressTimer.current) return;
+    const touch = e.touches[0];
+    const diffX = Math.abs(touch.clientX - touchStartPos.current.x);
+    const diffY = Math.abs(touch.clientY - touchStartPos.current.y);
+
+    // If moved more than 10px, it's a page scroll gesture — cancel long press immediately
+    if (diffX > 10 || diffY > 10) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+      setIsLongPressing(false);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setIsLongPressing(false);
+    touchStartPos.current = null;
+  };
+
+  // Commit updates debounce/blur
   const commitUpdates = useCallback(
-    (overrides?: {
+    (updates: {
       setsCount?: number;
       reps?: string;
       loadKg?: number | null;
@@ -135,137 +236,17 @@ export function ExerciseCard({
       tempo?: string;
       rpeTarget?: number | null;
     }) => {
-      // Parse sets
-      let setsVal = overrides?.setsCount;
-      if (setsVal === undefined) {
-        const parsed = parseInt(setsStr.trim(), 10);
-        setsVal = !isNaN(parsed) && parsed > 0 ? Math.min(30, parsed) : lastCommittedRef.current.setsCount;
-      }
-
-      // Parse reps
-      let repsVal = overrides?.reps;
-      if (repsVal === undefined) {
-        repsVal = repsStr.trim() || lastCommittedRef.current.reps || "10";
-      }
-
-      // Parse load
-      let loadVal = overrides?.loadKg;
-      if (loadVal === undefined) {
-        const trimmed = loadStr.trim();
-        if (!trimmed) {
-          loadVal = null;
-        } else {
-          const parsed = parseFloat(trimmed.replace(",", "."));
-          loadVal = !isNaN(parsed) && parsed >= 0 ? parsed : null;
-        }
-      }
-
-      // Parse rest
-      let restVal = overrides?.restSeconds;
-      if (restVal === undefined) {
-        const parsed = parseInt(restStr.trim(), 10);
-        restVal = !isNaN(parsed) && parsed >= 0 ? Math.min(900, parsed) : lastCommittedRef.current.restSeconds;
-      }
-
-      // Notes & Advanced
-      const notesVal = overrides?.notes !== undefined ? overrides.notes : notesStr.trim();
-      const tempoVal = overrides?.tempo !== undefined ? overrides.tempo : tempoStr.trim() || undefined;
-
-      let rpeVal = overrides?.rpeTarget;
-      if (rpeVal === undefined) {
-        const trimmed = rpeStr.trim();
-        if (!trimmed) {
-          rpeVal = null;
-        } else {
-          const parsed = parseFloat(trimmed.replace(",", "."));
-          rpeVal = !isNaN(parsed) && parsed >= 1 && parsed <= 10 ? parsed : null;
-        }
-      }
-
-      // Check if anything actually changed compared to last committed
-      const last = lastCommittedRef.current;
-      const isChanged =
-        last.setsCount !== setsVal ||
-        last.reps !== repsVal ||
-        last.loadKg !== loadVal ||
-        last.restSeconds !== restVal ||
-        last.notes !== notesVal ||
-        last.tempo !== tempoVal ||
-        last.rpeTarget !== rpeVal;
-
-      if (!isChanged) return;
-
-      const payload = {
-        setsCount: setsVal,
-        reps: repsVal,
-        loadKg: loadVal,
-        restSeconds: restVal,
-        notes: notesVal,
-        tempo: tempoVal,
-        rpeTarget: rpeVal,
-      };
-
-      lastCommittedRef.current = payload;
-      onUpdateConfig(item.publicId, payload);
+      onUpdateConfig(item.publicId, updates);
     },
-    [setsStr, repsStr, loadStr, restStr, notesStr, tempoStr, rpeStr, item.publicId, onUpdateConfig]
+    [item.publicId, onUpdateConfig]
   );
 
-  // Debounced auto-save while typing:
-  // Holds off commit if user is in an intermediate empty state, so they can erase and type without interference
-  useEffect(() => {
-    const trimmedSets = setsStr.trim();
-    const trimmedRest = restStr.trim();
-
-    // If a required field is temporarily empty while typing, do not fire debounced auto-save
-    if (trimmedSets === "" || trimmedRest === "") {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      commitUpdates();
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [setsStr, repsStr, loadStr, restStr, notesStr, tempoStr, rpeStr, commitUpdates]);
-
-  // Flush on unmount if any pending valid change
-  useEffect(() => {
-    return () => {
-      commitUpdates();
-    };
-  }, [commitUpdates]);
-
-  // ---------------------------------------------------------------------------
-  // Handlers for onBlur (normalize and immediately commit without debounce)
-  // ---------------------------------------------------------------------------
-  const handleSetsBlur = () => {
-    const trimmed = setsStr.trim();
-    if (!trimmed) {
-      const fallback = String(lastCommittedRef.current.setsCount || 3);
-      setSetsStr(fallback);
-      commitUpdates({ setsCount: parseInt(fallback, 10) });
-      return;
-    }
-    const parsed = parseInt(trimmed, 10);
-    if (isNaN(parsed) || parsed < 1) {
-      setSetsStr("1");
-      commitUpdates({ setsCount: 1 });
-    } else if (parsed > 30) {
-      setSetsStr("30");
-      commitUpdates({ setsCount: 30 });
-    } else {
-      setSetsStr(String(parsed));
-      commitUpdates({ setsCount: parsed });
-    }
-  };
-
+  // Field Blur handlers
   const handleRestBlur = () => {
     const trimmed = restStr.trim();
     if (!trimmed) {
-      const fallback = String(lastCommittedRef.current.restSeconds ?? 60);
-      setRestStr(fallback);
-      commitUpdates({ restSeconds: parseInt(fallback, 10) });
+      setRestStr("60");
+      commitUpdates({ restSeconds: 60 });
       return;
     }
     const parsed = parseInt(trimmed, 10);
@@ -335,104 +316,195 @@ export function ExerciseCard({
 
   const indexPadded = String(index + 1).padStart(2, "0");
 
-  return (
-    <div className="w-full bg-white border border-[#E5E8E2] hover:border-[#C6E2D1] rounded-2xl p-3.5 sm:p-4.5 shadow-xs transition-all space-y-3">
-      {/* Top Header: Ordem + Nome + Músculo + Ações Rápidas */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 min-w-0 flex-1">
-          {/* Badge de Ordem */}
-          <span className="w-7 h-7 rounded-xl bg-[#F0F5F2] text-[#176B49] text-xs font-black flex items-center justify-center shrink-0 select-none">
-            {indexPadded}
-          </span>
+  const hasMedia = Boolean(
+    item.customVideoUrl ||
+      item.mediaAssetPublicId ||
+      item.pinnedMediaAssets?.length
+  );
 
-          {/* Nome e Tags */}
+  return (
+    <div
+      data-testid="exercise-card"
+      data-item-id={item.publicId}
+      draggable={Boolean(onDragStart)}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+      className={`w-full bg-white rounded-2xl p-3.5 sm:p-4.5 shadow-xs transition-all space-y-3 font-sans select-none border ${
+        isDragging || isLongPressing
+          ? "border-[#176B49] ring-2 ring-[#176B49]/30 shadow-md scale-[1.01] bg-[#F9FCFA]"
+          : "border-[#E5E8E2] hover:border-[#C6E2D1]"
+      }`}
+    >
+      {/* Top Header: Ordem + Slot (se houver) + Nome + Músculo + Ações Rápidas */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+          {/* Drag Handle & Order Badge */}
+          <div className="flex items-center gap-1 shrink-0 pt-0.5">
+            <span
+              className="text-[#8C9890] hover:text-[#102E23] cursor-grab active:cursor-grabbing p-0.5 rounded touch-none"
+              title="Arraste para mover"
+            >
+              <DragHandleIcon className="w-4 h-4" />
+            </span>
+            <span className="w-6 h-6 rounded-lg bg-[#F0F5F2] text-[#176B49] text-[11px] font-black flex items-center justify-center select-none">
+              {slotLabel ? slotLabel.slice(0, 2) : indexPadded}
+            </span>
+          </div>
+
+          {/* Nome, Posição e Tags */}
           <div className="min-w-0 flex-1">
-            <h3 className="text-sm sm:text-base font-bold text-[#102E23] leading-snug truncate font-sans">
-              {item.exerciseNameSnapshot}
+            {slotLabel && (
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#176B49] block mb-0.5">
+                {slotLabel}
+              </span>
+            )}
+            <h3 className="text-sm sm:text-base font-bold text-[#102E23] leading-snug truncate">
+              {item.exerciseNameSnapshot || "Exercício"}
             </h3>
 
-            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+            <div className="flex items-center gap-2 flex-wrap text-xs text-[#6B7870] mt-0.5">
               {item.muscleGroupSnapshot && (
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#E8F0EA] text-[#176B49]">
+                <span className="font-semibold text-[#176B49]">
                   {item.muscleGroupSnapshot}
                 </span>
               )}
               {item.equipmentSnapshot && (
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-[#F5F5F0] text-[#526058]">
-                  {item.equipmentSnapshot}
-                </span>
+                <>
+                  <span className="text-[#CCD5CB]">•</span>
+                  <span>{item.equipmentSnapshot}</span>
+                </>
               )}
-              {(item.customVideoUrl || (item.pinnedMedia && item.pinnedMedia.length > 0)) && (
-                <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-600">
-                  ▶ Vídeo
-                </span>
+              {item.isCustomExercise && (
+                <>
+                  <span className="text-[#CCD5CB]">•</span>
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#EBF7EE] text-[#12583B] border border-[#CDEED5]">
+                    Próprio
+                  </span>
+                </>
               )}
             </div>
           </div>
         </div>
 
-        {/* Ações Rápidas: Subir, Descer, Duplicar, Excluir */}
-        <div className="flex items-center gap-1 shrink-0 bg-[#F5F5F0] p-1 rounded-xl">
+        {/* Ações Rápidas do Card */}
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Ver Demonstração em Vídeo/GIF */}
+          {onPreviewVideo && (
+            <button
+              type="button"
+              onClick={onPreviewVideo}
+              aria-label="Ver demonstração em vídeo"
+              className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
+                hasMedia
+                  ? "bg-[#EBF7EE] text-[#12583B] border-[#CDEED5] hover:bg-[#DDF0E3]"
+                  : "bg-white text-[#8C9890] border-[#E5E8E2] hover:text-[#526058]"
+              }`}
+              title={hasMedia ? "Ver vídeo/GIF do exercício" : "Exercício sem vídeo cadastrado"}
+            >
+              <PlayCircleIcon className="w-3.5 h-3.5 text-[#176B49]" />
+              <span className="hidden sm:inline text-[11px] font-bold">Ver</span>
+            </button>
+          )}
+
+          {/* Trocar ordem com próximo (quando dentro de combinação) */}
+          {onSwapSlot && (
+            <button
+              type="button"
+              onClick={onSwapSlot}
+              className="p-1.5 rounded-lg text-[#526058] hover:text-[#176B49] hover:bg-[#E8F0EA] transition-colors cursor-pointer"
+              title="Trocar posição"
+            >
+              <ArrowsRightLeftIcon className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Trocar exercício */}
+          {onReplaceExercise && (
+            <button
+              type="button"
+              onClick={onReplaceExercise}
+              className="px-2 py-1 rounded-lg text-[11px] font-bold text-[#526058] hover:text-[#102E23] hover:bg-[#F5F5F0] transition-colors cursor-pointer"
+            >
+              Trocar
+            </button>
+          )}
+
+          {/* Subir */}
           <button
             type="button"
             disabled={isFirst}
             onClick={onMoveUp}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#526058] hover:text-[#102E23] hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
-            title="Mover para cima"
+            aria-label="Mover exercício para cima"
+            className="p-1.5 rounded-lg text-[#526058] hover:text-[#102E23] hover:bg-[#F5F5F0] disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
           >
-            <ArrowUpIcon />
+            <ArrowUpIcon className="w-3.5 h-3.5" />
           </button>
+
+          {/* Descer */}
           <button
             type="button"
             disabled={isLast}
             onClick={onMoveDown}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#526058] hover:text-[#102E23] hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
-            title="Mover para baixo"
+            aria-label="Mover exercício para baixo"
+            className="p-1.5 rounded-lg text-[#526058] hover:text-[#102E23] hover:bg-[#F5F5F0] disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
           >
-            <ArrowDownIcon />
+            <ArrowDownIcon className="w-3.5 h-3.5" />
           </button>
+
+          {/* Duplicar */}
           <button
             type="button"
             onClick={onDuplicate}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#526058] hover:text-[#102E23] hover:bg-white transition-colors cursor-pointer"
-            title="Duplicar exercício"
+            aria-label="Duplicar exercício"
+            className="p-1.5 rounded-lg text-[#526058] hover:text-[#102E23] hover:bg-[#F5F5F0] transition-colors cursor-pointer"
           >
-            <CopyIcon />
+            <CopyIcon className="w-3.5 h-3.5" />
           </button>
+
+          {/* Excluir */}
           <button
             type="button"
-            onClick={() => {
-              if (confirm(`Remover "${item.exerciseNameSnapshot}"?`)) {
-                onDelete();
-              }
-            }}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#526058] hover:text-[#DC2626] hover:bg-white transition-colors cursor-pointer"
-            title="Remover exercício"
+            onClick={onDelete}
+            aria-label="Remover exercício"
+            className="p-1.5 rounded-lg text-[#526058] hover:text-[#DC2626] hover:bg-[#FEE2E2] transition-colors cursor-pointer"
           >
-            <TrashIcon />
+            <TrashIcon className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Grid de Parâmetros Diretos (Séries, Reps, Carga, Descanso) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-[#F0F2ED]">
+      {/* Grid de Configuração Rápida: Séries, Repetições, Carga, Descanso */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
         {/* Séries */}
         <div className="p-2 rounded-xl bg-[#FBFBF9] border border-[#EAEFEA] space-y-1">
           <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B7870] block">
             Séries
           </label>
           <div className="flex items-center gap-1.5">
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={setsStr}
-              onChange={(e) => setSetsStr(e.target.value)}
-              onBlur={handleSetsBlur}
-              onFocus={(e) => e.target.select()}
-              placeholder="3"
-              className="w-full text-sm font-bold text-[#102E23] bg-transparent focus:outline-none"
-            />
+            <button
+              type="button"
+              disabled={setsCount <= 1}
+              onClick={() => commitUpdates({ setsCount: Math.max(1, setsCount - 1) })}
+              className="w-6 h-6 rounded-lg bg-white border border-[#E5E8E2] text-xs font-bold text-[#102E23] hover:bg-[#F5F5F0] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center cursor-pointer"
+            >
+              −
+            </button>
+            <span className="text-sm font-black text-[#102E23] flex-1 text-center font-mono">
+              {setsCount}
+            </span>
+            <button
+              type="button"
+              disabled={setsCount >= 10}
+              onClick={() => commitUpdates({ setsCount: Math.min(10, setsCount + 1) })}
+              className="w-6 h-6 rounded-lg bg-white border border-[#E5E8E2] text-xs font-bold text-[#102E23] hover:bg-[#F5F5F0] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center cursor-pointer"
+            >
+              +
+            </button>
           </div>
         </div>
 
@@ -443,31 +515,33 @@ export function ExerciseCard({
           </label>
           <input
             type="text"
-            inputMode="text"
             value={repsStr}
             onChange={(e) => setRepsStr(e.target.value)}
             onBlur={handleRepsBlur}
             onFocus={(e) => e.target.select()}
-            placeholder="Ex: 8-12"
+            placeholder="10 ou 8-12"
             className="w-full text-sm font-bold text-[#102E23] bg-transparent focus:outline-none"
           />
         </div>
 
-        {/* Carga */}
+        {/* Carga (kg) */}
         <div className="p-2 rounded-xl bg-[#FBFBF9] border border-[#EAEFEA] space-y-1">
           <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B7870] block">
             Carga (kg)
           </label>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={loadStr}
-            onChange={(e) => setLoadStr(e.target.value)}
-            onBlur={handleLoadBlur}
-            onFocus={(e) => e.target.select()}
-            placeholder="Opcional"
-            className="w-full text-sm font-bold text-[#102E23] bg-transparent focus:outline-none"
-          />
+          <div className="flex items-center gap-1">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={loadStr}
+              onChange={(e) => setLoadStr(e.target.value)}
+              onBlur={handleLoadBlur}
+              onFocus={(e) => e.target.select()}
+              placeholder="Opcional"
+              className="w-full text-sm font-bold text-[#102E23] bg-transparent focus:outline-none"
+            />
+            {loadStr && <span className="text-xs text-[#6B7870] font-semibold">kg</span>}
+          </div>
         </div>
 
         {/* Descanso */}
@@ -492,7 +566,7 @@ export function ExerciseCard({
         </div>
       </div>
 
-      {/* Observações e Parâmetros Avançados Expansíveis */}
+      {/* Observações e Ação de Método */}
       <div className="space-y-2 pt-0.5">
         <div className="flex items-center justify-between text-[11px] text-[#526058]">
           <button
@@ -504,13 +578,13 @@ export function ExerciseCard({
           </button>
 
           <div className="flex items-center gap-3">
-            {onStartBiSet && (
+            {onOpenMethodMenu && (
               <button
                 type="button"
-                onClick={onStartBiSet}
-                className="hover:text-[#176B49] font-bold text-[#176B49] transition-colors cursor-pointer"
+                onClick={onOpenMethodMenu}
+                className="hover:text-[#176B49] font-bold text-[#176B49] transition-colors cursor-pointer flex items-center gap-1"
               >
-                ⚡ Criar Bi-set com este
+                <span>⚡ Criar método com este</span>
               </button>
             )}
 
@@ -532,17 +606,30 @@ export function ExerciseCard({
               value={notesStr}
               onChange={(e) => setNotesStr(e.target.value)}
               onBlur={handleNotesBlur}
-              onFocus={(e) => e.target.select()}
-              placeholder="Ex: Foco no pico de contração; segurar 1s embaixo..."
-              className="w-full px-3 py-1.5 text-xs text-[#102E23] bg-[#FBFBF9] border border-[#EAEFEA] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#176B49]"
+              placeholder="Ex: Executar com amplitude completa, pico de contração de 1s"
+              className="w-full px-3 py-1.5 rounded-xl border border-[#E5E8E2] text-xs text-[#102E23] placeholder-[#8C9890] bg-[#FAFBF9] focus:outline-none focus:ring-1 focus:ring-[#176B49]"
             />
           </div>
         )}
 
-        {/* Campos Avançados: Cadência e RPE */}
+        {/* Campos Avançados: RPE e Cadência */}
         {isAdvancedOpen && (
-          <div className="grid grid-cols-2 gap-2 pt-1 animate-in fade-in duration-100">
-            <div className="p-2 rounded-xl bg-[#FBFBF9] border border-[#EAEFEA]">
+          <div className="pt-1 grid grid-cols-2 gap-2 animate-in fade-in duration-100 bg-[#FAFBF9] p-2.5 rounded-xl border border-[#EAEFEA]">
+            <div className="space-y-0.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B7870] block">
+                RPE Alvo (1-10)
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={rpeStr}
+                onChange={(e) => setRpeStr(e.target.value)}
+                onBlur={handleRpeBlur}
+                placeholder="Ex: 8.5"
+                className="w-full text-xs font-bold text-[#102E23] bg-transparent focus:outline-none"
+              />
+            </div>
+            <div className="space-y-0.5">
               <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B7870] block">
                 Cadência / Tempo
               </label>
@@ -551,23 +638,7 @@ export function ExerciseCard({
                 value={tempoStr}
                 onChange={(e) => setTempoStr(e.target.value)}
                 onBlur={handleTempoBlur}
-                onFocus={(e) => e.target.select()}
                 placeholder="Ex: 3-0-1-0"
-                className="w-full text-xs font-bold text-[#102E23] bg-transparent focus:outline-none"
-              />
-            </div>
-            <div className="p-2 rounded-xl bg-[#FBFBF9] border border-[#EAEFEA]">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B7870] block">
-                RPE Alvo (1 a 10)
-              </label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={rpeStr}
-                onChange={(e) => setRpeStr(e.target.value)}
-                onBlur={handleRpeBlur}
-                onFocus={(e) => e.target.select()}
-                placeholder="Ex: 8.5"
                 className="w-full text-xs font-bold text-[#102E23] bg-transparent focus:outline-none"
               />
             </div>

@@ -100,7 +100,8 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
     );
   }
 
-  const { workout, version, isDraft, allVersions } = result;
+  const { workout, version, isDraft, allVersions, assignedStudent } = result;
+  const effectiveStudentPublicId = student || assignedStudent?.membershipPublicId;
 
   return (
     <ConsultancyAppShell
@@ -127,7 +128,7 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
           isDraft={isDraft}
           allVersions={allVersions}
           isConsultancyAdmin={ctx.canManageConsultancy}
-          initialStudentPublicId={student}
+          initialStudentPublicId={effectiveStudentPublicId}
           from={from}
         />
       </div>

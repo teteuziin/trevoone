@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import type {
   WorkoutBlockItemDto,
   WorkoutItemCombinationDto,
@@ -27,10 +27,17 @@ interface CombinationCardProps {
   onDelete: (combinationPublicId: string) => Promise<void>;
   onAddItem: (combinationPublicId: string) => void;
   onRemoveItemFromCombination: (combinationPublicId: string, itemPublicId: string) => Promise<void>;
+  onPreviewVideo?: (item: WorkoutBlockItemDto) => void;
+  onReplaceExerciseInCombination?: (combinationPublicId: string, itemPublicId: string) => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   isFirst?: boolean;
   isLast?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onLongPressReorder?: () => void;
+  isDragging?: boolean;
 }
 
 function ArrowsRightLeftIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
@@ -58,6 +65,43 @@ function TrashIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   );
 }
 
+function ArrowUpIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
+    </svg>
+  );
+}
+
+function ArrowDownIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
+    </svg>
+  );
+}
+
+function DragHandleIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <circle cx="9" cy="6" r="1.5" />
+      <circle cx="15" cy="6" r="1.5" />
+      <circle cx="9" cy="12" r="1.5" />
+      <circle cx="15" cy="12" r="1.5" />
+      <circle cx="9" cy="18" r="1.5" />
+      <circle cx="15" cy="18" r="1.5" />
+    </svg>
+  );
+}
+
+function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    </svg>
+  );
+}
+
 export function CombinationCard({
   combination,
   items,
@@ -68,6 +112,17 @@ export function CombinationCard({
   onDelete,
   onAddItem,
   onRemoveItemFromCombination,
+  onPreviewVideo,
+  onReplaceExerciseInCombination,
+  onMoveUp,
+  onMoveDown,
+  isFirst = false,
+  isLast = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onLongPressReorder,
+  isDragging = false,
 }: CombinationCardProps) {
   const typeLabels: Record<string, string> = {
     BI_SET: "BI-SET",
@@ -91,44 +146,158 @@ export function CombinationCard({
   const badgeClass = badgeColors[currentType] || badgeColors.BI_SET;
   const label = typeLabels[currentType] || "MÉTODO AVANÇADO";
 
+  // Target positions count
+  const requiredSlots =
+    currentType === "BI_SET" || currentType === "SUPERSET" || currentType === "SUPER_SET"
+      ? 2
+      : currentType === "TRI_SET"
+      ? 3
+      : Math.max(3, items.length + 1);
+
+  // Position naming generator
+  const getSlotLabel = (idx: number) => {
+    if (currentType === "CIRCUIT") {
+      return `${idx + 1}ª estação`;
+    }
+    return `${idx + 1}º exercício`;
+  };
+
+  // Mobile Long-Press Detection for the entire combination unit
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const [isLongPressing, setIsLongPressing] = useState(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("input, button, textarea, a, select")) return;
+
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+
+    longPressTimer.current = setTimeout(() => {
+      setIsLongPressing(true);
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        try {
+          navigator.vibrate(50);
+        } catch {
+          // ignore
+        }
+      }
+      if (onLongPressReorder) {
+        onLongPressReorder();
+      }
+    }, 380);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartPos.current || !longPressTimer.current) return;
+    const touch = e.touches[0];
+    const diffX = Math.abs(touch.clientX - touchStartPos.current.x);
+    const diffY = Math.abs(touch.clientY - touchStartPos.current.y);
+
+    if (diffX > 10 || diffY > 10) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+      setIsLongPressing(false);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setIsLongPressing(false);
+    touchStartPos.current = null;
+  };
+
   return (
-    <div className="w-full bg-[#FAFBF9] border-2 border-[#D5E2D7] rounded-3xl p-4 sm:p-5 shadow-xs space-y-4">
+    <div
+      data-testid="combination-card"
+      data-combination-id={combination.publicId}
+      draggable={Boolean(onDragStart)}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+      className={`w-full bg-[#FAFBF9] rounded-3xl p-4 sm:p-5 shadow-xs space-y-4 font-sans select-none transition-all border-2 ${
+        isDragging || isLongPressing
+          ? "border-[#176B49] ring-2 ring-[#176B49]/30 shadow-md scale-[1.01]"
+          : "border-[#D5E2D7] hover:border-[#B8D4BE]"
+      }`}
+    >
       {/* Top Header do Bloco Avançado */}
       <div className="flex items-center justify-between gap-3 pb-2 border-b border-[#E5E8E2]">
-        <div className="flex items-center gap-2.5">
-          <span className={`px-2.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider border shadow-2xs ${badgeClass}`}>
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <span
+            className="text-[#8C9890] hover:text-[#102E23] cursor-grab active:cursor-grabbing p-0.5 rounded touch-none"
+            title="Arraste para mover o método inteiro"
+          >
+            <DragHandleIcon className="w-4 h-4" />
+          </span>
+
+          <span
+            className={`px-2.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider border shadow-2xs shrink-0 ${badgeClass}`}
+          >
             ⚡ {label}
           </span>
-          <span className="text-xs font-bold text-[#102E23]">
-            {items.length} {items.length === 1 ? "exercício" : "exercícios combinados"}
+
+          <span className="text-xs font-bold text-[#102E23] truncate">
+            {items.length} {items.length === 1 ? "exercício definido" : "exercícios combinados"}
           </span>
+
           {combination.restAfterSeconds && (
-            <span className="text-[11px] text-[#6B7870] font-medium hidden sm:inline">
-              • Descanso após rodada: {combination.restAfterSeconds}s
+            <span className="text-[11px] text-[#6B7870] font-medium hidden sm:inline shrink-0">
+              • Pausa: {combination.restAfterSeconds}s
             </span>
           )}
         </div>
 
         {/* Ações do Bloco */}
-        <div className="flex items-center gap-1.5">
-          {/* Inverter A ↔ B */}
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Inverter 1º ↔ 2º */}
           {items.length >= 2 && (
             <button
               type="button"
               onClick={() => onSwapOrder(combination.publicId)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-[#102E23] bg-white hover:bg-[#E8F0EA] border border-[#E5E8E2] transition-colors cursor-pointer"
-              title="Inverter ordem dos exercícios (A ↔ B)"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-[#102E23] bg-white hover:bg-[#E8F0EA] border border-[#E5E8E2] transition-colors cursor-pointer shadow-2xs"
+              title="Inverter 1º com 2º exercício"
             >
               <ArrowsRightLeftIcon className="w-3.5 h-3.5 text-[#176B49]" />
-              <span className="hidden sm:inline">Inverter (A ↔ B)</span>
+              <span className="hidden sm:inline">Inverter 1º ↔ 2º</span>
             </button>
           )}
+
+          {/* Subir Bloco */}
+          <button
+            type="button"
+            disabled={isFirst}
+            onClick={onMoveUp}
+            aria-label="Mover método para cima"
+            className="p-1.5 rounded-lg text-[#526058] hover:text-[#102E23] hover:bg-white disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+          >
+            <ArrowUpIcon className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Descer Bloco */}
+          <button
+            type="button"
+            disabled={isLast}
+            onClick={onMoveDown}
+            aria-label="Mover método para baixo"
+            className="p-1.5 rounded-lg text-[#526058] hover:text-[#102E23] hover:bg-white disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+          >
+            <ArrowDownIcon className="w-3.5 h-3.5" />
+          </button>
 
           {/* Desagrupar */}
           <button
             type="button"
             onClick={() => onUngroup(combination.publicId)}
-            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-[#526058] hover:text-[#102E23] hover:bg-white transition-colors cursor-pointer"
+            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-[#526058] hover:text-[#102E23] hover:bg-white transition-colors cursor-pointer hidden sm:inline"
             title="Desagrupar exercícios em individuais"
           >
             Desagrupar
@@ -160,43 +329,70 @@ export function CombinationCard({
         </div>
       </div>
 
-      {/* Lista de Exercícios Internos da Combinação (A, B, C...) */}
+      {/* Lista de Exercícios Internos da Combinação Numerados com Posições Claras */}
       <div className="space-y-3 pl-2 sm:pl-3 border-l-2 border-[#176B49]">
         {items.map((item, itemIdx) => {
-          const letter = String.fromCharCode(65 + itemIdx); // A, B, C...
+          const positionLabel = getSlotLabel(itemIdx);
 
           return (
             <div key={item.publicId} className="space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#176B49]">
-                <span className="w-5 h-5 rounded-md bg-[#176B49] text-white flex items-center justify-center text-[10px] font-black">
-                  {letter}
-                </span>
-                <span>Exercício {letter}</span>
-              </div>
-
               <ExerciseCard
                 key={item.publicId}
                 item={item}
                 index={itemIdx}
                 totalItems={items.length}
+                slotLabel={positionLabel}
                 onUpdateConfig={onUpdateConfig}
                 onMoveUp={() => {}}
                 onMoveDown={() => {}}
                 onDuplicate={() => onDuplicate(combination.publicId)}
                 onDelete={() => onRemoveItemFromCombination(combination.publicId, item.publicId)}
+                onPreviewVideo={onPreviewVideo ? () => onPreviewVideo(item) : undefined}
+                onSwapSlot={
+                  items.length >= 2 ? () => onSwapOrder(combination.publicId) : undefined
+                }
+                onReplaceExercise={
+                  onReplaceExerciseInCombination
+                    ? () => onReplaceExerciseInCombination(combination.publicId, item.publicId)
+                    : undefined
+                }
               />
             </div>
           );
         })}
 
-        {/* Adicionar exercício ao grupo se compatível */}
-        {items.length < (currentType === "BI_SET" ? 2 : currentType === "TRI_SET" ? 3 : 8) && (
+        {/* Posições Pendentes com Ação Direta "Escolher exercício" */}
+        {items.length < requiredSlots && (
+          <div className="p-3.5 rounded-2xl border-2 border-dashed border-[#176B49]/40 bg-white/70 hover:bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
+            <div className="space-y-0.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[#176B49]">
+                {getSlotLabel(items.length)}
+              </span>
+              <p className="text-xs text-[#526058] font-semibold">
+                Nenhum exercício selecionado para esta posição ainda.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onAddItem(combination.publicId)}
+              className="px-4 py-2 rounded-xl text-xs font-black bg-[#176B49] text-white hover:bg-[#12583B] transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <PlusIcon className="w-3.5 h-3.5" />
+              <span>Escolher {getSlotLabel(items.length)}</span>
+            </button>
+          </div>
+        )}
+
+        {/* Se o método já tem os slots mínimos preenchidos e permite adicionar mais estações (ex: Circuito) */}
+        {items.length >= requiredSlots && currentType === "CIRCUIT" && items.length < 8 && (
           <button
             type="button"
             onClick={() => onAddItem(combination.publicId)}
-            className="w-full py-2 px-4 rounded-xl border border-dashed border-[#176B49]/40 hover:border-[#176B49] text-xs font-bold text-[#176B49] hover:bg-[#E8F0EA] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl border border-dashed border-[#176B49]/40 hover:border-[#176B49] text-xs font-bold text-[#176B49] hover:bg-[#E8F0EA] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            <span>+ Adicionar exercício ao grupo</span>
+            <PlusIcon className="w-3.5 h-3.5" />
+            <span>+ Adicionar próxima estação ao circuito</span>
           </button>
         )}
       </div>

@@ -34,6 +34,7 @@ import {
   deleteItemCombinationAction,
   reorderItemsInCombinationAction,
   duplicateItemCombinationAction,
+  addItemToCombinationAction,
   removeItemFromCombinationAction,
   publishWorkoutAction,
   assignWorkoutVersionAction,
@@ -86,6 +87,9 @@ export function WorkoutEditor4({
 
   // Student context
   const [student, setStudent] = useState<EditorStudentInfo | null>(null);
+
+  // Target combination context (when choosing exercise for a combination slot)
+  const [targetCombinationPublicId, setTargetCombinationPublicId] = useState<string | null>(null);
 
   // Auto-save and drawer management
   const [saveStatus, setSaveStatus] = useState<AutoSaveStatus>("saved");
@@ -300,6 +304,39 @@ export function WorkoutEditor4({
 
       if (res.ok && res.data) {
         const newItem = res.data;
+
+        // If targeted for an existing combination slot
+        if (targetCombinationPublicId) {
+          await addItemToCombinationAction(
+            consultancySlug,
+            targetCombinationPublicId,
+            newItem.publicId
+          );
+
+          setBlocks((prev) =>
+            prev.map((b) => {
+              if (b.publicId !== activeBlock.publicId) return b;
+              return {
+                ...b,
+                items: [...(b.items || []), newItem],
+                combinations: (b.combinations || []).map((c) =>
+                  c.publicId === targetCombinationPublicId
+                    ? {
+                        ...c,
+                        items: [...(c.items || []), newItem],
+                      }
+                    : c
+                ),
+              };
+            })
+          );
+
+          setTargetCombinationPublicId(null);
+          setSaveStatus("saved");
+          setActiveDrawer(null);
+          setInsertTarget(null);
+          return;
+        }
 
         // If an explicit insert index was targeted, reorder items accordingly
         setBlocks((prev) => {
@@ -673,6 +710,65 @@ export function WorkoutEditor4({
     }
   };
 
+  const handleCreateCombinationFromItem = async (
+    methodType: import("@/lib/training-v2/types").WorkoutCombinationType,
+    firstItemPublicId: string,
+    secondExercise: ExerciseItemDto
+  ) => {
+    if (!activeBlock) return;
+    setSaveStatus("saving");
+    try {
+      // 1. Add second exercise into block
+      const addRes = await addExerciseItemToBlockAction(
+        consultancySlug,
+        activeBlock.publicId,
+        secondExercise.publicId
+      );
+
+      if (!addRes.ok || !addRes.data) {
+        setSaveStatus("error");
+        return;
+      }
+
+      const secondItem = addRes.data;
+
+      // 2. Create combination uniting both items
+      const methodLabels: Record<string, string> = {
+        BI_SET: "Bi-set",
+        SUPERSET: "Supersérie",
+        TRI_SET: "Tri-set",
+        CIRCUIT: "Circuito",
+      };
+      const title = methodLabels[methodType] || "Método";
+
+      const combRes = await createItemCombinationAction(consultancySlug, {
+        blockPublicId: activeBlock.publicId,
+        combinationType: methodType,
+        title,
+        restAfterSeconds: 90,
+        itemPublicIds: [firstItemPublicId, secondItem.publicId],
+      });
+
+      if (combRes.ok && combRes.data) {
+        setBlocks((prev) =>
+          prev.map((b) => {
+            if (b.publicId !== activeBlock.publicId) return b;
+            return {
+              ...b,
+              items: [...(b.items || []), secondItem],
+              combinations: [...(b.combinations || []), combRes.data!],
+            };
+          })
+        );
+        setSaveStatus("saved");
+      } else {
+        setSaveStatus("error");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
   const handleCombineWithNext = async (itemPublicId: string) => {
     if (!activeBlock || !activeBlock.items) return;
     const idx = activeBlock.items.findIndex((i) => i.publicId === itemPublicId);
@@ -920,9 +1016,12 @@ export function WorkoutEditor4({
             onUngroupCombination={handleUngroupCombination}
             onDuplicateCombination={handleDuplicateCombination}
             onDeleteCombination={handleDeleteCombination}
-            onAddItemToCombination={() => {
+            onAddItemToCombination={(combId) => {
+              setTargetCombinationPublicId(combId);
               setActiveDrawer("add");
             }}
+            onCreateCombinationFromItem={handleCreateCombinationFromItem}
+            onOpenReorderDrawer={() => setActiveDrawer("reorder")}
             onRemoveItemFromCombination={async (combId, itemId) => {
               await removeItemFromCombinationAction(consultancySlug, combId, itemId);
               setBlocks((prev) =>
@@ -968,8 +1067,10 @@ export function WorkoutEditor4({
         onClose={() => {
           setActiveDrawer(null);
           setInsertTarget(null);
+          setTargetCombinationPublicId(null);
         }}
         consultancySlug={consultancySlug}
+        blockPublicId={activeBlock?.publicId}
         onSelectExercise={handleSelectExercise}
         onCreateMethod={handleOpenMethodModal}
         targetIndex={insertTarget?.insertIndex}
@@ -1023,6 +1124,9 @@ export function WorkoutEditor4({
           isOpen={activeDrawer === "reorder"}
           onClose={() => setActiveDrawer(null)}
           block={activeBlock}
+          blocks={blocks}
+          activeBlockPublicId={activeBlockPublicId}
+          onSelectBlock={(id) => setActiveBlockPublicId(id)}
           onSaveNewOrder={async (newIds) => {
             const reordered = newIds
               .map((id) => activeBlock.items?.find((i) => i.publicId === id))

@@ -52,6 +52,7 @@ import { AiHelperDrawer } from "./ai-helper-drawer";
 import { ReorderDrawer } from "./reorder-drawer";
 import { FinalizeDrawer } from "./finalize-drawer";
 import { StudentSelectModal } from "./student-select-modal";
+import { MethodModal, type MethodType } from "./method-modal";
 import { StudentWorkoutRenderer } from "../student-workout-renderer";
 
 export interface WorkoutEditor4Props {
@@ -88,6 +89,7 @@ export function WorkoutEditor4({
   const [saveStatus, setSaveStatus] = useState<AutoSaveStatus>("saved");
   const [activeDrawer, setActiveDrawer] = useState<ActiveDrawerType>(null);
   const [insertTarget, setInsertTarget] = useState<ActiveInsertTarget | null>(null);
+  const [activeMethodModal, setActiveMethodModal] = useState<MethodType | null>(null);
 
   // Fallback back URL
   const backHref = student
@@ -400,42 +402,19 @@ export function WorkoutEditor4({
   // =========================================================================
   // 4. COMBINATIONS (BI-SET, TRI-SET, CIRCUIT, SUPERSET)
   // =========================================================================
-  const handleCreateMethod = async (
-    method: "BI_SET" | "TRI_SET" | "CIRCUIT" | "SUPERSET"
+  const handleOpenMethodModal = async (method: MethodType) => {
+    setActiveDrawer(null);
+    setActiveMethodModal(method);
+  };
+
+  const handleConfirmMethod = async (
+    method: MethodType,
+    itemIds: string[]
   ) => {
     if (!activeBlock) return;
     setSaveStatus("saving");
 
     try {
-      const existingItems = [...(activeBlock.items || [])];
-      const neededCount = method === "BI_SET" || method === "SUPERSET" ? 2 : 3;
-
-      // If we don't have enough exercises in the block, fetch popular exercises and add them
-      if (existingItems.length < neededCount) {
-        const { searchExercisesForPickerAction } = await import(
-          "@/app/consultoria/[slug]/rotinas/actions"
-        );
-        const searchRes = await searchExercisesForPickerAction(consultancySlug, {});
-        const pool = searchRes.ok && searchRes.data ? searchRes.data : [];
-        const missingCount = neededCount - existingItems.length;
-
-        for (let i = 0; i < missingCount; i++) {
-          const exToUse = pool[i % pool.length];
-          if (exToUse) {
-            const addRes = await addExerciseItemToBlockAction(
-              consultancySlug,
-              activeBlock.publicId,
-              exToUse.publicId
-            );
-            if (addRes.ok && addRes.data) {
-              existingItems.push(addRes.data);
-            }
-          }
-        }
-      }
-
-      const itemIds = existingItems.slice(0, neededCount).map((i) => i.publicId);
-
       const titleMap: Record<string, string> = {
         BI_SET: "Bi-set",
         TRI_SET: "Tri-set",
@@ -453,7 +432,8 @@ export function WorkoutEditor4({
 
       if (res.ok && res.data) {
         const newComb = res.data;
-        const combItems = existingItems.filter((it) => itemIds.includes(it.publicId));
+        const currentItems = activeBlock.items || [];
+        const combItems = currentItems.filter((it) => itemIds.includes(it.publicId));
         const fullNewComb: WorkoutItemCombinationDto = {
           ...newComb,
           items: combItems,
@@ -464,18 +444,39 @@ export function WorkoutEditor4({
             if (b.publicId !== activeBlock.publicId) return b;
             return {
               ...b,
-              items: existingItems,
               combinations: [...(b.combinations || []), fullNewComb],
             };
           })
         );
         setSaveStatus("saved");
+        setActiveMethodModal(null);
       } else {
         setSaveStatus("error");
       }
     } catch {
       setSaveStatus("error");
     }
+  };
+
+  const handleAddExerciseToBlockForMethod = async (exercisePublicId: string) => {
+    if (!activeBlock) return null;
+    const res = await addExerciseItemToBlockAction(
+      consultancySlug,
+      activeBlock.publicId,
+      exercisePublicId
+    );
+    if (res.ok && res.data) {
+      const newItem = res.data;
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.publicId === activeBlock.publicId
+            ? { ...b, items: [...(b.items || []), newItem] }
+            : b
+        )
+      );
+      return newItem;
+    }
+    return null;
   };
 
   const handleSwapCombinationOrder = async (combinationPublicId: string) => {
@@ -804,7 +805,7 @@ export function WorkoutEditor4({
             }}
             onSelectExercise={handleSelectExercise}
             onOpenMethodModal={(m) => {
-              handleCreateMethod(m);
+              handleOpenMethodModal(m);
             }}
             onOpenModelsDrawer={(idx) => {
               setInsertTarget({ blockPublicId: activeBlock.publicId, insertIndex: idx });
@@ -869,7 +870,7 @@ export function WorkoutEditor4({
         }}
         consultancySlug={consultancySlug}
         onSelectExercise={handleSelectExercise}
-        onCreateMethod={handleCreateMethod}
+        onCreateMethod={handleOpenMethodModal}
         targetIndex={insertTarget?.insertIndex}
       />
 
@@ -911,7 +912,7 @@ export function WorkoutEditor4({
           );
         }}
         onAddBiSetSuggestion={async () => {
-          handleCreateMethod("BI_SET");
+          handleOpenMethodModal("BI_SET");
         }}
       />
 
@@ -957,6 +958,20 @@ export function WorkoutEditor4({
           setStudent(st);
         }}
       />
+
+      {/* Modal Guiado de Métodos Avançados (Bi-set, Tri-set, Supersérie, Circuito) */}
+      {activeBlock && activeMethodModal && (
+        <MethodModal
+          key={`${activeMethodModal}-${activeBlock.publicId}`}
+          isOpen={Boolean(activeMethodModal)}
+          onClose={() => setActiveMethodModal(null)}
+          method={activeMethodModal}
+          consultancySlug={consultancySlug}
+          existingItems={activeBlock.items || []}
+          onConfirm={handleConfirmMethod}
+          onAddExerciseToBlock={handleAddExerciseToBlockForMethod}
+        />
+      )}
 
       {/* Modal Prévia de Aluno (Full screen preview) */}
       {activeDrawer === "preview" && (

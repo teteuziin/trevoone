@@ -115,15 +115,15 @@ export function ShortcutsDock({
           </span>
         </button>
 
-        {/* 5. Finalizar */}
+        {/* 5. Finalizar (Apenas no Mobile; no Desktop já existe o botão Finalizar fixo no topo) */}
         <button
           type="button"
           onClick={onOpenFinalize}
-          className="min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 py-1.5 sm:py-2 px-1 sm:px-3.5 rounded-xl sm:rounded-full bg-white text-[#102E23] hover:bg-[#EBF3ED] transition-colors min-h-[44px] cursor-pointer shadow-xs"
+          className="min-w-0 flex sm:hidden flex-col items-center justify-center gap-0.5 py-1.5 px-1 rounded-xl bg-white text-[#102E23] hover:bg-[#EBF3ED] transition-colors min-h-[44px] cursor-pointer shadow-xs"
           title="Conferir e publicar ficha"
         >
           <CheckCircleIcon className="w-4 h-4 shrink-0 text-[#176B49]" />
-          <span className="text-[10px] sm:text-xs font-bold tracking-tight truncate w-full text-center leading-tight">
+          <span className="text-[10px] font-bold tracking-tight truncate w-full text-center leading-tight">
             Finalizar
           </span>
         </button>

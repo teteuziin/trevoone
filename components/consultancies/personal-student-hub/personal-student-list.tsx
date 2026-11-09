@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserAvatar } from "@/components/account/user-avatar";
-import { DuotoneStudentsIcon, DuotoneTrainingIcon, DuotoneNutritionIcon } from "@/components/ui/icons/duotone-icons";
+import { DuotoneTrainingIcon, DuotoneNutritionIcon } from "@/components/ui/icons/duotone-icons";
 import type { PersonalStudentSummary } from "@/lib/consultancies/personal-student-hub";
 import {
   NutritionPlanChoiceModal,
@@ -49,14 +49,6 @@ function XIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-      <polyline points="9 18 15 12 9 6" />
     </svg>
   );
 }
@@ -238,7 +230,7 @@ export function PersonalStudentList({
   }
 
   return (
-    <div className="w-full space-y-5">
+    <div className="w-full space-y-4">
       {/* 
         ========================================================================
         CONTRACT & REGRESSION GUARD PRESERVATION:
@@ -293,70 +285,49 @@ export function PersonalStudentList({
       </div>
 
       {/* =========================================================================
-          A. CABEÇALHO ALUNOS 4.0 (Identidade Oficial Trevo One: Branco / Marfim / Esmeralda)
+          A. CABEÇALHO COMPACTO ALUNOS 4.0
+          Alunos + total real + Adicionar aluno (sem caixas grandes)
           ========================================================================= */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs flex flex-col gap-3">
-        {/* Linha superior: Voltar */}
-        <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1">
+        <div className="flex items-center gap-3">
           <Link
             href={`/consultoria/${consultancySlug}`}
-            onClick={(e) => {
-              if (
-                typeof window !== "undefined" &&
-                window.history.length > 1 &&
-                document.referrer &&
-                document.referrer.includes(window.location.host)
-              ) {
-                e.preventDefault();
-                window.history.back();
-              }
-            }}
             aria-label="Voltar"
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#5A6660] hover:text-[#102E23] min-h-[38px] -ml-1 px-2 rounded-xl hover:bg-[#F5F5F0] transition-colors cursor-pointer select-none"
+            className="w-9 h-9 rounded-xl bg-white border border-[#E5E8E2] text-[#5A6660] hover:text-[#102E23] flex items-center justify-center shadow-xs transition-colors shrink-0"
           >
             <ArrowLeftIcon className="w-4 h-4 text-[#176B49]" />
-            <span>Voltar</span>
           </Link>
-        </div>
-
-        {/* Linha de Identificação: Ícone + Título + Contagem real */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-10 h-10 rounded-xl ${isEffectiveNutritionist ? "bg-[#E8F0EA] border-[#CDEED5]" : "bg-[#E8F0EA] border-[#CDEED5]"} border flex items-center justify-center shrink-0`}>
-              {isEffectiveNutritionist ? (
-                <DuotoneNutritionIcon className="w-5 h-5 text-[#176B49]" />
-              ) : (
-                <DuotoneStudentsIcon className="w-5 h-5 text-[#176B49]" />
-              )}
-            </div>
-            <div className="min-w-0 flex flex-col sm:flex-row sm:items-baseline sm:gap-2.5">
-              <h1 className="text-xl sm:text-2xl font-bold text-[#102E23] tracking-tight leading-tight">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-[#102E23] tracking-tight">
                 {isEffectiveNutritionist ? "Pacientes" : "Alunos"}
               </h1>
-              <span className="text-xs sm:text-sm text-[#5A6660] font-normal leading-tight mt-0.5 sm:mt-0">
-                {totalCount} {isEffectiveNutritionist ? (totalCount === 1 ? "paciente cadastrado" : "pacientes cadastrados") : (totalCount === 1 ? "aluno cadastrado" : "alunos cadastrados")}
+              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5]">
+                {totalCount}
               </span>
             </div>
+            <p className="text-xs text-[#5A6660]">
+              {totalCount} {isEffectiveNutritionist ? (totalCount === 1 ? "paciente cadastrado" : "pacientes cadastrados") : (totalCount === 1 ? "aluno cadastrado" : "alunos cadastrados")}
+            </p>
           </div>
-
-          {/* Ação de Adicionar Aluno / Convidar Membro */}
-          {isAdmin && (
-            <Link
-              href={`/consultoria/${consultancySlug}/membros`}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-[#176B49] hover:bg-[#125438] active:bg-[#0E3F2A] transition-colors min-h-[42px] shadow-xs shrink-0"
-            >
-              <UserPlusIcon className="w-4 h-4" />
-              <span>{isEffectiveNutritionist ? "Convidar paciente" : "Convidar aluno"}</span>
-            </Link>
-          )}
         </div>
+
+        {isAdmin && (
+          <Link
+            href={`/consultoria/${consultancySlug}/membros`}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white bg-[#176B49] hover:bg-[#125438] active:bg-[#0E3F2A] transition-colors min-h-[40px] shadow-xs self-start sm:self-auto shrink-0"
+          >
+            <UserPlusIcon className="w-4 h-4" />
+            <span>{isEffectiveNutritionist ? "Convidar paciente" : "+ Adicionar aluno"}</span>
+          </Link>
+        )}
       </div>
 
       {/* =========================================================================
-          B. BUSCA E FILTROS 4.0
+          B. BUSCA VISÍVEL & TRÊS FILTROS (Composição Limpa)
           ========================================================================= */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-3.5">
-        {/* Campo de Busca Único */}
+      <div className="space-y-2.5">
+        {/* Campo de Busca Visível */}
         <div className="relative w-full">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#5A6660]">
             <SearchIcon className="w-4 h-4" />
@@ -365,36 +336,35 @@ export function PersonalStudentList({
             type="text"
             value={searchQuery}
             onChange={handleSearchChange}
-            placeholder={isEffectiveNutritionist ? "Buscar paciente por nome ou e-mail..." : "Buscar aluno por nome ou e-mail..."}
-            className="w-full h-11 pl-10 pr-10 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] text-sm text-[#102E23] placeholder-[#8E9992] focus:outline-none focus:border-[#176B49] focus:ring-1 focus:ring-[#176B49] transition-all min-h-[44px]"
+            placeholder={isEffectiveNutritionist ? "Buscar paciente por nome ou contato..." : "Buscar aluno por nome ou contato..."}
+            className="w-full h-11 pl-10 pr-10 rounded-xl bg-white border border-[#E5E8E2] text-sm text-[#102E23] placeholder-[#8E9992] focus:outline-none focus:border-[#176B49] focus:ring-1 focus:ring-[#176B49] shadow-xs transition-all"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={handleClearSearch}
               aria-label="Limpar busca"
-              className="absolute inset-y-0 right-0 pr-3 flex items-center justify-center text-[#5A6660] hover:text-[#102E23] transition-colors min-w-[44px] min-h-[44px] cursor-pointer"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center justify-center text-[#5A6660] hover:text-[#102E23] transition-colors min-w-[40px] min-h-[40px] cursor-pointer"
             >
               <XIcon className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        {/* Barra de Filtros e Ordenação */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-0.5">
-          {/* Pílulas de Filtros com Contagens Reais */}
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Três Filtros Claros */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => handleFilterChange("all")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[38px] inline-flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all min-h-[36px] inline-flex items-center gap-1.5 cursor-pointer ${
                 filter === "all"
                   ? "bg-[#176B49] text-white shadow-xs"
-                  : "bg-[#F5F5F0] text-[#5A6660] hover:bg-[#EBEBE5] border border-[#E5E8E2]"
+                  : "bg-white text-[#5A6660] hover:bg-[#F5F5F0] border border-[#E5E8E2]"
               }`}
             >
               <span>Todos</span>
-              <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${filter === "all" ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${filter === "all" ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
                 {totalCount}
               </span>
             </button>
@@ -404,14 +374,14 @@ export function PersonalStudentList({
                 <button
                   type="button"
                   onClick={() => handleFilterChange("with_plan")}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[38px] inline-flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all min-h-[36px] inline-flex items-center gap-1.5 cursor-pointer ${
                     filter === "with_plan" || filter === "with_workout"
                       ? "bg-[#176B49] text-white shadow-xs"
-                      : "bg-[#F5F5F0] text-[#5A6660] hover:bg-[#EBEBE5] border border-[#E5E8E2]"
+                      : "bg-white text-[#5A6660] hover:bg-[#F5F5F0] border border-[#E5E8E2]"
                   }`}
                 >
                   <span>Com plano</span>
-                  <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${(filter === "with_plan" || filter === "with_workout") ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${(filter === "with_plan" || filter === "with_workout") ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
                     {withPlanCount}
                   </span>
                 </button>
@@ -419,14 +389,14 @@ export function PersonalStudentList({
                 <button
                   type="button"
                   onClick={() => handleFilterChange("without_plan")}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[38px] inline-flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all min-h-[36px] inline-flex items-center gap-1.5 cursor-pointer ${
                     filter === "without_plan" || filter === "without_workout"
                       ? "bg-[#176B49] text-white shadow-xs"
-                      : "bg-[#F5F5F0] text-[#5A6660] hover:bg-[#EBEBE5] border border-[#E5E8E2]"
+                      : "bg-white text-[#5A6660] hover:bg-[#F5F5F0] border border-[#E5E8E2]"
                   }`}
                 >
                   <span>Sem plano</span>
-                  <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${(filter === "without_plan" || filter === "without_workout") ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${(filter === "without_plan" || filter === "without_workout") ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
                     {withoutPlanCount}
                   </span>
                 </button>
@@ -436,14 +406,14 @@ export function PersonalStudentList({
                 <button
                   type="button"
                   onClick={() => handleFilterChange("with_workout")}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[38px] inline-flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all min-h-[36px] inline-flex items-center gap-1.5 cursor-pointer ${
                     filter === "with_workout"
                       ? "bg-[#176B49] text-white shadow-xs"
-                      : "bg-[#F5F5F0] text-[#5A6660] hover:bg-[#EBEBE5] border border-[#E5E8E2]"
+                      : "bg-white text-[#5A6660] hover:bg-[#F5F5F0] border border-[#E5E8E2]"
                   }`}
                 >
                   <span>Com treino</span>
-                  <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${filter === "with_workout" ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${filter === "with_workout" ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
                     {withWorkoutCount}
                   </span>
                 </button>
@@ -451,14 +421,14 @@ export function PersonalStudentList({
                 <button
                   type="button"
                   onClick={() => handleFilterChange("without_workout")}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[38px] inline-flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all min-h-[36px] inline-flex items-center gap-1.5 cursor-pointer ${
                     filter === "without_workout"
                       ? "bg-[#176B49] text-white shadow-xs"
-                      : "bg-[#F5F5F0] text-[#5A6660] hover:bg-[#EBEBE5] border border-[#E5E8E2]"
+                      : "bg-white text-[#5A6660] hover:bg-[#F5F5F0] border border-[#E5E8E2]"
                   }`}
                 >
                   <span>Sem treino</span>
-                  <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${filter === "without_workout" ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${filter === "without_workout" ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
                     {withoutWorkoutCount}
                   </span>
                 </button>
@@ -466,42 +436,35 @@ export function PersonalStudentList({
             )}
           </div>
 
-          {/* Seletor de Ordenação Compacto */}
-          <div className="flex items-center gap-2 self-end sm:self-auto text-xs text-[#5A6660]">
+          <div className="flex items-center gap-1.5 text-xs text-[#5A6660]">
             <span className="hidden sm:inline">Ordenar:</span>
             <select
               value={sortBy}
               aria-label="Ordenar alunos"
               onChange={(e) => setSortBy(e.target.value as "name_asc" | "recent" | "name_desc")}
-              className="bg-[#FAF9F6] border border-[#E5E8E2] rounded-xl px-2.5 py-1.5 text-xs font-semibold text-[#102E23] focus:outline-none focus:border-[#176B49] min-h-[36px] cursor-pointer"
+              className="bg-white border border-[#E5E8E2] rounded-xl px-2 py-1 text-xs font-semibold text-[#102E23] focus:outline-none focus:border-[#176B49] min-h-[32px] cursor-pointer"
             >
-              <option value="name_asc">Nome (A–Z)</option>
-              <option value="recent">Mais recentes</option>
-              <option value="name_desc">Nome (Z–A)</option>
+              <option value="name_asc">A–Z</option>
+              <option value="recent">Recentes</option>
+              <option value="name_desc">Z–A</option>
             </select>
           </div>
         </div>
       </div>
 
       {/* =========================================================================
-          C. LISTA DE ALUNOS 4.0
-          Cartões claros, ações diretas, atalhos inteligentes
+          C. LISTA COMPACTA DE ALUNOS 4.0
+          Foto + Nome + Situação + UMA ÚNICA AÇÃO PRINCIPAL
+          Tocar no card abre o perfil. Menu de 3 pontos para ações secundárias.
+          SEM botões redundantes "Ver aluno" / "Abrir perfil" em cada linha!
           ========================================================================= */}
       <div className="bg-white border border-[#E5E8E2] rounded-2xl shadow-xs overflow-hidden">
-        {/* Cabeçalho de Colunas (Desktop) */}
-        <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-3 bg-[#F9FAF8] border-b border-[#E5E8E2] text-[11px] font-bold uppercase tracking-wider text-[#5A6660]">
-          <div className="col-span-5">{isEffectiveNutritionist ? "Paciente" : "Aluno"}</div>
-          <div className="col-span-4">{isEffectiveNutritionist ? "Plano alimentar" : "Status do treino"}</div>
-          <div className="col-span-3 text-right">Ação</div>
-        </div>
-
-        {/* Estado Vazio */}
         {paginatedStudents.length === 0 ? (
-          <div className="p-8 sm:p-12 text-center space-y-3">
+          <div className="p-8 text-center space-y-2">
             <p className="text-sm font-semibold text-[#102E23]">
               {searchQuery.trim()
-                ? `Nenhum ${isEffectiveNutritionist ? "paciente" : "aluno"} encontrado para "${searchQuery}" com o filtro selecionado.`
-                : `Nenhum ${isEffectiveNutritionist ? "paciente" : "aluno"} encontrado para este filtro.`}
+                ? `Nenhum ${isEffectiveNutritionist ? "paciente" : "aluno"} encontrado para "${searchQuery}".`
+                : `Nenhum ${isEffectiveNutritionist ? "paciente" : "aluno"} encontrado.`}
             </p>
             {(searchQuery.trim() || filter !== "all") && (
               <button
@@ -511,9 +474,9 @@ export function PersonalStudentList({
                   setFilter("all");
                   setCurrentPage(1);
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-[#176B49] bg-[#E8F0EA] hover:bg-[#DBE7DE] transition-colors min-h-[40px] cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#176B49] bg-[#E8F0EA] hover:bg-[#DBE7DE] transition-colors"
               >
-                Limpar busca e filtros
+                Limpar filtros
               </button>
             )}
           </div>
@@ -527,8 +490,7 @@ export function PersonalStudentList({
               const studentDetailHref = isEffectiveNutritionist
                 ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`
                 : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?fromPage=${safePage}&filter=${filter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`;
-              
-              // Target workout link: opens Editor 4.0 if workoutPublicId is known, or assignment view
+
               const openWorkoutHref = student.latestWorkoutPublicId
                 ? `/consultoria/${consultancySlug}/rotinas/${student.latestWorkoutPublicId}`
                 : student.latestAssignmentPublicId
@@ -545,291 +507,170 @@ export function PersonalStudentList({
               return (
                 <div
                   key={student.membershipPublicId}
-                  className="transition-colors hover:bg-[#F9FAF8]"
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (target.closest("button, a, select, input")) return;
+                    router.push(studentDetailHref);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      const target = e.target as HTMLElement;
+                      if (target.closest("button, a, select, input")) return;
+                      e.preventDefault();
+                      router.push(studentDetailHref);
+                    }
+                  }}
+                  className="p-3.5 sm:px-5 sm:py-3.5 flex items-center justify-between gap-3 hover:bg-[#FAF9F6] active:bg-[#F5F5F0] transition-colors cursor-pointer select-none"
+                  aria-label={`Ver perfil de ${student.name}`}
                 >
-                  {/* Layout Desktop */}
-                  <div className="hidden md:grid md:grid-cols-12 md:items-center gap-4 px-6 py-4">
-                    {/* Aluno: Avatar + Nome + Email */}
-                    <div className="col-span-5 flex items-center gap-3.5 min-w-0">
-                      <Link href={studentDetailHref} className="shrink-0" aria-label={`Perfil de ${student.name}`}>
-                        <UserAvatar
-                          fullName={student.name}
-                          userPublicId={student.userPublicId}
-                          size="md"
-                          className="shrink-0 border border-[#E5E8E2]"
-                        />
-                      </Link>
-                      <div className="min-w-0 flex-1">
-                        <Link
-                          href={studentDetailHref}
-                          className="font-semibold text-sm text-[#102E23] hover:text-[#176B49] transition-colors truncate block"
-                        >
+                  {/* Lado Esquerdo: Foto + Nome + Contato */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <UserAvatar
+                      fullName={student.name}
+                      userPublicId={student.userPublicId}
+                      size="md"
+                      className="shrink-0 border border-[#E5E8E2]"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-[#102E23] truncate hover:text-[#176B49] transition-colors">
                           {student.name}
-                        </Link>
-                        <p className="text-xs text-[#5A6660] truncate">
-                          {student.email}
-                        </p>
+                        </span>
                       </div>
-                    </div>
-
-                    {/* Status: Treino / Plano */}
-                    <div className="col-span-4 min-w-0">
-                      {isEffectiveNutritionist ? (
-                        hasActiveNutrition ? (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5] max-w-full">
-                            <DuotoneNutritionIcon className="w-3.5 h-3.5 shrink-0 text-[#176B49]" />
-                            <span className="truncate">
-                              Plano ativo: {student.activeNutritionPlanTitle}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#F3F4F6] text-[#5A6660] border border-[#E5E8E2]">
-                            <span>Sem plano ativo</span>
-                          </div>
-                        )
-                      ) : (
-                        hasActiveWorkout ? (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5] max-w-full">
-                            <DuotoneTrainingIcon className="w-3.5 h-3.5 shrink-0 text-[#176B49]" />
-                            <span className="truncate">
-                              Treino ativo: {student.latestWorkoutTitle}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#F3F4F6] text-[#5A6660] border border-[#E5E8E2]">
-                            <span>Sem treino prescrito</span>
-                          </div>
-                        )
-                      )}
-                    </div>
-
-                    {/* Ações Desktop */}
-                    <div className="col-span-3 flex items-center justify-end gap-2 shrink-0">
-                      {isEffectiveNutritionist ? (
-                        hasActiveNutrition && openPlanHref ? (
-                          <Link
-                            href={openPlanHref}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[38px] inline-flex items-center gap-1 shrink-0 shadow-xs cursor-pointer"
-                          >
-                            <span>Abrir plano</span>
-                          </Link>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPlanCreation(student)}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[38px] inline-flex items-center gap-1 shrink-0 shadow-xs cursor-pointer"
-                          >
-                            <PlusIcon className="w-3.5 h-3.5" />
-                            <span>Criar plano</span>
-                          </button>
-                        )
-                      ) : (
-                        hasActiveWorkout ? (
-                          <Link
-                            href={openWorkoutHref}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[38px] inline-flex items-center gap-1 shrink-0 shadow-xs cursor-pointer"
-                          >
-                            <span>Abrir treino</span>
-                          </Link>
-                        ) : (
-                          <Link
-                            href={createWorkoutHref}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[38px] inline-flex items-center gap-1 shrink-0 shadow-xs cursor-pointer"
-                          >
-                            <PlusIcon className="w-3.5 h-3.5" />
-                            <span>Criar treino</span>
-                          </Link>
-                        )
-                      )}
-
-                      <Link
-                        href={studentDetailHref}
-                        className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#F5F5F0] hover:bg-[#EBEBE5] text-[#102E23] border border-[#E5E8E2] transition-colors min-h-[38px] inline-flex items-center gap-1 shrink-0"
-                        title="Ver perfil do aluno"
-                      >
-                        <span>Ver aluno</span>
-                        <ChevronRightIcon className="w-3.5 h-3.5 text-[#5A6660]" />
-                      </Link>
+                      <p className="text-xs text-[#5A6660] truncate">
+                        {student.email}
+                      </p>
                     </div>
                   </div>
 
-                  {/* Layout Mobile: Card limpo e clicável */}
-                  <div
-                    data-testid="mobile-student-card-item"
-                    onClick={(e) => {
-                      const target = e.target as HTMLElement;
-                      if (target.closest("button, a")) return;
-                      router.push(studentDetailHref);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        const target = e.target as HTMLElement;
-                        if (target.closest("button, a")) return;
-                        e.preventDefault();
-                        router.push(studentDetailHref);
-                      }
-                    }}
-                    aria-label={`Ver perfil de ${student.name}`}
-                    className="md:hidden p-4 space-y-3 relative cursor-pointer active:bg-[#F5F5F0] transition-colors rounded-xl select-none"
-                  >
-                    {/* Linha 1: Avatar + Nome + Email + Menu Contextual */}
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <UserAvatar
-                          fullName={student.name}
-                          userPublicId={student.userPublicId}
-                          size="md"
-                          className="shrink-0 border border-[#E5E8E2]"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-bold text-sm text-[#102E23] truncate block">
-                            {student.name}
-                          </h3>
-                          <p className="text-xs text-[#5A6660] truncate">
-                            {student.email}
-                          </p>
-                        </div>
-                      </div>
+                  {/* Centro: Situação do Treino (Em desktop ou comprimido no mobile) */}
+                  <div className="hidden sm:flex items-center shrink-0">
+                    {isEffectiveNutritionist ? (
+                      hasActiveNutrition ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5] max-w-[200px] truncate">
+                          <DuotoneNutritionIcon className="w-3.5 h-3.5 shrink-0 text-[#176B49]" />
+                          <span className="truncate">{student.activeNutritionPlanTitle}</span>
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[#F3F4F6] text-[#5A6660] border border-[#E5E8E2]">
+                          Sem plano ativo
+                        </span>
+                      )
+                    ) : (
+                      hasActiveWorkout ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5] max-w-[220px] truncate">
+                          <DuotoneTrainingIcon className="w-3.5 h-3.5 shrink-0 text-[#176B49]" />
+                          <span className="truncate">{student.latestWorkoutTitle}</span>
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[#F3F4F6] text-[#5A6660] border border-[#E5E8E2]">
+                          Sem treino prescrito
+                        </span>
+                      )
+                    )}
+                  </div>
 
-                      {/* Botão de Menu 3 Pontos */}
-                      <div className="relative shrink-0">
+                  {/* Lado Direito: Apenas UMA Ação Principal + Menu 3 Pontos */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isEffectiveNutritionist ? (
+                      hasActiveNutrition && openPlanHref ? (
+                        <Link
+                          href={openPlanHref}
+                          onClick={(e) => e.stopPropagation()}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[36px] inline-flex items-center shadow-xs"
+                        >
+                          Abrir plano
+                        </Link>
+                      ) : (
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setOpenMenuStudentId(isMenuOpen ? null : student.membershipPublicId);
+                            handleOpenPlanCreation(student);
                           }}
-                          aria-label="Mais opções para este aluno"
-                          className="p-2 rounded-xl text-[#5A6660] hover:text-[#102E23] hover:bg-[#F5F5F0] transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[36px] inline-flex items-center shadow-xs cursor-pointer"
                         >
-                          <MoreDotsIcon className="w-4 h-4" />
+                          + Criar plano
                         </button>
+                      )
+                    ) : (
+                      hasActiveWorkout ? (
+                        <Link
+                          href={openWorkoutHref}
+                          onClick={(e) => e.stopPropagation()}
+                          className="px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[36px] inline-flex items-center shadow-xs"
+                        >
+                          Abrir treino
+                        </Link>
+                      ) : (
+                        <Link
+                          href={createWorkoutHref}
+                          onClick={(e) => e.stopPropagation()}
+                          className="px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[36px] inline-flex items-center shadow-xs"
+                        >
+                          <PlusIcon className="w-3.5 h-3.5 mr-0.5 sm:mr-1" />
+                          <span>Criar treino</span>
+                        </Link>
+                      )
+                    )}
 
-                        {isMenuOpen && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-40"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuStudentId(null);
-                              }}
-                              aria-hidden="true"
-                            />
-                            <div className="absolute right-0 top-full mt-1 z-50 w-48 p-1.5 rounded-xl bg-white border border-[#E5E8E2] shadow-lg space-y-0.5">
-                              <Link
-                                href={studentDetailHref}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors text-left"
-                              >
-                                <span>Ver aluno</span>
-                              </Link>
-                              <Link
-                                href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?tab=fotos`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors text-left"
-                              >
-                                <span>Registrar foto</span>
-                              </Link>
-                              <Link
-                                href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?tab=anamnese`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors text-left"
-                              >
-                                <span>Nova anamnese</span>
-                              </Link>
-                              <Link
-                                href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?tab=formularios`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors text-left"
-                              >
-                                <span>Enviar formulário</span>
-                              </Link>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                    {/* Menu de 3 Pontos para Ações Secundárias */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuStudentId(isMenuOpen ? null : student.membershipPublicId);
+                        }}
+                        aria-label="Mais opções para este aluno"
+                        className="p-1.5 rounded-xl text-[#5A6660] hover:text-[#102E23] hover:bg-[#F5F5F0] transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
+                      >
+                        <MoreDotsIcon className="w-4 h-4" />
+                      </button>
 
-                    {/* Linha 2: Status do Treino + Ação Principal */}
-                    <div className="flex items-center justify-between gap-2 pt-0.5">
-                      <div className="min-w-0 flex-1">
-                        {isEffectiveNutritionist ? (
-                          hasActiveNutrition ? (
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5] max-w-full">
-                              <DuotoneNutritionIcon className="w-3.5 h-3.5 shrink-0 text-[#176B49]" />
-                              <span className="truncate">
-                                {student.activeNutritionPlanTitle}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#F3F4F6] text-[#5A6660] border border-[#E5E8E2]">
-                              <span>Sem plano ativo</span>
-                            </div>
-                          )
-                        ) : (
-                          hasActiveWorkout ? (
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5] max-w-full">
-                              <DuotoneTrainingIcon className="w-3.5 h-3.5 shrink-0 text-[#176B49]" />
-                              <span className="truncate">
-                                Treino ativo: {student.latestWorkoutTitle}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#F3F4F6] text-[#5A6660] border border-[#E5E8E2]">
-                              <span>Sem treino prescrito</span>
-                            </div>
-                          )
-                        )}
-                      </div>
-
-                      {/* Botão de Ação Primária no Mobile */}
-                      {isEffectiveNutritionist ? (
-                        hasActiveNutrition && openPlanHref ? (
-                          <Link
-                            href={openPlanHref}
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-[#176B49] hover:bg-[#125438] min-h-[38px] transition-colors shrink-0 shadow-xs cursor-pointer"
-                            aria-label={`Abrir plano alimentar de ${student.name}`}
-                          >
-                            <span>Abrir plano</span>
-                          </Link>
-                        ) : (
-                          <button
-                            type="button"
+                      {isMenuOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleOpenPlanCreation(student);
+                              setOpenMenuStudentId(null);
                             }}
-                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-[#176B49] hover:bg-[#125438] min-h-[38px] transition-colors shrink-0 shadow-xs cursor-pointer"
-                            aria-label={`Criar plano alimentar para ${student.name}`}
-                          >
-                            <PlusIcon className="w-3.5 h-3.5" />
-                            <span>+ Plano</span>
-                          </button>
-                        )
-                      ) : (
-                        hasActiveWorkout ? (
-                          <Link
-                            href={openWorkoutHref}
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-[#176B49] hover:bg-[#125438] min-h-[38px] transition-colors shrink-0 shadow-xs cursor-pointer"
-                            aria-label={`Abrir treino de ${student.name}`}
-                          >
-                            <span>Abrir treino</span>
-                          </Link>
-                        ) : (
-                          <Link
-                            href={createWorkoutHref}
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-[#176B49] hover:bg-[#125438] min-h-[38px] transition-colors shrink-0 shadow-xs cursor-pointer"
-                            aria-label={`Criar treino para ${student.name}`}
-                          >
-                            <PlusIcon className="w-3.5 h-3.5" />
-                            <span>+ Treino</span>
-                          </Link>
-                        )
+                            aria-hidden="true"
+                          />
+                          <div className="absolute right-0 top-full mt-1 z-50 w-44 p-1 rounded-xl bg-white border border-[#E5E8E2] shadow-xl space-y-0.5">
+                            <Link
+                              href={studentDetailHref}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors text-left"
+                            >
+                              Ver perfil
+                            </Link>
+                            <Link
+                              href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?tab=fotos`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors text-left"
+                            >
+                              Registrar foto
+                            </Link>
+                            <Link
+                              href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?tab=anamnese`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors text-left"
+                            >
+                              Nova anamnese
+                            </Link>
+                            <Link
+                              href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?tab=formularios`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors text-left"
+                            >
+                              Enviar formulário
+                            </Link>
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
@@ -839,27 +680,26 @@ export function PersonalStudentList({
           </div>
         )}
 
-        {/* Paginação */}
+        {/* Paginação Compacta */}
         {filteredStudents.length > 0 && (
-          <div className="p-4 sm:px-6 py-3.5 bg-[#F9FAF8] border-t border-[#E5E8E2] flex flex-col sm:flex-row items-center justify-between gap-3">
-            <span className="text-xs text-[#5A6660]">
-              Mostrando <strong className="text-[#102E23]">{startIndex + 1}–{Math.min(endIndex, filteredStudents.length)}</strong> de{" "}
-              <strong className="text-[#102E23]">{filteredStudents.length}</strong> {isEffectiveNutritionist ? "pacientes" : "alunos"}
+          <div className="px-4 py-2.5 bg-[#FAF9F6] border-t border-[#E5E8E2] flex items-center justify-between text-xs text-[#5A6660]">
+            <span>
+              {startIndex + 1}–{Math.min(endIndex, filteredStudents.length)} de {filteredStudents.length} {isEffectiveNutritionist ? "pacientes" : "alunos"}
             </span>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={safePage <= 1}
                 aria-label="Página anterior"
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-[#E5E8E2] text-[#102E23] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F5F5F0] transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-white border border-[#E5E8E2] text-[#102E23] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F5F5F0] transition-colors cursor-pointer"
               >
-                &larr; Anterior
+                &larr;
               </button>
 
-              <span className="text-xs font-medium px-2 text-[#5A6660]">
-                Página {safePage} de {totalPages}
+              <span className="px-2 font-medium">
+                {safePage}/{totalPages}
               </span>
 
               <button
@@ -867,9 +707,9 @@ export function PersonalStudentList({
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={safePage >= totalPages}
                 aria-label="Próxima página"
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-[#E5E8E2] text-[#102E23] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F5F5F0] transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-white border border-[#E5E8E2] text-[#102E23] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F5F5F0] transition-colors cursor-pointer"
               >
-                Próxima &rarr;
+                &rarr;
               </button>
             </div>
           </div>

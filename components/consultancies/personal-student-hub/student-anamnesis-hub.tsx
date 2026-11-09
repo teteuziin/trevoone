@@ -102,68 +102,84 @@ export function StudentAnamnesisHub({
 
   return (
     <div className="space-y-6" data-testid="student-anamnesis-hub">
-      {/* 1. CABEÇALHO */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <DuotoneAnamnesisIcon className="w-5 h-5 text-violet-500" />
-            <h2 className="font-heading text-base font-bold text-[var(--text-primary)]">
-              Anamneses
-            </h2>
-          </div>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Histórico clínico, rotinas e questionários de saúde registrados.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => {
-            setIsCreateModalOpen(true);
-            setCurrentAnswers({});
-            setFormError(null);
-          }}
-          className="font-bold text-xs min-h-[40px] px-4 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white self-start sm:self-auto"
-        >
-          <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          <span>Nova anamnese</span>
-        </Button>
-      </div>
-
-      {/* 2. HISTÓRICO DE ANAMNESES */}
+      {/* =========================================================================
+          SE NÃO HOUVER ANAMNESE — EXPERIÊNCIA LIMPA
+          ========================================================================= */}
       {anamnesisHistory.length === 0 && structuredAnamnesis.length === 0 ? (
-        <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-white dark:bg-[#151619] text-center space-y-4 shadow-xs">
-          <div className="w-12 h-12 rounded-2xl bg-violet-500/10 text-violet-500 border border-violet-500/20 flex items-center justify-center mx-auto">
+        <div className="p-8 sm:p-12 rounded-2xl border border-[#E5E8E2] bg-white text-center space-y-4 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-[#E8F0EA] text-[#176B49] flex items-center justify-center mx-auto">
             <DuotoneAnamnesisIcon className="w-6 h-6" />
           </div>
-          <div className="space-y-1 max-w-md mx-auto">
-            <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-              Nenhuma anamnese registrada para este aluno
+          <div className="space-y-1 max-w-sm mx-auto">
+            <h3 className="font-heading text-base font-bold text-[#102E23]">
+              Este aluno ainda não possui anamnese.
             </h3>
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              Crie uma nova anamnese usando os modelos da consultoria ou preencha diretamente com o aluno durante a consulta.
+            <p className="text-xs text-[#5A6660]">
+              Inicie o preenchimento agora durante a consulta ou envie para o aluno responder pelo aplicativo.
             </p>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="font-bold min-h-[44px] px-5 bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"
-          >
-            Criar primeira anamnese
-          </Button>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="font-bold min-h-[42px] px-5 bg-[#176B49] hover:bg-[#125438] text-white cursor-pointer shadow-xs"
+            >
+              Iniciar anamnese
+            </Button>
+            {onRequestAnamnesisClick && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onRequestAnamnesisClick}
+                className="font-semibold min-h-[42px] px-4 bg-[#F5F5F0] hover:bg-[#EBEBE5] text-[#102E23] border border-[#E5E8E2] cursor-pointer"
+              >
+                Enviar ao aluno
+              </Button>
+            )}
+          </div>
         </div>
       ) : (
+        /* TEM ANAMNESE */
         <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs">
+            <div>
+              <div className="flex items-center gap-2">
+                <DuotoneAnamnesisIcon className="w-5 h-5 text-[#176B49]" />
+                <h2 className="font-heading text-base font-bold text-[#102E23]">
+                  Anamnese de {studentName}
+                </h2>
+              </div>
+              <p className="text-xs text-[#5A6660] mt-0.5">
+                {anamnesisHistory.length > 0
+                  ? `Última anamnese — ${formatDisplayDate(anamnesisHistory[0]?.submittedAt || anamnesisHistory[0]?.requestedAt)}`
+                  : "Histórico clínico registrado"}
+              </p>
+            </div>
+
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setIsCreateModalOpen(true);
+                setCurrentAnswers({});
+                setFormError(null);
+              }}
+              className="font-bold text-xs min-h-[38px] px-4 cursor-pointer bg-[#176B49] hover:bg-[#125438] text-white shadow-xs"
+            >
+              <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              <span>Nova anamnese</span>
+            </Button>
+          </div>
+
           {anamnesisHistory.length > 0 && (
             <div className="space-y-3">
-              <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                Histórico de Registros ({anamnesisHistory.length})
+              <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[#5A6660]">
+                Registros ({anamnesisHistory.length})
               </h3>
-              <div className="divide-y divide-[var(--border-subtle)] rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs overflow-hidden">
+              <div className="divide-y divide-[#E5E8E2] rounded-2xl bg-white border border-[#E5E8E2] shadow-xs overflow-hidden">
                 {anamnesisHistory.map((item) => {
                   const isPending = item.rawStatus === "PENDING";
                   const isAuthorProf = item.authorOrigin === "PROFESSIONAL";
@@ -278,7 +294,7 @@ export function StudentAnamnesisHub({
                 {structuredAnamnesis.map((section) => (
                   <div
                     key={section.title}
-                    className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3"
+                    className="p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-3"
                   >
                     <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--brand)] border-b border-[var(--border-subtle)] pb-2">
                       {section.title}
@@ -329,7 +345,7 @@ export function StudentAnamnesisHub({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-2xl p-6 sm:p-7 space-y-5"
+            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white border border-[#E5E8E2] shadow-2xl p-6 sm:p-7 space-y-5"
           >
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div>
@@ -451,7 +467,7 @@ export function StudentAnamnesisHub({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-2xl p-6 sm:p-7 space-y-5"
+            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white border border-[#E5E8E2] shadow-2xl p-6 sm:p-7 space-y-5"
           >
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div>

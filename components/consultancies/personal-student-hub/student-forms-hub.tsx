@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DuotoneFormsIcon } from "@/components/ui/icons/duotone-icons";
 import type {
@@ -37,6 +36,14 @@ export interface StudentFormsHubProps {
 }
 
 type FilterKey = "ALL" | "PENDING" | "SUBMITTED" | "PROFESSIONAL";
+
+function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
 
 function formatDisplayDate(dateVal: unknown): string {
   if (!dateVal) return "—";
@@ -164,284 +171,218 @@ export function StudentFormsHub({
 
   return (
     <div className="space-y-6" data-testid="student-forms-hub">
-      {/* 1. CABEÇALHO */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <DuotoneFormsIcon className="w-5 h-5 text-emerald-500" />
-            <h2 className="font-heading text-base font-bold text-slate-900 dark:text-white">
-              Formulários &amp; Questionários
-            </h2>
+      {/* =========================================================================
+          SE ESTIVER VAZIO — SOMENTE O NECESSÁRIO
+          Sem abas desnecessárias, sem filtros para zero registros
+          ========================================================================= */}
+      {forms.length === 0 ? (
+        <div className="p-8 sm:p-12 rounded-2xl border border-[#E5E8E2] bg-white text-center space-y-4 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-[#E8F0EA] text-[#176B49] flex items-center justify-center mx-auto">
+            <DuotoneFormsIcon className="w-6 h-6" />
           </div>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-            Questionários de acompanhamento, check-ins e avaliações periódicas de {studentName}.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsChooserModalOpen(true)}
-          className="font-bold text-sm sm:text-xs min-h-[48px] sm:min-h-[40px] px-4 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white self-stretch sm:self-auto flex items-center justify-center shadow-sm"
-        >
-          <svg className="w-4 h-4 mr-1.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          <span>Novo formulário</span>
-        </Button>
-      </div>
-
-      {/* 2. ABAS DE FILTRO & BUSCA */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-slate-200 dark:border-white/10">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          {/* ABA TODOS COM CONTRASTE ALTO GARANTIDO EM MODO CLARO E ESCURO */}
-          <button
-            type="button"
-            onClick={() => setActiveFilter("ALL")}
-            className={`px-3.5 py-2 sm:py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer min-h-[40px] sm:min-h-[32px] flex items-center gap-1.5 ${
-              activeFilter === "ALL"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
-            }`}
-          >
-            <span>Todos</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                activeFilter === "ALL"
-                  ? "bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900"
-                  : "bg-slate-200/70 dark:bg-white/10 text-slate-700 dark:text-zinc-300"
-              }`}
-            >
-              {counts.all}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveFilter("PENDING")}
-            className={`px-3.5 py-2 sm:py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer min-h-[40px] sm:min-h-[32px] flex items-center gap-1.5 ${
-              activeFilter === "PENDING"
-                ? "bg-amber-500 text-white shadow-xs"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
-            }`}
-          >
-            <span>Aguardando resposta</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                activeFilter === "PENDING"
-                  ? "bg-black/20 text-white"
-                  : "bg-slate-200/70 dark:bg-white/10 text-slate-700 dark:text-zinc-300"
-              }`}
-            >
-              {counts.pending}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveFilter("SUBMITTED")}
-            className={`px-3.5 py-2 sm:py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer min-h-[40px] sm:min-h-[32px] flex items-center gap-1.5 ${
-              activeFilter === "SUBMITTED"
-                ? "bg-emerald-600 text-white shadow-xs"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
-            }`}
-          >
-            <span>Respondidos</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                activeFilter === "SUBMITTED"
-                  ? "bg-black/20 text-white"
-                  : "bg-slate-200/70 dark:bg-white/10 text-slate-700 dark:text-zinc-300"
-              }`}
-            >
-              {counts.submitted}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveFilter("PROFESSIONAL")}
-            className={`px-3.5 py-2 sm:py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer min-h-[40px] sm:min-h-[32px] flex items-center gap-1.5 ${
-              activeFilter === "PROFESSIONAL"
-                ? "bg-violet-600 text-white shadow-xs"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
-            }`}
-          >
-            <span>Pelo profissional</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                activeFilter === "PROFESSIONAL"
-                  ? "bg-black/20 text-white"
-                  : "bg-slate-200/70 dark:bg-white/10 text-slate-700 dark:text-zinc-300"
-              }`}
-            >
-              {counts.professional}
-            </span>
-          </button>
-        </div>
-
-        {forms.length > 2 && (
-          <div className="relative min-w-[220px]">
-            <input
-              type="text"
-              placeholder="Buscar formulário..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 sm:py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-base sm:text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 min-h-[44px] sm:min-h-[36px] focus:outline-hidden focus:border-emerald-500"
-            />
-            <svg
-              className="w-4 h-4 text-slate-400 dark:text-zinc-500 absolute left-2.5 top-3 sm:top-2.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
-            </svg>
-          </div>
-        )}
-      </div>
-
-      {/* 3. LISTA DE FORMULÁRIOS */}
-      {filteredForms.length === 0 ? (
-        <div className="p-6 sm:p-10 rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#151619] text-center space-y-4 shadow-xs">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto">
-            <DuotoneFormsIcon className="w-7 h-7" />
-          </div>
-          <div className="space-y-1.5 max-w-md mx-auto">
-            <h3 className="font-heading text-base font-bold text-slate-900 dark:text-white">
-              {forms.length === 0
-                ? "Nenhum formulário cadastrado para este aluno"
-                : "Nenhum formulário encontrado neste filtro"}
+          <div className="space-y-1 max-w-sm mx-auto">
+            <h3 className="font-heading text-base font-bold text-[#102E23]">
+              Nenhum formulário enviado.
             </h3>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-              {forms.length === 0
-                ? "Escolha um modelo pronto da consultoria ou crie um novo formulário personalizado para atribuir a este aluno."
-                : "Tente selecionar outra aba de filtro acima para ver outros status."}
+            <p className="text-xs text-[#5A6660]">
+              Envie um questionário de acompanhamento ou check-in periódico para o aluno responder.
             </p>
           </div>
-          {forms.length === 0 && (
+          <div className="pt-2">
             <Button
               variant="primary"
               size="sm"
               onClick={() => setIsChooserModalOpen(true)}
-              className="font-bold min-h-[48px] px-6 bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-md"
+              className="font-bold min-h-[42px] px-5 bg-[#176B49] hover:bg-[#125438] text-white cursor-pointer shadow-xs"
             >
-              Criar primeiro formulário
+              Enviar formulário
             </Button>
-          )}
+          </div>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredForms.map((form) => {
-            const isPending = form.rawStatus === "PENDING";
-            const isReviewed = form.rawStatus === "REVIEWED";
-            const isSubmitted = form.rawStatus === "SUBMITTED";
-            const isAuthorProf = form.authorOrigin === "PROFESSIONAL" || isReviewed;
-
-            return (
-              <div
-                key={form.id}
-                className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#151619] border border-slate-200 dark:border-white/10 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 hover:border-slate-300 dark:hover:border-white/20 transition-all"
-              >
-                <div className="space-y-1.5 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-heading text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
-                      {form.title}
-                    </h3>
-                    <Badge
-                      variant={isPending ? "warning" : isReviewed ? "success" : "info"}
-                      size="sm"
-                    >
-                      {form.status}
-                    </Badge>
-
-                    {/* Tag de Origem de Autoria */}
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        isAuthorProf
-                          ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20"
-                          : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                      }`}
-                    >
-                      {isAuthorProf ? "Profissional" : "Aluno"}
-                    </span>
-                  </div>
-
-                  {form.description && (
-                    <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-1">
-                      {form.description}
-                    </p>
-                  )}
-
-                  <div className="flex items-center gap-3 text-xs text-slate-400 dark:text-zinc-500 flex-wrap">
-                    {form.submittedAt ? (
-                      <span>Respondido em: {formatDisplayDate(form.submittedAt)}</span>
-                    ) : form.requestedAt ? (
-                      <span>Solicitado em: {formatDisplayDate(form.requestedAt)}</span>
-                    ) : null}
-                    {form.dueDate && (
-                      <span>• Prazo: {formatDisplayDate(form.dueDate)}</span>
-                    )}
-                    {form.questions.length > 0 && (
-                      <span>• {form.questions.length} pergunta{form.questions.length !== 1 ? "s" : ""}</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 self-stretch sm:self-auto shrink-0 justify-end">
-                  {/* AÇÃO PRINCIPAL CONECTADA: REVISÃO/RUNNER MODERNO SE DISPONÍVEL */}
-                  {isPending ? (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => {
-                        if (form.assignmentDto) {
-                          setRunnerAssignment(form.assignmentDto);
-                        } else {
-                          setSelectedForFill(form);
-                          setCurrentAnswers({});
-                        }
-                      }}
-                      className="flex-1 sm:flex-initial font-bold text-sm sm:text-xs min-h-[44px] sm:min-h-[38px] px-4 bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-xs whitespace-nowrap"
-                    >
-                      Preencher agora
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        if (form.assignmentDto) {
-                          setReviewAssignment(form.assignmentDto);
-                        } else {
-                          setSelectedForView(form);
-                        }
-                      }}
-                      className="flex-1 sm:flex-initial font-semibold text-sm sm:text-xs min-h-[44px] sm:min-h-[38px] px-4 cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5"
-                    >
-                      <span>{isSubmitted ? "Revisar respostas" : "Ver respostas"}</span>
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </Button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteRequest(form.publicId)}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer shrink-0 border border-slate-200/80 dark:border-white/10"
-                    title="Excluir atribuição de formulário"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                    </svg>
-                  </button>
-                </div>
+        /* TEM FORMULÁRIOS */
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs">
+            <div>
+              <div className="flex items-center gap-2">
+                <DuotoneFormsIcon className="w-5 h-5 text-[#176B49]" />
+                <h2 className="font-heading text-base font-bold text-[#102E23]">
+                  Formulários de {studentName}
+                </h2>
               </div>
-            );
-          })}
+              <p className="text-xs text-[#5A6660] mt-0.5">
+                {forms.length} {forms.length === 1 ? "formulário enviado" : "formulários enviados"}
+              </p>
+            </div>
+
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsChooserModalOpen(true)}
+              className="font-bold text-xs min-h-[38px] px-4 cursor-pointer bg-[#176B49] hover:bg-[#125438] text-white shadow-xs"
+            >
+              <svg className="w-4 h-4 mr-1.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              <span>Enviar formulário</span>
+            </Button>
+          </div>
+
+          {/* Abas e busca apenas quando houver mais de 2 formulários */}
+          {forms.length > 2 && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-[#E5E8E2]">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setActiveFilter("ALL")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[34px] flex items-center gap-1.5 ${
+                    activeFilter === "ALL"
+                      ? "bg-[#176B49] text-white shadow-xs"
+                      : "text-[#5A6660] hover:text-[#102E23] bg-white border border-[#E5E8E2]"
+                  }`}
+                >
+                  <span>Todos</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeFilter === "ALL" ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
+                    {counts.all}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveFilter("PENDING")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[34px] flex items-center gap-1.5 ${
+                    activeFilter === "PENDING"
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "text-[#5A6660] hover:text-[#102E23] bg-white border border-[#E5E8E2]"
+                  }`}
+                >
+                  <span>Aguardando resposta</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeFilter === "PENDING" ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
+                    {counts.pending}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveFilter("SUBMITTED")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-h-[34px] flex items-center gap-1.5 ${
+                    activeFilter === "SUBMITTED"
+                      ? "bg-[#176B49] text-white shadow-xs"
+                      : "text-[#5A6660] hover:text-[#102E23] bg-white border border-[#E5E8E2]"
+                  }`}
+                >
+                  <span>Respondidos</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeFilter === "SUBMITTED" ? "bg-white/20 text-white" : "bg-black/5 text-[#5A6660]"}`}>
+                    {counts.submitted}
+                  </span>
+                </button>
+              </div>
+
+              {forms.length > 4 && (
+                <div className="relative min-w-[200px]">
+                  <input
+                    type="text"
+                    placeholder="Buscar formulário..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-[#E5E8E2] bg-white text-xs text-[#102E23] placeholder-[#8E9992] min-h-[34px] focus:outline-none focus:border-[#176B49]"
+                  />
+                  <svg className="w-3.5 h-3.5 text-[#5A6660] absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="11" cy="11" r="8" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* LISTA COMPACTA DE FORMULÁRIOS */}
+          <div className="space-y-2.5">
+            {filteredForms.map((form) => {
+              const isPending = form.rawStatus === "PENDING";
+              const isReviewed = form.rawStatus === "REVIEWED";
+
+              return (
+                <div
+                  key={form.id}
+                  className="p-4 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#CDEED5] transition-all"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-heading text-sm font-bold text-[#102E23] truncate">
+                        {form.title}
+                      </h3>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        isPending
+                          ? "bg-amber-100 text-amber-800 border border-amber-200"
+                          : "bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5]"
+                      }`}>
+                        {isPending ? "Aguardando resposta" : isReviewed ? "Revisado" : "Respondido"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs text-[#5A6660] flex-wrap">
+                      {form.submittedAt ? (
+                        <span>Respondido em {formatDisplayDate(form.submittedAt)}</span>
+                      ) : form.requestedAt ? (
+                        <span>Enviado em {formatDisplayDate(form.requestedAt)}</span>
+                      ) : null}
+                      {form.questions.length > 0 && (
+                        <span>• {form.questions.length} pergunta(s)</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 justify-end">
+                    {isPending ? (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          if (form.assignmentDto) {
+                            setRunnerAssignment(form.assignmentDto);
+                          } else {
+                            setSelectedForFill(form);
+                            setCurrentAnswers({});
+                          }
+                        }}
+                        className="font-bold text-xs min-h-[36px] px-3.5 bg-[#176B49] hover:bg-[#125438] text-white cursor-pointer shadow-xs whitespace-nowrap"
+                      >
+                        Ver situação
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          if (form.assignmentDto) {
+                            setReviewAssignment(form.assignmentDto);
+                          } else {
+                            setSelectedForView(form);
+                          }
+                        }}
+                        className="font-semibold text-xs min-h-[36px] px-3.5 bg-[#F5F5F0] hover:bg-[#EBEBE5] text-[#102E23] border border-[#E5E8E2] cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5"
+                      >
+                        <span>Ver resposta</span>
+                        <ChevronRightIcon className="w-3.5 h-3.5 text-[#5A6660]" />
+                      </Button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteRequest(form.publicId)}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center text-[#5A6660] hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer shrink-0 border border-[#E5E8E2]"
+                      title="Excluir formulário"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -459,30 +400,30 @@ export function StudentFormsHub({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full sm:max-w-lg bg-white dark:bg-[#151619] border-t sm:border border-slate-200 dark:border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden m-0"
+            className="w-full sm:max-w-lg bg-white border-t sm:border border-[#E5E8E2] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden m-0"
           >
             {/* MOBILE DRAG HANDLE */}
-            <div className="w-full pt-3 pb-1 flex justify-center sm:hidden shrink-0 bg-white dark:bg-[#151619]">
-              <div className="w-12 h-1.5 bg-slate-300 dark:bg-zinc-700 rounded-full" />
+            <div className="w-full pt-3 pb-1 flex justify-center sm:hidden shrink-0 bg-white">
+              <div className="w-12 h-1.5 bg-[#E5E8E2] rounded-full" />
             </div>
 
             {/* HEADER */}
-            <div className="flex items-start justify-between border-b border-slate-200 dark:border-white/10 px-5 sm:px-6 py-4 shrink-0">
+            <div className="flex items-start justify-between border-b border-[#E5E8E2] px-5 sm:px-6 py-4 shrink-0">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#176B49] block">
                   ● Atribuição de Formulário
                 </span>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5">
+                <h3 className="text-base sm:text-lg font-bold text-[#102E23] mt-0.5">
                   Adicionar para {studentName}
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                <p className="text-xs text-[#5A6660] mt-0.5">
                   Como você deseja disponibilizar este questionário para o aluno?
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsChooserModalOpen(false)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer shrink-0"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-[#5A6660] hover:text-[#102E23] hover:bg-[#F5F5F0] cursor-pointer shrink-0"
                 aria-label="Fechar"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -500,23 +441,23 @@ export function StudentFormsHub({
                   setIsChooserModalOpen(false);
                   setIsAssignModalOpen(true);
                 }}
-                className="w-full p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-white/10 hover:border-emerald-500/50 bg-slate-50/70 dark:bg-white/[0.03] hover:bg-emerald-500/[0.04] text-left transition-all cursor-pointer group flex items-start gap-4 min-h-[96px]"
+                className="w-full p-4 sm:p-5 rounded-2xl border border-[#E5E8E2] hover:border-[#176B49] bg-[#FAF9F6] hover:bg-[#E8F0EA]/30 text-left transition-all cursor-pointer group flex items-start gap-4 min-h-[96px]"
               >
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 group-hover:scale-105 transition-transform">
+                <div className="w-12 h-12 rounded-xl bg-[#E8F0EA] text-[#176B49] flex items-center justify-center shrink-0 border border-[#CDEED5] group-hover:scale-105 transition-transform">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                    <span className="text-sm font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors">
                       Escolher modelo existente
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5] shrink-0">
                       {publishedForms.length} disponível{publishedForms.length !== 1 ? "is" : ""}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                  <p className="text-xs text-[#5A6660] mt-1 leading-relaxed">
                     Selecione um questionário já pronto da biblioteca (check-in, avaliação, rotina) e envie com 1 clique.
                   </p>
                 </div>
@@ -529,20 +470,20 @@ export function StudentFormsHub({
                   setIsChooserModalOpen(false);
                   setIsBuilderModalOpen(true);
                 }}
-                className="w-full p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-white/10 hover:border-emerald-500/50 bg-slate-50/70 dark:bg-white/[0.03] hover:bg-emerald-500/[0.04] text-left transition-all cursor-pointer group flex items-start gap-4 min-h-[96px]"
+                className="w-full p-4 sm:p-5 rounded-2xl border border-[#E5E8E2] hover:border-[#176B49] bg-[#FAF9F6] hover:bg-[#E8F0EA]/30 text-left transition-all cursor-pointer group flex items-start gap-4 min-h-[96px]"
               >
-                <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-zinc-300 flex items-center justify-center shrink-0 border border-slate-200 dark:border-white/10 group-hover:scale-105 transition-transform">
-                  <svg className="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-12 h-12 rounded-xl bg-white text-[#5A6660] flex items-center justify-center shrink-0 border border-[#E5E8E2] group-hover:scale-105 transition-transform">
+                  <svg className="w-6 h-6 text-[#176B49]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                    <span className="text-sm font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors">
                       Criar novo modelo do zero
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                  <p className="text-xs text-[#5A6660] mt-1 leading-relaxed">
                     Construa um modelo com perguntas sob medida (escalas, escolhas, textos). Ficará salvo na biblioteca e já atribuído ao aluno.
                   </p>
                 </div>
@@ -550,11 +491,11 @@ export function StudentFormsHub({
             </div>
 
             {/* FOOTER ACTION (48px TOUCH TARGET & SAFE AREA PADDING) */}
-            <div className="p-4 sm:p-6 pt-2 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:pb-5 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] shrink-0">
+            <div className="p-4 sm:p-6 pt-2 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:pb-5 border-t border-[#E5E8E2] bg-[#FAF9F6] shrink-0">
               <button
                 type="button"
                 onClick={() => setIsChooserModalOpen(false)}
-                className="w-full min-h-[48px] px-4 py-2.5 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-zinc-300 font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer active:scale-[0.99]"
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl border border-[#E5E8E2] bg-white hover:bg-[#F5F5F0] text-[#5A6660] font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer active:scale-[0.99]"
               >
                 Cancelar
               </button>
@@ -667,7 +608,7 @@ export function StudentFormsHub({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151619] border border-slate-200 dark:border-white/10 shadow-2xl p-6 sm:p-7 space-y-5"
+            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white border border-[#E5E8E2] shadow-2xl p-6 sm:p-7 space-y-5"
           >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
               <div>
@@ -789,7 +730,7 @@ export function StudentFormsHub({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151619] border border-slate-200 dark:border-white/10 shadow-2xl p-6 sm:p-7 space-y-5"
+            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white border border-[#E5E8E2] shadow-2xl p-6 sm:p-7 space-y-5"
           >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
               <div>

@@ -283,3 +283,102 @@ export async function deleteFormRequestAction(
   revalidatePath(`/consultoria/${slug}/formularios`);
   return { success: true };
 }
+
+
+// ============================================================================
+// 7. UPDATE STUDENT BIOMETRICS & CADASTRE
+// ============================================================================
+
+export async function updateStudentPersonalDataAction(
+  slug: string,
+  studentPublicId: string,
+  data: {
+    weightKg?: number | null;
+    heightCm?: number | null;
+    objective?: string | null;
+    phone?: string | null;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context) {
+    return { success: false, error: "Consultoria não encontrada." };
+  }
+
+  const connection = await getDbConnection();
+  try {
+    const [mRows] = await connection.execute(
+      `SELECT cm.id, cm.user_id FROM consultancy_members cm
+       WHERE cm.consultancy_id = ? AND cm.public_id = ? LIMIT 1;`,
+      [context.consultancyId, studentPublicId]
+    );
+
+    if (!Array.isArray(mRows) || mRows.length === 0) {
+      return { success: false, error: "Aluno não encontrado nesta consultoria." };
+    }
+
+    const memberId = Number((mRows[0] as { id: number; user_id: number }).id);
+    const userId = Number((mRows[0] as { id: number; user_id: number }).user_id);
+
+    if (data.phone !== undefined) {
+      await connection.execute(
+        `UPDATE users SET phone = ?, updated_at = NOW(3) WHERE id = ?;`,
+        [data.phone?.trim() || null, userId]
+      );
+    }
+
+    if (data.weightKg !== undefined && data.weightKg !== null && !isNaN(data.weightKg)) {
+      await connection.execute(
+        `INSERT INTO student_progress_records (public_id, consultancy_id, membership_id, recorded_on, weight_kg, created_at, updated_at)
+         VALUES (UUID(), ?, ?, CURRENT_DATE(), ?, NOW(3), NOW(3));`,
+        [context.consultancyId, memberId, data.weightKg]
+      );
+    }
+
+    if (data.objective !== undefined || data.heightCm !== undefined || data.weightKg !== undefined) {
+      const [intakeRows] = await connection.execute(
+        `SELECT id, responses_json FROM student_intake_submissions
+         WHERE consultancy_id = ? AND membership_id = ?
+         ORDER BY id DESC LIMIT 1;`,
+        [context.consultancyId, memberId]
+      );
+
+      let currentJson: Record<string, unknown> = {};
+      if (Array.isArray(intakeRows) && intakeRows.length > 0) {
+        try {
+          const raw = (intakeRows[0] as { responses_json: unknown }).responses_json;
+          currentJson = typeof raw === "string" ? JSON.parse(raw) : (raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {});
+        } catch {}
+      }
+
+      if (data.objective !== undefined) currentJson.main_goal = data.objective?.trim() || null;
+      if (data.heightCm !== undefined) currentJson.height = data.heightCm;
+      if (data.weightKg !== undefined) currentJson.weight = data.weightKg;
+
+      if (Array.isArray(intakeRows) && intakeRows.length > 0) {
+        await connection.execute(
+          `UPDATE student_intake_submissions SET responses_json = ?, updated_at = NOW(3) WHERE id = ?;`,
+          [JSON.stringify(currentJson), (intakeRows[0] as { id: number }).id]
+        );
+      } else {
+        await connection.execute(
+          `INSERT INTO student_intake_submissions (public_id, consultancy_id, membership_id, status, submitted_at, responses_json, created_at, updated_at)
+           VALUES (UUID(), ?, ?, 'SUBMITTED', NOW(3), ?, NOW(3), NOW(3));`,
+          [context.consultancyId, memberId, JSON.stringify(currentJson)]
+        );
+      }
+    }
+
+    revalidatePath(`/consultoria/${slug}/progresso/alunos/${studentPublicId}`);
+    return { success: true };
+  } catch (err) {
+    console.error("[updateStudentPersonalDataAction] Error:", err);
+    return { success: false, error: sanitizeActionError(err, "Falha ao salvar dados do aluno.") };
+  } finally {
+    connection.release();
+  }
+}

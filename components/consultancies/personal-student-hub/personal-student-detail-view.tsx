@@ -1,18 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/account/user-avatar";
-import {
-  DuotoneOverviewIcon,
-  DuotoneTrainingIcon,
-  DuotonePhotosIcon,
-  DuotoneAnamnesisIcon,
-  DuotoneFormsIcon,
-  DuotoneNutritionIcon,
-} from "@/components/ui/icons/duotone-icons";
+import { DuotoneTrainingIcon } from "@/components/ui/icons/duotone-icons";
 import {
   NutritionPlanChoiceModal,
   type NutritionPlanCreationChoice,
@@ -25,6 +17,7 @@ import { StudentNewWorkoutSheet } from "./student-new-workout-sheet";
 import { StudentPhotosMural } from "./student-photos-mural";
 import { StudentAnamnesisHub } from "./student-anamnesis-hub";
 import { StudentFormsHub } from "./student-forms-hub";
+import { updateStudentPersonalDataAction } from "@/app/consultoria/[slug]/progresso/alunos/[studentPublicId]/actions";
 import type { StudentEvaluationResult } from "@/lib/monitoring/evaluator";
 import type { PersonalStudentDetail } from "@/lib/consultancies/personal-student-hub";
 
@@ -38,29 +31,11 @@ interface PersonalStudentDetailViewProps {
   initialTab?: string;
 }
 
-type TabKey =
-  | "visao-geral"
-  | "prontuario"
-  | "treinos"
-  | "fotos"
-  | "anamnese"
-  | "formularios"
-  | "avaliacoes"
-  | "nutricao"
-  | "planos"
-  | "evolucao";
+type FocusedView = "overview" | "treinos" | "fotos" | "anamnese" | "formularios" | "historico";
 
 // ============================================================================
 // ICONS
 // ============================================================================
-function ChevronDownIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-    </svg>
-  );
-}
-
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} aria-hidden="true">
@@ -73,14 +48,6 @@ function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-    </svg>
-  );
-}
-
-function DumbbellIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 6.5l11 11M6.5 17.5l11-11M3 8l3-3m0 0l3 3M3 16l3 3m0 0l3-3m9-8l3-3m0 0l3 3m-3 11l3-3m0 0l3 3" />
     </svg>
   );
 }
@@ -109,18 +76,11 @@ function ClipboardCheckIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function ScaleIcon({ className = "w-4 h-4" }: { className?: string }) {
+function ClockHistoryIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
-    </svg>
-  );
-}
-
-function AppleIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v2m0 0a4.5 4.5 0 014.5 4.5c0 3-2 6-4.5 8.5C9.5 17 7.5 14 7.5 11a4.5 4.5 0 014.5-4.5zm0-2c1.5-1 3-.5 3-.5" />
+      <circle cx="12" cy="12" r="9" />
+      <polyline points="12 6 12 12 16 14" />
     </svg>
   );
 }
@@ -143,20 +103,20 @@ function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function CheckCircleIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-}
-
 function AlertCircleIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
       <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" />
       <line x1="12" y1="16" x2="12.01" y2="16" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function EditIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
     </svg>
   );
 }
@@ -180,12 +140,12 @@ export function formatDisplayDate(dateVal: unknown): string {
 export function PersonalStudentDetailView({
   consultancySlug,
   detail,
-  effectiveMode,
-  userRoles = [],
   backHref,
   initialTab,
 }: PersonalStudentDetailViewProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
   const {
     student,
     overview,
@@ -194,40 +154,36 @@ export function PersonalStudentDetailView({
     forms,
     workouts,
     completedSessions,
-    measurements,
-    nutrition = [],
   } = detail;
 
-  const validTabs: TabKey[] = [
-    "visao-geral",
-    "prontuario",
-    "treinos",
-    "fotos",
-    "anamnese",
-    "formularios",
-    "avaliacoes",
-    "nutricao",
-    "planos",
-    "evolucao",
-  ];
-
-  const [activeTab, setActiveTab] = useState<TabKey>(() => {
-    if (initialTab && validTabs.includes(initialTab as TabKey)) {
-      return initialTab as TabKey;
+  // Active focused view: defaults to "overview" (unified 4-block cockpit), or opens specific view when requested
+  const [focusedView, setFocusedView] = useState<FocusedView>(() => {
+    if (initialTab && ["treinos", "fotos", "anamnese", "formularios", "historico"].includes(initialTab)) {
+      return initialTab as FocusedView;
     }
-    return "visao-geral";
+    return "overview";
   });
 
-  const [isMobileSectionMenuOpen, setIsMobileSectionMenuOpen] = useState(false);
+  // UI state
   const [isSecondaryMenuOpen, setIsSecondaryMenuOpen] = useState(false);
+  const [isEditDataModalOpen, setIsEditDataModalOpen] = useState(false);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
 
+  // Edit form state
+  const [editWeight, setEditWeight] = useState(overview.weightKg ? String(overview.weightKg) : "");
+  const [editHeight, setEditHeight] = useState(overview.heightCm ? String(overview.heightCm) : "");
+  const [editObjective, setEditObjective] = useState(overview.objective || "");
+  const [editPhone, setEditPhone] = useState(student.phone || "");
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Sheets and Request Modals
   const [isNewWorkoutSheetOpen, setIsNewWorkoutSheetOpen] = useState(false);
   const [requestModal, setRequestModal] = useState<{ isOpen: boolean; type: RequestModalType }>({
     isOpen: false,
     type: "PHOTOS",
   });
 
-  // Nutrition plan creation choice modal states
+  // Nutrition plan creation modals
   const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
   const [isGenerateAiOpen, setIsGenerateAiOpen] = useState(false);
   const [isImportAiOpen, setIsImportAiOpen] = useState(false);
@@ -247,20 +203,13 @@ export function PersonalStudentDetailView({
     }
   };
 
-  const isNutritionist = effectiveMode === "NUTRITIONIST" || (userRoles.includes("NUTRITIONIST") && effectiveMode !== "PERSONAL");
-  const isPersonal = effectiveMode === "PERSONAL" || (userRoles.includes("PERSONAL") && effectiveMode !== "NUTRITIONIST");
-  const isEffectiveNutritionist = effectiveMode === "NUTRITIONIST" || (isNutritionist && !isPersonal);
-
-  const createPlanHref = `/consultoria/${consultancySlug}/planos-v2/novo?student=${student.membershipPublicId}&studentId=${student.membershipPublicId}`;
   const createWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
 
-  // Real active workout vs ended workouts
+  // Workouts resolution
   const activeWorkout = workouts.find((w) => w.status === "ACTIVE") || null;
   const endedWorkouts = workouts.filter((w) => w.status === "ENDED");
-  const activeNutritionPlan = nutrition.find((n) => n.status === "ACTIVE") || null;
-  const draftNutritionPlan = detail.draftNutritionPlan || null;
 
-  // Compute actionable attention items
+  // Actionable Attention Items (Only real pending tasks)
   const attentionItems = React.useMemo(() => {
     const items: Array<{
       id: string;
@@ -268,237 +217,196 @@ export function PersonalStudentDetailView({
       description: string;
       actionLabel: string;
       actionHref?: string;
-      actionTab?: TabKey;
+      actionView?: FocusedView;
       actionModal?: RequestModalType;
-      type: "workout" | "anamnesis" | "form" | "photos";
     }> = [];
 
-    if (!isEffectiveNutritionist) {
-      if (!activeWorkout) {
-        items.push({
-          id: "no-workout",
-          title: "Sem treino ativo prescrito",
-          description: "O aluno não possui nenhuma rotina de treino ativa no momento.",
-          actionLabel: "Criar treino →",
-          actionHref: createWorkoutHref,
-          type: "workout",
-        });
-      }
+    if (!activeWorkout) {
+      items.push({
+        id: "no-workout",
+        title: "Sem treino ativo prescrito",
+        description: "O aluno não possui nenhuma rotina de treino ativa no momento.",
+        actionLabel: "Criar treino →",
+        actionHref: createWorkoutHref,
+      });
+    }
 
-      if (!overview.hasAnamnesis && anamnesis.length === 0) {
-        items.push({
-          id: "no-anamnesis",
-          title: "Anamnese pendente",
-          description: "O aluno ainda não preencheu o formulário de histórico e saúde.",
-          actionLabel: "Preencher anamnese →",
-          actionTab: "anamnese",
-          type: "anamnesis",
-        });
-      }
+    if (!overview.hasAnamnesis && anamnesis.length === 0) {
+      items.push({
+        id: "no-anamnesis",
+        title: "Anamnese pendente",
+        description: "O aluno ainda não preencheu o formulário de histórico e saúde.",
+        actionLabel: "Iniciar anamnese →",
+        actionView: "anamnese",
+      });
+    }
 
-      // Pending forms
-      const pendingFormsCount = forms.filter(
-        (f) => f.status === "PENDING" || f.status === "ASSIGNED" || f.status === "SUBMITTED"
-      ).length;
-      if (pendingFormsCount > 0) {
-        items.push({
-          id: "pending-forms",
-          title: `${pendingFormsCount} formulário(s) para conferência`,
-          description: "Existem formulários com respostas para revisar ou aguardando preenchimento.",
-          actionLabel: "Ver formulários →",
-          actionTab: "formularios",
-          type: "form",
-        });
-      }
+    const pendingFormsCount = forms.filter(
+      (f) => f.status === "PENDING" || f.status === "ASSIGNED" || f.status === "SUBMITTED"
+    ).length;
+    if (pendingFormsCount > 0) {
+      items.push({
+        id: "pending-forms",
+        title: `${pendingFormsCount} formulário(s) para conferência`,
+        description: "Existem formulários com respostas para revisar ou aguardando preenchimento.",
+        actionLabel: "Ver formulários →",
+        actionView: "formularios",
+      });
+    }
 
-      if (overview.hasPendingPhotos) {
-        items.push({
-          id: "pending-photos",
-          title: "Fotos de evolução aguardando envio",
-          description: "O aluno foi solicitado a enviar fotos de acompanhamento.",
-          actionLabel: "Ver fotos →",
-          actionTab: "fotos",
-          type: "photos",
-        });
-      }
-    } else {
-      if (!activeNutritionPlan) {
-        items.push({
-          id: "no-plan",
-          title: "Sem plano alimentar ativo",
-          description: "O paciente não possui plano alimentar prescrito no momento.",
-          actionLabel: "Criar plano →",
-          actionHref: createPlanHref,
-          type: "workout",
-        });
-      }
-
-      if (draftNutritionPlan) {
-        items.push({
-          id: "draft-plan",
-          title: "Plano alimentar em rascunho",
-          description: `Rascunho disponível: ${draftNutritionPlan.title} (v${draftNutritionPlan.versionNumber}).`,
-          actionLabel: "Continuar edição →",
-          actionHref: `/consultoria/${consultancySlug}/planos-v2/${draftNutritionPlan.planPublicId}?version=${draftNutritionPlan.versionPublicId}&student=${student.membershipPublicId}`,
-          type: "workout",
-        });
-      }
+    if (overview.hasPendingPhotos) {
+      items.push({
+        id: "pending-photos",
+        title: "Fotos de evolução solicitadas",
+        description: "O aluno foi solicitado a enviar fotos de acompanhamento.",
+        actionLabel: "Ver fotos →",
+        actionView: "fotos",
+      });
     }
 
     return items;
-  }, [activeWorkout, overview.hasAnamnesis, overview.hasPendingPhotos, anamnesis.length, forms, isEffectiveNutritionist, activeNutritionPlan, draftNutritionPlan, consultancySlug, student.membershipPublicId, createWorkoutHref, createPlanHref]);
+  }, [activeWorkout, overview.hasAnamnesis, overview.hasPendingPhotos, anamnesis.length, forms, createWorkoutHref]);
 
-  // Navigation sections list
-  const desktopTabs: Array<{
-    key: TabKey;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-    count?: number;
-    badge?: string;
-  }> = isEffectiveNutritionist
-    ? [
-        { key: "visao-geral", label: "Visão geral", icon: DuotoneOverviewIcon },
-        {
-          key: "prontuario",
-          label: "Prontuário",
-          icon: DuotoneAnamnesisIcon,
-          badge: "Clínico",
-        },
-        { key: "planos", label: "Planos alimentares", icon: DuotoneNutritionIcon, count: nutrition.length },
-        { key: "evolucao", label: "Evolução", icon: DuotonePhotosIcon, count: photos.length + measurements.length },
-        {
-          key: "anamnese",
-          label: "Anamnese",
-          icon: DuotoneAnamnesisIcon,
-          badge: overview.hasAnamnesis ? "Preenchida" : "Pendente",
-        },
-        { key: "formularios", label: "Formulários", icon: DuotoneFormsIcon, count: forms.length },
-      ]
-    : [
-        { key: "visao-geral", label: "Visão Geral", icon: DuotoneOverviewIcon },
-        { key: "treinos", label: "Treinos", icon: DuotoneTrainingIcon, count: workouts.length },
-        { key: "fotos", label: "Fotos", icon: DuotonePhotosIcon, count: photos.length },
-        {
-          key: "anamnese",
-          label: "Anamnese",
-          icon: DuotoneAnamnesisIcon,
-          badge: overview.hasAnamnesis ? "Preenchida" : "Pendente",
-        },
-        { key: "formularios", label: "Formulários", icon: DuotoneFormsIcon, count: forms.length },
-      ];
+  // Unified Student Timeline Events (for Histórico)
+  const timelineEvents = React.useMemo(() => {
+    const events: Array<{
+      id: string;
+      date: string;
+      title: string;
+      subtitle: string;
+      type: "workout" | "photo" | "anamnesis" | "form" | "session";
+    }> = [];
 
-  if (!isEffectiveNutritionist) {
-    if (measurements.length > 0) {
-      desktopTabs.push({ key: "avaliacoes", label: "Avaliações", icon: ScaleIcon, count: measurements.length });
-    }
-    if (nutrition.length > 0) {
-      desktopTabs.push({ key: "nutricao", label: "Nutrição", icon: AppleIcon, count: nutrition.length });
-    }
-  }
+    workouts.forEach((w) => {
+      events.push({
+        id: `workout-${w.assignmentPublicId}`,
+        date: w.assignedAt || w.startsOn,
+        title: `Treino prescrito: ${w.title}`,
+        subtitle: `Versão ${w.versionNumber} • ${w.status === "ACTIVE" ? "Em andamento" : "Encerrado"}`,
+        type: "workout",
+      });
+    });
 
-  const mobileSections = desktopTabs.map((t) => ({
-    id: t.key,
-    label: t.label,
-    icon: t.icon,
-    count: t.count,
-    badge: t.badge,
-  }));
+    completedSessions.forEach((s) => {
+      events.push({
+        id: `session-${s.publicId}`,
+        date: s.completedAt,
+        title: `Sessão de treino concluída: ${s.workoutTitle}`,
+        subtitle: `${s.completedSetsCount} séries realizadas ${s.studentFeedbackNotes ? `• "${s.studentFeedbackNotes}"` : ""}`,
+        type: "session",
+      });
+    });
 
-  const currentSection = desktopTabs.find((t) => t.key === activeTab) || desktopTabs[0];
+    photos.forEach((p) => {
+      events.push({
+        id: `photo-${p.requestPublicId}`,
+        date: p.submittedAt || p.createdAt || p.evaluationDate || "",
+        title: `Fotos de evolução registradas (${p.images?.length || 0} poses)`,
+        subtitle: p.reviewerNotes || "Avaliação fotográfica arquivada",
+        type: "photo",
+      });
+    });
+
+    forms.forEach((f) => {
+      events.push({
+        id: `form-${f.publicId}`,
+        date: f.submittedAt || f.requestedAt || "",
+        title: `Formulário: ${f.title}`,
+        subtitle: `Situação: ${f.status === "SUBMITTED" ? "Respondido" : f.status === "PENDING" ? "Aguardando resposta" : f.status}`,
+        type: "form",
+      });
+    });
+
+    return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [workouts, completedSessions, photos, forms]);
+
+  const handleSavePersonalData = () => {
+    setEditError(null);
+    const weightNum = editWeight.trim() ? parseFloat(editWeight.replace(",", ".")) : null;
+    const heightNum = editHeight.trim() ? parseFloat(editHeight.replace(",", ".")) : null;
+
+    startTransition(async () => {
+      const res = await updateStudentPersonalDataAction(consultancySlug, student.membershipPublicId, {
+        weightKg: weightNum,
+        heightCm: heightNum,
+        objective: editObjective.trim() || null,
+        phone: editPhone.trim() || null,
+      });
+
+      if (!res.success) {
+        setEditError(res.error || "Não foi possível salvar os dados.");
+      } else {
+        setIsEditDataModalOpen(false);
+        router.refresh();
+      }
+    });
+  };
 
   return (
-    <div className="space-y-5 pb-16">
+    <div className="space-y-4 pb-16">
       {/* =========================================================================
-          BREADCRUMB / VOLTAR AOS ALUNOS
+          BARRA DE VOLTAR (Contexto Limpo)
           ========================================================================= */}
       <div className="flex items-center justify-between">
-        <Link
-          href={backHref || `/consultoria/${consultancySlug}/progresso/alunos`}
-          className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#5A6660] hover:text-[#102E23] transition-colors min-h-[36px] cursor-pointer"
-        >
-          <ArrowLeftIcon className="w-4 h-4 text-[#176B49]" />
-          <span>{isEffectiveNutritionist ? "Voltar aos pacientes" : "Voltar aos alunos"}</span>
-        </Link>
+        {focusedView === "overview" ? (
+          <Link
+            href={backHref || `/consultoria/${consultancySlug}/progresso/alunos`}
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#5A6660] hover:text-[#102E23] transition-colors min-h-[36px]"
+          >
+            <ArrowLeftIcon className="w-4 h-4 text-[#176B49]" />
+            <span>Voltar aos alunos</span>
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setFocusedView("overview")}
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#176B49] hover:text-[#125438] bg-[#E8F0EA] hover:bg-[#DBE7DE] px-3 py-1.5 rounded-xl border border-[#CDEED5] transition-colors min-h-[36px] cursor-pointer"
+          >
+            <ArrowLeftIcon className="w-4 h-4 text-[#176B49]" />
+            <span>Voltar ao perfil de {student.name}</span>
+          </button>
+        )}
       </div>
 
       {/* =========================================================================
-          CABEÇALHO OPERACIONAL ALUNOS 4.0 (Superfície Branca / Destaque Esmeralda)
+          CABEÇALHO COMPACTO DO ALUNO (Sempre Presente)
+          Foto + Nome + Status + Contato + UMA Ação Dinâmica + Menu 3 Pontos
           ========================================================================= */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs text-[#102E23]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
-          {/* Avatar + Nome + Badge Ativo + Email */}
-          <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 min-w-0">
             <UserAvatar
               fullName={student.name}
               userPublicId={student.userPublicId}
               size="lg"
-              className="shrink-0 shadow-xs border border-[#E5E8E2]"
+              className="shrink-0 border border-[#E5E8E2]"
             />
-            <div className="min-w-0 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-[#102E23] tracking-tight truncate">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg sm:text-xl font-bold text-[#102E23] truncate">
                   {student.name}
                 </h1>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5]">
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5]">
                   Ativo
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-[#5A6660] truncate">
+              <p className="text-xs text-[#5A6660] truncate">
                 {student.email}
                 {student.phone ? ` • ${student.phone}` : ""}
               </p>
             </div>
           </div>
 
-          {/* Ações do Cabeçalho: CTA Contextual Único + Menu Secundário */}
-          <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t border-[#E5E8E2] sm:border-0">
-            {isEffectiveNutritionist ? (
-              activeNutritionPlan ? (
-                <Link
-                  href={`/consultoria/${consultancySlug}/planos-v2/${activeNutritionPlan.planPublicId}?student=${student.membershipPublicId}`}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#176B49] hover:bg-[#125438] active:bg-[#0E3F2A] transition-colors min-h-[42px] shadow-xs cursor-pointer"
-                >
-                  <AppleIcon className="w-4 h-4" />
-                  <span>Abrir plano</span>
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsChoiceModalOpen(true)}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#176B49] hover:bg-[#125438] active:bg-[#0E3F2A] transition-colors min-h-[42px] shadow-xs cursor-pointer"
-                >
-                  <PlusIcon className="w-4 h-4" />
-                  <span>Criar plano alimentar</span>
-                </button>
-              )
-            ) : activeWorkout ? (
-              <Link
-                href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#176B49] hover:bg-[#125438] active:bg-[#0E3F2A] transition-colors min-h-[42px] shadow-xs cursor-pointer"
-              >
-                <DumbbellIcon className="w-4 h-4" />
-                <span>Abrir treino</span>
-              </Link>
-            ) : (
-              <Link
-                href={createWorkoutHref}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#176B49] hover:bg-[#125438] active:bg-[#0E3F2A] transition-colors min-h-[42px] shadow-xs cursor-pointer"
-              >
-                <PlusIcon className="w-4 h-4" />
-                <span>Criar treino</span>
-              </Link>
-            )}
-
-            {/* Menu Dropdown de Ações Secundárias */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsSecondaryMenuOpen((prev) => !prev)}
-                aria-label="Mais opções do aluno"
-                className="inline-flex items-center justify-center p-2.5 rounded-xl text-[#5A6660] hover:text-[#102E23] bg-[#F5F5F0] hover:bg-[#EBEBE5] border border-[#E5E8E2] min-h-[42px] min-w-[42px] transition-colors cursor-pointer"
-              >
-                <MoreDotsIcon className="w-5 h-5" />
-              </button>
+          {/* Menu Dropdown de Ações Secundárias */}
+          <div className="relative shrink-0 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => setIsSecondaryMenuOpen((prev) => !prev)}
+              aria-label="Mais opções do aluno"
+              className="p-2 rounded-xl text-[#5A6660] hover:text-[#102E23] bg-[#F5F5F0] hover:bg-[#EBEBE5] border border-[#E5E8E2] min-h-[40px] min-w-[40px] flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <MoreDotsIcon className="w-5 h-5" />
+            </button>
 
               {isSecondaryMenuOpen && (
                 <>
@@ -507,17 +415,17 @@ export function PersonalStudentDetailView({
                     onClick={() => setIsSecondaryMenuOpen(false)}
                     aria-hidden="true"
                   />
-                  <div className="absolute right-0 mt-2 z-50 w-64 p-1.5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xl space-y-0.5">
+                  <div className="absolute right-0 mt-1 z-50 w-56 p-1 rounded-2xl bg-white border border-[#E5E8E2] shadow-xl space-y-0.5">
                     <button
                       type="button"
                       onClick={() => {
                         setIsSecondaryMenuOpen(false);
                         setRequestModal({ isOpen: true, type: "PHOTOS" });
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors min-h-[40px] text-left cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] text-left cursor-pointer"
                     >
                       <PhotoIcon className="w-4 h-4 text-[#176B49]" />
-                      <span>Solicitar fotos de evolução</span>
+                      <span>Solicitar fotos</span>
                     </button>
                     <button
                       type="button"
@@ -525,7 +433,7 @@ export function PersonalStudentDetailView({
                         setIsSecondaryMenuOpen(false);
                         setRequestModal({ isOpen: true, type: "ANAMNESIS" });
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors min-h-[40px] text-left cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] text-left cursor-pointer"
                     >
                       <ClipboardCheckIcon className="w-4 h-4 text-[#176B49]" />
                       <span>Solicitar anamnese</span>
@@ -536,27 +444,30 @@ export function PersonalStudentDetailView({
                         setIsSecondaryMenuOpen(false);
                         setRequestModal({ isOpen: true, type: "FORM" });
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors min-h-[40px] text-left cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] text-left cursor-pointer"
                     >
                       <FileTextIcon className="w-4 h-4 text-[#176B49]" />
                       <span>Enviar formulário</span>
                     </button>
-                    <Link
-                      href={createWorkoutHref}
-                      onClick={() => setIsSecondaryMenuOpen(false)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors min-h-[40px] text-left"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSecondaryMenuOpen(false);
+                        setIsEditDataModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] text-left cursor-pointer"
                     >
-                      <DumbbellIcon className="w-4 h-4 text-[#176B49]" />
-                      <span>Criar nova rotina de treino</span>
-                    </Link>
+                      <EditIcon className="w-4 h-4 text-[#176B49]" />
+                      <span>Editar dados do aluno</span>
+                    </button>
                     {student.email && (
                       <a
                         href={`mailto:${student.email}`}
                         onClick={() => setIsSecondaryMenuOpen(false)}
-                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] transition-colors min-h-[40px] text-left"
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] text-left"
                       >
-                        <span className="w-4 text-center text-sm text-[#5A6660]">✉</span>
-                        <span>Enviar e-mail para o aluno</span>
+                        <span className="w-4 text-center text-xs text-[#5A6660]">✉</span>
+                        <span>Enviar e-mail</span>
                       </a>
                     )}
                   </div>
@@ -565,786 +476,524 @@ export function PersonalStudentDetailView({
             </div>
           </div>
         </div>
-      </div>
 
       {/* =========================================================================
-          NAVEGAÇÃO ENTRE SEÇÕES (Discreta e Acessível)
+          VISÃO PRINCIPAL: COCKPIT OPERACIONAL EM 4 BLOCOS
+          (Sem as 5 abas pesadas no topo)
           ========================================================================= */}
-      {/* Desktop Tabs */}
-      <div className="hidden sm:block">
-        <div className="p-1 rounded-2xl bg-white border border-[#E5E8E2] shadow-2xs">
-          <nav className="flex space-x-1" aria-label="Seções do Aluno">
-            {desktopTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
-
-              if (tab.key === "prontuario") {
-                return (
-                  <Link
-                    key={tab.key}
-                    href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[40px] cursor-pointer text-[#176B49] hover:bg-[#E8F0EA] border border-[#CDEED5]"
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span>{tab.label}</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider bg-[#E8F0EA] text-[#176B49]">
-                      Abrir →
-                    </span>
-                  </Link>
-                );
-              }
-
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[40px] cursor-pointer ${
-                    isActive
-                      ? "bg-[#E8F0EA] text-[#176B49] font-bold shadow-2xs border border-[#CDEED5]"
-                      : "text-[#5A6660] hover:text-[#102E23] hover:bg-[#F5F5F0]"
-                  }`}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{tab.label}</span>
-                  {tab.count !== undefined && (
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                        isActive
-                          ? "bg-white text-[#176B49] border border-[#CDEED5]"
-                          : "bg-[#F5F5F0] text-[#5A6660]"
-                      }`}
-                    >
-                      {tab.count}
-                    </span>
-                  )}
-                  {tab.badge && !isActive && (
-                    <span
-                      className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${
-                        tab.badge === "Preenchida"
-                          ? "bg-[#E8F0EA] text-[#176B49]"
-                          : "bg-amber-500/10 text-amber-700"
-                      }`}
-                    >
-                      {tab.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-      </div>
-
-      {/* Mobile Selector */}
-      <div className="sm:hidden relative">
-        <button
-          type="button"
-          onClick={() => setIsMobileSectionMenuOpen((prev) => !prev)}
-          className="w-full flex items-center justify-between p-3 rounded-2xl bg-white border border-[#E5E8E2] shadow-2xs min-h-[44px] cursor-pointer"
-          aria-expanded={isMobileSectionMenuOpen}
-          aria-label="Alternar seção"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <currentSection.icon className="w-4 h-4 text-[#176B49]" />
-            <span className="font-bold text-xs text-[#102E23]">
-              {currentSection.label}
-            </span>
-            {currentSection.count !== undefined && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-[#E8F0EA] text-[#176B49]">
-                {currentSection.count}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-1 text-[11px] text-[#5A6660]">
-            <span>Mudar</span>
-            <ChevronDownIcon
-              className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                isMobileSectionMenuOpen ? "rotate-180" : ""
-              }`}
-            />
-          </div>
-        </button>
-
-        {isMobileSectionMenuOpen && (
-          <>
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setIsMobileSectionMenuOpen(false)}
-              aria-hidden="true"
-            />
-            <div className="absolute top-full left-0 right-0 mt-1.5 z-50 p-1.5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xl space-y-0.5">
-              {mobileSections.map((sec) => {
-                const SecIcon = sec.icon;
-                const isSelected = activeTab === sec.id;
-
-                if (sec.id === "prontuario") {
-                  return (
-                    <Link
-                      key={sec.id}
-                      href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`}
-                      className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-[#176B49] hover:bg-[#E8F0EA] min-h-[44px]"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <SecIcon className="w-4 h-4" />
-                        <span>{sec.label}</span>
-                      </div>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider bg-[#E8F0EA] text-[#176B49]">
-                        Abrir →
-                      </span>
-                    </Link>
-                  );
-                }
-
-                return (
-                  <button
-                    key={sec.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(sec.id as TabKey);
-                      setIsMobileSectionMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors min-h-[44px] cursor-pointer ${
-                      isSelected
-                        ? "bg-[#E8F0EA] text-[#176B49] font-bold"
-                        : "text-[#102E23] hover:bg-[#F5F5F0]"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <SecIcon className="w-4 h-4" />
-                      <span>{sec.label}</span>
-                    </div>
-                    {sec.count !== undefined && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-[#F5F5F0] text-[#5A6660]">
-                        {sec.count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* =========================================================================
-          SEÇÃO 1: VISÃO GERAL — TELA OPERACIONAL UNIFICADA (4 BLOCOS)
-          ========================================================================= */}
-      {activeTab === "visao-geral" && (
-        <div className="space-y-5" data-testid="tab-visao-geral">
-          {/* BLOCO 1: O QUE PRECISA DE ATENÇÃO? */}
-          <div className="p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-3">
+      {focusedView === "overview" && (
+        <div className="space-y-4">
+          {/* =====================================================================
+              1º BLOCO: TREINO ATUAL (Destaque Principal)
+              ===================================================================== */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <AlertCircleIcon className={`w-5 h-5 ${attentionItems.length > 0 ? "text-amber-600" : "text-[#176B49]"}`} />
+                <DuotoneTrainingIcon className="w-5 h-5 text-[#176B49]" />
                 <h2 className="font-heading text-base font-bold text-[#102E23]">
-                  O que precisa de atenção?
+                  Treino Atual
                 </h2>
               </div>
-              <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${attentionItems.length > 0 ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5]"}`}>
-                {attentionItems.length > 0 ? `${attentionItems.length} pendência(s)` : "Tudo em dia"}
-              </span>
+              {activeWorkout ? (
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5]">
+                  Ativo
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[#F3F4F6] text-[#5A6660]">
+                  Sem treino
+                </span>
+              )}
             </div>
 
-            {attentionItems.length === 0 ? (
-              <div className="p-4 rounded-xl bg-[#F9FAF8] border border-[#E5E8E2] flex items-center gap-3">
-                <CheckCircleIcon className="w-5 h-5 text-[#176B49] shrink-0" />
-                <p className="text-xs sm:text-sm text-[#5A6660]">
-                  Tudo em dia por aqui. Nenhum alerta ou pendência encontrada para este aluno.
-                </p>
+            {activeWorkout ? (
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] space-y-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="font-bold text-base text-[#102E23]">
+                      {activeWorkout.title}
+                    </p>
+                    <span className="text-xs font-semibold text-[#176B49]">
+                      v{activeWorkout.versionNumber}
+                    </span>
+                  </div>
+                  {activeWorkout.subtitle && (
+                    <p className="text-xs text-[#5A6660]">
+                      {activeWorkout.subtitle}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 text-[11px] text-[#5A6660] pt-0.5">
+                    <span>Início: {formatDisplayDate(activeWorkout.startsOn)}</span>
+                    {activeWorkout.endsOn && (
+                      <span>• Término: {formatDisplayDate(activeWorkout.endsOn)}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Ações e Histórico */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                  <Link
+                    href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[38px] shadow-xs"
+                  >
+                    <span>Abrir treino</span>
+                    <ChevronRightIcon className="w-3.5 h-3.5" />
+                  </Link>
+
+                  {endedWorkouts.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+                      className="text-xs font-semibold text-[#5A6660] hover:text-[#102E23] px-2 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      {isHistoryExpanded ? "Ocultar treinos anteriores" : `Ver treinos anteriores (${endedWorkouts.length})`}
+                    </button>
+                  )}
+                </div>
+
+                {/* Lista recolhível de treinos anteriores */}
+                {isHistoryExpanded && endedWorkouts.length > 0 && (
+                  <div className="p-3 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] space-y-2 mt-2">
+                    <p className="text-xs font-bold text-[#5A6660] uppercase tracking-wider">Histórico de Fichas</p>
+                    <div className="divide-y divide-[#E5E8E2]">
+                      {endedWorkouts.map((w) => (
+                        <div key={w.assignmentPublicId} className="py-2 flex items-center justify-between text-xs">
+                          <div>
+                            <p className="font-semibold text-[#102E23]">{w.title} (v{w.versionNumber})</p>
+                            <p className="text-[11px] text-[#5A6660]">{formatDisplayDate(w.startsOn)} {w.endsOn ? `– ${formatDisplayDate(w.endsOn)}` : ""}</p>
+                          </div>
+                          <Link
+                            href={`/consultoria/${consultancySlug}/rotinas/${w.workoutPublicId}?version=${w.versionPublicId}&student=${student.membershipPublicId}`}
+                            className="text-xs font-bold text-[#176B49] hover:underline"
+                          >
+                            Abrir →
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="p-4 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] text-center space-y-2.5">
+                <p className="text-xs text-[#5A6660]">
+                  Este aluno ainda não possui treino ativo.
+                </p>
+                <Link
+                  href={createWorkoutHref}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[38px] shadow-xs"
+                >
+                  <PlusIcon className="w-3.5 h-3.5" />
+                  <span>Criar treino</span>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* AVISOS RELEVANTES (Apenas se houver pendência real) */}
+          {attentionItems.length > 0 && (
+            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
+                  <AlertCircleIcon className="w-4 h-4 text-amber-700 shrink-0" />
+                  <span>Pendências que precisam de atenção ({attentionItems.length})</span>
+                </div>
+              </div>
+              <div className="space-y-1.5">
                 {attentionItems.map((item) => (
                   <div
                     key={item.id}
-                    className="p-3.5 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    className="p-2.5 rounded-xl bg-white/90 border border-amber-200/50 flex items-center justify-between gap-2.5 text-xs"
                   >
-                    <div className="space-y-0.5">
-                      <p className="font-bold text-[#102E23] text-sm">
-                        {item.title}
-                      </p>
-                      <p className="text-[#5A6660]">
-                        {item.description}
-                      </p>
+                    <div className="min-w-0">
+                      <p className="font-bold text-[#102E23] truncate">{item.title}</p>
+                      <p className="text-[#5A6660] text-[11px] truncate">{item.description}</p>
                     </div>
-
                     <div className="shrink-0">
                       {item.actionHref ? (
                         <Link
                           href={item.actionHref}
-                          className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[38px] shadow-xs"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors"
                         >
-                          <span>{item.actionLabel}</span>
+                          {item.actionLabel}
                         </Link>
-                      ) : item.actionTab ? (
+                      ) : item.actionView ? (
                         <button
                           type="button"
-                          onClick={() => setActiveTab(item.actionTab!)}
-                          className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-bold text-[#176B49] bg-[#E8F0EA] hover:bg-[#DBE7DE] border border-[#CDEED5] transition-colors min-h-[38px] cursor-pointer"
+                          onClick={() => setFocusedView(item.actionView!)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-[#176B49] bg-[#E8F0EA] hover:bg-[#DBE7DE] transition-colors cursor-pointer"
                         >
-                          <span>{item.actionLabel}</span>
+                          {item.actionLabel}
                         </button>
                       ) : null}
                     </div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* GRID 2 COLUNAS: TREINO DO ALUNO + ACOMPANHAMENTO */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* BLOCO 2: TREINO DO ALUNO */}
-            <div className="p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-4">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <DuotoneTrainingIcon className="w-5 h-5 text-[#176B49]" />
-                  <h3 className="font-heading text-base font-bold text-[#102E23]">
-                    Treino do Aluno
-                  </h3>
-                </div>
-                {activeWorkout ? (
-                  <Badge variant="success" size="sm">Treino Ativo</Badge>
-                ) : (
-                  <Badge variant="neutral" size="sm">Sem treino ativo</Badge>
-                )}
-              </div>
-
-              {activeWorkout ? (
-                <div className="space-y-3.5">
-                  <div className="p-4 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] space-y-1.5">
-                    <p className="font-heading text-base font-bold text-[#102E23]">
-                      {activeWorkout.title}
-                    </p>
-                    {activeWorkout.subtitle && (
-                      <p className="text-xs text-[#5A6660]">
-                        {activeWorkout.subtitle}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-[#5A6660]">
-                      <span className="font-semibold text-[#176B49]">Versão {activeWorkout.versionNumber}</span>
-                      <span>•</span>
-                      <span>Início: {formatDisplayDate(activeWorkout.startsOn)}</span>
-                      {activeWorkout.endsOn && (
-                        <>
-                          <span>•</span>
-                          <span>Término: {formatDisplayDate(activeWorkout.endsOn)}</span>
-                        </>
+          {/* =====================================================================
+              ACOMPANHAMENTO: 3 LINHAS SIMPLES
+              Fotos → • Anamnese → • Formulários →
+              ===================================================================== */}
+          <div className="bg-white border border-[#E5E8E2] rounded-2xl shadow-xs overflow-hidden">
+            <div className="p-3.5 sm:px-4 sm:py-3 border-b border-[#E5E8E2] bg-[#FAF9F6] flex items-center justify-between">
+              <h2 className="font-heading text-xs font-bold text-[#5A6660] uppercase tracking-wider">
+                Acompanhamento
+              </h2>
+              <span className="text-[11px] text-[#5A6660]">Toque para acessar</span>
+            </div>
+            <div className="divide-y divide-[#E5E8E2]">
+              {/* 1. Fotos */}
+              <button
+                type="button"
+                onClick={() => setFocusedView("fotos")}
+                className="w-full p-4 flex items-center justify-between gap-3 hover:bg-[#FAF9F6] active:bg-[#F5F5F0] transition-colors text-left cursor-pointer group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#E8F0EA] flex items-center justify-center shrink-0">
+                    <PhotoIcon className="w-4 h-4 text-[#176B49]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-[#102E23]">Fotos</span>
+                      {photoRequestStatus === "REQUESTED" && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800">
+                          Envio solicitado
+                        </span>
                       )}
                     </div>
-                  </div>
-
-                  {/* Sessões Concluídas Recentes (se houver) */}
-                  {completedSessions.length > 0 && (
-                    <div className="p-3 rounded-xl bg-[#E8F0EA] border border-[#CDEED5] text-xs text-[#176B49] flex items-center justify-between gap-2">
-                      <span className="font-semibold">
-                        Último treino realizado em {formatDisplayDate(completedSessions[0].completedAt)}
-                      </span>
-                      <span className="text-[11px] text-[#5A6660]">
-                        {completedSessions.length} sessão(ões) registrada(s)
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2.5 pt-1">
-                    <Link
-                      href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
-                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[40px] shadow-xs cursor-pointer"
-                    >
-                      <span>Abrir treino</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5" />
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("treinos")}
-                      className="text-xs font-semibold text-[#5A6660] hover:text-[#102E23] px-3 py-2 min-h-[40px] cursor-pointer"
-                    >
-                      Histórico ({workouts.length}) →
-                    </button>
+                    <p className="text-xs text-[#5A6660]">
+                      {photos.length > 0
+                        ? `${photos.length} ${photos.length === 1 ? "avaliação registrada" : "avaliações registradas"}`
+                        : "Nenhuma foto registrada"}
+                    </p>
                   </div>
                 </div>
-              ) : (
-                <div className="p-4 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] text-center space-y-3">
-                  <p className="text-xs text-[#5A6660]">
-                    Nenhuma rotina de treino ativa prescrita para este aluno.
-                  </p>
-                  <Link
-                    href={createWorkoutHref}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[40px] shadow-xs cursor-pointer"
-                  >
-                    <PlusIcon className="w-3.5 h-3.5" />
-                    <span>Criar primeiro treino</span>
-                  </Link>
-                </div>
-              )}
-            </div>
+                <ChevronRightIcon className="w-4 h-4 text-[#8E9992] group-hover:text-[#176B49] group-hover:translate-x-0.5 transition-all shrink-0" />
+              </button>
 
-            {/* BLOCO 3: ACOMPANHAMENTO (3 CARTÕES) */}
-            <div className="p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-3.5">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="font-heading text-base font-bold text-[#102E23]">
-                  Acompanhamento
-                </h3>
-              </div>
-
-              <div className="space-y-2.5">
-                {/* 1. Fotos */}
-                <div className="p-3.5 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-[#E8F0EA] flex items-center justify-center shrink-0">
-                      <DuotonePhotosIcon className="w-4 h-4 text-[#176B49]" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-[#102E23]">Fotos de Evolução</p>
-                      <p className="text-[11px] text-[#5A6660]">
-                        {photos.length > 0 ? `${photos.length} avaliação(ões) registrada(s)` : "Nenhuma foto anexada"}
-                      </p>
-                    </div>
+              {/* 2. Anamnese */}
+              <button
+                type="button"
+                onClick={() => setFocusedView("anamnese")}
+                className="w-full p-4 flex items-center justify-between gap-3 hover:bg-[#FAF9F6] active:bg-[#F5F5F0] transition-colors text-left cursor-pointer group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#E8F0EA] flex items-center justify-center shrink-0">
+                    <ClipboardCheckIcon className="w-4 h-4 text-[#176B49]" />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("fotos")}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-[#176B49] hover:bg-[#E8F0EA] transition-colors cursor-pointer shrink-0"
-                  >
-                    <span>{photos.length > 0 ? "Ver fotos →" : "+ Fotos"}</span>
-                  </button>
-                </div>
-
-                {/* 2. Anamnese */}
-                <div className="p-3.5 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-[#E8F0EA] flex items-center justify-center shrink-0">
-                      <DuotoneAnamnesisIcon className="w-4 h-4 text-[#176B49]" />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-[#102E23]">Anamnese</span>
+                      {!overview.hasAnamnesis && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#E8F0EA] text-[#176B49]">
+                          Pendente
+                        </span>
+                      )}
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-[#102E23]">Anamnese &amp; Saúde</p>
-                      <p className="text-[11px] text-[#5A6660]">
-                        {overview.hasAnamnesis ? "Preenchida" : "Aguardando preenchimento"}
-                      </p>
-                    </div>
+                    <p className="text-xs text-[#5A6660]">
+                      {overview.hasAnamnesis ? "Preenchida e atualizada" : "Ainda não possui anamnese"}
+                    </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("anamnese")}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-[#176B49] hover:bg-[#E8F0EA] transition-colors cursor-pointer shrink-0"
-                  >
-                    <span>{overview.hasAnamnesis ? "Ver anamnese →" : "Criar anamnese"}</span>
-                  </button>
                 </div>
+                <ChevronRightIcon className="w-4 h-4 text-[#8E9992] group-hover:text-[#176B49] group-hover:translate-x-0.5 transition-all shrink-0" />
+              </button>
 
-                {/* 3. Formulários */}
-                <div className="p-3.5 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-[#E8F0EA] flex items-center justify-center shrink-0">
-                      <DuotoneFormsIcon className="w-4 h-4 text-[#176B49]" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-[#102E23]">Formulários &amp; Questionários</p>
-                      <p className="text-[11px] text-[#5A6660]">
-                        {forms.length > 0 ? `${forms.length} formulário(s)` : "Nenhum formulário"}
-                      </p>
-                    </div>
+              {/* 3. Formulários */}
+              <button
+                type="button"
+                onClick={() => setFocusedView("formularios")}
+                className="w-full p-4 flex items-center justify-between gap-3 hover:bg-[#FAF9F6] active:bg-[#F5F5F0] transition-colors text-left cursor-pointer group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#E8F0EA] flex items-center justify-center shrink-0">
+                    <FileTextIcon className="w-4 h-4 text-[#176B49]" />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("formularios")}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-[#176B49] hover:bg-[#E8F0EA] transition-colors cursor-pointer shrink-0"
-                  >
-                    <span>{forms.length > 0 ? "Ver formulários →" : "Enviar formulário"}</span>
-                  </button>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-[#102E23]">Formulários</span>
+                      {forms.some((f) => f.rawStatus === "PENDING") && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800">
+                          Aguardando resposta
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-[#5A6660]">
+                      {forms.length > 0
+                        ? `${forms.filter((f) => f.rawStatus === "SUBMITTED").length} respondido(s) • ${forms.length} total`
+                        : "Nenhum formulário enviado"}
+                    </p>
+                  </div>
                 </div>
-              </div>
+                <ChevronRightIcon className="w-4 h-4 text-[#8E9992] group-hover:text-[#176B49] group-hover:translate-x-0.5 transition-all shrink-0" />
+              </button>
             </div>
           </div>
 
-          {/* BLOCO 4: INFORMAÇÕES DO ALUNO */}
-          <div className="p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-3.5">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="font-heading text-base font-bold text-[#102E23]">
-                Informações do Aluno
-              </h3>
-              <span className="text-[11px] text-[#5A6660]">
-                Membro desde {formatDisplayDate(student.joinedAt)}
-              </span>
-            </div>
-
-            {/* Pílulas Compactas e Limpas */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-              <div className="p-3 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] space-y-0.5">
-                <span className="text-[10px] uppercase font-bold text-[#5A6660] block">Peso</span>
-                <p className="text-sm font-bold text-[#102E23]">
-                  {overview.weightKg ? `${overview.weightKg} kg` : "—"}
-                </p>
-                {overview.lastWeightRecordedOn && (
-                  <span className="text-[10px] text-[#5A6660] block">
-                    em {formatDisplayDate(overview.lastWeightRecordedOn)}
-                  </span>
-                )}
+          {/* =====================================================================
+              HISTÓRICO E INFORMAÇÕES DO ALUNO (Acesso Compacto)
+              ===================================================================== */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Histórico compacto */}
+            <button
+              type="button"
+              onClick={() => setFocusedView("historico")}
+              className="p-4 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs hover:bg-[#FAF9F6] active:bg-[#F5F5F0] transition-colors text-left cursor-pointer flex items-center justify-between gap-3 group"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-[#F5F5F0] flex items-center justify-center shrink-0">
+                  <ClockHistoryIcon className="w-4 h-4 text-[#5A6660]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-[#102E23]">Histórico de Atividades</p>
+                  <p className="text-[11px] text-[#5A6660]">{timelineEvents.length} registro(s) na linha do tempo</p>
+                </div>
               </div>
+              <ChevronRightIcon className="w-4 h-4 text-[#8E9992] group-hover:text-[#176B49] group-hover:translate-x-0.5 transition-all shrink-0" />
+            </button>
 
-              <div className="p-3 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] space-y-0.5">
-                <span className="text-[10px] uppercase font-bold text-[#5A6660] block">Altura</span>
-                <p className="text-sm font-bold text-[#102E23]">
-                  {overview.heightCm ? `${overview.heightCm} cm` : "—"}
-                </p>
+            {/* Informações Cadastrais e Biometria */}
+            <div className="p-4 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-[#102E23]">Informações do Aluno</span>
+                <button
+                  type="button"
+                  onClick={() => setIsEditDataModalOpen(true)}
+                  className="text-[11px] font-bold text-[#176B49] hover:underline cursor-pointer"
+                >
+                  {overview.weightKg || overview.heightCm || overview.objective ? "Editar" : "Completar dados"}
+                </button>
               </div>
-
-              <div className="p-3 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] space-y-0.5">
-                <span className="text-[10px] uppercase font-bold text-[#5A6660] block">Idade</span>
-                <p className="text-sm font-bold text-[#102E23]">
-                  {overview.age ? `${overview.age} anos` : (overview.birthDate ? formatDisplayDate(overview.birthDate) : "—")}
-                </p>
+              <div className="grid grid-cols-4 gap-1.5 text-center pt-0.5">
+                <div className="p-1.5 rounded-lg bg-[#FAF9F6] border border-[#E5E8E2]">
+                  <span className="text-[9px] uppercase font-bold text-[#5A6660] block">Peso</span>
+                  <span className="text-xs font-bold text-[#102E23]">{overview.weightKg ? `${overview.weightKg}kg` : "—"}</span>
+                </div>
+                <div className="p-1.5 rounded-lg bg-[#FAF9F6] border border-[#E5E8E2]">
+                  <span className="text-[9px] uppercase font-bold text-[#5A6660] block">Altura</span>
+                  <span className="text-xs font-bold text-[#102E23]">{overview.heightCm ? `${overview.heightCm}cm` : "—"}</span>
+                </div>
+                <div className="p-1.5 rounded-lg bg-[#FAF9F6] border border-[#E5E8E2]">
+                  <span className="text-[9px] uppercase font-bold text-[#5A6660] block">Idade</span>
+                  <span className="text-xs font-bold text-[#102E23]">{overview.age ? `${overview.age}a` : "—"}</span>
+                </div>
+                <div className="p-1.5 rounded-lg bg-[#FAF9F6] border border-[#E5E8E2]">
+                  <span className="text-[9px] uppercase font-bold text-[#5A6660] block">Sexo</span>
+                  <span className="text-xs font-bold text-[#102E23]">{overview.sex ? overview.sex.charAt(0).toUpperCase() : "—"}</span>
+                </div>
               </div>
-
-              <div className="p-3 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] space-y-0.5">
-                <span className="text-[10px] uppercase font-bold text-[#5A6660] block">Sexo</span>
-                <p className="text-sm font-bold text-[#102E23]">
-                  {overview.sex ? (overview.sex === "M" || overview.sex === "MALE" ? "Masculino" : overview.sex === "F" || overview.sex === "FEMALE" ? "Feminino" : overview.sex) : "—"}
+              {overview.objective && (
+                <p className="text-[11px] text-[#5A6660] truncate pt-0.5">
+                  <strong className="text-[#102E23]">Objetivo:</strong> {overview.objective}
                 </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] space-y-0.5 col-span-2 sm:col-span-1">
-                <span className="text-[10px] uppercase font-bold text-[#5A6660] block">Objetivo</span>
-                <p className="text-xs font-bold text-[#102E23] truncate">
-                  {overview.objective || overview.nutritionGoal || "Geral"}
-                </p>
-              </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
       {/* =========================================================================
-          SEÇÃO 2: TREINOS (Detalhamento Completo)
+          SUB-VISÕES FOCADAS (Acessadas diretamente com retorno em 1 clique)
           ========================================================================= */}
-      {activeTab === "treinos" && (
-        <div className="space-y-6" data-testid="tab-treinos">
-          <div className="flex items-center justify-between gap-4">
+
+      {/* FOTOS */}
+      {focusedView === "fotos" && (
+        <div className="space-y-4">
+          <StudentPhotosMural
+            consultancySlug={consultancySlug}
+            studentPublicId={student.membershipPublicId}
+            studentName={student.name}
+            photos={photos}
+            onRequestPhotosClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
+          />
+        </div>
+      )}
+
+      {/* ANAMNESE */}
+      {focusedView === "anamnese" && (
+        <div className="space-y-4">
+          <StudentAnamnesisHub
+            consultancySlug={consultancySlug}
+            studentPublicId={student.membershipPublicId}
+            studentName={student.name}
+            anamnesisHistory={
+              detail.anamnesisList ||
+              forms.filter(
+                (f) =>
+                  f.title.toLowerCase().includes("anamnes") ||
+                  f.title.toLowerCase().includes("saúde") ||
+                  f.title.toLowerCase().includes("saude") ||
+                  f.title.toLowerCase().includes("histórico") ||
+                  f.title.toLowerCase().includes("historico")
+              )
+            }
+            structuredAnamnesis={anamnesis}
+            availableTemplates={detail.availableTemplates || []}
+            onRequestAnamnesisClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
+          />
+        </div>
+      )}
+
+      {/* FORMULÁRIOS */}
+      {focusedView === "formularios" && (
+        <div className="space-y-4">
+          <StudentFormsHub
+            consultancySlug={consultancySlug}
+            studentPublicId={student.membershipPublicId}
+            studentName={student.name}
+            studentEmail={student.email}
+            forms={
+              (detail.formsList && detail.formsList.length > 0)
+                ? detail.formsList
+                : (forms && forms.length > 0)
+                ? forms.filter(
+                    (f) =>
+                      !f.title.toLowerCase().includes("anamnes") &&
+                      !f.title.toLowerCase().includes("saúde") &&
+                      !f.title.toLowerCase().includes("saude") &&
+                      !f.title.toLowerCase().includes("histórico") &&
+                      !f.title.toLowerCase().includes("historico")
+                  )
+                : (detail.formsList || [])
+            }
+            availableTemplates={detail.availableTemplates || []}
+            publishedForms={detail.publishedForms || []}
+            onRequestFormClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
+          />
+        </div>
+      )}
+
+      {/* HISTÓRICO COMPLETO */}
+      {focusedView === "historico" && (
+        <div className="p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-4">
+          <div className="flex items-center justify-between gap-2 border-b border-[#E5E8E2] pb-3">
             <div>
-              <h2 className="font-heading text-sm font-bold text-[#102E23]">
-                Treinos Atribuídos ao Aluno
+              <h2 className="font-heading text-base font-bold text-[#102E23]">
+                Histórico de Atividades do Aluno
               </h2>
               <p className="text-xs text-[#5A6660]">
-                Gerencie rotinas ativas, revisões de ficha e histórico de prescrição.
+                Linha do tempo de treinos, fotos, formulários e anamneses
               </p>
             </div>
-            <Link
-              href={createWorkoutHref}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[40px] shadow-xs cursor-pointer"
-            >
-              <PlusIcon className="w-3.5 h-3.5" />
-              <span>Novo treino</span>
-            </Link>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#E8F0EA] text-[#176B49]">
+              {timelineEvents.length} eventos
+            </span>
           </div>
 
-          {workouts.length === 0 ? (
-            <div className="p-6 sm:p-8 rounded-2xl border border-[#E5E8E2] bg-white text-center space-y-3.5 shadow-xs">
-              <div className="w-12 h-12 rounded-2xl bg-[#E8F0EA] border border-[#CDEED5] flex items-center justify-center mx-auto text-[#176B49]">
-                <DumbbellIcon className="w-6 h-6" />
-              </div>
-              <div className="space-y-1 max-w-sm mx-auto">
-                <p className="font-heading text-sm font-bold text-[#102E23]">
-                  Nenhum treino criado para este aluno
-                </p>
-                <p className="text-xs text-[#5A6660] leading-relaxed">
-                  Monte a primeira rotina de treino personalizada com divisões, séries e exercícios.
-                </p>
-              </div>
-              <Link
-                href={createWorkoutHref}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[42px] shadow-xs cursor-pointer"
-              >
-                Criar primeiro treino
-              </Link>
-            </div>
+          {timelineEvents.length === 0 ? (
+            <p className="text-xs text-[#5A6660] py-6 text-center">
+              Nenhum evento registrado ainda para este aluno.
+            </p>
           ) : (
-            <div className="space-y-5">
-              {/* Treino Ativo Atual */}
-              {activeWorkout && (
-                <div className="p-5 sm:p-6 rounded-2xl bg-white border-2 border-[#176B49]/40 shadow-xs space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E5E8E2] pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-[#E8F0EA] text-[#176B49]">
-                        Treino Ativo Atual
-                      </span>
-                      <span className="text-xs font-medium text-[#5A6660]">
-                        Versão {activeWorkout.versionNumber}
-                      </span>
-                    </div>
-                    <span className="text-xs text-[#5A6660]">
-                      Início: {formatDisplayDate(activeWorkout.startsOn)}
-                      {activeWorkout.endsOn ? ` • Término: ${formatDisplayDate(activeWorkout.endsOn)}` : ""}
-                    </span>
+            <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#E5E8E2]">
+              {timelineEvents.map((evt) => (
+                <div key={evt.id} className="relative text-xs space-y-0.5">
+                  <span className="absolute -left-6 top-1 w-2.5 h-2.5 rounded-full bg-[#176B49] border-2 border-white" />
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="font-bold text-[#102E23]">{evt.title}</p>
+                    <span className="text-[10px] text-[#5A6660] shrink-0">{formatDisplayDate(evt.date)}</span>
                   </div>
-
-                  <div className="space-y-1.5">
-                    <h3 className="font-heading text-base sm:text-lg font-bold text-[#102E23]">
-                      {activeWorkout.title}
-                    </h3>
-                    {activeWorkout.subtitle && (
-                      <p className="text-xs text-[#5A6660]">
-                        {activeWorkout.subtitle}
-                      </p>
-                    )}
-                    {activeWorkout.notesForStudent && (
-                      <p className="text-xs text-[#5A6660] italic pt-1">
-                        &quot;{activeWorkout.notesForStudent}&quot;
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-between gap-3">
-                    <Link
-                      href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
-                      className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[40px] shadow-xs cursor-pointer"
-                    >
-                      <span>Abrir treino</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
+                  <p className="text-[#5A6660]">{evt.subtitle}</p>
                 </div>
-              )}
-
-              {/* Histórico de Treinos Anteriores */}
-              {endedWorkouts.length > 0 && (
-                <div className="p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-3">
-                  <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[#5A6660]">
-                    Histórico de Treinos Anteriores ({endedWorkouts.length})
-                  </h3>
-                  <div className="divide-y divide-[#E5E8E2]">
-                    {endedWorkouts.map((w) => (
-                      <div
-                        key={w.assignmentPublicId}
-                        className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs"
-                      >
-                        <div className="space-y-0.5 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-bold text-[#102E23] truncate">
-                              {w.title}
-                            </p>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#F5F5F0] text-[#5A6660] font-semibold">
-                              v{w.versionNumber}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-[#5A6660]">
-                            Período: {formatDisplayDate(w.startsOn)} {w.endsOn ? `– ${formatDisplayDate(w.endsOn)}` : ""}
-                          </p>
-                        </div>
-
-                        <Link
-                          href={`/consultoria/${consultancySlug}/rotinas/${w.workoutPublicId}?version=${w.versionPublicId}&student=${student.membershipPublicId}`}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#176B49] hover:underline border border-[#E5E8E2] bg-[#FAF9F6] hover:bg-[#F5F5F0] min-h-[36px] self-start sm:self-auto cursor-pointer"
-                        >
-                          <span>Abrir treino</span>
-                          <ChevronRightIcon className="w-3 h-3" />
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Sessões Concluídas pelo Aluno */}
-              {completedSessions.length > 0 && (
-                <div className="p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-3">
-                  <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[#5A6660]">
-                    Sessões Concluídas pelo Aluno ({completedSessions.length})
-                  </h3>
-                  <div className="divide-y divide-[#E5E8E2]">
-                    {completedSessions.map((session) => (
-                      <div
-                        key={session.publicId}
-                        className="py-3 flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2"
-                      >
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-bold text-[#102E23]">
-                              {session.workoutTitle}
-                            </p>
-                            {session.studentCompletionState === "ALL" && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F0EA] text-[#176B49] border border-[#CDEED5]">
-                                Fez tudo
-                              </span>
-                            )}
-                            {session.studentCompletionState === "PARTIAL" && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                                Fez parte
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-[#5A6660]">
-                            {new Date(session.completedAt).toLocaleDateString("pt-BR")} às{" "}
-                            {new Date(session.completedAt).toLocaleTimeString("pt-BR", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </p>
-                          {session.studentFeedbackNotes && (
-                            <div className="mt-1.5 p-2 rounded-lg bg-[#FAF9F6] border border-[#E5E8E2] text-xs text-[#5A6660] italic">
-                              <span className="font-semibold not-italic text-[10px] uppercase text-[#5A6660] block mb-0.5">
-                                Mensagem do aluno:
-                              </span>
-                              &ldquo;{session.studentFeedbackNotes}&rdquo;
-                            </div>
-                          )}
-                        </div>
-                        <Badge variant="success" size="sm" className="shrink-0 self-start sm:self-center">
-                          {session.completedSetsCount} séries concluídas
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              ))}
             </div>
           )}
         </div>
       )}
 
       {/* =========================================================================
-          SEÇÃO 3: FOTOS — MURAL DE EVOLUÇÃO
+          MODAIS: EDIÇÃO DE DADOS, SOLICITAÇÃO E CRIAÇÃO
           ========================================================================= */}
-      {activeTab === "fotos" && (
-        <StudentPhotosMural
-          consultancySlug={consultancySlug}
-          studentPublicId={student.membershipPublicId}
-          studentName={student.name}
-          photos={photos}
-          onRequestPhotosClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
-        />
-      )}
-
-      {/* =========================================================================
-          SEÇÃO 4: ANAMNESE
-          ========================================================================= */}
-      {activeTab === "anamnese" && (
-        <StudentAnamnesisHub
-          consultancySlug={consultancySlug}
-          studentPublicId={student.membershipPublicId}
-          studentName={student.name}
-          anamnesisHistory={
-            detail.anamnesisList ||
-            forms.filter(
-              (f) =>
-                f.title.toLowerCase().includes("anamnes") ||
-                f.title.toLowerCase().includes("saúde") ||
-                f.title.toLowerCase().includes("saude") ||
-                f.title.toLowerCase().includes("histórico") ||
-                f.title.toLowerCase().includes("historico")
-            )
-          }
-          structuredAnamnesis={anamnesis}
-          availableTemplates={detail.availableTemplates || []}
-          onRequestAnamnesisClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
-        />
-      )}
-
-      {/* =========================================================================
-          SEÇÃO 5: FORMULÁRIOS
-          ========================================================================= */}
-      {activeTab === "formularios" && (
-        <StudentFormsHub
-          consultancySlug={consultancySlug}
-          studentPublicId={student.membershipPublicId}
-          studentName={student.name}
-          studentEmail={student.email}
-          forms={
-            (detail.formsList && detail.formsList.length > 0)
-              ? detail.formsList
-              : (forms && forms.length > 0)
-              ? forms.filter(
-                  (f) =>
-                    !f.title.toLowerCase().includes("anamnes") &&
-                    !f.title.toLowerCase().includes("saúde") &&
-                    !f.title.toLowerCase().includes("saude") &&
-                    !f.title.toLowerCase().includes("histórico") &&
-                    !f.title.toLowerCase().includes("historico")
-                )
-              : (detail.formsList || [])
-          }
-          availableTemplates={detail.availableTemplates || []}
-          publishedForms={detail.publishedForms || []}
-          onRequestFormClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
-        />
-      )}
-
-      {/* =========================================================================
-          SEÇÃO 6: AVALIAÇÕES FÍSICAS (Se houver)
-          ========================================================================= */}
-      {activeTab === "avaliacoes" && measurements.length > 0 && (
-        <div className="space-y-4" data-testid="tab-avaliacoes">
-          <h2 className="font-heading text-sm font-bold text-[#102E23]">
-            Medições &amp; Avaliações Físicas ({measurements.length})
-          </h2>
-          <div className="space-y-3">
-            {measurements.map((m, idx) => (
-              <div
-                key={`${m.recordedOn}-${idx}`}
-                className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-2.5"
+      {/* Modal de Edição de Dados do Aluno */}
+      {isEditDataModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="w-full max-w-md p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E5E8E2] pb-2.5">
+              <h3 className="font-heading text-base font-bold text-[#102E23]">
+                Editar Dados do Aluno
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsEditDataModalOpen(false)}
+                className="text-[#5A6660] hover:text-[#102E23] p-1 cursor-pointer"
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-[#102E23]">
-                    Data: {formatDisplayDate(m.recordedOn)}
-                  </span>
-                  {m.weightKg && (
-                    <span className="font-extrabold text-sm text-[#176B49]">
-                      {m.weightKg} kg
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs text-[#5A6660] pt-2 border-t border-[#E5E8E2]">
-                  {m.waistCm && <div>Cintura: <span className="font-semibold text-[#102E23]">{m.waistCm}cm</span></div>}
-                  {m.abdomenCm && <div>Abdômen: <span className="font-semibold text-[#102E23]">{m.abdomenCm}cm</span></div>}
-                  {m.hipCm && <div>Quadril: <span className="font-semibold text-[#102E23]">{m.hipCm}cm</span></div>}
-                  {m.armCm && <div>Braço: <span className="font-semibold text-[#102E23]">{m.armCm}cm</span></div>}
-                  {m.thighCm && <div>Coxa: <span className="font-semibold text-[#102E23]">{m.thighCm}cm</span></div>}
-                </div>
-                {m.note && (
-                  <p className="text-[11px] text-[#5A6660] italic">{m.note}</p>
-                )}
+                ✕
+              </button>
+            </div>
+
+            {editError && (
+              <p className="p-2.5 rounded-xl bg-rose-50 text-rose-700 text-xs">{editError}</p>
+            )}
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-[#102E23] block mb-1">Peso (kg)</label>
+                <input
+                  type="text"
+                  value={editWeight}
+                  onChange={(e) => setEditWeight(e.target.value)}
+                  placeholder="Ex: 75.5"
+                  className="w-full h-10 px-3 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] text-sm text-[#102E23] focus:outline-none focus:border-[#176B49]"
+                />
               </div>
-            ))}
+
+              <div>
+                <label className="font-semibold text-[#102E23] block mb-1">Altura (cm)</label>
+                <input
+                  type="text"
+                  value={editHeight}
+                  onChange={(e) => setEditHeight(e.target.value)}
+                  placeholder="Ex: 178"
+                  className="w-full h-10 px-3 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] text-sm text-[#102E23] focus:outline-none focus:border-[#176B49]"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#102E23] block mb-1">Objetivo</label>
+                <input
+                  type="text"
+                  value={editObjective}
+                  onChange={(e) => setEditObjective(e.target.value)}
+                  placeholder="Ex: Hipertrofia e definição"
+                  className="w-full h-10 px-3 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] text-sm text-[#102E23] focus:outline-none focus:border-[#176B49]"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#102E23] block mb-1">Telefone / WhatsApp</label>
+                <input
+                  type="text"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="Ex: (11) 98765-4321"
+                  className="w-full h-10 px-3 rounded-xl bg-[#FAF9F6] border border-[#E5E8E2] text-sm text-[#102E23] focus:outline-none focus:border-[#176B49]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#E5E8E2]">
+              <button
+                type="button"
+                onClick={() => setIsEditDataModalOpen(false)}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[#5A6660] hover:bg-[#F5F5F0] transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={handleSavePersonalData}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                {isPending ? "Salvando..." : "Salvar alterações"}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* =========================================================================
-          SEÇÃO 7: NUTRIÇÃO
-          ========================================================================= */}
-      {activeTab === "nutricao" && !isEffectiveNutritionist && nutrition.length > 0 && (
-        <div className="space-y-4" data-testid="tab-nutricao">
-          <div className="flex items-center justify-between">
-            <h2 className="font-heading text-sm font-bold text-[#102E23]">
-              Planos Nutricionais Prescritos ({nutrition.length})
-            </h2>
-          </div>
-          <div className="space-y-3">
-            {nutrition.map((plan) => (
-              <div
-                key={plan.assignmentPublicId}
-                className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs flex items-center justify-between gap-3"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-sm text-[#102E23]">
-                      {plan.title}
-                    </p>
-                    <Badge variant={plan.status === "ACTIVE" ? "success" : "neutral"} size="sm">
-                      {plan.status === "ACTIVE" ? "Ativo" : "Encerrado"}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-[#5A6660]">
-                    Início: {formatDisplayDate(plan.startsOn)} {plan.endsOn ? `– ${formatDisplayDate(plan.endsOn)}` : ""}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Modais */}
+      {/* Modal para Solicitar Fotos, Anamnese ou Formulário */}
       <PersonalRequestModal
         isOpen={requestModal.isOpen}
         onClose={() => setRequestModal((prev) => ({ ...prev, isOpen: false }))}
@@ -1354,6 +1003,7 @@ export function PersonalStudentDetailView({
         studentName={student.name}
       />
 
+      {/* Sheet para Criar Treino */}
       <StudentNewWorkoutSheet
         isOpen={isNewWorkoutSheetOpen}
         onClose={() => setIsNewWorkoutSheetOpen(false)}
@@ -1362,6 +1012,7 @@ export function PersonalStudentDetailView({
         studentName={student.name}
       />
 
+      {/* Modais de Criação de Plano Nutricional */}
       <NutritionPlanChoiceModal
         isOpen={isChoiceModalOpen}
         onClose={() => setIsChoiceModalOpen(false)}

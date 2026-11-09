@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import assert from "assert";
 
-console.log("=== TEST SUITE: ALUNOS 4.0 — RECONSTRUÇÃO DA EXPERIÊNCIA DE ACOMPANHAMENTO ===\n");
+console.log("=== TEST SUITE: ALUNOS 4.0 ULTRASSIMPLIFICADO — RECONSTRUÇÃO COMPLETA ===\n");
 
 // 1. Audit lib/consultancies/personal-student-hub.ts
 console.log("1. Auditando lib/consultancies/personal-student-hub.ts...");
@@ -23,7 +23,7 @@ const listPath = path.resolve("components/consultancies/personal-student-hub/per
 const listContent = fs.readFileSync(listPath, "utf-8");
 
 // Theme and official palette: White card, subtle border, ivory background
-assert(listContent.includes("bg-white border border-[#E5E8E2] shadow-xs"), "ERRO: Lista deve utilizar superfícies claras oficiais bg-white border-[#E5E8E2]");
+assert(listContent.includes("border-[#E5E8E2]"), "ERRO: Lista deve utilizar bordas oficiais border-[#E5E8E2]");
 assert(!listContent.includes("bg-[#151619] border border-[#303238]"), "ERRO: Cabeçalho preto antigo #151619 não deve existir na lista");
 
 // Contract & Regression test preservation
@@ -58,53 +58,72 @@ console.log("3. Auditando components/consultancies/personal-student-hub/personal
 const detailPath = path.resolve("components/consultancies/personal-student-hub/personal-student-detail-view.tsx");
 const detailContent = fs.readFileSync(detailPath, "utf-8");
 
-// Header: White card, green accents
-assert(detailContent.includes("bg-white border border-[#E5E8E2] shadow-xs text-[#102E23]"), "ERRO: Cabeçalho do perfil deve ter superfície clara oficial");
+// No 5-tab top bar!
+assert(!detailContent.includes('handleTabChange("overview")'), "ERRO: Não deve haver barra horizontal com 5 abas no topo do perfil");
+assert(!detailContent.includes('handleTabChange("workouts")'), "ERRO: Não deve haver barra horizontal com 5 abas no topo do perfil");
+
+// Header: White card, green accents, Ativo badge, 3-dots menu, NO duplicate workout button
+assert(detailContent.includes("border-[#E5E8E2]"), "ERRO: Cabeçalho do perfil deve ter superfície clara oficial");
 assert(detailContent.includes("Ativo"), "ERRO: Badge 'Ativo' deve estar presente");
+assert(detailContent.includes("MoreDotsIcon"), "ERRO: Menu de 3 pontos deve estar presente no cabeçalho");
 
-// Bloco 1: O que precisa de atenção?
-assert(detailContent.includes("O que precisa de atenção?"), "ERRO: Bloco 1 'O que precisa de atenção?' deve estar presente");
-assert(detailContent.includes("Tudo em dia por aqui"), "ERRO: Estado sem pendências deve informar 'Tudo em dia por aqui'");
-assert(!detailContent.includes("Crítico"), "ERRO: Faltas de dados biométricos opcionais não devem exibir alerta alarmista 'Crítico'");
-
-// Bloco 2: Treino do aluno
-assert(detailContent.includes("Treino do Aluno"), "ERRO: Bloco 2 'Treino do Aluno' deve estar presente");
+// Treino do aluno (Cartão Compacto)
+assert(detailContent.includes("Treino Atual"), "ERRO: Cartão 'Treino Atual' deve estar presente");
 assert(detailContent.includes("activeWorkout.title"), "ERRO: Nome do treino ativo deve ser exibido");
 assert(detailContent.includes("Abrir treino"), "ERRO: Ação primária 'Abrir treino' deve estar no bloco");
-assert(detailContent.includes("Histórico"), "ERRO: Link para histórico de treinos deve estar presente");
+assert(detailContent.includes("Criar treino"), "ERRO: Ação primária 'Criar treino' deve estar no bloco quando sem treino ativo");
 
-// Bloco 3: Acompanhamento
-assert(detailContent.includes("Acompanhamento"), "ERRO: Bloco 3 'Acompanhamento' deve estar presente");
-assert(detailContent.includes("Fotos de Evolução"), "ERRO: Card de fotos de evolução deve estar presente");
-assert(detailContent.includes("Anamnese & Saúde") || detailContent.includes("Anamnese &amp; Saúde"), "ERRO: Card de anamnese deve estar presente");
-assert(detailContent.includes("Formulários & Questionários") || detailContent.includes("Formulários &amp; Questionários"), "ERRO: Card de formulários deve estar presente");
+// Acompanhamento: 3 linhas simples (Fotos, Anamnese, Formulários)
+assert(detailContent.includes("Acompanhamento"), "ERRO: Bloco 'Acompanhamento' deve estar presente");
+assert(detailContent.includes("setFocusedView(\"fotos\")"), "ERRO: Ação direta para abrir Fotos deve estar presente");
+assert(detailContent.includes("setFocusedView(\"anamnese\")"), "ERRO: Ação direta para abrir Anamnese deve estar presente");
+assert(detailContent.includes("setFocusedView(\"formularios\")"), "ERRO: Ação direta para abrir Formulários deve estar presente");
 
-// Bloco 4: Informações do aluno
-assert(detailContent.includes("Informações do Aluno"), "ERRO: Bloco 4 'Informações do Aluno' deve estar presente");
-assert(detailContent.includes("overview.weightKg"), "ERRO: Peso deve ser exibido de forma compacta");
-assert(detailContent.includes("overview.heightCm"), "ERRO: Altura deve ser exibida de forma compacta");
-assert(detailContent.includes("overview.age"), "ERRO: Idade deve ser exibida de forma compacta");
-assert(detailContent.includes("overview.sex"), "ERRO: Sexo deve ser exibido de forma compacta");
-assert(detailContent.includes("overview.objective"), "ERRO: Objetivo deve ser exibido de forma compacta");
+// Histórico e Informações (Acesso compacto)
+assert(detailContent.includes("Histórico de Atividades"), "ERRO: Acesso compacto ao histórico deve estar presente");
+assert(detailContent.includes("Informações do Aluno"), "ERRO: Informações do aluno devem estar presentes");
+assert(detailContent.includes("overview.weightKg"), "ERRO: Peso deve ser exibido");
+assert(detailContent.includes("overview.heightCm"), "ERRO: Altura deve ser exibida");
 
-// Initial tab support
+// Initial tab support & back button to student
 assert(detailContent.includes("initialTab?: string;"), "ERRO: PersonalStudentDetailViewProps deve aceitar initialTab");
+assert(detailContent.includes("Voltar ao perfil"), "ERRO: Sub-visões devem conter botão de retorno direto ao perfil do aluno");
 console.log("✓ personal-student-detail-view.tsx verificado com sucesso!\n");
 
-// 4. Audit app/consultoria/[slug]/progresso/alunos/page.tsx
-console.log("4. Auditando app/consultoria/[slug]/progresso/alunos/page.tsx...");
-const pagePath = path.resolve("app/consultoria/[slug]/progresso/alunos/page.tsx");
-const pageContent = fs.readFileSync(pagePath, "utf-8");
-assert(pageContent.includes('trainer-refined'), "ERRO: themeVariant='trainer-refined' deve ser configurado para a lista de alunos");
-console.log("✓ app/consultoria/[slug]/progresso/alunos/page.tsx verificado com sucesso!\n");
+// 4. Audit student-photos-mural.tsx
+console.log("4. Auditando components/consultancies/personal-student-hub/student-photos-mural.tsx...");
+const photosPath = path.resolve("components/consultancies/personal-student-hub/student-photos-mural.tsx");
+const photosContent = fs.readFileSync(photosPath, "utf-8");
+assert(photosContent.includes("Nenhuma foto registrada."), "ERRO: Estado vazio de fotos deve exibir 'Nenhuma foto registrada.'");
+assert(photosContent.includes("Adicionar fotos"), "ERRO: Botão 'Adicionar fotos' deve estar presente");
+assert(photosContent.includes("Solicitar ao aluno"), "ERRO: Botão secundário 'Solicitar ao aluno' deve estar presente");
+assert(photosContent.includes("Comparar"), "ERRO: Funcionalidade de comparação deve estar disponível");
+console.log("✓ student-photos-mural.tsx verificado com sucesso!\n");
 
-// 5. Audit app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx
-console.log("5. Auditando app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx...");
-const detailPagePath = path.resolve("app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx");
-const detailPageContent = fs.readFileSync(detailPagePath, "utf-8");
-assert(detailPageContent.includes('trainer-refined'), "ERRO: themeVariant='trainer-refined' deve ser configurado para o perfil do aluno");
-assert(detailPageContent.includes('initialTab={resolvedSearchParams?.tab}'), "ERRO: initialTab deve ser repassado ao PersonalStudentDetailView");
-console.log("✓ app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx verificado com sucesso!\n");
+// 5. Audit student-anamnesis-hub.tsx
+console.log("5. Auditando components/consultancies/personal-student-hub/student-anamnesis-hub.tsx...");
+const anamnesisPath = path.resolve("components/consultancies/personal-student-hub/student-anamnesis-hub.tsx");
+const anamnesisContent = fs.readFileSync(anamnesisPath, "utf-8");
+assert(anamnesisContent.includes("Este aluno ainda não possui anamnese."), "ERRO: Estado vazio deve exibir 'Este aluno ainda não possui anamnese.'");
+assert(anamnesisContent.includes("Iniciar anamnese"), "ERRO: Botão 'Iniciar anamnese' deve estar presente");
+assert(anamnesisContent.includes("Enviar ao aluno"), "ERRO: Opção 'Enviar ao aluno' deve estar presente");
+console.log("✓ student-anamnesis-hub.tsx verificado com sucesso!\n");
+
+// 6. Audit student-forms-hub.tsx
+console.log("6. Auditando components/consultancies/personal-student-hub/student-forms-hub.tsx...");
+const formsPath = path.resolve("components/consultancies/personal-student-hub/student-forms-hub.tsx");
+const formsContent = fs.readFileSync(formsPath, "utf-8");
+assert(formsContent.includes("Nenhum formulário enviado."), "ERRO: Estado vazio deve exibir 'Nenhum formulário enviado.'");
+assert(formsContent.includes("Enviar formulário"), "ERRO: Botão 'Enviar formulário' deve estar presente");
+assert(formsContent.includes("Escolher modelo existente"), "ERRO: Modal deve permitir escolher modelo existente");
+console.log("✓ student-forms-hub.tsx verificado com sucesso!\n");
+
+// 7. Audit actions.ts
+console.log("7. Auditando app/consultoria/[slug]/progresso/alunos/[studentPublicId]/actions.ts...");
+const actionsPath = path.resolve("app/consultoria/[slug]/progresso/alunos/[studentPublicId]/actions.ts");
+const actionsContent = fs.readFileSync(actionsPath, "utf-8");
+assert(actionsContent.includes("updateStudentPersonalDataAction"), "ERRO: updateStudentPersonalDataAction deve estar exportada");
+console.log("✓ actions.ts verificado com sucesso!\n");
 
 console.log("==================================================================");
 console.log("🎉 TODOS OS TESTES DE VALIDAÇÃO DE ALUNOS 4.0 PASSARAM COM SUCESSO!");

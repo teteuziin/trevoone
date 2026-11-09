@@ -193,81 +193,29 @@ export function StudentPhotosMural({
 
   return (
     <div className="space-y-6" data-testid="student-photos-mural">
-      {/* 1. CABEÇALHO DA SEÇÃO */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <DuotonePhotosIcon className="w-5 h-5 text-blue-500" />
-            <h2 className="font-heading text-base font-bold text-[var(--text-primary)]">
-              Evolução em fotos
-            </h2>
-          </div>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Histórico fotográfico nas 4 poses padronizadas para acompanhamento corporal.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsCompareModalOpen(true)}
-            disabled={photos.length < 2}
-            className="font-semibold text-xs min-h-[40px] px-3.5 cursor-pointer disabled:opacity-40"
-            title={photos.length < 2 ? "Necessário ter no mínimo 2 avaliações para comparar" : "Comparar avaliações"}
-          >
-            <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5v15m6-15v15m-10.5-15h15a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75A2.25 2.25 0 014.5 4.5z" />
-            </svg>
-            <span>Comparar</span>
-          </Button>
-
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onRequestPhotosClick}
-            className="font-semibold text-xs min-h-[40px] px-3.5 cursor-pointer"
-          >
-            <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-            </svg>
-            <span>Solicitar fotos</span>
-          </Button>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsAddModalOpen(true)}
-            className="font-bold text-xs min-h-[40px] px-4 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white"
-          >
-            <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            <span>Adicionar fotos</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* 2. ESTADO VAZIO COMPACTO */}
+      {/* =========================================================================
+          SE ESTIVER VAZIO — SOMENTE O NECESSÁRIO
+          Sem comparações desabilitadas, sem botões duplicados no cabeçalho
+          ========================================================================= */}
       {photos.length === 0 ? (
-        <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-white dark:bg-[#151619] text-center space-y-4 shadow-xs">
-          <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center mx-auto">
+        <div className="p-8 sm:p-12 rounded-2xl border border-[#E5E8E2] bg-white text-center space-y-4 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-[#E8F0EA] text-[#176B49] flex items-center justify-center mx-auto">
             <DuotonePhotosIcon className="w-6 h-6" />
           </div>
-          <div className="space-y-1 max-w-md mx-auto">
-            <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-              Nenhuma foto registrada para este aluno
+          <div className="space-y-1 max-w-sm mx-auto">
+            <h3 className="font-heading text-base font-bold text-[#102E23]">
+              Nenhuma foto registrada.
             </h3>
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              Adicione fotos tiradas presencialmente ou solicite que o aluno envie as 4 poses padronizadas pelo app.
+            <p className="text-xs text-[#5A6660]">
+              Adicione fotos da avaliação corporal ou solicite que o aluno envie pelo aplicativo.
             </p>
           </div>
-          <div className="flex items-center justify-center gap-3 pt-1">
+          <div className="flex items-center justify-center gap-3 pt-2">
             <Button
               variant="primary"
               size="sm"
               onClick={() => setIsAddModalOpen(true)}
-              className="font-bold min-h-[44px] px-5 bg-emerald-600 hover:bg-emerald-500 text-white"
+              className="font-bold min-h-[42px] px-5 bg-[#176B49] hover:bg-[#125438] text-white cursor-pointer shadow-xs"
             >
               Adicionar fotos
             </Button>
@@ -275,14 +223,66 @@ export function StudentPhotosMural({
               variant="secondary"
               size="sm"
               onClick={onRequestPhotosClick}
-              className="font-semibold min-h-[44px] px-4"
+              className="font-semibold min-h-[42px] px-4 bg-[#F5F5F0] hover:bg-[#EBEBE5] text-[#102E23] border border-[#E5E8E2] cursor-pointer"
             >
-              Solicitar fotos
+              Solicitar ao aluno
             </Button>
           </div>
         </div>
       ) : (
-        /* 3. MURAL CRONOLÓGICO DE AVALIAÇÕES */
+        /* MURAL COM FOTOS */
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs">
+            <div>
+              <div className="flex items-center gap-2">
+                <DuotonePhotosIcon className="w-5 h-5 text-[#176B49]" />
+                <h2 className="font-heading text-base font-bold text-[#102E23]">
+                  Fotos de evolução
+                </h2>
+              </div>
+              <p className="text-xs text-[#5A6660] mt-0.5">
+                {photos.length} {photos.length === 1 ? "avaliação registrada" : "avaliações registradas"}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {photos.length >= 2 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsCompareModalOpen(true)}
+                  className="font-semibold text-xs min-h-[38px] px-3.5 bg-[#FAF9F6] border border-[#E5E8E2] text-[#102E23] hover:bg-[#F5F5F0] cursor-pointer"
+                >
+                  <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5v15m6-15v15m-10.5-15h15a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75A2.25 2.25 0 014.5 4.5z" />
+                  </svg>
+                  <span>Comparar</span>
+                </Button>
+              )}
+
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onRequestPhotosClick}
+                className="font-semibold text-xs min-h-[38px] px-3.5 bg-[#FAF9F6] border border-[#E5E8E2] text-[#102E23] hover:bg-[#F5F5F0] cursor-pointer"
+              >
+                <span>Solicitar novas</span>
+              </Button>
+
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsAddModalOpen(true)}
+                className="font-bold text-xs min-h-[38px] px-4 cursor-pointer bg-[#176B49] hover:bg-[#125438] text-white shadow-xs"
+              >
+                <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                <span>Adicionar fotos</span>
+              </Button>
+            </div>
+          </div>
+          {/* 3. MURAL CRONOLÓGICO DE AVALIAÇÕES */}
         <div className="space-y-6">
           {photos.map((item, reqIdx) => {
             const displayDate = formatDisplayDate(
@@ -294,7 +294,7 @@ export function StudentPhotosMural({
             return (
               <div
                 key={item.requestPublicId}
-                className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-4"
+                className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs space-y-4"
               >
                 {/* Linha de Cabeçalho da Avaliação */}
                 <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3 relative">
@@ -334,7 +334,7 @@ export function StudentPhotosMural({
                     {isMenuOpen && (
                       <div
                         onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-full mt-1 w-44 rounded-xl bg-white dark:bg-[#1C1E22] border border-[#E5E7EB] dark:border-[#2E3036] shadow-lg py-1 z-30 text-xs"
+                        className="absolute right-0 top-full mt-1 w-44 rounded-xl bg-white border border-[#E5E8E2] shadow-lg py-1 z-30 text-xs"
                       >
                         {photos.length > 1 && (
                           <button
@@ -446,7 +446,8 @@ export function StudentPhotosMural({
             );
           })}
         </div>
-      )}
+      </div>
+    )}
 
       {/* =========================================================================
           MODAL: ADICIONAR FOTOS (Fluxo Presencial do Profissional)
@@ -459,7 +460,7 @@ export function StudentPhotosMural({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-2xl p-6 sm:p-7 space-y-5"
+            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white border border-[#E5E8E2] shadow-2xl p-6 sm:p-7 space-y-5"
           >
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div>
@@ -617,7 +618,7 @@ export function StudentPhotosMural({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-2xl p-5 sm:p-7 space-y-5"
+            className="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white border border-[#E5E8E2] shadow-2xl p-5 sm:p-7 space-y-5"
           >
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div>
@@ -648,7 +649,7 @@ export function StudentPhotosMural({
                 <select
                   value={compareEvalA}
                   onChange={(e) => setCompareEvalA(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-white dark:bg-[#1A1C1F] text-xs text-[var(--text-primary)] font-semibold"
+                  className="w-full px-3 py-2 rounded-xl border border-[#E5E8E2] bg-white text-xs text-[#102E23] font-semibold"
                 >
                   {photos.map((p) => (
                     <option key={p.requestPublicId} value={p.requestPublicId}>
@@ -665,7 +666,7 @@ export function StudentPhotosMural({
                 <select
                   value={compareEvalB}
                   onChange={(e) => setCompareEvalB(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-white dark:bg-[#1A1C1F] text-xs text-[var(--text-primary)] font-semibold"
+                  className="w-full px-3 py-2 rounded-xl border border-[#E5E8E2] bg-white text-xs text-[#102E23] font-semibold"
                 >
                   {photos.map((p) => (
                     <option key={p.requestPublicId} value={p.requestPublicId}>
@@ -682,7 +683,7 @@ export function StudentPhotosMural({
                 <select
                   value={comparePoseFilter}
                   onChange={(e) => setComparePoseFilter(e.target.value as "ALL" | PoseKey)}
-                  className="w-full px-3 py-2 rounded-xl border border-[var(--border-default)] bg-white dark:bg-[#1A1C1F] text-xs text-[var(--text-primary)] font-semibold"
+                  className="w-full px-3 py-2 rounded-xl border border-[#E5E8E2] bg-white text-xs text-[#102E23] font-semibold"
                 >
                   <option value="ALL">Todas as poses</option>
                   <option value="FRONT">Frente</option>
@@ -718,7 +719,7 @@ export function StudentPhotosMural({
                               ? formatDisplayDate(evalA.evaluationDate || evalA.submittedAt || evalA.createdAt)
                               : "Avaliação A"}
                           </span>
-                          <div className="aspect-[3/4] max-w-[280px] mx-auto rounded-xl overflow-hidden bg-black/10 dark:bg-black/30 border border-[var(--border-subtle)] flex items-center justify-center">
+                          <div className="aspect-[3/4] max-w-[280px] mx-auto rounded-xl overflow-hidden bg-[#FAF9F6] border border-[#E5E8E2] flex items-center justify-center">
                             {imgA ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img
@@ -739,7 +740,7 @@ export function StudentPhotosMural({
                               ? formatDisplayDate(evalB.evaluationDate || evalB.submittedAt || evalB.createdAt)
                               : "Avaliação B"}
                           </span>
-                          <div className="aspect-[3/4] max-w-[280px] mx-auto rounded-xl overflow-hidden bg-black/10 dark:bg-black/30 border border-[var(--border-subtle)] flex items-center justify-center">
+                          <div className="aspect-[3/4] max-w-[280px] mx-auto rounded-xl overflow-hidden bg-[#FAF9F6] border border-[#E5E8E2] flex items-center justify-center">
                             {imgB ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img

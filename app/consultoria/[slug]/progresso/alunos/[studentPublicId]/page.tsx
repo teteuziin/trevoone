@@ -27,6 +27,7 @@ interface PageProps {
     fromPage?: string;
     filter?: string;
     q?: string;
+    tab?: string;
   }>;
 }
 
@@ -167,7 +168,7 @@ export default async function ProfessionalStudentProgressDetailPage({
         consultancyPublicId={context.consultancyPublicId}
         viewModeState={effectiveState}
         showDashboardWallpaper={true}
-        themeVariant="dark-overview"
+        themeVariant={effectiveMode === "PERSONAL" || effectiveMode === "ADMIN" ? "trainer-refined" : "dark-overview"}
         maxWidth="default"
       >
         <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -178,6 +179,7 @@ export default async function ProfessionalStudentProgressDetailPage({
             effectiveMode={effectiveMode}
             userRoles={context.roles}
             backHref={backHref}
+            initialTab={resolvedSearchParams?.tab}
           />
         </div>
       </ConsultancyAppShell>

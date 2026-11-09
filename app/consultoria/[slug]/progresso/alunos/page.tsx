@@ -88,7 +88,7 @@ export default async function ProfessionalStudentsProgressListPage({
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context.consultancyPublicId}
       viewModeState={effectiveState}
-      themeVariant="dark-overview"
+      themeVariant={effectiveMode === "PERSONAL" || effectiveMode === "ADMIN" ? "trainer-refined" : "dark-overview"}
       showDashboardWallpaper={true}
       maxWidth="default"
     >

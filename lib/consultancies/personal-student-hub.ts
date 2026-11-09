@@ -53,6 +53,8 @@ export interface PersonalStudentSummary {
   latestAssignmentStatus: "ACTIVE" | "ENDED" | null;
   latestAssignmentStartsOn: string | null;
   latestAssignmentEndsOn?: string | null;
+  latestAssignmentPublicId?: string | null;
+  latestWorkoutPublicId?: string | null;
   activeNutritionPlanTitle?: string | null;
   activeNutritionPlanPublicId?: string | null;
   activeNutritionVersionPublicId?: string | null;
@@ -270,6 +272,8 @@ export async function listPersonalStudents(params: {
           latest_wa.status AS latest_assignment_status,
           latest_wa.starts_on AS latest_assignment_starts_on,
           latest_wa.ends_on AS latest_assignment_ends_on,
+          latest_wa.public_id AS latest_assignment_public_id,
+          COALESCE(w.public_id, wv.public_id) AS latest_workout_public_id,
           curr_nutri.plan_title AS active_nutrition_plan_title,
           curr_nutri.plan_public_id AS active_nutrition_plan_public_id,
           curr_nutri.version_public_id AS active_nutrition_version_public_id,
@@ -291,6 +295,7 @@ export async function listPersonalStudents(params: {
         LEFT JOIN (
           SELECT
             wa.student_membership_id,
+            wa.public_id,
             wa.workout_version_id,
             wa.custom_title,
             wa.status,
@@ -359,6 +364,8 @@ export async function listPersonalStudents(params: {
         latestAssignmentStatus: (r.latest_assignment_status as "ACTIVE" | "ENDED") || null,
         latestAssignmentStartsOn: r.latest_assignment_starts_on ? formatDateYmd(r.latest_assignment_starts_on) : null,
         latestAssignmentEndsOn: r.latest_assignment_ends_on ? formatDateYmd(r.latest_assignment_ends_on) : null,
+        latestAssignmentPublicId: r.latest_assignment_public_id ? String(r.latest_assignment_public_id) : null,
+        latestWorkoutPublicId: r.latest_workout_public_id ? String(r.latest_workout_public_id) : null,
         activeNutritionPlanTitle: r.active_nutrition_plan_title ? String(r.active_nutrition_plan_title) : null,
         activeNutritionPlanPublicId: r.active_nutrition_plan_public_id ? String(r.active_nutrition_plan_public_id) : null,
         activeNutritionVersionPublicId: r.active_nutrition_version_public_id ? String(r.active_nutrition_version_public_id) : null,
@@ -409,6 +416,9 @@ export async function listPersonalStudents(params: {
         latestWorkoutStatus: null,
         latestAssignmentStatus: null,
         latestAssignmentStartsOn: null,
+        latestAssignmentEndsOn: null,
+        latestAssignmentPublicId: null,
+        latestWorkoutPublicId: null,
         activeNutritionPlanTitle: null,
         activeNutritionPlanPublicId: null,
         activeNutritionVersionPublicId: null,

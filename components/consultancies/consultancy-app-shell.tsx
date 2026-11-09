@@ -54,7 +54,7 @@ export async function ConsultancyAppShell({
   maxWidth = "default",
   className = "",
   themeVariant = "default",
-  showDashboardWallpaper = false,
+  showDashboardWallpaper = true,
   children,
 }: ConsultancyAppShellProps) {
   // MULTI-ROLE UNIFIED EXPERIENCE:
@@ -671,14 +671,12 @@ export async function ConsultancyAppShell({
       <ActivityHeartbeat slug={consultancySlug} />
       {showDashboardWallpaper && <DashboardWallpaper />}
       <main
-        className={`relative z-10 flex-1 w-full min-w-0 max-w-full mx-auto p-4 sm:p-6 lg:p-8 ${
-          showDashboardWallpaper
-            ? "bg-transparent text-[#17191D] dark:text-[#FFFFFF]"
-            : themeVariant === "trainer-refined"
+        className={`relative z-10 flex-1 w-full min-w-0 max-w-full mx-auto ${
+          themeVariant === "trainer-refined"
             ? "bg-transparent text-[#1E2922] max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6"
             : themeVariant === "dark-overview"
-            ? "bg-[#F0F1F3] dark:bg-[#0B0C0E]"
-            : "xl:p-10"
+            ? "bg-[#F0F1F3] dark:bg-[#0B0C0E] p-4 sm:p-6 lg:p-8"
+            : "p-4 sm:p-6 lg:p-8 xl:p-10 text-[#17191D] dark:text-[#FFFFFF]"
         } pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-8 lg:pb-10 print:p-0 print:max-w-full ${effectiveMaxWidthClass} ${className}`.trim()}
       >
         {children}

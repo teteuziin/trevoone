@@ -17,6 +17,7 @@ import { StudentNewWorkoutSheet } from "./student-new-workout-sheet";
 import { StudentPhotosMural } from "./student-photos-mural";
 import { StudentAnamnesisHub } from "./student-anamnesis-hub";
 import { StudentFormsHub } from "./student-forms-hub";
+import { StudentPhysicalAssessmentHub } from "./student-physical-assessment-hub";
 import { updateStudentPersonalDataAction } from "@/app/consultoria/[slug]/progresso/alunos/[studentPublicId]/actions";
 import type { StudentEvaluationResult } from "@/lib/monitoring/evaluator";
 import type { PersonalStudentDetail } from "@/lib/consultancies/personal-student-hub";
@@ -31,7 +32,7 @@ interface PersonalStudentDetailViewProps {
   initialTab?: string;
 }
 
-type FocusedView = "overview" | "treinos" | "fotos" | "anamnese" | "formularios" | "historico";
+type FocusedView = "overview" | "treinos" | "fotos" | "avaliacao-fisica" | "anamnese" | "formularios" | "historico";
 
 // ============================================================================
 // ICONS
@@ -99,6 +100,14 @@ function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
       <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
+
+function ScaleIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18m-7-5l7-3 7 3M4 14l3.5-7L11 14M13 14l3.5-7L20 14" />
     </svg>
   );
 }
@@ -187,6 +196,8 @@ export function PersonalStudentDetailView({
   const forms = React.useMemo(() => detail.forms || [], [detail.forms]);
   const workouts = React.useMemo(() => detail.workouts || [], [detail.workouts]);
   const completedSessions = React.useMemo(() => detail.completedSessions || [], [detail.completedSessions]);
+  const measurements = React.useMemo(() => detail.measurements || [], [detail.measurements]);
+  const latestMeasurement = measurements.length > 0 ? measurements[0] : null;
 
   const hasPendingPhotos = Boolean(
     overview.hasPendingPhotos ||
@@ -195,7 +206,7 @@ export function PersonalStudentDetailView({
 
   // Active focused view: defaults to "overview" (unified 4-block cockpit), or opens specific view when requested
   const [focusedView, setFocusedView] = useState<FocusedView>(() => {
-    if (initialTab && ["treinos", "fotos", "anamnese", "formularios", "historico"].includes(initialTab)) {
+    if (initialTab && ["treinos", "fotos", "avaliacao-fisica", "anamnese", "formularios", "historico"].includes(initialTab)) {
       return initialTab as FocusedView;
     }
     return "overview";
@@ -354,12 +365,27 @@ export function PersonalStudentDetailView({
       });
     });
 
+    measurements.forEach((m, idx) => {
+      events.push({
+        id: `assessment-${idx}-${m.recordedOn}`,
+        date: m.recordedOn,
+        title: `Avaliação física realizada${m.weightKg ? `: ${m.weightKg} kg` : ""}`,
+        subtitle: [
+          m.waistCm ? `Cintura: ${m.waistCm}cm` : null,
+          m.abdomenCm ? `Abdômen: ${m.abdomenCm}cm` : null,
+          m.armCm ? `Braço: ${m.armCm}cm` : null,
+          m.thighCm ? `Coxa: ${m.thighCm}cm` : null,
+        ].filter(Boolean).join(" • ") || (m.note ? m.note : "Medidas corporais registradas"),
+        type: "session",
+      });
+    });
+
     return events.sort((a, b) => {
       const timeB = b.date ? new Date(b.date).getTime() : 0;
       const timeA = a.date ? new Date(a.date).getTime() : 0;
       return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
     });
-  }, [workouts, completedSessions, photos, forms]);
+  }, [workouts, completedSessions, photos, forms, measurements]);
 
   const handleSavePersonalData = () => {
     setEditError(null);
@@ -674,8 +700,8 @@ export function PersonalStudentDetailView({
           )}
 
           {/* =====================================================================
-              ACOMPANHAMENTO: 3 LINHAS SIMPLES
-              Fotos → • Anamnese → • Formulários →
+              ACOMPANHAMENTO: 4 LINHAS SIMPLES
+              1. Fotos → • 2. Avaliação física → • 3. Anamnese → • 4. Formulários →
               ===================================================================== */}
           <div className="bg-white border border-[#E5E8E2] rounded-2xl shadow-xs overflow-hidden">
             <div className="p-3.5 sm:px-4 sm:py-3 border-b border-[#E5E8E2] bg-[#FAF9F6] flex items-center justify-between">
@@ -714,7 +740,36 @@ export function PersonalStudentDetailView({
                 <ChevronRightIcon className="w-4 h-4 text-[#8E9992] group-hover:text-[#176B49] group-hover:translate-x-0.5 transition-all shrink-0" />
               </button>
 
-              {/* 2. Anamnese */}
+              {/* 2. Avaliação física */}
+              <button
+                type="button"
+                onClick={() => setFocusedView("avaliacao-fisica")}
+                className="w-full p-4 flex items-center justify-between gap-3 hover:bg-[#FAF9F6] active:bg-[#F5F5F0] transition-colors text-left cursor-pointer group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#E8F0EA] flex items-center justify-center shrink-0">
+                    <ScaleIcon className="w-4 h-4 text-[#176B49]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-[#102E23]">Avaliação física</span>
+                      {!latestMeasurement && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800">
+                          Pendente
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-[#5A6660]">
+                      {latestMeasurement
+                        ? `Última avaliação: ${formatDisplayDate(latestMeasurement.recordedOn)}${latestMeasurement.weightKg != null ? ` • ${latestMeasurement.weightKg.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })} kg` : ""}`
+                        : "Nenhuma avaliação física registrada."}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRightIcon className="w-4 h-4 text-[#8E9992] group-hover:text-[#176B49] group-hover:translate-x-0.5 transition-all shrink-0" />
+              </button>
+
+              {/* 3. Anamnese */}
               <button
                 type="button"
                 onClick={() => setFocusedView("anamnese")}
@@ -741,7 +796,7 @@ export function PersonalStudentDetailView({
                 <ChevronRightIcon className="w-4 h-4 text-[#8E9992] group-hover:text-[#176B49] group-hover:translate-x-0.5 transition-all shrink-0" />
               </button>
 
-              {/* 3. Formulários */}
+              {/* 4. Formulários */}
               <button
                 type="button"
                 onClick={() => setFocusedView("formularios")}
@@ -847,6 +902,18 @@ export function PersonalStudentDetailView({
             studentName={student.name}
             photos={photos}
             onRequestPhotosClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
+          />
+        </div>
+      )}
+
+      {/* AVALIAÇÃO FÍSICA */}
+      {focusedView === "avaliacao-fisica" && (
+        <div className="space-y-4">
+          <StudentPhysicalAssessmentHub
+            consultancySlug={consultancySlug}
+            studentPublicId={student.membershipPublicId}
+            studentName={student.name}
+            measurements={measurements}
           />
         </div>
       )}

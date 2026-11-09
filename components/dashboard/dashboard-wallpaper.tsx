@@ -15,11 +15,15 @@ import React from "react";
  *
  * Camada 100% decorativa (pointer-events: none, z-0, aria-hidden: true).
  */
-export function DashboardWallpaper() {
+interface DashboardWallpaperProps {
+  offsetSidebar?: boolean;
+}
+
+export function DashboardWallpaper({ offsetSidebar = true }: DashboardWallpaperProps = {}) {
   return (
     <div
       data-trevo-dashboard-wallpaper="true"
-      className="pointer-events-none fixed inset-0 lg:left-64 z-0 overflow-hidden select-none"
+      className={`pointer-events-none fixed inset-0 ${offsetSidebar ? "lg:left-64" : ""} z-0 overflow-hidden select-none print:hidden`}
       aria-hidden="true"
     >
       <div className="trevo-dashboard-wallpaper w-full h-full" />

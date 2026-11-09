@@ -148,7 +148,7 @@ export default async function ConsultancyWorkoutsPage({
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       viewModeState={effectiveState}
       themeVariant="trainer-refined"
-      showDashboardWallpaper={false}
+      showDashboardWallpaper={true}
       maxWidth="wide"
     >
       <div className="w-full max-w-6xl mx-auto space-y-5 pb-32 sm:pb-16 font-sans">

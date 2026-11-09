@@ -69,7 +69,7 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
         hasProfilePhoto={session.hasProfilePhoto}
         profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
         themeVariant="trainer-refined"
-        showDashboardWallpaper={false}
+        showDashboardWallpaper={true}
       >
         <div className="w-full max-w-lg mx-auto py-16 px-4 text-center space-y-4">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center font-bold text-2xl shadow-xs">
@@ -116,7 +116,7 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       themeVariant="trainer-refined"
-      showDashboardWallpaper={false}
+      showDashboardWallpaper={true}
       maxWidth="full"
     >
       <div className="w-full max-w-full min-w-0 mx-auto pb-12">

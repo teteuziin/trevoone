@@ -1087,7 +1087,7 @@ export async function getPersonalStudentDetail(params: {
          WHERE consultancy_id = ?
            AND student_membership_id = ?
          ORDER BY recorded_on DESC, id DESC
-         LIMIT 10;`,
+         LIMIT 50;`,
         [consultancyId, membershipId]
       );
       progressRows = rows;

@@ -370,9 +370,9 @@ export async function createProfessionalProgressEntry(params: {
     throw new Error("Contexto de consultoria inválido.");
   }
 
-  // Only PERSONAL is allowed to create progress entries for students
-  if (!context.roles.includes("PERSONAL")) {
-    throw new Error("Apenas o Personal Trainer pode registrar evolução para alunos.");
+  // Only PERSONAL or CONSULTANCY_ADMIN is allowed to create progress entries for students
+  if (!context.roles.includes("PERSONAL") && !context.roles.includes("CONSULTANCY_ADMIN")) {
+    throw new Error("Apenas o Personal Trainer ou Administrador da consultoria pode registrar evolução para alunos.");
   }
 
   const validated = validateProgressMetricsInput(input);

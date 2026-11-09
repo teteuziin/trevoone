@@ -38,8 +38,8 @@ import { getReferrerDashboardData } from "@/lib/referrals/service";
 import {
   listPersonalStudents,
   computePersonalTrainingMetrics,
-  getPersonalAssessmentsCount,
 } from "@/lib/consultancies/personal-student-hub";
+import { getConsultancyPhysicalAssessmentsStats } from "@/lib/consultancies/physical-assessments";
 import { getAuthoritativeTrainingMetrics } from "@/lib/training-v2/training-metrics-service";
 import dynamic from "next/dynamic";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
@@ -253,7 +253,12 @@ export default async function ConsultancyPage({ params }: PageProps) {
             context.membershipId
               ? listUpcomingConsultationsForProfessional(context.consultancyId, context.membershipId, 50).catch(() => null)
               : Promise.resolve(null),
-            getPersonalAssessmentsCount(context.consultancyId).catch(() => ({ pendingAssessmentsCount: 0, completedAssessmentsCount: 0 })),
+            getConsultancyPhysicalAssessmentsStats(context.consultancyId).catch(() => ({
+              evaluatedStudentsCount: 0,
+              totalAssessmentsCount: 0,
+              latestRecordedOn: null,
+              loadStatus: "ERROR" as const,
+            })),
             getAuthoritativeTrainingMetrics(context.consultancyId, todayDateStr).catch((err) => {
               console.error("[PersonalWorkouts] getAuthoritativeTrainingMetrics error:", err);
               return null;
@@ -749,16 +754,6 @@ export default async function ConsultancyPage({ params }: PageProps) {
       (effectiveState.isPreview && (effectiveMode === "PERSONAL" || effectiveMode === "ADMIN" || effectiveMode === "NUTRITIONIST" || effectiveMode === "STUDENT"))
   );
 
-  const isTrainerOrAdminScreen = Boolean(
-    isPurePersonal ||
-      isCombinedPersonalAdmin ||
-      isPureNutritionist ||
-      isCombinedNutritionistAdmin ||
-      isStudentOverview ||
-      (effectiveMode === "ADMIN" && !isPersonal && !isNutritionist) ||
-      (effectiveState.isPreview && (effectiveMode === "PERSONAL" || effectiveMode === "ADMIN" || effectiveMode === "NUTRITIONIST" || effectiveMode === "STUDENT"))
-  );
-
   return (
     <ConsultancyAppShell
       consultancyName={context.consultancyName}
@@ -774,7 +769,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
       viewModeState={effectiveState}
       unreadAnnouncements={unreadAnnouncements}
       themeVariant={isPurePersonal || (isCombinedPersonalAdmin && effectiveMode === "PERSONAL") ? "trainer-refined" : isDarkOverviewTheme ? "dark-overview" : "default"}
-      showDashboardWallpaper={!(isPurePersonal || (isCombinedPersonalAdmin && effectiveMode === "PERSONAL")) && isTrainerOrAdminScreen}
+      showDashboardWallpaper={true}
       maxWidth="full"
     >
       <div className={`w-full ${isPurePersonal || isCombinedPersonalAdmin ? "max-w-[1600px] 2xl:max-w-[1780px]" : "max-w-[1280px]"} mx-auto space-y-5 sm:space-y-6`}>

@@ -93,7 +93,10 @@ export async function recordProfessionalProgressAction(
       input,
     });
 
+    revalidatePath(`/consultoria/${slug}/avaliacoes-fisicas`);
+    revalidatePath(`/consultoria/${slug}`);
     revalidatePath(`/consultoria/${slug}/progresso/alunos/${studentPublicId.trim()}`);
+    revalidatePath(`/consultoria/${slug}/progresso/alunos`);
     return { success: true };
   } catch (error) {
     return {

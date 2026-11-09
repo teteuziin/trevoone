@@ -2,6 +2,7 @@
 
 import React, { useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PersonalHeader } from "./personal/personal-header";
 import type { PersonalFinanceIndicatorData } from "./personal/sections/personal-indicators";
 import type { PersonalFinanceChargeItem } from "./personal/sections/personal-indicator-detail-dialog";
@@ -56,8 +57,13 @@ export interface PersonalTrainingMetrics {
 }
 
 export interface PersonalAssessmentStats {
-  pendingAssessmentsCount: number;
-  completedAssessmentsCount: number;
+  pendingAssessmentsCount?: number;
+  completedAssessmentsCount?: number;
+  evaluatedStudentsCount?: number;
+  totalAssessmentsCount?: number;
+  latestRecordedOn?: string | null;
+  loadStatus?: "SUCCESS" | "ERROR";
+  errorMessage?: string;
 }
 
 export interface DashboardPersonalViewProps {
@@ -160,6 +166,22 @@ function getLocalLastEditedId(slug: string): string | null {
   }
 }
 
+function formatDisplayDate(dateVal: unknown): string {
+  if (!dateVal) return "—";
+  const str = String(dateVal).trim();
+  const ymdMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    return `${d}/${m}/${y}`;
+  }
+  const parsed = new Date(str);
+  if (isNaN(parsed.getTime())) return str;
+  const d = String(parsed.getUTCDate()).padStart(2, "0");
+  const m = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+  const y = parsed.getUTCFullYear();
+  return `${d}/${m}/${y}`;
+}
+
 export function DashboardPersonalView({
   consultancySlug,
   consultancyName,
@@ -185,6 +207,7 @@ export function DashboardPersonalView({
   financeSummary,
   satisfactionData,
 }: DashboardPersonalViewProps) {
+  const router = useRouter();
   void prescribedBlocksCount;
   void todayConsultations;
   void totalWorkouts;
@@ -604,19 +627,27 @@ export function DashboardPersonalView({
 
   // 3. CARD SECUNDÁRIO 2: AVALIAÇÃO FÍSICA
   const renderAvaliacaoFisica = () => {
-    const pending = assessmentStats?.pendingAssessmentsCount ?? 0;
-    const completed = assessmentStats?.completedAssessmentsCount ?? 0;
-    const totalAssessments = pending + completed;
-    const hasAnyAssessment = totalAssessments > 0;
+    const isError = assessmentStats?.loadStatus === "ERROR";
+    const evaluatedCount = assessmentStats?.evaluatedStudentsCount ?? 0;
+    const totalAssessments = assessmentStats?.totalAssessmentsCount ?? (assessmentStats?.pendingAssessmentsCount ?? 0) + (assessmentStats?.completedAssessmentsCount ?? 0);
+    const latestDate = assessmentStats?.latestRecordedOn;
+    const hasAnyAssessment = (evaluatedCount > 0) || (totalAssessments > 0);
+    const centralHref = `/consultoria/${consultancySlug}/avaliacoes-fisicas`;
 
     return (
       <section
         aria-label="Avaliação física"
-        className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between h-full"
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (!target.closest("a, button")) {
+            router.push(centralHref);
+          }
+        }}
+        className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between h-full cursor-pointer hover:border-[#CDEED5] transition-colors group"
       >
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <h3 className="text-sm sm:text-base font-bold text-[#102E23]">
+            <h3 className="text-sm sm:text-base font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors">
               Avaliação física
             </h3>
             <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#F0F5F2] text-[#176B49] flex items-center justify-center shrink-0">
@@ -624,24 +655,44 @@ export function DashboardPersonalView({
             </span>
           </div>
 
-          {hasAnyAssessment ? (
+          {isError ? (
+            <div className="py-2 space-y-1">
+              <p className="text-xs font-semibold text-amber-800">
+                Informações indisponíveis no momento.
+              </p>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.refresh();
+                }}
+                className="text-[11px] font-bold text-[#176B49] underline cursor-pointer"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          ) : hasAnyAssessment ? (
             <div className="py-1">
               <div className="text-3xl sm:text-4xl font-black text-[#102E23] tracking-tight tabular-nums font-sans">
-                {totalAssessments}
+                {evaluatedCount > 0 ? evaluatedCount : totalAssessments}
               </div>
               <p className="text-xs text-[#526058] font-medium mt-0.5">
-                {totalAssessments === 1 ? "Avaliação registrada" : "Avaliações registradas"}
+                {evaluatedCount > 0
+                  ? evaluatedCount === 1 ? "Aluno avaliado" : "Alunos avaliados"
+                  : totalAssessments === 1 ? "Avaliação registrada" : "Avaliações registradas"}
               </p>
 
-              <div className="mt-3 pt-3 border-t border-[#F0F2ED] space-y-1.5 text-xs">
+              <div className="mt-3 pt-3 border-t border-[#F0F2ED] space-y-1 text-xs">
                 <div className="flex items-center justify-between py-0.5 text-[#4A5568]">
-                  <span>Concluídas</span>
-                  <span className="font-bold text-[#102E23] tabular-nums">{completed}</span>
+                  <span>Total de registros</span>
+                  <span className="font-bold text-[#102E23] tabular-nums">{totalAssessments}</span>
                 </div>
-                <div className="flex items-center justify-between py-0.5 text-[#4A5568]">
-                  <span>Aguardando revisão</span>
-                  <span className="font-bold text-[#102E23] tabular-nums">{pending}</span>
-                </div>
+                {latestDate && (
+                  <div className="flex items-center justify-between py-0.5 text-[#4A5568]">
+                    <span>Última avaliação</span>
+                    <span className="font-bold text-[#102E23] tabular-nums">{formatDisplayDate(latestDate)}</span>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -650,7 +701,7 @@ export function DashboardPersonalView({
                 Nenhuma avaliação física registrada.
               </p>
               <p className="text-xs text-[#526058] font-normal mt-1 leading-relaxed">
-                Histórico corporal e medidas dos alunos.
+                Registre medidas e acompanhe a evolução dos alunos.
               </p>
             </div>
           )}
@@ -658,12 +709,12 @@ export function DashboardPersonalView({
 
         <div className="pt-3 mt-2 border-t border-[#F0F2ED]">
           <Link
-            href={`/consultoria/${consultancySlug}/progresso/alunos`}
+            href={centralHref}
             prefetch={false}
-            className="text-xs font-bold text-[#102E23] hover:text-[#176B49] transition-colors flex items-center justify-between min-h-[36px]"
+            className="text-xs font-bold text-[#102E23] group-hover:text-[#176B49] transition-colors flex items-center justify-between min-h-[36px]"
           >
-            <span>{hasAnyAssessment ? `Ver avaliações (${totalAssessments})` : "Ver avaliações físicas"}</span>
-            <span className="text-[#8A958E] text-sm" aria-hidden="true">→</span>
+            <span>{hasAnyAssessment ? `Ver avaliações físicas (${totalAssessments})` : "Ver avaliações físicas"}</span>
+            <span className="text-[#8A958E] group-hover:text-[#176B49] group-hover:translate-x-0.5 transition-all text-sm" aria-hidden="true">→</span>
           </Link>
         </div>
       </section>

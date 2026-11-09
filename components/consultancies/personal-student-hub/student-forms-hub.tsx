@@ -81,6 +81,7 @@ export function StudentFormsHub({
   forms,
   availableTemplates = [],
   publishedForms = [],
+  onRequestFormClick,
 }: StudentFormsHubProps) {
   const router = useRouter();
   const isMounted = useIsMounted();
@@ -192,7 +193,7 @@ export function StudentFormsHub({
             <Button
               variant="primary"
               size="sm"
-              onClick={() => setIsChooserModalOpen(true)}
+              onClick={() => (onRequestFormClick ? onRequestFormClick() : setIsChooserModalOpen(true))}
               className="font-bold min-h-[42px] px-5 bg-[#176B49] hover:bg-[#125438] text-white cursor-pointer shadow-xs"
             >
               Enviar formulário
@@ -218,7 +219,7 @@ export function StudentFormsHub({
             <Button
               variant="primary"
               size="sm"
-              onClick={() => setIsChooserModalOpen(true)}
+              onClick={() => (onRequestFormClick ? onRequestFormClick() : setIsChooserModalOpen(true))}
               className="font-bold text-xs min-h-[38px] px-4 cursor-pointer bg-[#176B49] hover:bg-[#125438] text-white shadow-xs"
             >
               <svg className="w-4 h-4 mr-1.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>

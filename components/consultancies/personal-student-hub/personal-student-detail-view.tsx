@@ -146,15 +146,52 @@ export function PersonalStudentDetailView({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const {
-    student,
-    overview,
-    photos,
-    anamnesis,
-    forms,
-    workouts,
-    completedSessions,
-  } = detail;
+  const student = React.useMemo(() => detail.student || {
+    membershipPublicId: "",
+    userPublicId: "",
+    name: "Aluno",
+    email: "",
+    phone: null,
+    joinedAt: null,
+    status: "ACTIVE",
+  }, [detail.student]);
+
+  const overview = React.useMemo(() => detail.overview || {
+    objective: null,
+    nutritionGoal: null,
+    allergies: null,
+    intolerances: null,
+    dietaryRestrictions: null,
+    birthDate: null,
+    age: null,
+    sex: null,
+    heightCm: null,
+    weightKg: null,
+    lastWeightRecordedOn: null,
+    latestWorkoutTitle: null,
+    latestWorkoutDifficulty: null,
+    activeWorkoutsCount: 0,
+    completedWorkoutsCount: 0,
+    hasAnamnesis: false,
+    hasPhotos: false,
+    hasForms: false,
+    latestNutritionTitle: null,
+    activeNutritionCount: 0,
+    hasPendingPhotos: false,
+    hasPendingAnamnesis: false,
+    hasPendingAssessment: false,
+  }, [detail.overview]);
+
+  const photos = React.useMemo(() => detail.photos || [], [detail.photos]);
+  const anamnesis = React.useMemo(() => detail.anamnesis || [], [detail.anamnesis]);
+  const forms = React.useMemo(() => detail.forms || [], [detail.forms]);
+  const workouts = React.useMemo(() => detail.workouts || [], [detail.workouts]);
+  const completedSessions = React.useMemo(() => detail.completedSessions || [], [detail.completedSessions]);
+
+  const hasPendingPhotos = Boolean(
+    overview.hasPendingPhotos ||
+    photos.some((p) => p.status === "PENDING" || p.status === "REQUESTED")
+  );
 
   // Active focused view: defaults to "overview" (unified 4-block cockpit), or opens specific view when requested
   const [focusedView, setFocusedView] = useState<FocusedView>(() => {
@@ -317,7 +354,11 @@ export function PersonalStudentDetailView({
       });
     });
 
-    return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return events.sort((a, b) => {
+      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      const timeA = a.date ? new Date(a.date).getTime() : 0;
+      return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
+    });
   }, [workouts, completedSessions, photos, forms]);
 
   const handleSavePersonalData = () => {
@@ -657,7 +698,7 @@ export function PersonalStudentDetailView({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-[#102E23]">Fotos</span>
-                      {photoRequestStatus === "REQUESTED" && (
+                      {hasPendingPhotos && (
                         <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800">
                           Envio solicitado
                         </span>

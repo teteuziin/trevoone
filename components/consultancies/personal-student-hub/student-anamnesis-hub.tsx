@@ -58,6 +58,7 @@ export function StudentAnamnesisHub({
   anamnesisHistory,
   structuredAnamnesis,
   availableTemplates = [],
+  onRequestAnamnesisClick,
 }: StudentAnamnesisHubProps) {
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

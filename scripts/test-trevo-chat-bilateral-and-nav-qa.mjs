@@ -76,8 +76,11 @@ console.log("✓ lib/consultancies/trevo-chat.ts auto-schema self-healing handle
 const pagePath = path.resolve("app/consultoria/[slug]/consultas/page.tsx");
 const pageContent = fs.readFileSync(pagePath, "utf-8");
 assert.ok(pageContent.includes('showDashboardWallpaper={true}'), "Consultas page must pass showDashboardWallpaper={true} to shell");
-assert.ok(pageContent.includes('themeVariant="dark-overview"'), "Consultas page must pass themeVariant='dark-overview' to shell");
-console.log("✓ app/consultoria/[slug]/consultas/page.tsx enables DashboardWallpaper and dark-overview");
+assert.ok(
+  pageContent.includes('themeVariant="trainer-refined"') || pageContent.includes('themeVariant="dark-overview"'),
+  "Consultas page must pass refined themeVariant to shell"
+);
+console.log("✓ app/consultoria/[slug]/consultas/page.tsx enables DashboardWallpaper and refined theme");
 
 // 10. Verify neutral fallback text in ConsultationsTabbedContainer
 assert.ok(container.includes("Você pode acessar a aba Videochamada."), "Fallback must offer neutral suggestion to access Videochamada");

@@ -130,6 +130,14 @@ function EditIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function ChatBubbleIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-.84-.84c.137-.99.53-1.92 1.134-2.695C4.03 16.035 3 14.126 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+    </svg>
+  );
+}
+
 export function formatDisplayDate(dateVal: unknown): string {
   if (!dateVal) return "—";
   const str = String(dateVal).trim();
@@ -464,8 +472,17 @@ export function PersonalStudentDetailView({
             </div>
           </div>
 
-          {/* Menu Dropdown de Ações Secundárias */}
-          <div className="relative shrink-0 flex items-center justify-end">
+          {/* Ações do Cabeçalho: Conversar com aluno + Menu Dropdown */}
+          <div className="relative shrink-0 flex items-center gap-2 justify-end">
+            <Link
+              href={`/consultoria/${consultancySlug}/consultas?student=${student.membershipPublicId}`}
+              className="min-h-[40px] px-3.5 py-2 rounded-xl bg-[#E8F0EA] hover:bg-[#DBE7DE] text-[#176B49] font-bold text-xs flex items-center gap-1.5 border border-[#CDEED5] transition-colors shadow-2xs"
+              title="Conversar com este aluno no Trevo Chat"
+            >
+              <ChatBubbleIcon className="w-4 h-4 text-[#176B49]" />
+              <span>Conversar</span>
+            </Link>
+
             <button
               type="button"
               onClick={() => setIsSecondaryMenuOpen((prev) => !prev)}
@@ -483,6 +500,14 @@ export function PersonalStudentDetailView({
                     aria-hidden="true"
                   />
                   <div className="absolute right-0 mt-1 z-50 w-56 p-1 rounded-2xl bg-white border border-[#E5E8E2] shadow-xl space-y-0.5">
+                    <Link
+                      href={`/consultoria/${consultancySlug}/consultas?student=${student.membershipPublicId}`}
+                      onClick={() => setIsSecondaryMenuOpen(false)}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#102E23] hover:bg-[#F5F5F0] text-left cursor-pointer"
+                    >
+                      <ChatBubbleIcon className="w-4 h-4 text-[#176B49]" />
+                      <span>Conversar no chat</span>
+                    </Link>
                     <button
                       type="button"
                       onClick={() => {

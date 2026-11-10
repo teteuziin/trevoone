@@ -15,6 +15,7 @@ import {
   listActiveProfessionalsForChat,
   getUserHiddenConsultationKeys,
   getIntroViewStatus,
+  getOrCreateChatConsultation,
   type ChatConsultationDto,
   type ActiveStudentForChatDto,
   type ActiveProfessionalForChatDto,
@@ -27,13 +28,15 @@ type PageProps = {
   }>;
   searchParams?: Promise<{
     c?: string;
+    student?: string;
   }>;
 };
 
 export default async function ConsultasPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  const initialChatPublicId = resolvedSearchParams.c || null;
+  let initialChatPublicId = resolvedSearchParams.c || null;
+  const studentParam = resolvedSearchParams.student ? resolvedSearchParams.student.trim() : null;
 
   const session = await getCurrentSession();
   if (!session) {
@@ -49,7 +52,9 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
   const isStudent = roles.includes("STUDENT");
   const isPersonal = roles.includes("PERSONAL");
   const isNutritionist = roles.includes("NUTRITIONIST");
-  const isInfluencerOnly = roles.includes("INFLUENCER") && !isStudent && !isPersonal && !isNutritionist;
+  const isConsultancyAdmin = roles.includes("CONSULTANCY_ADMIN");
+  const isInfluencerOnly =
+    roles.includes("INFLUENCER") && !isStudent && !isPersonal && !isNutritionist && !isConsultancyAdmin;
 
   if (isInfluencerOnly) {
     redirect(`/consultoria/${slug}`);
@@ -158,7 +163,7 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
         userPublicId={session.userPublicId}
         hasProfilePhoto={session.hasProfilePhoto}
         profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
-        themeVariant="dark-overview"
+        themeVariant="trainer-refined"
         showDashboardWallpaper={true}
       >
         <div className="w-full max-w-7xl mx-auto">
@@ -178,9 +183,9 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
     );
   }
 
-  // PROFESSIONAL VIEW (PERSONAL or NUTRITIONIST)
-  if (isPersonal || isNutritionist) {
-    const professionalType: ConsultationProfessionalType = isPersonal ? "PERSONAL" : "NUTRITIONIST";
+  // PROFESSIONAL VIEW (PERSONAL, NUTRITIONIST, or CONSULTANCY_ADMIN)
+  if (isPersonal || isNutritionist || isConsultancyAdmin) {
+    const professionalType: ConsultationProfessionalType = isNutritionist && !isPersonal ? "NUTRITIONIST" : "PERSONAL";
 
     let chatConsultations: ChatConsultationDto[] = [];
     let activeChatStudents: ActiveStudentForChatDto[] = [];
@@ -218,6 +223,35 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
     } catch (err: unknown) {
       console.warn("[Trevo Chat] Falha ao carregar lista de alunos ativos:", err);
       activeChatStudents = [];
+    }
+
+    // Direct link from Alunos 4.0: resolve or initiate conversation with student
+    if (studentParam && !initialChatPublicId) {
+      const targetStudent = activeChatStudents.find(
+        (s) => s.membershipPublicId === studentParam || s.userPublicId === studentParam
+      );
+      if (targetStudent) {
+        const existingChat = chatConsultations.find(
+          (c) => c.studentMembershipId === targetStudent.membershipId
+        );
+        if (existingChat) {
+          initialChatPublicId = existingChat.publicId;
+        } else {
+          try {
+            const newChat = await getOrCreateChatConsultation({
+              consultancyId: context.consultancyId,
+              studentMembershipId: targetStudent.membershipId,
+              professionalMembershipId: context.membershipId,
+              professionalType,
+              createdByUserId: session.userId,
+            });
+            initialChatPublicId = newChat.publicId;
+            chatConsultations = [newChat, ...chatConsultations];
+          } catch (createErr) {
+            console.warn("[Trevo Chat] Falha ao abrir atendimento para aluno via parâmetro:", createErr);
+          }
+        }
+      }
     }
 
     let historyVideoConsultations: ChatConsultationDto[] = [];
@@ -284,7 +318,7 @@ export default async function ConsultasPage({ params, searchParams }: PageProps)
         userPublicId={session.userPublicId}
         hasProfilePhoto={session.hasProfilePhoto}
         profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
-        themeVariant="dark-overview"
+        themeVariant="trainer-refined"
         showDashboardWallpaper={true}
       >
         <div className="w-full max-w-7xl mx-auto">

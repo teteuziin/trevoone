@@ -19,6 +19,7 @@ import { TrevoChatWelcomeModal } from "./trevo-chat-welcome-modal";
 import {
   sendChatMessageAction,
   markChatReadAction,
+  startOrOpenChatAction,
   proposeChatConsultationAction,
   respondToChatProposalAction,
   cancelChatConsultationAction,
@@ -31,6 +32,7 @@ import {
 
 export interface StudentCandidate {
   membershipId: number;
+  membershipPublicId?: string;
   userPublicId: string;
   name: string;
   email: string;
@@ -367,6 +369,53 @@ export function TrevoChatWorkspace({
     }
   }, [isProfessional, activeProfessionals, selectedStudentForProposal]);
 
+  const [isStartingChat, setIsStartingChat] = useState(false);
+
+  const handleSelectStudentForDirectChat = async (student: StudentCandidate) => {
+    const existingChat = consultations.find(
+      (c) => c.studentMembershipId === student.membershipId && c.modality !== "VIDEO"
+    );
+
+    if (existingChat) {
+      setSelectedChatPublicId(existingChat.publicId);
+      setMobileScreen("CHAT");
+      setIsNewChatModalOpen(false);
+      setNewChatSearch("");
+      if (typeof window !== "undefined") {
+        window.history.replaceState(null, "", `?c=${existingChat.publicId}`);
+      }
+      return;
+    }
+
+    setIsStartingChat(true);
+    setProposalError(null);
+    try {
+      const res = await startOrOpenChatAction(
+        consultancySlug,
+        student.membershipId,
+        professionalType,
+        `Consulta ${professionalType === "PERSONAL" ? "Treino" : "Nutrição"}`
+      );
+      if (res.ok && res.data) {
+        const newChat = res.data as ChatConsultationDto;
+        setCreatedConsultations((prev) => [newChat, ...prev.filter((c) => c.publicId !== newChat.publicId)]);
+        setSelectedChatPublicId(newChat.publicId);
+        setMobileScreen("CHAT");
+        setIsNewChatModalOpen(false);
+        setNewChatSearch("");
+        if (typeof window !== "undefined") {
+          window.history.replaceState(null, "", `?c=${newChat.publicId}`);
+        }
+      } else {
+        setProposalError(res.error || "Não foi possível abrir o atendimento.");
+      }
+    } catch (err: unknown) {
+      setProposalError(err instanceof Error ? err.message : "Erro ao abrir atendimento.");
+    } finally {
+      setIsStartingChat(false);
+    }
+  };
+
   // Counter proposal modal
   const [isCounterModalOpen, setIsCounterModalOpen] = useState(false);
   const [counterDate, setCounterDate] = useState("");
@@ -567,8 +616,18 @@ export function TrevoChatWorkspace({
   const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   const [sendErrorNotice, setSendErrorNotice] = useState<string | null>(null);
 
-  // Current active consultation object
-  const activeChat = consultations.find((c) => c.publicId === selectedChatPublicId) || null;
+  // Current active consultation object with automatic fallback so right pane is never empty
+  const activeChat = useMemo(() => {
+    if (selectedChatPublicId) {
+      const match = consultations.find((c) => c.publicId === selectedChatPublicId);
+      if (match) return match;
+    }
+    return (
+      consultations.find((c) => !c.isRemovedFromMyList && c.modality !== "VIDEO") ||
+      consultations[0] ||
+      null
+    );
+  }, [selectedChatPublicId, consultations]);
 
   // Lock body scroll when any modal is open
   const anyModalOpen =
@@ -681,7 +740,14 @@ export function TrevoChatWorkspace({
           ? newQueue === "ALL" || getProQueueKey(current) === newQueue
           : newQueue === "ALL" || getStudentQueueKey(current) === newQueue;
         if (!belongs) {
-          setSelectedChatPublicId(null);
+          const nextMatch = consultations.find((c) => {
+            if (c.isRemovedFromMyList) return false;
+            if (c.modality === "VIDEO") return false;
+            return isProfessional
+              ? newQueue === "ALL" || getProQueueKey(c) === newQueue
+              : newQueue === "ALL" || getStudentQueueKey(c) === newQueue;
+          });
+          setSelectedChatPublicId(nextMatch ? nextMatch.publicId : null);
         }
       }
     }
@@ -699,10 +765,18 @@ export function TrevoChatWorkspace({
       setIsLoadingMessages(true);
     }
     setMobileScreen("CHAT");
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", `?c=${chatId}`);
+    }
   };
 
   const handleBackToList = () => {
     setMobileScreen("LIST");
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("c");
+      window.history.replaceState(null, "", url.pathname + (url.search ? url.search : ""));
+    }
   };
 
   // Send message handler with idempotency and reply integration
@@ -1176,26 +1250,31 @@ export function TrevoChatWorkspace({
 
   return (
     <div className="w-full flex flex-col gap-3 sm:gap-4">
-      {/* Compact Authoritative Header (Hidden on mobile when inside a conversation) */}
+      {/* Clean Header (Hidden on mobile when inside a conversation) */}
       <header
         className={`${
           mobileScreen === "CHAT" ? "hidden md:flex" : "flex"
-        } flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b border-[var(--border-subtle)]`}
+        } flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E5E8E2]`}
       >
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href={`/consultoria/${consultancySlug}`}
-            className="min-h-[44px] min-w-[44px] px-2.5 py-1.5 -ml-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+            className="min-h-[44px] min-w-[44px] px-2.5 py-1.5 -ml-1.5 rounded-xl text-[#5A6660] hover:text-[#102E23] hover:bg-[#F5F5F0] transition-colors inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
             aria-label="Voltar ao painel da consultoria"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+            <svg className="w-4 h-4 text-[#176B49]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             <span>Voltar</span>
           </Link>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-            Consultas
-          </h1>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#102E23]">
+              Consultas
+            </h1>
+            <p className="text-xs sm:text-sm text-[#5A6660]">
+              {isProfessional ? "Converse e acompanhe seus alunos." : "Converse com seus profissionais."}
+            </p>
+          </div>
         </div>
 
         {/* Header Actions */}
@@ -1207,9 +1286,9 @@ export function TrevoChatWorkspace({
             onClick={handleOpenIntroManually}
             aria-label="Ver introdução novamente"
             title="Ver introdução novamente"
-            className="min-h-[44px] min-w-[44px] px-3.5 py-2.5 rounded-xl border border-[#E5E7EB] dark:border-[#2A2D37] bg-white/80 dark:bg-[#1A1C22] hover:bg-zinc-100 dark:hover:bg-[#252830] text-zinc-600 dark:text-zinc-300 transition-colors inline-flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 shrink-0"
+            className="min-h-[44px] min-w-[44px] px-3.5 py-2.5 rounded-xl border border-[#E5E8E2] bg-white hover:bg-[#F5F5F0] text-[#5A6660] hover:text-[#102E23] transition-colors inline-flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 shrink-0"
           >
-            <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-4 h-4 text-[#176B49]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
             </svg>
             <span className="hidden sm:inline">Ver introdução</span>
@@ -1219,7 +1298,7 @@ export function TrevoChatWorkspace({
           <button
             type="button"
             onClick={handleOpenNewChatModal}
-            className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs active:scale-95"
+            className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl bg-[#176B49] hover:bg-[#125438] text-white text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs active:scale-95"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -1229,9 +1308,38 @@ export function TrevoChatWorkspace({
         </div>
       </header>
 
-      {/* Main Workspace Card */}
+      {/* Main Workspace Card or Single Empty State */}
+      {consultations.length === 0 ? (
+        <div className="w-full bg-white border border-[#E5E8E2] rounded-2xl p-8 sm:p-12 text-center shadow-xs flex flex-col items-center justify-center max-w-lg mx-auto my-6 space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-[#E8F0EA] text-[#176B49] flex items-center justify-center shadow-2xs">
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-.84-.84c.137-.99.53-1.92 1.134-2.695C4.03 16.035 3 14.126 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+            </svg>
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold text-[#102E23]">
+              Nenhum atendimento por aqui
+            </h3>
+            <p className="text-sm text-[#5A6660] max-w-sm">
+              {isProfessional
+                ? "Comece uma conversa para acompanhar seus alunos."
+                : "Solicite uma consulta para falar com seu profissional."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleOpenNewChatModal}
+            className="min-h-[44px] px-5 py-2.5 rounded-xl bg-[#176B49] hover:bg-[#125438] text-white text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs active:scale-95"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>{isProfessional ? "Iniciar atendimento" : "Solicitar consulta"}</span>
+          </button>
+        </div>
+      ) : (
       <div
-        className={`w-full bg-white dark:bg-[#121316] border border-[#E5E7EB] dark:border-[#22242A] rounded-2xl overflow-hidden shadow-xs ${
+        className={`w-full bg-white dark:bg-[#121316] border border-[#E5E8E2] dark:border-[#22242A] rounded-2xl overflow-hidden shadow-xs ${
           mobileScreen === "CHAT"
             ? "fixed inset-0 z-40 md:relative md:inset-auto md:z-auto md:flex md:h-[calc(100vh-170px)] md:min-h-[580px] rounded-none md:rounded-2xl border-none md:border"
             : selectedChatPublicId
@@ -1243,22 +1351,22 @@ export function TrevoChatWorkspace({
         {/* LEFT PANE: Queues & Consultation List                                */}
         {/* -------------------------------------------------------------------- */}
         <div
-          className={`w-full md:w-80 lg:w-[350px] flex flex-col bg-[#F9FAFB] dark:bg-[#16171B] md:border-r md:border-[#E5E7EB] md:dark:border-[#22242A] shrink-0 ${
+          className={`w-full md:w-80 lg:w-[350px] flex flex-col bg-[#FAF9F6] md:border-r md:border-[#E5E8E2] shrink-0 ${
             mobileScreen === "CHAT" ? "hidden md:flex" : "flex"
           }`}
         >
-          <div className="p-3.5 border-b border-[#E5E7EB] dark:border-[#22242A] space-y-3">
+          <div className="p-3.5 border-b border-[#E5E8E2] space-y-3 bg-white">
             {/* Search Box */}
             <div className="relative w-full">
               <input
                 type="text"
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
-                placeholder="Buscar por nome ou assunto..."
-                className="w-full min-h-[44px] pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-[#1A1C22] border border-[#E5E7EB] dark:border-[#2E313A] text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                placeholder="Buscar aluno ou conversa..."
+                className="w-full min-h-[44px] pl-9 pr-8 py-2 rounded-xl bg-[#F5F5F0] border border-[#E5E8E2] text-sm text-[#102E23] placeholder:text-[#8A9690] focus:outline-none focus:border-[#176B49] focus:bg-white transition-colors"
               />
               <svg
-                className="w-4 h-4 absolute left-3 top-3.5 text-zinc-400 dark:text-zinc-500 pointer-events-none"
+                className="w-4 h-4 absolute left-3 top-3.5 text-[#8A9690] pointer-events-none"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -1269,7 +1377,7 @@ export function TrevoChatWorkspace({
                 <button
                   type="button"
                   onClick={() => setSearchFilter("")}
-                  className="absolute right-2.5 top-3 p-1 rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+                  className="absolute right-2.5 top-3 p-1 rounded-md text-[#8A9690] hover:text-[#102E23] cursor-pointer"
                   aria-label="Limpar busca"
                 >
                   ✕
@@ -1282,241 +1390,184 @@ export function TrevoChatWorkspace({
               <button
                 type="button"
                 onClick={() => setIsMobileQueueModalOpen(true)}
-                className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-active)] border border-[var(--border-subtle)] flex items-center justify-between text-xs font-semibold text-[var(--text-primary)] cursor-pointer transition-colors"
+                className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#F5F5F0] hover:bg-[#EBEBE5] border border-[#E5E8E2] flex items-center justify-between text-xs font-semibold text-[#102E23] cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[11px] text-[var(--text-tertiary)] font-bold uppercase tracking-wider">Fila:</span>
-                  <span className="font-bold text-[var(--text-primary)] truncate">{activeQueueLabel}</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <span className="text-[11px] text-[#5A6660] font-bold uppercase tracking-wider">Fila:</span>
+                  <span className="font-bold text-[#102E23] truncate">{activeQueueLabel}</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F0EA] text-[#176B49] shrink-0">
                     {activeQueueCount}
                   </span>
                 </div>
-                <svg className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-[#5A6660] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
             </div>
 
-            {/* Desktop Queue Tabs (Sleek, segmented appearance that doesn't compete with primary actions) */}
-            <div className="hidden md:block">
-              {isProfessional ? (
-                <div className="grid grid-cols-2 gap-1.5 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectQueue("PRECISO_RESPONDER")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
-                      activeQueueTab === "PRECISO_RESPONDER"
-                        ? "bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-bold shadow-2xs"
-                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
-                    }`}
-                  >
-                    <span className="truncate">Preciso responder</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
-                        activeQueueTab === "PRECISO_RESPONDER"
-                          ? "bg-amber-500/25 text-amber-900 dark:text-amber-200"
-                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
-                      }`}
-                    >
-                      {(queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER || 0}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectQueue("AGUARDANDO_ALUNO")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
-                      activeQueueTab === "AGUARDANDO_ALUNO"
-                        ? "bg-blue-500/15 border border-blue-500/30 text-blue-800 dark:text-blue-300 font-bold shadow-2xs"
-                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
-                    }`}
-                  >
-                    <span className="truncate">Aguardando aluno</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
-                        activeQueueTab === "AGUARDANDO_ALUNO"
-                          ? "bg-blue-500/25 text-blue-900 dark:text-blue-200"
-                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
-                      }`}
-                    >
-                      {(queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO || 0}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectQueue("SOLICITACOES_RECEBIDAS")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
-                      activeQueueTab === "SOLICITACOES_RECEBIDAS"
-                        ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-bold shadow-2xs"
-                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
-                    }`}
-                  >
-                    <span className="truncate">Solicitações</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
-                        activeQueueTab === "SOLICITACOES_RECEBIDAS"
-                          ? "bg-emerald-500/25 text-emerald-900 dark:text-emerald-200"
-                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
-                      }`}
-                    >
-                      {(queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS || 0}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectQueue("CONCLUIDOS")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
-                      activeQueueTab === "CONCLUIDOS"
-                        ? "bg-zinc-500/15 border border-zinc-500/30 text-zinc-800 dark:text-zinc-200 font-bold shadow-2xs"
-                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
-                    }`}
-                  >
-                    <span className="truncate">Concluídos</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
-                        activeQueueTab === "CONCLUIDOS"
-                          ? "bg-zinc-500/25 text-zinc-900 dark:text-zinc-200"
-                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
-                      }`}
-                    >
-                      {(queueCounts as Record<ProQueue, number>).CONCLUIDOS || 0}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectQueue("ALL")}
-                    className={`col-span-2 min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
-                      activeQueueTab === "ALL"
-                        ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold shadow-2xs"
-                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
-                    }`}
-                  >
-                    <span>Todos os atendimentos</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+            {/* Desktop 3 Main Filter Tabs with Real Dynamic Counters */}
+            <div className="hidden md:block space-y-2">
+              <div className="grid grid-cols-3 gap-1 p-1 bg-[#F5F5F0] rounded-xl border border-[#E5E8E2] text-xs">
+                {isProfessional ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectQueue("ALL")}
+                      className={`min-h-[34px] px-2 py-1 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 text-[11px] font-semibold ${
                         activeQueueTab === "ALL"
-                          ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-200"
-                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
+                          ? "bg-white text-[#102E23] font-bold shadow-xs border border-[#E5E8E2]"
+                          : "text-[#5A6660] hover:text-[#102E23]"
                       }`}
                     >
-                      {queueCounts.ALL}
-                    </span>
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-1.5 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectQueue("EM_ATENDIMENTO")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
-                      activeQueueTab === "EM_ATENDIMENTO"
-                        ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-bold shadow-2xs"
-                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
-                    }`}
-                  >
-                    <span className="truncate">Em atendimento</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                      <span>Todas</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        activeQueueTab === "ALL" ? "bg-[#E8F0EA] text-[#176B49]" : "bg-[#E5E8E2] text-[#5A6660]"
+                      }`}>
+                        {queueCounts.ALL}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectQueue("PRECISO_RESPONDER")}
+                      className={`min-h-[34px] px-2 py-1 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 text-[11px] font-semibold ${
+                        activeQueueTab === "PRECISO_RESPONDER"
+                          ? "bg-white text-amber-800 font-bold shadow-xs border border-amber-300"
+                          : "text-[#5A6660] hover:text-[#102E23]"
+                      }`}
+                    >
+                      <span className="truncate">Preciso responder</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        activeQueueTab === "PRECISO_RESPONDER" ? "bg-amber-100 text-amber-800" : "bg-[#E5E8E2] text-[#5A6660]"
+                      }`}>
+                        {(queueCounts as Record<ProQueue, number>).PRECISO_RESPONDER || 0}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectQueue("AGUARDANDO_ALUNO")}
+                      className={`min-h-[34px] px-2 py-1 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 text-[11px] font-semibold ${
+                        activeQueueTab === "AGUARDANDO_ALUNO"
+                          ? "bg-white text-[#176B49] font-bold shadow-xs border border-[#CDEED5]"
+                          : "text-[#5A6660] hover:text-[#102E23]"
+                      }`}
+                    >
+                      <span className="truncate">Aguardando aluno</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        activeQueueTab === "AGUARDANDO_ALUNO" ? "bg-[#E8F0EA] text-[#176B49]" : "bg-[#E5E8E2] text-[#5A6660]"
+                      }`}>
+                        {(queueCounts as Record<ProQueue, number>).AGUARDANDO_ALUNO || 0}
+                      </span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectQueue("ALL")}
+                      className={`min-h-[34px] px-2 py-1 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 text-[11px] font-semibold ${
+                        activeQueueTab === "ALL"
+                          ? "bg-white text-[#102E23] font-bold shadow-xs border border-[#E5E8E2]"
+                          : "text-[#5A6660] hover:text-[#102E23]"
+                      }`}
+                    >
+                      <span>Todas</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        activeQueueTab === "ALL" ? "bg-[#E8F0EA] text-[#176B49]" : "bg-[#E5E8E2] text-[#5A6660]"
+                      }`}>
+                        {queueCounts.ALL}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectQueue("EM_ATENDIMENTO")}
+                      className={`min-h-[34px] px-2 py-1 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 text-[11px] font-semibold ${
                         activeQueueTab === "EM_ATENDIMENTO"
-                          ? "bg-emerald-500/25 text-emerald-900 dark:text-emerald-200"
-                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
+                          ? "bg-white text-[#176B49] font-bold shadow-xs border border-[#CDEED5]"
+                          : "text-[#5A6660] hover:text-[#102E23]"
                       }`}
                     >
-                      {(queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO || 0}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectQueue("SOLICITACOES")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
-                      activeQueueTab === "SOLICITACOES"
-                        ? "bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-bold shadow-2xs"
-                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
-                    }`}
-                  >
-                    <span className="truncate">Solicitações</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                      <span className="truncate">Em atendimento</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        activeQueueTab === "EM_ATENDIMENTO" ? "bg-[#E8F0EA] text-[#176B49]" : "bg-[#E5E8E2] text-[#5A6660]"
+                      }`}>
+                        {(queueCounts as Record<StudentQueue, number>).EM_ATENDIMENTO || 0}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectQueue("SOLICITACOES")}
+                      className={`min-h-[34px] px-2 py-1 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 text-[11px] font-semibold ${
                         activeQueueTab === "SOLICITACOES"
-                          ? "bg-amber-500/25 text-amber-900 dark:text-amber-200"
-                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
+                          ? "bg-white text-blue-800 font-bold shadow-xs border border-blue-300"
+                          : "text-[#5A6660] hover:text-[#102E23]"
                       }`}
                     >
-                      {(queueCounts as Record<StudentQueue, number>).SOLICITACOES || 0}
-                    </span>
-                  </button>
+                      <span className="truncate">Solicitações</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        activeQueueTab === "SOLICITACOES" ? "bg-blue-100 text-blue-800" : "bg-[#E5E8E2] text-[#5A6660]"
+                      }`}>
+                        {(queueCounts as Record<StudentQueue, number>).SOLICITACOES || 0}
+                      </span>
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Secondary Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 pt-0.5 text-[11px]">
+                {isProfessional ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectQueue("SOLICITACOES_RECEBIDAS")}
+                      className={`px-2.5 py-1 rounded-full whitespace-nowrap font-medium transition-colors cursor-pointer border ${
+                        activeQueueTab === "SOLICITACOES_RECEBIDAS"
+                          ? "bg-[#176B49] text-white border-[#176B49] font-bold"
+                          : "bg-white text-[#5A6660] hover:text-[#102E23] border-[#E5E8E2]"
+                      }`}
+                    >
+                      <span>Solicitações ({(queueCounts as Record<ProQueue, number>).SOLICITACOES_RECEBIDAS || 0})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectQueue("CONCLUIDOS")}
+                      className={`px-2.5 py-1 rounded-full whitespace-nowrap font-medium transition-colors cursor-pointer border ${
+                        activeQueueTab === "CONCLUIDOS"
+                          ? "bg-[#102E23] text-white border-[#102E23] font-bold"
+                          : "bg-white text-[#5A6660] hover:text-[#102E23] border-[#E5E8E2]"
+                      }`}
+                    >
+                      <span>Concluídos ({(queueCounts as Record<ProQueue, number>).CONCLUIDOS || 0})</span>
+                    </button>
+                  </>
+                ) : (
                   <button
                     type="button"
                     onClick={() => handleSelectQueue("CONCLUIDAS")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
+                    className={`px-2.5 py-1 rounded-full whitespace-nowrap font-medium transition-colors cursor-pointer border ${
                       activeQueueTab === "CONCLUIDAS"
-                        ? "bg-zinc-500/15 border border-zinc-500/30 text-zinc-800 dark:text-zinc-200 font-bold shadow-2xs"
-                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
+                        ? "bg-[#102E23] text-white border-[#102E23] font-bold"
+                        : "bg-white text-[#5A6660] hover:text-[#102E23] border-[#E5E8E2]"
                     }`}
                   >
-                    <span className="truncate">Concluídas</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
-                        activeQueueTab === "CONCLUIDAS"
-                          ? "bg-zinc-500/25 text-zinc-900 dark:text-zinc-200"
-                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
-                      }`}
-                    >
-                      {(queueCounts as Record<StudentQueue, number>).CONCLUIDAS || 0}
-                    </span>
+                    <span>Concluídas ({(queueCounts as Record<StudentQueue, number>).CONCLUIDAS || 0})</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectQueue("ALL")}
-                    className={`min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
-                      activeQueueTab === "ALL"
-                        ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold shadow-2xs"
-                        : "bg-white/80 dark:bg-[#1F2128] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#282B34] hover:text-zinc-900 dark:hover:text-white border border-[#E5E7EB] dark:border-[#2A2D37]"
-                    }`}
-                  >
-                    <span>Todos</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                        activeQueueTab === "ALL"
-                          ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-200"
-                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
-                      }`}
-                    >
-                      {queueCounts.ALL}
-                    </span>
-                  </button>
-                </div>
-              )}
+                )}
 
-              {/* Secondary filter: Conversas removidas */}
-              {(queueCounts.REMOVIDAS > 0 || activeQueueTab === "REMOVIDAS") && (
-                <div className="pt-2 mt-2 border-t border-[#E5E7EB] dark:border-[#22242A]">
+                {(queueCounts.REMOVIDAS > 0 || activeQueueTab === "REMOVIDAS") && (
                   <button
                     type="button"
                     onClick={() => handleSelectQueue("REMOVIDAS")}
-                    className={`w-full min-h-[36px] px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-1.5 text-xs font-semibold ${
+                    className={`px-2.5 py-1 rounded-full whitespace-nowrap font-medium transition-colors cursor-pointer border ${
                       activeQueueTab === "REMOVIDAS"
-                        ? "bg-rose-500/15 border border-rose-500/30 text-rose-800 dark:text-rose-300 font-bold shadow-2xs"
-                        : "bg-white/60 dark:bg-[#1A1C22] text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-[#1F2128] hover:text-zinc-900 dark:hover:text-zinc-200 border border-dashed border-[#D1D5DB] dark:border-[#2E313A]"
+                        ? "bg-rose-600 text-white border-rose-600 font-bold"
+                        : "bg-white text-rose-600 border-rose-200 hover:bg-rose-50"
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 truncate">
-                      <svg className="w-3.5 h-3.5 shrink-0 text-rose-600 dark:text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                      </svg>
-                      <span className="truncate">Conversas removidas</span>
-                    </div>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                        activeQueueTab === "REMOVIDAS"
-                          ? "bg-rose-500/25 text-rose-900 dark:text-rose-200"
-                          : "bg-zinc-100 dark:bg-[#2A2D37] text-zinc-600 dark:text-zinc-400"
-                      }`}
-                    >
-                      {queueCounts.REMOVIDAS}
-                    </span>
+                    <span>Conversas removidas ({queueCounts.REMOVIDAS})</span>
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
@@ -1886,6 +1937,20 @@ export function TrevoChatWorkspace({
 
                 {/* Actions & Status in Header */}
                 <div className="flex items-center gap-2 shrink-0">
+                  {/* Direct link to Student Profile in Alunos 4.0 */}
+                  {isProfessional && activeChat.studentUserPublicId && (
+                    <Link
+                      href={`/consultoria/${consultancySlug}/progresso/alunos/${activeChat.studentUserPublicId}`}
+                      className="min-h-[36px] px-2.5 py-1.5 rounded-xl bg-[#E8F0EA] hover:bg-[#DBE7DE] text-[#176B49] text-xs font-bold inline-flex items-center gap-1 border border-[#CDEED5] transition-colors"
+                      title="Ver dados e evolução deste aluno no Alunos 4.0"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                      </svg>
+                      <span className="hidden lg:inline">Ver perfil do aluno</span>
+                    </Link>
+                  )}
+
                   {/* Finalize Button for Professional */}
                   {isProfessional && !isCompleted && isMessagingUnlocked && (
                     <button
@@ -2264,6 +2329,7 @@ export function TrevoChatWorkspace({
         </div>
       )}
       </div>
+      )}
 
       {/* -------------------------------------------------------------------- */}
       {/* MODAL 1: New Chat Appointment Proposal (Two-Stage Bilateral Flow)   */}
@@ -2369,21 +2435,20 @@ export function TrevoChatWorkspace({
                         .map((student) => {
                           const isCurrentlySelected = selectedStudentForProposal?.membershipId === student.membershipId;
                           return (
-                            <button
+                            <div
                               key={student.membershipId}
-                              type="button"
-                              onClick={() => {
-                                setSelectedStudentForProposal(student);
-                                setProposalError(null);
-                                setProposalStage("FILL_DETAILS");
-                              }}
-                              className={`w-full min-h-[56px] p-3 rounded-2xl flex items-center justify-between gap-3 text-left transition-all cursor-pointer border ${
+                              className={`w-full min-h-[56px] p-3 rounded-2xl flex items-center justify-between gap-3 text-left transition-all border ${
                                 isCurrentlySelected
                                   ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200 shadow-2xs"
                                   : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-active)] border-transparent hover:border-[var(--border-subtle)]"
                               }`}
                             >
-                              <div className="flex items-center gap-3 min-w-0">
+                              <button
+                                type="button"
+                                disabled={isStartingChat}
+                                onClick={() => handleSelectStudentForDirectChat(student)}
+                                className="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer"
+                              >
                                 <UserAvatar
                                   fullName={student.name}
                                   userPublicId={student.userPublicId}
@@ -2398,14 +2463,33 @@ export function TrevoChatWorkspace({
                                     {student.email}
                                   </p>
                                 </div>
+                              </button>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={isStartingChat}
+                                  onClick={() => handleSelectStudentForDirectChat(student)}
+                                  className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer active:scale-95 flex items-center gap-1"
+                                >
+                                  <span>{isStartingChat ? "Abrindo..." : "Conversar"}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Propor agendamento com data e horário específicos"
+                                  onClick={() => {
+                                    setSelectedStudentForProposal(student);
+                                    setProposalError(null);
+                                    setProposalStage("FILL_DETAILS");
+                                  }}
+                                  className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                                >
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.253 3.75h18M4.5 7.5h15a2.25 2.25 0 012.25 2.25v10.5A2.25 2.25 0 0119.5 22.5H4.5A2.25 2.25 0 012.25 20.25V9.75A2.25 2.25 0 014.5 7.5z" />
+                                  </svg>
+                                </button>
                               </div>
-                              <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-bold shrink-0">
-                                <span className="hidden sm:inline">Avançar</span>
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 5l7 7-7 7" />
-                                </svg>
-                              </div>
-                            </button>
+                            </div>
                           );
                         })
                     ) : (

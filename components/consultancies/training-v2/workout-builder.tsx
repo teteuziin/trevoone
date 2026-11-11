@@ -243,6 +243,7 @@ export type WorkoutBuilderProps = {
   isConsultancyAdmin: boolean;
   initialStudentPublicId?: string;
   from?: string;
+  isAutoPlaceholderDraft?: boolean;
 };
 const CATEGORY_PRESETS = [
   "Peito",

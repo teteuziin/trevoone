@@ -1262,7 +1262,14 @@ async function cloneVersionTree(
   sourceVersionId: number,
   targetVersionId: number
 ): Promise<void> {
-  // 1. Fetch source blocks ordered by sort_order
+  // 1. Determine starting sort order if target version already has blocks
+  const [maxOrderRows] = await connection.execute<RowDataPacket[]>(
+    `SELECT COALESCE(MAX(sort_order), -1) + 1 AS base_sort_order FROM workout_blocks WHERE workout_version_id = ?;`,
+    [targetVersionId]
+  );
+  const baseSortOrder = Number(maxOrderRows[0]?.base_sort_order ?? 0);
+
+  // 1b. Fetch source blocks ordered by sort_order
   const [sourceBlocks] = await connection.execute<RowDataPacket[]>(
     `SELECT id, block_type, title, sort_order, rounds, rest_between_items_seconds,
             rest_between_rounds_seconds, rest_after_block_seconds, instructions
@@ -1284,7 +1291,7 @@ async function cloneVersionTree(
         targetVersionId,
         b.block_type,
         b.title,
-        b.sort_order,
+        Number(b.sort_order ?? 0) + baseSortOrder,
         b.rounds,
         b.rest_between_items_seconds,
         b.rest_between_rounds_seconds,
@@ -2302,7 +2309,11 @@ export async function applyTemplateToExistingDraft(
   ctx: TrainingAccessContext,
   targetVersionPublicId: string,
   templatePublicId: string,
-  options?: { replaceExisting?: boolean }
+  options?: {
+    replaceExisting?: boolean;
+    autoReplaceUntouchedOnly?: boolean;
+    expectedUpdatedAt?: string;
+  }
 ): Promise<WorkoutVersionDto> {
   assertCanAuthorTraining(ctx);
 
@@ -2312,9 +2323,9 @@ export async function applyTemplateToExistingDraft(
   try {
     await connection.beginTransaction();
 
-    // 1. Resolve target draft version
+    // 1. Resolve target draft version with FOR UPDATE exclusive lock
     const [targetRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wv.id, wv.workout_id, wv.status, w.consultancy_id, w.created_by_membership_id
+      `SELECT wv.id, wv.workout_id, wv.status, wv.updated_at, w.consultancy_id, w.created_by_membership_id
        FROM workout_versions wv
        JOIN workouts w ON w.id = wv.workout_id
        WHERE wv.public_id = ? AND wv.status = 'DRAFT' AND w.deleted_at IS NULL
@@ -2329,6 +2340,38 @@ export async function applyTemplateToExistingDraft(
 
     if (Number(targetVer.consultancy_id) !== ctx.consultancyId) {
       throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+
+    // 1b. Concurrency Protection: verify draft was not modified in another tab or session
+    if (options?.expectedUpdatedAt && targetVer.updated_at) {
+      const dbTime = new Date(targetVer.updated_at).getTime();
+      const expectedTime = new Date(options.expectedUpdatedAt).getTime();
+      // If the database has a newer timestamp (> 1500ms ahead), another session modified this draft
+      if (dbTime - expectedTime > 1500) {
+        throw new TrainingAuthorizationError(
+          "O treino foi modificado em outra janela ou sessão. Recarregue a página para ver o conteúdo atualizado.",
+          "CONCURRENT_MODIFICATION",
+          409
+        );
+      }
+    }
+
+    // 1c. In-Transaction Provenance Re-Verification for Auto-Replacement
+    // If the client requested automatic replacement of an untouched placeholder,
+    // re-verify all database criteria inside the locked transaction to prevent race conditions.
+    if (options?.autoReplaceUntouchedOnly) {
+      const isStillUntouched = await checkIsUntouchedAutoPlaceholderDraft(
+        connection,
+        Number(targetVer.workout_id),
+        Number(targetVer.id)
+      );
+      if (!isStillUntouched) {
+        throw new TrainingAuthorizationError(
+          "O rascunho foi alterado ou ultrapassou o tempo limite de auto-inicialização. Confirme a substituição antes de continuar.",
+          "NOT_UNTOUCHED_PLACEHOLDER",
+          409
+        );
+      }
     }
 
     // 2. Resolve template's published version
@@ -2349,6 +2392,24 @@ export async function applyTemplateToExistingDraft(
 
     // 3. If replaceExisting, delete existing blocks in targetVersion
     if (options?.replaceExisting) {
+      // Safety check: if autoReplaceUntouchedOnly was set, verify that zero exercises exist in the draft
+      if (options?.autoReplaceUntouchedOnly) {
+        const [itemCountRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT COUNT(*) AS total_items
+           FROM workout_block_items wbi
+           JOIN workout_blocks wb ON wb.id = wbi.block_id
+           WHERE wb.workout_version_id = ?;`,
+          [targetVer.id]
+        );
+        if (Number(itemCountRows[0]?.total_items ?? 0) > 0) {
+          throw new TrainingAuthorizationError(
+            "O rascunho possui exercícios e não pode ser substituído automaticamente sem confirmação.",
+            "EXERCISES_PRESENT",
+            400
+          );
+        }
+      }
+
       const [oldBlocks] = await connection.execute<RowDataPacket[]>(
         `SELECT id FROM workout_blocks WHERE workout_version_id = ?;`,
         [targetVer.id]
@@ -3140,6 +3201,99 @@ export async function getWorkoutWithDraft(
 }
 
 /**
+ * Rigorously checks whether a draft version is a persistent, untouched system auto-placeholder.
+ * 
+ * Criteria (all must be satisfied in MySQL):
+ * 1. Must be a DRAFT version with version_number === 1.
+ * 2. Total versions in the workout must be exactly 1 (no previous versions).
+ * 3. Freshness / Workout Age: TIMESTAMPDIFF(SECOND, w.created_at, NOW(3)) <= 1800 seconds (30 minutes).
+ *    (Distinguishes fresh new-workout sessions from old untouched drafts).
+ * 4. Version immutability: Math.abs(TIMESTAMPDIFF(SECOND, wv.created_at, wv.updated_at)) <= 5 seconds.
+ * 5. Exactly 1 block exists in the version.
+ * 6. The block was created in the exact initial creation sequence:
+ *    Math.abs(TIMESTAMPDIFF(SECOND, wv.created_at, wb.created_at)) <= 5 seconds.
+ * 7. The block has never been updated/renamed:
+ *    Math.abs(TIMESTAMPDIFF(SECOND, wb.created_at, wb.updated_at)) <= 5 seconds.
+ * 8. The block title strictly matches "Treino A" (case-insensitive trim).
+ * 9. The block sort_order is 0.
+ * 10. The block has 0 items, 0 sub-blocks, 0 combinations.
+ * 11. The block has null instructions, null rounds, null rest.
+ * 12. Version notes and subtitle are null or empty.
+ */
+export async function checkIsUntouchedAutoPlaceholderDraft(
+  connection: import("mysql2/promise").PoolConnection,
+  workoutId: number,
+  versionId: number
+): Promise<boolean> {
+  const [vRows] = await connection.execute<RowDataPacket[]>(
+    `SELECT wv.id, wv.version_number, wv.status, wv.notes, wv.subtitle,
+            TIMESTAMPDIFF(SECOND, w.created_at, NOW(3)) AS workout_age_seconds,
+            TIMESTAMPDIFF(SECOND, wv.created_at, wv.updated_at) AS version_update_delta_seconds,
+            (SELECT COUNT(*) FROM workout_versions WHERE workout_id = w.id) AS total_versions_count,
+            (SELECT COUNT(*) FROM workout_blocks WHERE workout_version_id = wv.id) AS total_blocks_count
+     FROM workout_versions wv
+     JOIN workouts w ON w.id = wv.workout_id
+     WHERE wv.id = ? AND w.id = ?
+     LIMIT 1;`,
+    [versionId, workoutId]
+  );
+
+  if (!vRows || vRows.length === 0) return false;
+  const v = vRows[0];
+
+  if (v.status !== "DRAFT" || Number(v.version_number) !== 1) return false;
+  if (Number(v.total_versions_count) !== 1) return false;
+  if (Number(v.total_blocks_count) !== 1) return false;
+
+  const workoutAge = Number(v.workout_age_seconds ?? 999999);
+  if (workoutAge > 1800) return false;
+
+  const versionDelta = Math.abs(Number(v.version_update_delta_seconds ?? 999999));
+  if (versionDelta > 5) return false;
+
+  if (v.notes && String(v.notes).trim().length > 0) return false;
+  if (v.subtitle && String(v.subtitle).trim().length > 0) return false;
+
+  const [bRows] = await connection.execute<RowDataPacket[]>(
+    `SELECT wb.id, wb.title, wb.sort_order, wb.rounds, wb.rest_between_items_seconds,
+            wb.instructions,
+            TIMESTAMPDIFF(SECOND, wb.created_at, wb.updated_at) AS block_update_delta_seconds,
+            TIMESTAMPDIFF(SECOND, wv.created_at, wb.created_at) AS block_init_delta_seconds,
+            (SELECT COUNT(*) FROM workout_block_items WHERE block_id = wb.id) AS items_count,
+            (SELECT COUNT(*) FROM workout_sub_blocks WHERE block_id = wb.id) AS sub_blocks_count,
+            (SELECT COUNT(*) FROM workout_item_combinations WHERE block_id = wb.id) AS combinations_count
+     FROM workout_blocks wb
+     JOIN workout_versions wv ON wv.id = wb.workout_version_id
+     WHERE wb.workout_version_id = ?
+     LIMIT 1;`,
+    [versionId]
+  );
+
+  if (!bRows || bRows.length !== 1) return false;
+  const b = bRows[0];
+
+  const titleStr = String(b.title || "").trim().toLowerCase();
+  if (titleStr !== "treino a") return false;
+
+  if (Number(b.sort_order) !== 0) return false;
+  if (Number(b.items_count) !== 0) return false;
+  if (Number(b.sub_blocks_count) !== 0) return false;
+  if (Number(b.combinations_count) !== 0) return false;
+
+  if (b.instructions && String(b.instructions).trim().length > 0) return false;
+  if (b.rounds !== null && b.rounds !== undefined) return false;
+  if (b.rest_between_items_seconds !== null && b.rest_between_items_seconds !== undefined) return false;
+
+  const blockInitDelta = Math.abs(Number(b.block_init_delta_seconds ?? 999999));
+  if (blockInitDelta > 5) return false;
+
+  const blockUpdateDelta = Math.abs(Number(b.block_update_delta_seconds ?? 999999));
+  if (blockUpdateDelta > 5) return false;
+
+  return true;
+}
+
+/**
  * Retrieves a workout root and a specific version tree (or defaults to active DRAFT / latest PUBLISHED).
  * Returns all versions summary for navigation and version history drawer.
  */
@@ -3157,6 +3311,7 @@ export async function getWorkoutWithSpecificVersion(
     name: string;
     email: string;
   } | null;
+  isAutoPlaceholderDraft?: boolean;
 } | null> {
   assertCanAuthorTraining(ctx);
 
@@ -3259,12 +3414,28 @@ export async function getWorkoutWithSpecificVersion(
       };
     }
 
+    let isAutoPlaceholderDraft = false;
+    if (isDraft && versionTree && targetVersionPublicId) {
+      const [verRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id FROM workout_versions WHERE public_id = ? LIMIT 1;`,
+        [targetVersionPublicId]
+      );
+      if (verRows && verRows.length > 0) {
+        isAutoPlaceholderDraft = await checkIsUntouchedAutoPlaceholderDraft(
+          connection,
+          Number(w.id),
+          Number(verRows[0].id)
+        );
+      }
+    }
+
     return {
       workout: workoutDto,
       version: versionTree,
       isDraft,
       allVersions,
       assignedStudent,
+      isAutoPlaceholderDraft,
     };
   } finally {
     if (connection) connection.release();
@@ -3917,6 +4088,16 @@ export async function removeBlockFromDraft(
 
     await connection.execute<ResultSetHeader>(
       `DELETE FROM workout_block_items WHERE block_id = ?;`,
+      [b.id]
+    );
+
+    await connection.execute<ResultSetHeader>(
+      `DELETE FROM workout_item_combinations WHERE block_id = ?;`,
+      [b.id]
+    );
+
+    await connection.execute<ResultSetHeader>(
+      `DELETE FROM workout_sub_blocks WHERE block_id = ?;`,
       [b.id]
     );
 

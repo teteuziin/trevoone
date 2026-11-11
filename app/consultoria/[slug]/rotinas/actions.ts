@@ -1047,7 +1047,11 @@ export async function applyTemplateToExistingDraftAction(
   slug: string,
   targetVersionPublicId: string,
   templatePublicId: string,
-  options?: { replaceExisting?: boolean }
+  options?: {
+    replaceExisting?: boolean;
+    autoReplaceUntouchedOnly?: boolean;
+    expectedUpdatedAt?: string;
+  }
 ): Promise<ActionResponse<WorkoutVersionDto>> {
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);

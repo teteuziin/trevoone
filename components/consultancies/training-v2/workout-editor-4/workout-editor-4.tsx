@@ -65,6 +65,7 @@ export interface WorkoutEditor4Props {
   isConsultancyAdmin: boolean;
   initialStudentPublicId?: string;
   from?: string;
+  isAutoPlaceholderDraft?: boolean;
 }
 
 export function WorkoutEditor4({
@@ -74,6 +75,7 @@ export function WorkoutEditor4({
   isDraft,
   initialStudentPublicId,
   from,
+  isAutoPlaceholderDraft = false,
 }: WorkoutEditor4Props) {
   const router = useRouter();
 
@@ -84,6 +86,28 @@ export function WorkoutEditor4({
   const [activeBlockPublicId, setActiveBlockPublicId] = useState<string>(
     initialVersion.blocks?.[0]?.publicId || ""
   );
+  const [hasUserMutatedDraft, setHasUserMutatedDraft] = useState(false);
+
+  // Authoritative proof: Combines backend persistent database verification with client session mutations
+  const isProvenUntouchedAutoPlaceholder = useMemo(() => {
+    // 1. Authoritative Backend Check: Backend must have proven in MySQL that this draft was created
+    // as an initial untouched auto-placeholder within the active new-workout workflow
+    if (!isAutoPlaceholderDraft) return false;
+
+    // 2. Client Session Check: If the user made ANY mutation in this browser session, it is no longer untouched
+    if (hasUserMutatedDraft) return false;
+
+    // 3. Client Structure Check: Must still have exactly 1 block with title "Treino A" and 0 items
+    if (!blocks || blocks.length !== 1) return false;
+    const b = blocks[0];
+    if (b.items && b.items.length > 0) return false;
+    if (b.subBlocks && b.subBlocks.length > 0) return false;
+    if (b.combinations && b.combinations.length > 0) return false;
+    const titleStr = (b.title || "").trim().toLowerCase();
+    if (titleStr !== "treino a") return false;
+
+    return true;
+  }, [isAutoPlaceholderDraft, hasUserMutatedDraft, blocks]);
 
   // Student context
   const [student, setStudent] = useState<EditorStudentInfo | null>(null);
@@ -210,6 +234,7 @@ export function WorkoutEditor4({
   // 1. WORKOUT METADATA MUTATIONS
   // =========================================================================
   const handleUpdateTitle = async (newTitle: string) => {
+    setHasUserMutatedDraft(true);
     setTitle(newTitle);
     setSaveStatus("saving");
     try {
@@ -230,6 +255,7 @@ export function WorkoutEditor4({
   // 2. DIVISION / BLOCK MUTATIONS
   // =========================================================================
   const handleAddBlock = async (blockTitle?: string) => {
+    setHasUserMutatedDraft(true);
     setSaveStatus("saving");
     try {
       const res = await addBlockToDraftAction(consultancySlug, version.publicId, {
@@ -249,6 +275,7 @@ export function WorkoutEditor4({
   };
 
   const handleRenameBlock = async (blockPublicId: string, newTitle: string) => {
+    setHasUserMutatedDraft(true);
     setBlocks((prev) =>
       prev.map((b) => (b.publicId === blockPublicId ? { ...b, title: newTitle } : b))
     );
@@ -264,6 +291,7 @@ export function WorkoutEditor4({
   const handleBatchRenameBlocks = async (
     updates: Array<{ blockPublicId: string; title: string }>
   ) => {
+    setHasUserMutatedDraft(true);
     const titleMap = new Map(updates.map((u) => [u.blockPublicId, u.title]));
     setBlocks((prev) =>
       prev.map((b) => (titleMap.has(b.publicId) ? { ...b, title: titleMap.get(b.publicId)! } : b))
@@ -290,6 +318,7 @@ export function WorkoutEditor4({
   };
 
   const handleDuplicateBlock = async (blockPublicId: string) => {
+    setHasUserMutatedDraft(true);
     setSaveStatus("saving");
     try {
       const res = await duplicateBlockAction(consultancySlug, blockPublicId);
@@ -306,7 +335,17 @@ export function WorkoutEditor4({
   };
 
   const handleDeleteBlock = async (blockPublicId: string) => {
-    setBlocks((prev) => prev.filter((b) => b.publicId !== blockPublicId));
+    setHasUserMutatedDraft(true);
+    const deletedIndex = blocks.findIndex((b) => b.publicId === blockPublicId);
+    const nextBlocks = blocks.filter((b) => b.publicId !== blockPublicId);
+    setBlocks(nextBlocks);
+
+    // If the deleted block was the active one, select a valid sibling
+    if (activeBlockPublicId === blockPublicId) {
+      const nextActive = nextBlocks[Math.max(0, deletedIndex - 1)] || nextBlocks[0];
+      setActiveBlockPublicId(nextActive ? nextActive.publicId : "");
+    }
+
     setSaveStatus("saving");
     try {
       const res = await removeBlockAction(consultancySlug, blockPublicId);
@@ -321,6 +360,7 @@ export function WorkoutEditor4({
   // =========================================================================
   const handleSelectExercise = async (exercise: ExerciseItemDto) => {
     if (!activeBlock) return;
+    setHasUserMutatedDraft(true);
     setSaveStatus("saving");
 
     try {
@@ -834,14 +874,22 @@ export function WorkoutEditor4({
   // =========================================================================
   // 5. TEMPLATES & AI ACTIONS
   // =========================================================================
-  const handleApplyWholeTemplate = async (templatePublicId: string, replace: boolean) => {
+  const handleApplyWholeTemplate = async (
+    templatePublicId: string,
+    replace: boolean,
+    autoReplaceOnly?: boolean
+  ) => {
     setSaveStatus("saving");
     try {
       const res = await applyTemplateToExistingDraftAction(
         consultancySlug,
         version.publicId,
         templatePublicId,
-        { replaceExisting: replace }
+        {
+          replaceExisting: replace,
+          autoReplaceUntouchedOnly: autoReplaceOnly,
+          expectedUpdatedAt: version.updatedAt ? new Date(version.updatedAt).toISOString() : undefined,
+        }
       );
       if (res.ok && res.data) {
         setBlocks(res.data.blocks || []);
@@ -853,6 +901,13 @@ export function WorkoutEditor4({
       } else {
         alert(res.error || "Erro ao aplicar programa ao treino.");
         setSaveStatus("idle");
+        if (
+          res.error?.includes("outra") ||
+          res.error?.includes("Recarregue") ||
+          res.error?.includes("alterado")
+        ) {
+          router.refresh();
+        }
       }
     } catch {
       setSaveStatus("error");
@@ -1005,8 +1060,8 @@ export function WorkoutEditor4({
           onDeleteBlock={handleDeleteBlock}
         />
 
-        {/* Divisão Ativa com Exercícios e "+ Inserir aqui" */}
-        {activeBlock && (
+        {/* Divisão Ativa com Exercícios ou Estado Vazio */}
+        {activeBlock ? (
           <DivisionWorkspace
             consultancySlug={consultancySlug}
             block={activeBlock}
@@ -1064,6 +1119,36 @@ export function WorkoutEditor4({
             }}
             onCombineWithNext={handleCombineWithNext}
           />
+        ) : (
+          <div className="w-full bg-white border border-[#E5E8E2] rounded-3xl p-8 sm:p-12 text-center space-y-4 shadow-xs font-sans">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-[#E8F0EA] text-[#176B49] flex items-center justify-center font-bold text-2xl shadow-xs">
+              📋
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-lg font-black text-[#102E23]">
+                Nenhuma divisão neste treino
+              </h3>
+              <p className="text-xs sm:text-sm text-[#526058] max-w-md mx-auto leading-relaxed">
+                Todas as divisões foram removidas. Adicione uma nova divisão para começar a montar o treino ou escolha um programa pronto.
+              </p>
+            </div>
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => handleAddBlock("Treino A")}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold bg-[#176B49] text-white hover:bg-[#102E23] transition-colors shadow-xs cursor-pointer flex items-center justify-center gap-2 min-h-[44px]"
+              >
+                <span>+ Adicionar divisão</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveDrawer("models")}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-[#F5F5F0] text-[#102E23] hover:bg-[#EAEFEA] transition-colors border border-[#E5E8E2] cursor-pointer min-h-[44px]"
+              >
+                Escolher programa pronto
+              </button>
+            </div>
+          </div>
         )}
       </main>
 
@@ -1105,6 +1190,8 @@ export function WorkoutEditor4({
         consultancySlug={consultancySlug}
         currentWorkoutPublicId={workout.publicId}
         hasExistingItems={blocks.some((b) => (b.items || []).length > 0)}
+        blocks={blocks}
+        isProvenUntouchedAutoPlaceholder={isProvenUntouchedAutoPlaceholder}
         onApplyWholeTemplate={handleApplyWholeTemplate}
         onApplySplitFromTemplate={handleApplySplitFromTemplate}
         onSaveCurrentAsTemplate={handleSaveAsTemplate}

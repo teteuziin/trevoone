@@ -127,6 +127,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
       if (targetStudentId) queryParams.set("student", targetStudentId);
       if (isTemplate) queryParams.set("isTemplate", "true");
       if (from) queryParams.set("from", from);
+      queryParams.set("autoPlaceholder", "1");
       const queryStr = queryParams.toString();
       const redirectUrl = `/consultoria/${slug}/rotinas/${workout.publicId}${queryStr ? `?${queryStr}` : ""}`;
 

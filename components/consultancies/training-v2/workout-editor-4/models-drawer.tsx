@@ -9,6 +9,7 @@ import type {
   TemplatePickerItemDto,
   TemplatePreviewDto,
 } from "@/lib/training-v2/workout-repository";
+import type { WorkoutBlockDto } from "@/lib/training-v2/types";
 
 interface ModelsDrawerProps {
   isOpen: boolean;
@@ -16,7 +17,9 @@ interface ModelsDrawerProps {
   consultancySlug: string;
   currentWorkoutPublicId: string;
   hasExistingItems: boolean;
-  onApplyWholeTemplate: (templatePublicId: string, replace: boolean) => Promise<void>;
+  blocks?: WorkoutBlockDto[];
+  isProvenUntouchedAutoPlaceholder?: boolean;
+  onApplyWholeTemplate: (templatePublicId: string, replace: boolean, autoReplaceOnly?: boolean) => Promise<void>;
   onApplySplitFromTemplate: (templatePublicId: string, blockPublicId: string) => Promise<void>;
   onSaveCurrentAsTemplate: () => Promise<void>;
 }
@@ -42,6 +45,8 @@ export function ModelsDrawer({
   onClose,
   consultancySlug,
   hasExistingItems,
+  blocks = [],
+  isProvenUntouchedAutoPlaceholder = false,
   onApplyWholeTemplate,
   onApplySplitFromTemplate,
   onSaveCurrentAsTemplate,
@@ -52,6 +57,8 @@ export function ModelsDrawer({
   const [isLoadingList, setIsLoadingList] = useState(false);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const hasExistingDivisions = blocks.length > 0;
 
   // Load published templates
   useEffect(() => {
@@ -260,6 +267,12 @@ export function ModelsDrawer({
                       <span className="text-amber-700 font-medium">
                         ⚠️ O treino atual já possui exercícios.
                       </span>
+                    ) : isProvenUntouchedAutoPlaceholder ? (
+                      <span>Pronto para aplicar a ficha completa.</span>
+                    ) : hasExistingDivisions ? (
+                      <span className="text-blue-700 font-medium">
+                        ℹ️ O treino possui {blocks.length === 1 ? `1 divisão (${blocks[0].title || "Divisão"})` : `${blocks.length} divisões`}.
+                      </span>
                     ) : (
                       <span>Pronto para aplicar a ficha completa.</span>
                     )}
@@ -285,7 +298,7 @@ export function ModelsDrawer({
                           type="button"
                           disabled={isPending}
                           onClick={() => {
-                            if (confirm("Substituir o conteúdo atual pelo programa de treino?")) {
+                            if (confirm("Substituir todos os exercícios e divisões pelo programa de treino?")) {
                               startTransition(async () => {
                                 await onApplyWholeTemplate(selectedTemplate.publicId, true);
                                 onClose();
@@ -297,13 +310,67 @@ export function ModelsDrawer({
                           Substituir tudo
                         </button>
                       </>
-                    ) : (
+                    ) : isProvenUntouchedAutoPlaceholder ? (
+                      /* CENÁRIO 1: PLACEHOLDER AUTOMÁTICO COMPROVADO */
+                      /* Substitui automaticamente sem perguntar ao Personal */
                       <button
                         type="button"
                         disabled={isPending}
                         onClick={() => {
                           startTransition(async () => {
-                            await onApplyWholeTemplate(selectedTemplate.publicId, false);
+                            await onApplyWholeTemplate(selectedTemplate.publicId, true, true);
+                            onClose();
+                          });
+                        }}
+                        className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold bg-[#176B49] text-white hover:bg-[#102E23] transition-colors shadow-xs cursor-pointer"
+                      >
+                        Usar programa inteiro →
+                      </button>
+                    ) : hasExistingDivisions ? (
+                      /* CENÁRIO 2: DIVISÃO MANUAL VAZIA OU ORIGEM NÃO COMPROVADA */
+                      /* Preserva a divisão e apresenta escolha clara entre substituir e adicionar */
+                      <>
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => {
+                            startTransition(async () => {
+                              await onApplyWholeTemplate(selectedTemplate.publicId, false);
+                              onClose();
+                            });
+                          }}
+                          className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-xs font-bold bg-[#E8F0EA] text-[#176B49] hover:bg-[#C6E2D1] transition-colors cursor-pointer"
+                        >
+                          Adicionar ao final
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => {
+                            const isSingle = blocks.length === 1;
+                            const confirmMsg = isSingle
+                              ? `Substituir a divisão atual ("${blocks[0]?.title || "Divisão"}") pelas divisões do programa de treino?`
+                              : `Substituir todas as ${blocks.length} divisões do rascunho pelas divisões do programa de treino?`;
+                            if (confirm(confirmMsg)) {
+                              startTransition(async () => {
+                                await onApplyWholeTemplate(selectedTemplate.publicId, true);
+                                onClose();
+                              });
+                            }
+                          }}
+                          className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-xs font-bold bg-[#176B49] text-white hover:bg-[#102E23] transition-colors cursor-pointer"
+                        >
+                          {blocks.length === 1 ? "Substituir divisão atual" : "Substituir todas as divisões"}
+                        </button>
+                      </>
+                    ) : (
+                      /* CENÁRIO 3: ZERO DIVISÕES NO RASCUNHO */
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => {
+                          startTransition(async () => {
+                            await onApplyWholeTemplate(selectedTemplate.publicId, true);
                             onClose();
                           });
                         }}

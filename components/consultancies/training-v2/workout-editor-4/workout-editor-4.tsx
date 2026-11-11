@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type {
   WorkoutRootDto,
@@ -68,6 +68,18 @@ export interface WorkoutEditor4Props {
   isAutoPlaceholderDraft?: boolean;
 }
 
+function parseToUtcMs(val: Date | string | number | null | undefined): number {
+  if (!val) return 0;
+  if (typeof val === "number") return val;
+  if (val instanceof Date) return val.getTime();
+  const str = String(val).trim();
+  if (!str) return 0;
+  const isoStr = str.includes("T") ? str : str.replace(" ", "T");
+  const normalized = isoStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(isoStr) ? isoStr : isoStr + "Z";
+  const ms = new Date(normalized).getTime();
+  return isNaN(ms) ? 0 : ms;
+}
+
 export function WorkoutEditor4({
   consultancySlug,
   workout,
@@ -80,13 +92,56 @@ export function WorkoutEditor4({
   const router = useRouter();
 
   // Root states
-  const [version] = useState<WorkoutVersionDto>(initialVersion);
+  const [version, setVersion] = useState<WorkoutVersionDto>(initialVersion);
   const [title, setTitle] = useState<string>(initialVersion.title || workout.title);
   const [blocks, setBlocks] = useState<WorkoutBlockDto[]>(initialVersion.blocks || []);
   const [activeBlockPublicId, setActiveBlockPublicId] = useState<string>(
     initialVersion.blocks?.[0]?.publicId || ""
   );
   const [hasUserMutatedDraft, setHasUserMutatedDraft] = useState(false);
+  const [conflictModal, setConflictModal] = useState<{ isOpen: boolean; message: string } | null>(null);
+
+  // Authoritative revision tracker (UTC epoch milliseconds)
+  const lastKnownRevisionRef = useRef<number>(
+    initialVersion.updatedAt ? parseToUtcMs(initialVersion.updatedAt) : 0
+  );
+
+  const syncRevision = useCallback((newTimestamp?: string | Date | number) => {
+    if (!newTimestamp) return;
+    const ms = parseToUtcMs(newTimestamp);
+    if (ms > 0) {
+      lastKnownRevisionRef.current = ms;
+      setVersion((prev) => ({ ...prev, updatedAt: new Date(ms) }));
+    }
+  }, []);
+
+  // Sequential mutation coordination queue to avoid concurrent operation races in the same Builder
+  const mutationQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+
+  const executeCoordinatedMutation = useCallback(
+    <T,>(mutationFn: () => Promise<T>): Promise<T> => {
+      return new Promise<T>((resolve, reject) => {
+        mutationQueueRef.current = mutationQueueRef.current
+          .then(async () => {
+            try {
+              const res = await mutationFn();
+              resolve(res);
+            } catch (err) {
+              reject(err);
+            }
+          })
+          .catch(async () => {
+            try {
+              const res = await mutationFn();
+              resolve(res);
+            } catch (err) {
+              reject(err);
+            }
+          });
+      });
+    },
+    []
+  );
 
   // Authoritative proof: Combines backend persistent database verification with client session mutations
   const isProvenUntouchedAutoPlaceholder = useMemo(() => {
@@ -237,18 +292,22 @@ export function WorkoutEditor4({
     setHasUserMutatedDraft(true);
     setTitle(newTitle);
     setSaveStatus("saving");
-    try {
-      const res = await updateWorkoutDraftMetadataAction(consultancySlug, version.publicId, {
-        title: newTitle,
-      });
-      if (res.ok) {
-        setSaveStatus("saved");
-      } else {
+    return executeCoordinatedMutation(async () => {
+      try {
+        const res = await updateWorkoutDraftMetadataAction(consultancySlug, version.publicId, {
+          title: newTitle,
+        });
+        if (res.ok) {
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          else if (res.data?.updatedAt) syncRevision(res.data.updatedAt);
+          setSaveStatus("saved");
+        } else {
+          setSaveStatus("error");
+        }
+      } catch {
         setSaveStatus("error");
       }
-    } catch {
-      setSaveStatus("error");
-    }
+    });
   };
 
   // =========================================================================
@@ -257,21 +316,24 @@ export function WorkoutEditor4({
   const handleAddBlock = async (blockTitle?: string) => {
     setHasUserMutatedDraft(true);
     setSaveStatus("saving");
-    try {
-      const res = await addBlockToDraftAction(consultancySlug, version.publicId, {
-        title: blockTitle || `Treino ${String.fromCharCode(65 + blocks.length)}`,
-      });
-      if (res.ok && res.data) {
-        const newBlock = res.data;
-        setBlocks((prev) => [...prev, newBlock]);
-        setActiveBlockPublicId(newBlock.publicId);
-        setSaveStatus("saved");
-      } else {
+    return executeCoordinatedMutation(async () => {
+      try {
+        const res = await addBlockToDraftAction(consultancySlug, version.publicId, {
+          title: blockTitle || `Treino ${String.fromCharCode(65 + blocks.length)}`,
+        });
+        if (res.ok && res.data) {
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          const newBlock = res.data;
+          setBlocks((prev) => [...prev, newBlock]);
+          setActiveBlockPublicId(newBlock.publicId);
+          setSaveStatus("saved");
+        } else {
+          setSaveStatus("error");
+        }
+      } catch {
         setSaveStatus("error");
       }
-    } catch {
-      setSaveStatus("error");
-    }
+    });
   };
 
   const handleRenameBlock = async (blockPublicId: string, newTitle: string) => {
@@ -280,12 +342,19 @@ export function WorkoutEditor4({
       prev.map((b) => (b.publicId === blockPublicId ? { ...b, title: newTitle } : b))
     );
     setSaveStatus("saving");
-    try {
-      const res = await updateBlockTitleAction(consultancySlug, blockPublicId, newTitle);
-      setSaveStatus(res.ok ? "saved" : "error");
-    } catch {
-      setSaveStatus("error");
-    }
+    return executeCoordinatedMutation(async () => {
+      try {
+        const res = await updateBlockTitleAction(consultancySlug, blockPublicId, newTitle);
+        if (res.ok) {
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          setSaveStatus("saved");
+        } else {
+          setSaveStatus("error");
+        }
+      } catch {
+        setSaveStatus("error");
+      }
+    });
   };
 
   const handleBatchRenameBlocks = async (
@@ -297,41 +366,48 @@ export function WorkoutEditor4({
       prev.map((b) => (titleMap.has(b.publicId) ? { ...b, title: titleMap.get(b.publicId)! } : b))
     );
     setSaveStatus("saving");
-    try {
-      const res = await batchUpdateBlockTitlesAction(consultancySlug, updates);
-      if (res.ok && res.data && res.data.length > 0) {
-        setBlocks((prev) =>
-          prev.map((b) => {
-            const updated = res.data!.find((ub) => ub.publicId === b.publicId);
-            return updated ? { ...b, title: updated.title } : b;
-          })
-        );
-        setSaveStatus("saved");
-      } else if (res.ok) {
-        setSaveStatus("saved");
-      } else {
+    return executeCoordinatedMutation(async () => {
+      try {
+        const res = await batchUpdateBlockTitlesAction(consultancySlug, updates);
+        if (res.ok && res.data && res.data.length > 0) {
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          setBlocks((prev) =>
+            prev.map((b) => {
+              const updated = res.data!.find((ub) => ub.publicId === b.publicId);
+              return updated ? { ...b, title: updated.title } : b;
+            })
+          );
+          setSaveStatus("saved");
+        } else if (res.ok) {
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          setSaveStatus("saved");
+        } else {
+          setSaveStatus("error");
+        }
+      } catch {
         setSaveStatus("error");
       }
-    } catch {
-      setSaveStatus("error");
-    }
+    });
   };
 
   const handleDuplicateBlock = async (blockPublicId: string) => {
     setHasUserMutatedDraft(true);
     setSaveStatus("saving");
-    try {
-      const res = await duplicateBlockAction(consultancySlug, blockPublicId);
-      if (res.ok && res.data) {
-        setBlocks((prev) => [...prev, res.data!]);
-        setActiveBlockPublicId(res.data!.publicId);
-        setSaveStatus("saved");
-      } else {
+    return executeCoordinatedMutation(async () => {
+      try {
+        const res = await duplicateBlockAction(consultancySlug, blockPublicId);
+        if (res.ok && res.data) {
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          setBlocks((prev) => [...prev, res.data!]);
+          setActiveBlockPublicId(res.data!.publicId);
+          setSaveStatus("saved");
+        } else {
+          setSaveStatus("error");
+        }
+      } catch {
         setSaveStatus("error");
       }
-    } catch {
-      setSaveStatus("error");
-    }
+    });
   };
 
   const handleDeleteBlock = async (blockPublicId: string) => {
@@ -347,12 +423,19 @@ export function WorkoutEditor4({
     }
 
     setSaveStatus("saving");
-    try {
-      const res = await removeBlockAction(consultancySlug, blockPublicId);
-      setSaveStatus(res.ok ? "saved" : "error");
-    } catch {
-      setSaveStatus("error");
-    }
+    return executeCoordinatedMutation(async () => {
+      try {
+        const res = await removeBlockAction(consultancySlug, blockPublicId);
+        if (res.ok) {
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          setSaveStatus("saved");
+        } else {
+          setSaveStatus("error");
+        }
+      } catch {
+        setSaveStatus("error");
+      }
+    });
   };
 
   // =========================================================================
@@ -363,88 +446,92 @@ export function WorkoutEditor4({
     setHasUserMutatedDraft(true);
     setSaveStatus("saving");
 
-    try {
-      const res = await addExerciseItemToBlockAction(
-        consultancySlug,
-        activeBlock.publicId,
-        exercise.publicId
-      );
+    return executeCoordinatedMutation(async () => {
+      try {
+        const res = await addExerciseItemToBlockAction(
+          consultancySlug,
+          activeBlock.publicId,
+          exercise.publicId
+        );
 
-      if (res.ok && res.data) {
-        const newItem = res.data;
+        if (res.ok && res.data) {
+          const newItem = res.data;
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
 
-        // If targeted for an existing combination slot
-        if (targetCombinationPublicId) {
-          await addItemToCombinationAction(
-            consultancySlug,
-            targetCombinationPublicId,
-            newItem.publicId
-          );
+          // If targeted for an existing combination slot
+          if (targetCombinationPublicId) {
+            await addItemToCombinationAction(
+              consultancySlug,
+              targetCombinationPublicId,
+              newItem.publicId
+            );
 
-          setBlocks((prev) =>
-            prev.map((b) => {
+            setBlocks((prev) =>
+              prev.map((b) => {
+                if (b.publicId !== activeBlock.publicId) return b;
+                return {
+                  ...b,
+                  items: [...(b.items || []), newItem],
+                  combinations: (b.combinations || []).map((c) =>
+                    c.publicId === targetCombinationPublicId
+                      ? {
+                          ...c,
+                          items: [...(c.items || []), newItem],
+                        }
+                      : c
+                  ),
+                };
+              })
+            );
+
+            setTargetCombinationPublicId(null);
+            setSaveStatus("saved");
+            setActiveDrawer(null);
+            setInsertTarget(null);
+            return;
+          }
+
+          // If an explicit insert index was targeted, reorder items accordingly
+          setBlocks((prev) => {
+            return prev.map((b) => {
               if (b.publicId !== activeBlock.publicId) return b;
-              return {
-                ...b,
-                items: [...(b.items || []), newItem],
-                combinations: (b.combinations || []).map((c) =>
-                  c.publicId === targetCombinationPublicId
-                    ? {
-                        ...c,
-                        items: [...(c.items || []), newItem],
-                      }
-                    : c
-                ),
-              };
-            })
-          );
+              const currentItems = [...(b.items || [])];
 
-          setTargetCombinationPublicId(null);
+              if (
+                insertTarget?.insertIndex !== undefined &&
+                insertTarget.insertIndex < currentItems.length
+              ) {
+                currentItems.splice(insertTarget.insertIndex, 0, newItem);
+              } else {
+                currentItems.push(newItem);
+              }
+
+              return { ...b, items: currentItems };
+            });
+          });
+
+          // If inserted at a specific index, sync new ordering with server
+          if (
+            insertTarget?.insertIndex !== undefined &&
+            activeBlock.items &&
+            insertTarget.insertIndex < activeBlock.items.length
+          ) {
+            const currentIds = activeBlock.items.map((i) => i.publicId);
+            currentIds.splice(insertTarget.insertIndex, 0, newItem.publicId);
+            const reorderRes = await reorderItemsAction(consultancySlug, activeBlock.publicId, currentIds);
+            if (reorderRes.ok && reorderRes.versionUpdatedAt) syncRevision(reorderRes.versionUpdatedAt);
+          }
+
           setSaveStatus("saved");
           setActiveDrawer(null);
           setInsertTarget(null);
-          return;
+        } else {
+          setSaveStatus("error");
         }
-
-        // If an explicit insert index was targeted, reorder items accordingly
-        setBlocks((prev) => {
-          return prev.map((b) => {
-            if (b.publicId !== activeBlock.publicId) return b;
-            const currentItems = [...(b.items || [])];
-
-            if (
-              insertTarget?.insertIndex !== undefined &&
-              insertTarget.insertIndex < currentItems.length
-            ) {
-              currentItems.splice(insertTarget.insertIndex, 0, newItem);
-            } else {
-              currentItems.push(newItem);
-            }
-
-            return { ...b, items: currentItems };
-          });
-        });
-
-        // If inserted at a specific index, sync new ordering with server
-        if (
-          insertTarget?.insertIndex !== undefined &&
-          activeBlock.items &&
-          insertTarget.insertIndex < activeBlock.items.length
-        ) {
-          const currentIds = activeBlock.items.map((i) => i.publicId);
-          currentIds.splice(insertTarget.insertIndex, 0, newItem.publicId);
-          await reorderItemsAction(consultancySlug, activeBlock.publicId, currentIds);
-        }
-
-        setSaveStatus("saved");
-        setActiveDrawer(null);
-        setInsertTarget(null);
-      } else {
+      } catch {
         setSaveStatus("error");
       }
-    } catch {
-      setSaveStatus("error");
-    }
+    });
   };
 
   const handleUpdateItemConfig = async (
@@ -519,20 +606,27 @@ export function WorkoutEditor4({
     );
 
     setSaveStatus("saving");
-    try {
-      const res = await updateExerciseQuickConfigAction(consultancySlug, itemPublicId, {
-        seriesCount: finalSetsCount,
-        reps: repsMin,
-        targetRepsMax: repsMax,
-        restSeconds: finalRest,
-        loadKg: finalLoad,
-        notes: finalNotes,
-      });
+    return executeCoordinatedMutation(async () => {
+      try {
+        const res = await updateExerciseQuickConfigAction(consultancySlug, itemPublicId, {
+          seriesCount: finalSetsCount,
+          reps: repsMin,
+          targetRepsMax: repsMax,
+          restSeconds: finalRest,
+          loadKg: finalLoad,
+          notes: finalNotes,
+        });
 
-      setSaveStatus(res.ok ? "saved" : "error");
-    } catch {
-      setSaveStatus("error");
-    }
+        if (res.ok) {
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          setSaveStatus("saved");
+        } else {
+          setSaveStatus("error");
+        }
+      } catch {
+        setSaveStatus("error");
+      }
+    });
   };
 
   const handleMoveItem = async (itemPublicId: string, direction: "up" | "down") => {
@@ -558,37 +652,49 @@ export function WorkoutEditor4({
     );
 
     setSaveStatus("saving");
-    try {
-      const ids = items.map((i) => i.publicId);
-      const res = await reorderItemsAction(consultancySlug, activeBlock.publicId, ids);
-      setSaveStatus(res.ok ? "saved" : "error");
-    } catch {
-      setSaveStatus("error");
-    }
+    return executeCoordinatedMutation(async () => {
+      try {
+        const ids = items.map((i) => i.publicId);
+        const res = await reorderItemsAction(consultancySlug, activeBlock.publicId, ids);
+        if (res.ok) {
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          setSaveStatus("saved");
+        } else {
+          setSaveStatus("error");
+        }
+      } catch {
+        setSaveStatus("error");
+      }
+    });
   };
 
   const handleDuplicateItem = async (itemPublicId: string) => {
+    setHasUserMutatedDraft(true);
     setSaveStatus("saving");
-    try {
-      const res = await duplicateExerciseAction(consultancySlug, itemPublicId);
-      if (res.ok && res.data) {
-        const newItem = res.data;
-        setBlocks((prev) =>
-          prev.map((b) => {
-            if (b.publicId !== activeBlock?.publicId) return b;
-            return { ...b, items: [...(b.items || []), newItem] };
-          })
-        );
-        setSaveStatus("saved");
-      } else {
+    return executeCoordinatedMutation(async () => {
+      try {
+        const res = await duplicateExerciseAction(consultancySlug, itemPublicId);
+        if (res.ok && res.data) {
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          const newItem = res.data;
+          setBlocks((prev) =>
+            prev.map((b) => {
+              if (b.publicId !== activeBlock?.publicId) return b;
+              return { ...b, items: [...(b.items || []), newItem] };
+            })
+          );
+          setSaveStatus("saved");
+        } else {
+          setSaveStatus("error");
+        }
+      } catch {
         setSaveStatus("error");
       }
-    } catch {
-      setSaveStatus("error");
-    }
+    });
   };
 
   const handleDeleteItem = async (itemPublicId: string) => {
+    setHasUserMutatedDraft(true);
     setBlocks((prev) =>
       prev.map((b) => ({
         ...b,
@@ -596,12 +702,19 @@ export function WorkoutEditor4({
       }))
     );
     setSaveStatus("saving");
-    try {
-      const res = await deleteExerciseAction(consultancySlug, itemPublicId);
-      setSaveStatus(res.ok ? "saved" : "error");
-    } catch {
-      setSaveStatus("error");
-    }
+    return executeCoordinatedMutation(async () => {
+      try {
+        const res = await deleteExerciseAction(consultancySlug, itemPublicId);
+        if (res.ok) {
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          setSaveStatus("saved");
+        } else {
+          setSaveStatus("error");
+        }
+      } catch {
+        setSaveStatus("error");
+      }
+    });
   };
 
   // =========================================================================
@@ -880,54 +993,81 @@ export function WorkoutEditor4({
     autoReplaceOnly?: boolean
   ) => {
     setSaveStatus("saving");
-    try {
-      const res = await applyTemplateToExistingDraftAction(
-        consultancySlug,
-        version.publicId,
-        templatePublicId,
-        {
-          replaceExisting: replace,
-          autoReplaceUntouchedOnly: autoReplaceOnly,
-          expectedUpdatedAt: version.updatedAt ? new Date(version.updatedAt).toISOString() : undefined,
+    return executeCoordinatedMutation(async () => {
+      try {
+        const expectedIso =
+          lastKnownRevisionRef.current > 0
+            ? new Date(lastKnownRevisionRef.current).toISOString()
+            : undefined;
+
+        const res = await applyTemplateToExistingDraftAction(
+          consultancySlug,
+          version.publicId,
+          templatePublicId,
+          {
+            replaceExisting: replace,
+            autoReplaceUntouchedOnly: autoReplaceOnly,
+            expectedUpdatedAt: expectedIso,
+          }
+        );
+        if (res.ok && res.data) {
+          setBlocks(res.data.blocks || []);
+          if (res.data.blocks && res.data.blocks.length > 0) {
+            setActiveBlockPublicId(res.data.blocks[0].publicId);
+          }
+          setVersion(res.data);
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          else if (res.data.updatedAt) syncRevision(res.data.updatedAt);
+          setSaveStatus("saved");
+        } else {
+          setSaveStatus("idle");
+          if (
+            res.error?.includes("alterações recentes") ||
+            res.error?.includes("CONCURRENT_MODIFICATION") ||
+            res.error?.includes("modificado em outra")
+          ) {
+            setConflictModal({
+              isOpen: true,
+              message:
+                "Este treino recebeu alterações recentes. Atualize os dados antes de continuar para evitar perder informações.",
+            });
+          } else {
+            setConflictModal({
+              isOpen: true,
+              message: res.error || "Erro ao aplicar programa ao treino.",
+            });
+          }
         }
-      );
-      if (res.ok && res.data) {
-        setBlocks(res.data.blocks || []);
-        if (res.data.blocks && res.data.blocks.length > 0) {
-          setActiveBlockPublicId(res.data.blocks[0].publicId);
-        }
-        setSaveStatus("saved");
-        router.refresh();
-      } else {
-        alert(res.error || "Erro ao aplicar programa ao treino.");
-        setSaveStatus("idle");
-        if (
-          res.error?.includes("outra") ||
-          res.error?.includes("Recarregue") ||
-          res.error?.includes("alterado")
-        ) {
-          router.refresh();
-        }
+      } catch {
+        setSaveStatus("error");
+        setConflictModal({
+          isOpen: true,
+          message: "Erro de comunicação ao aplicar programa. Tente novamente.",
+        });
       }
-    } catch {
-      setSaveStatus("error");
-    }
+    });
   };
 
   const handleApplySplitFromTemplate = async (templatePublicId: string, blockTitle: string) => {
+    setHasUserMutatedDraft(true);
     setSaveStatus("saving");
-    try {
-      const res = await addBlockToDraftAction(consultancySlug, version.publicId, {
-        title: blockTitle,
-      });
-      if (res.ok && res.data) {
-        setBlocks((prev) => [...prev, res.data!]);
-        setActiveBlockPublicId(res.data.publicId);
-        setSaveStatus("saved");
+    return executeCoordinatedMutation(async () => {
+      try {
+        const res = await addBlockToDraftAction(consultancySlug, version.publicId, {
+          title: blockTitle,
+        });
+        if (res.ok && res.data) {
+          if (res.versionUpdatedAt) syncRevision(res.versionUpdatedAt);
+          setBlocks((prev) => [...prev, res.data!]);
+          setActiveBlockPublicId(res.data.publicId);
+          setSaveStatus("saved");
+        } else {
+          setSaveStatus("error");
+        }
+      } catch {
+        setSaveStatus("error");
       }
-    } catch {
-      setSaveStatus("error");
-    }
+    });
   };
 
   const handleSaveAsTemplate = async () => {
@@ -1319,6 +1459,50 @@ export function WorkoutEditor4({
               isPreview={true}
               isDraft={isDraft}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Conflito de Alterações Integrado (Zero Alert Nativo) */}
+      {conflictModal?.isOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs font-sans animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-[#E5E8E2] space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold">
+              ⚠️
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-[#102E23]">
+                Alterações recentes detectadas
+              </h3>
+              <p className="text-xs text-[#526058] leading-relaxed">
+                {conflictModal.message}
+              </p>
+            </div>
+            <div className="pt-2 flex flex-col sm:flex-row items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (hasUserMutatedDraft) {
+                    const confirmDiscard = window.confirm(
+                      "Você possui alterações locais não salvas neste treino. Ao atualizar os dados, essas alterações locais serão substituídas pela versão mais recente do servidor. Deseja continuar?"
+                    );
+                    if (!confirmDiscard) return;
+                  }
+                  setConflictModal(null);
+                  router.refresh();
+                }}
+                className="w-full sm:flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#176B49] text-white hover:bg-[#102E23] transition-colors cursor-pointer min-h-[44px] flex items-center justify-center gap-2"
+              >
+                Atualizar dados
+              </button>
+              <button
+                type="button"
+                onClick={() => setConflictModal(null)}
+                className="w-full sm:flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#F5F5F0] text-[#526058] hover:bg-[#E5E8E2] transition-colors cursor-pointer min-h-[44px] flex items-center justify-center"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}

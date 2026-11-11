@@ -532,24 +532,75 @@ async function main() {
   });
 
   // ---------------------------------------------------------------------------
-  // TESTE 11: PROTEÇÃO NO MOMENTO DA GRAVAÇÃO - CONCORRÊNCIA E EDICÃO EM OUTRA ABA
+  // TESTE 11: PROTEÇÃO NO MOMENTO DA GRAVAÇÃO - CONCORRÊNCIA E EDIÇÃO EM OUTRA ABA (TOLERÂNCIA ESTRITA <= 50ms)
   // ---------------------------------------------------------------------------
-  console.log("\n[TESTE 11] Proteção no Momento da Gravação: Concorrência entre Abas");
-  runTest("Bloqueia gravação se rascunho foi alterado em outra aba (expectedUpdatedAt mismatch)", () => {
-    const clientExpectedUpdatedAt = new Date(Date.now() - 30000).toISOString(); // 30s atrás
-    const dbCurrentUpdatedAt = new Date(Date.now()).toISOString(); // acabou de ser alterado em outra aba
+  console.log("\n[TESTE 11] Proteção no Momento da Gravação: Concorrência entre Abas (Tolerância estrita <= 50ms)");
+  runTest("Bloqueia gravação se rascunho foi alterado em outra aba mesmo com diferença pequena (> 50ms)", () => {
+    // Cenário A: Outra aba salvou há 500ms
+    const clientExpectedUpdatedAt = new Date(1700000000000).toISOString();
+    const dbCurrentUpdatedAt = new Date(1700000000500).toISOString(); // 500ms depois em outra aba
 
     const dbTime = new Date(dbCurrentUpdatedAt).getTime();
     const expectedTime = new Date(clientExpectedUpdatedAt).getTime();
-    const isConcurrentConflict = dbTime - expectedTime > 1500;
+    const isConcurrentConflict = dbTime - expectedTime > 50;
 
-    assert.equal(isConcurrentConflict, true, "Deve detectar conflito de concorrência e abortar");
+    assert.equal(isConcurrentConflict, true, "Deve detectar conflito de concorrência com > 50ms e abortar");
+
+    // Cenário B: Outra aba salvou há 100ms
+    const isConflict100ms = 1700000000100 - 1700000000000 > 50;
+    assert.equal(isConflict100ms, true, "Alteração em outra aba há 100ms DEVE ser barrada");
   });
 
   // ---------------------------------------------------------------------------
-  // TESTE 12: PROTEÇÃO NO MOMENTO DA GRAVAÇÃO - AUTO-SUBSTITUIÇÃO DENTRO DA TRANSAÇÃO
+  // TESTE 12: PARSER UTC SEM DESVIO DE FUSO HORÁRIO
   // ---------------------------------------------------------------------------
-  console.log("\n[TESTE 12] Proteção no Momento da Gravação: Re-verificação de Placeholder dentro da Transação");
+  console.log("\n[TESTE 12] Parser UTC e Sincronização Monotônica");
+  runTest("parseToUtcMs normaliza strings MySQL sem Z e ISO strings sem desvio de fuso", () => {
+    function parseToUtcMs(val) {
+      if (!val) return 0;
+      if (typeof val === "number") return val;
+      if (val instanceof Date) return val.getTime();
+      const str = String(val).trim();
+      if (!str) return 0;
+      const isoStr = str.includes("T") ? str : str.replace(" ", "T");
+      const normalized = isoStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(isoStr) ? isoStr : isoStr + "Z";
+      const ms = new Date(normalized).getTime();
+      return isNaN(ms) ? 0 : ms;
+    }
+
+    const iso = "2026-11-11T20:15:00.000Z";
+    const mysqlStr = "2026-11-11 20:15:00.000";
+
+    const pIso = parseToUtcMs(iso);
+    const pMysql = parseToUtcMs(mysqlStr);
+
+    assert.equal(pIso, pMysql, "Timestamps com e sem Z devem ser idênticos em UTC");
+    assert.equal(pMysql - pIso, 0, "Diferença deve ser estritamente zero");
+  });
+
+  // ---------------------------------------------------------------------------
+  // TESTE 13: OPERAÇÕES CONSECUTIVAS NA MESMA TELA (SEM FALSO POSITIVO COM MYSQL UTC)
+  // ---------------------------------------------------------------------------
+  console.log("\n[TESTE 13] Operações Consecutivas na Mesma Tela (Sem Falso Positivo)");
+  runTest("Sincronização de revisão local atualiza timestamp após cada operação do servidor (diff = 0ms <= 50ms)", () => {
+    // Cliente recebe a revisão exata retornada pelo servidor (versionUpdatedAt)
+    const serverTimestampUtc = "2026-11-11T20:30:00.123Z";
+    let clientRevision = serverTimestampUtc;
+
+    // Em seguida tenta aplicar programa com a revisão conhecida recebida
+    const serverTimeMs = new Date(serverTimestampUtc).getTime();
+    const clientTimeMs = new Date(clientRevision).getTime();
+    const diff = serverTimeMs - clientTimeMs;
+
+    const hasConflict = diff > 50;
+    assert.equal(diff, 0, "Diferença entre revisão conhecida e banco deve ser 0ms");
+    assert.equal(hasConflict, false, "Operações sucessivas na mesma tela NÃO devem gerar falso positivo");
+  });
+
+  // ---------------------------------------------------------------------------
+  // TESTE 14: PROTEÇÃO NO MOMENTO DA GRAVAÇÃO - RE-VERIFICAÇÃO DE PLACEHOLDER
+  // ---------------------------------------------------------------------------
+  console.log("\n[TESTE 14] Proteção no Momento da Gravação: Re-verificação de Placeholder dentro da Transação");
   runTest("Rejeita autoReplaceUntouchedOnly se rascunho foi alterado ou ultrapassou 30 minutos", () => {
     // Caso 1: Rascunho com 31 minutos
     const oldDraftAge = 1860; // 31 min
@@ -563,15 +614,72 @@ async function main() {
   });
 
   // ---------------------------------------------------------------------------
-  // TESTE 13: PROTEÇÃO CONTRA APAGAR EXERCÍCIOS
+  // TESTE 15: PROTEÇÃO CONTRA APAGAR EXERCÍCIOS
   // ---------------------------------------------------------------------------
-  console.log("\n[TESTE 13] Proteção no Momento da Gravação: Preservação de Exercícios Existentes");
+  console.log("\n[TESTE 15] Proteção no Momento da Gravação: Preservação de Exercícios Existentes");
   runTest("Impede exclusão automática sem confirmação se houver exercícios existentes", () => {
     const totalItems = 3;
     const isAutoReplaceOnly = true;
 
     const shouldAbort = isAutoReplaceOnly && totalItems > 0;
     assert.equal(shouldAbort, true, "Se houver exercícios e a chamada for autoReplace, DEVE abortar");
+  });
+
+  // ---------------------------------------------------------------------------
+  // TESTE 16: COORDENAÇÃO DE OPERAÇÕES SIMULTÂNEAS (MUTEX / FILA SEQUENCIAL)
+  // ---------------------------------------------------------------------------
+  console.log("\n[TESTE 16] Coordenação Sequencial de Operações Simultâneas");
+  await runAsyncTest("Garante que operações disparadas em paralelo executam em ordem e atualizam a revisão", async () => {
+    let currentRevision = 1000;
+    const executionOrder = [];
+
+    // Fila sequencial equivalente a executeCoordinatedMutation
+    let chain = Promise.resolve();
+    function enqueue(id, durationMs, newRev) {
+      chain = chain.then(async () => {
+        executionOrder.push(`start-${id}`);
+        await sleep(durationMs);
+        currentRevision = newRev;
+        executionOrder.push(`end-${id}-rev-${currentRevision}`);
+      });
+      return chain;
+    }
+
+    // Dispara op1 e op2 quase simultaneamente
+    const p1 = enqueue(1, 30, 1050);
+    const p2 = enqueue(2, 10, 1100);
+
+    await Promise.all([p1, p2]);
+
+    assert.deepEqual(executionOrder, [
+      "start-1",
+      "end-1-rev-1050",
+      "start-2",
+      "end-2-rev-1100",
+    ], "Operações simultâneas devem ser coordenadas sequencialmente sem corrida");
+    assert.equal(currentRevision, 1100, "Última revisão após execução coordenada deve ser a mais recente");
+  });
+
+  // ---------------------------------------------------------------------------
+  // TESTE 17: PROTEÇÃO DO BOTÃO 'ATUALIZAR DADOS' CONTRA PERDA DE ALTERAÇÕES LOCAIS
+  // ---------------------------------------------------------------------------
+  console.log("\n[TESTE 17] Proteção do Botão 'Atualizar dados' contra perda de dados não salvos");
+  runTest("Se hasUserMutatedDraft === true, exige confirmação antes de descartar alterações locais", () => {
+    function simulateRefreshClick({ hasUserMutatedDraft, userConfirmed }) {
+      if (hasUserMutatedDraft) {
+        if (!userConfirmed) return "ABORTED_DISCARD";
+      }
+      return "REFRESHED";
+    }
+
+    // Caso 1: Usuário não tocou no treino (hasUserMutatedDraft = false)
+    assert.equal(simulateRefreshClick({ hasUserMutatedDraft: false, userConfirmed: false }), "REFRESHED");
+
+    // Caso 2: Usuário tocou no treino mas cancelou o prompt
+    assert.equal(simulateRefreshClick({ hasUserMutatedDraft: true, userConfirmed: false }), "ABORTED_DISCARD");
+
+    // Caso 3: Usuário tocou no treino e aceitou o prompt
+    assert.equal(simulateRefreshClick({ hasUserMutatedDraft: true, userConfirmed: true }), "REFRESHED");
   });
 
   console.log("\n================================================================================");

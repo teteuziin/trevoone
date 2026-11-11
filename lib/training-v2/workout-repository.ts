@@ -121,6 +121,84 @@ async function touchWorkoutVersionTimestamp(
 }
 
 /**
+ * Queries the authoritative, exact UTC ISO timestamp of a workout version directly from MySQL.
+ */
+export async function getWorkoutVersionUpdatedAt(
+  versionPublicId: string
+): Promise<string | null> {
+  let connection;
+  try {
+    connection = await getDbConnection();
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT DATE_FORMAT(updated_at, '%Y-%m-%dT%H:%i:%s.%fZ') AS updated_at_iso
+       FROM workout_versions
+       WHERE public_id = ?
+       LIMIT 1;`,
+      [versionPublicId]
+    );
+    return rows?.[0]?.updated_at_iso ? String(rows[0].updated_at_iso) : null;
+  } catch (err) {
+    console.warn("[getWorkoutVersionUpdatedAt] Erro ao consultar updated_at:", err);
+    return null;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Queries the authoritative UTC ISO timestamp of a workout version via any child block public_id.
+ */
+export async function getWorkoutVersionUpdatedAtByBlock(
+  blockPublicId: string
+): Promise<string | null> {
+  let connection;
+  try {
+    connection = await getDbConnection();
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT DATE_FORMAT(wv.updated_at, '%Y-%m-%dT%H:%i:%s.%fZ') AS updated_at_iso
+       FROM workout_versions wv
+       INNER JOIN workout_blocks wb ON wb.workout_version_id = wv.id
+       WHERE wb.public_id = ?
+       LIMIT 1;`,
+      [blockPublicId]
+    );
+    return rows?.[0]?.updated_at_iso ? String(rows[0].updated_at_iso) : null;
+  } catch (err) {
+    console.warn("[getWorkoutVersionUpdatedAtByBlock] Erro:", err);
+    return null;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Queries the authoritative UTC ISO timestamp of a workout version via any child item public_id.
+ */
+export async function getWorkoutVersionUpdatedAtByItem(
+  itemPublicId: string
+): Promise<string | null> {
+  let connection;
+  try {
+    connection = await getDbConnection();
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT DATE_FORMAT(wv.updated_at, '%Y-%m-%dT%H:%i:%s.%fZ') AS updated_at_iso
+       FROM workout_versions wv
+       INNER JOIN workout_blocks wb ON wb.workout_version_id = wv.id
+       INNER JOIN workout_block_items wbi ON wbi.block_id = wb.id
+       WHERE wbi.public_id = ?
+       LIMIT 1;`,
+      [itemPublicId]
+    );
+    return rows?.[0]?.updated_at_iso ? String(rows[0].updated_at_iso) : null;
+  } catch (err) {
+    console.warn("[getWorkoutVersionUpdatedAtByItem] Erro:", err);
+    return null;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
  * Creates a new Workout routine root and its initial DRAFT Version (v1).
  */
 export async function createWorkout(
@@ -2305,6 +2383,23 @@ export async function createWorkoutFromTemplate(
  * Applies a published workout template (Program) directly into an existing draft version.
  * Clones all blocks, sub-blocks, combinations, exercises, sets, reps and rests into the draft.
  */
+/**
+ * Safely parses any date, timestamp number, or date string into UTC epoch milliseconds.
+ * Prevents local-timezone parsing biases on strings without explicit "Z".
+ */
+export function parseToUtcMs(val: Date | string | number | null | undefined): number {
+  if (!val) return 0;
+  if (typeof val === "number") return val;
+  if (val instanceof Date) return val.getTime();
+  const str = String(val).trim();
+  if (!str) return 0;
+  // If no timezone indicator, format as ISO UTC
+  const isoStr = str.includes("T") ? str : str.replace(" ", "T");
+  const normalized = isoStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(isoStr) ? isoStr : isoStr + "Z";
+  const ms = new Date(normalized).getTime();
+  return isNaN(ms) ? 0 : ms;
+}
+
 export async function applyTemplateToExistingDraft(
   ctx: TrainingAccessContext,
   targetVersionPublicId: string,
@@ -2317,15 +2412,17 @@ export async function applyTemplateToExistingDraft(
 ): Promise<WorkoutVersionDto> {
   assertCanAuthorTraining(ctx);
 
-  const pool = getDbPool();
-  const connection = await pool.getConnection();
+  const connection = await getDbConnection();
 
   try {
     await connection.beginTransaction();
 
     // 1. Resolve target draft version with FOR UPDATE exclusive lock
     const [targetRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wv.id, wv.workout_id, wv.status, wv.updated_at, w.consultancy_id, w.created_by_membership_id
+      `SELECT wv.id, wv.workout_id, wv.status,
+              UNIX_TIMESTAMP(wv.updated_at) * 1000 AS updated_at_ms,
+              wv.updated_at,
+              w.consultancy_id, w.created_by_membership_id
        FROM workout_versions wv
        JOIN workouts w ON w.id = wv.workout_id
        WHERE wv.public_id = ? AND wv.status = 'DRAFT' AND w.deleted_at IS NULL
@@ -2342,23 +2439,9 @@ export async function applyTemplateToExistingDraft(
       throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
     }
 
-    // 1b. Concurrency Protection: verify draft was not modified in another tab or session
-    if (options?.expectedUpdatedAt && targetVer.updated_at) {
-      const dbTime = new Date(targetVer.updated_at).getTime();
-      const expectedTime = new Date(options.expectedUpdatedAt).getTime();
-      // If the database has a newer timestamp (> 1500ms ahead), another session modified this draft
-      if (dbTime - expectedTime > 1500) {
-        throw new TrainingAuthorizationError(
-          "O treino foi modificado em outra janela ou sessão. Recarregue a página para ver o conteúdo atualizado.",
-          "CONCURRENT_MODIFICATION",
-          409
-        );
-      }
-    }
-
-    // 1c. In-Transaction Provenance Re-Verification for Auto-Replacement
-    // If the client requested automatic replacement of an untouched placeholder,
-    // re-verify all database criteria inside the locked transaction to prevent race conditions.
+    // 1b. In-Transaction Provenance Re-Verification for Auto-Replacement
+    // If client requested automatic replacement of an untouched placeholder,
+    // re-verify database criteria under the lock. If virgin, no conflict exists.
     if (options?.autoReplaceUntouchedOnly) {
       const isStillUntouched = await checkIsUntouchedAutoPlaceholderDraft(
         connection,
@@ -2367,8 +2450,22 @@ export async function applyTemplateToExistingDraft(
       );
       if (!isStillUntouched) {
         throw new TrainingAuthorizationError(
-          "O rascunho foi alterado ou ultrapassou o tempo limite de auto-inicialização. Confirme a substituição antes de continuar.",
-          "NOT_UNTOUCHED_PLACEHOLDER",
+          "Este treino recebeu alterações recentes. Atualize os dados antes de continuar para evitar perder informações.",
+          "CONCURRENT_MODIFICATION",
+          409
+        );
+      }
+    } else if (options?.expectedUpdatedAt && targetVer.updated_at_ms) {
+      // 1c. Concurrency Protection for Manual Replacement:
+      // Verify draft was not modified concurrently by another tab or session.
+      // Strict 50ms tolerance prevents clock rounding discrepancies while strictly
+      // blocking real concurrent modifications made in other tabs.
+      const serverMs = Math.round(Number(targetVer.updated_at_ms));
+      const clientMs = parseToUtcMs(options.expectedUpdatedAt);
+      if (clientMs > 0 && serverMs - clientMs > 50) {
+        throw new TrainingAuthorizationError(
+          "Este treino recebeu alterações recentes. Atualize os dados antes de continuar para evitar perder informações.",
+          "CONCURRENT_MODIFICATION",
           409
         );
       }

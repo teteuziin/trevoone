@@ -10,6 +10,8 @@ import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
+import { getDbConnection } from "@/lib/db/mysql";
+import type { RowDataPacket } from "mysql2/promise";
 import {
   createWorkout,
   updateWorkoutDraftMetadata,
@@ -67,6 +69,9 @@ import {
   listWorkoutVersions,
   listPublishedTemplatesForPicker,
   listWorkoutsForProfessional,
+  getWorkoutVersionUpdatedAt,
+  getWorkoutVersionUpdatedAtByBlock,
+  getWorkoutVersionUpdatedAtByItem,
   type WorkoutListItemDto,
   type CreateWorkoutInput,
   type UpdateWorkoutDraftMetadataInput,
@@ -110,6 +115,7 @@ export type ActionResponse<T = unknown> = {
   ok: boolean;
   data?: T;
   error?: string;
+  versionUpdatedAt?: string;
 };
 
 
@@ -212,9 +218,10 @@ export async function updateWorkoutDraftMetadataAction(
     }
 
     const updated = await updateWorkoutDraftMetadata(ctx, versionPublicId, input);
+    const versionUpdatedAt = (await getWorkoutVersionUpdatedAt(versionPublicId)) || undefined;
 
     revalidateTrainingPaths(slug, updated.workoutPublicId);
-    return { ok: true, data: updated };
+    return { ok: true, data: updated, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -239,9 +246,10 @@ export async function addBlockToDraftAction(
       title: input?.title?.trim() || null,
       instructions: input?.instructions?.trim() || null,
     });
+    const versionUpdatedAt = (await getWorkoutVersionUpdatedAt(versionPublicId)) || undefined;
 
     revalidateTrainingPaths(slug);
-    return { ok: true, data: block };
+    return { ok: true, data: block, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -263,9 +271,10 @@ export async function updateBlockTitleAction(
     const { ctx } = await requireConsultancyProfessionalContext(slug);
 
     const updated = await updateBlockTitleInDraft(ctx, blockPublicId, title, instructions);
+    const versionUpdatedAt = (await getWorkoutVersionUpdatedAtByBlock(blockPublicId)) || undefined;
 
     revalidateTrainingPaths(slug);
-    return { ok: true, data: updated };
+    return { ok: true, data: updated, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -285,9 +294,13 @@ export async function batchUpdateBlockTitlesAction(
     const { ctx } = await requireConsultancyProfessionalContext(slug);
 
     const updated = await batchUpdateBlockTitlesInDraft(ctx, updates);
+    const firstBlockId = updates[0]?.blockPublicId;
+    const versionUpdatedAt = firstBlockId
+      ? (await getWorkoutVersionUpdatedAtByBlock(firstBlockId)) || undefined
+      : undefined;
 
     revalidateTrainingPaths(slug);
-    return { ok: true, data: updated };
+    return { ok: true, data: updated, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -368,8 +381,9 @@ export async function addExerciseItemToBlockAction(
       // Ignored if initial set creation fails
     }
 
+    const versionUpdatedAt = (await getWorkoutVersionUpdatedAtByBlock(blockPublicId)) || undefined;
     revalidateTrainingPaths(slug);
-    return { ok: true, data: item };
+    return { ok: true, data: item, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -466,9 +480,10 @@ export async function duplicateBlockAction(
     const { ctx } = await requireConsultancyProfessionalContext(slug);
 
     const duplicated = await duplicateBlockInDraft(ctx, blockPublicId);
+    const versionUpdatedAt = (await getWorkoutVersionUpdatedAtByBlock(duplicated.publicId)) || undefined;
 
     revalidateTrainingPaths(slug);
-    return { ok: true, data: duplicated };
+    return { ok: true, data: duplicated, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -489,9 +504,10 @@ export async function reorderBlocksAction(
     const { ctx } = await requireConsultancyProfessionalContext(slug);
 
     await reorderBlocksInDraft(ctx, versionPublicId, blockPublicIdsInOrder);
+    const versionUpdatedAt = (await getWorkoutVersionUpdatedAt(versionPublicId)) || undefined;
 
     revalidateTrainingPaths(slug);
-    return { ok: true, data: { success: true } };
+    return { ok: true, data: { success: true }, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -510,10 +526,31 @@ export async function removeBlockAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
 
+    let versionId: string | null = null;
+    let conn;
+    try {
+      conn = await getDbConnection();
+      const [rows] = await conn.execute<RowDataPacket[]>(
+        `SELECT wv.public_id FROM workout_blocks wb
+         INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+         WHERE wb.public_id = ? LIMIT 1;`,
+        [blockPublicId]
+      );
+      if (rows?.[0]?.public_id) versionId = String(rows[0].public_id);
+    } catch {
+      // ignore
+    } finally {
+      if (conn) conn.release();
+    }
+
     await removeBlockFromDraft(ctx, blockPublicId);
 
+    const versionUpdatedAt = versionId
+      ? (await getWorkoutVersionUpdatedAt(versionId)) || undefined
+      : undefined;
+
     revalidateTrainingPaths(slug);
-    return { ok: true, data: { success: true } };
+    return { ok: true, data: { success: true }, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -532,10 +569,32 @@ export async function removeItemAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
 
+    let versionId: string | null = null;
+    let conn;
+    try {
+      conn = await getDbConnection();
+      const [rows] = await conn.execute<RowDataPacket[]>(
+        `SELECT wv.public_id FROM workout_block_items wbi
+         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+         INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+         WHERE wbi.public_id = ? LIMIT 1;`,
+        [itemPublicId]
+      );
+      if (rows?.[0]?.public_id) versionId = String(rows[0].public_id);
+    } catch {
+      // ignore
+    } finally {
+      if (conn) conn.release();
+    }
+
     await removeItemFromDraft(ctx, itemPublicId);
 
+    const versionUpdatedAt = versionId
+      ? (await getWorkoutVersionUpdatedAt(versionId)) || undefined
+      : undefined;
+
     revalidateTrainingPaths(slug);
-    return { ok: true, data: { success: true } };
+    return { ok: true, data: { success: true }, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -556,9 +615,10 @@ export async function reorderItemsAction(
     const { ctx } = await requireConsultancyProfessionalContext(slug);
 
     await reorderItemsInDraft(ctx, blockPublicId, itemPublicIdsInOrder);
+    const versionUpdatedAt = (await getWorkoutVersionUpdatedAtByBlock(blockPublicId)) || undefined;
 
     revalidateTrainingPaths(slug);
-    return { ok: true, data: { success: true } };
+    return { ok: true, data: { success: true }, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -1061,8 +1121,9 @@ export async function applyTemplateToExistingDraftAction(
       templatePublicId,
       options
     );
+    const versionUpdatedAt = (await getWorkoutVersionUpdatedAt(targetVersionPublicId)) || undefined;
     revalidateTrainingPaths(slug);
-    return { ok: true, data: updatedVersion };
+    return { ok: true, data: updatedVersion, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -1515,8 +1576,9 @@ export async function duplicateExerciseAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const newItem = await duplicateItemInDraft(ctx, itemPublicId);
+    const versionUpdatedAt = (await getWorkoutVersionUpdatedAtByItem(newItem.publicId)) || undefined;
     revalidateTrainingPaths(slug);
-    return { ok: true, data: newItem };
+    return { ok: true, data: newItem, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -1566,8 +1628,9 @@ export async function updateExerciseQuickConfigAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const sets = await updateItemQuickConfigInDraft(ctx, itemPublicId, config);
+    const versionUpdatedAt = (await getWorkoutVersionUpdatedAtByItem(itemPublicId)) || undefined;
     revalidateTrainingPaths(slug);
-    return { ok: true, data: sets };
+    return { ok: true, data: sets, versionUpdatedAt };
   } catch (err: unknown) {
     return {
       ok: false,
@@ -1587,6 +1650,9 @@ export async function renameExerciseItemAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
     const result = await renameWorkoutItemInDraft(ctx, itemPublicId, newName);
+    const versionUpdatedAt = (await getWorkoutVersionUpdatedAtByItem(itemPublicId)) || undefined;
+    revalidateTrainingPaths(slug);
+    return { ok: true, data: result, versionUpdatedAt };
     revalidateTrainingPaths(slug);
     return { ok: true, data: result };
   } catch (err: unknown) {

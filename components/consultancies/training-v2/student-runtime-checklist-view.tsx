@@ -665,7 +665,7 @@ export function StudentRuntimeChecklistView({
                         ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
                         : "bg-white dark:bg-[#181A1E] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                     }`}
-                    title={b.title}
+                    title={b.title || undefined}
                   >
                     <span className="line-clamp-2 break-words">{b.title}</span>
                     <span className="opacity-80 shrink-0">({bCount})</span>

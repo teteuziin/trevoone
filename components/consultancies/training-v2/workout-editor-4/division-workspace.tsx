@@ -49,6 +49,7 @@ interface DivisionWorkspaceProps {
     firstItemPublicId: string,
     secondExercise: ExerciseItemDto
   ) => Promise<void>;
+  onCombineWithNext?: (firstItemPublicId: string, methodType: WorkoutCombinationType) => void;
 }
 
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -219,13 +220,13 @@ export function DivisionWorkspace({
 
   // Convert WorkoutBlockItemDto to ExerciseItemDto for preview
   const openPreviewFromBlockItem = (item: WorkoutBlockItemDto) => {
-    const ex: ExerciseItemDto = {
+    const ex = {
       publicId: item.exercisePublicId || item.customExercisePublicId || item.publicId,
       name: item.exerciseNameSnapshot || "Exercício",
       muscleGroupPrimary: item.muscleGroupSnapshot || "Geral",
       equipment: item.equipmentSnapshot || "Livre",
-      instructions: item.instructionsSnapshot || undefined,
-      description: item.notes || undefined,
+      instructions: item.instructionsSnapshot || null,
+      description: item.notes || null,
       difficultyLevel: "INTERMEDIATE",
       status: "PUBLISHED",
       scope: item.isCustomExercise ? "CONSULTANCY" : "GLOBAL",
@@ -249,7 +250,7 @@ export function DivisionWorkspace({
           createdAt: p.mediaAsset.createdAt || new Date(),
         },
       })),
-    };
+    } as unknown as ExerciseItemDto;
     setPreviewExercise(ex);
   };
 

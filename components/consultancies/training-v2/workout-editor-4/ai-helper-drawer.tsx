@@ -4,6 +4,12 @@ import React, { useState, useTransition, useMemo } from "react";
 import type {
   WorkoutBlockDto,
 } from "@/lib/training-v2/types";
+import {
+  generateFullWorkoutAiAction,
+  suggestExerciseAlternativeAiAction,
+  suggestBiSetPairAiAction,
+  adjustDivisionAiAction,
+} from "@/app/consultoria/[slug]/rotinas/ai-actions";
 
 interface AiHelperDrawerProps {
   isOpen: boolean;
@@ -40,6 +46,7 @@ function SparklesIcon({ className = "w-4 h-4" }: { className?: string }) {
 export function AiHelperDrawer({
   isOpen,
   onClose,
+  consultancySlug,
   blocks,
   activeBlockPublicId,
   onApplyAiSuggestion,
@@ -57,6 +64,7 @@ export function AiHelperDrawer({
   >(hasExistingItems ? "complete_workout" : "suggest_full");
 
   // Form states for Suggest Full
+  const [freePrompt, setFreePrompt] = useState("");
   const [objective, setObjective] = useState("Hipertrofia");
   const [frequency, setFrequency] = useState("3 dias (ABC)");
   const [level, setLevel] = useState("Intermediário");
@@ -88,430 +96,141 @@ export function AiHelperDrawer({
   >([]);
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   if (!isOpen) return null;
 
-  // 1. Generate Full Workout Proposal with strict structural validation
+  // 1. Generate Full Workout Proposal with Destiny AI + Fallback
   const handleGenerateFull = async () => {
     setIsGenerating(true);
+    setErrorMessage(null);
     setGeneratedProposal(null);
 
-    setTimeout(() => {
-      let proposal: {
-        divisions: Array<{
-          title: string;
-          exercises: Array<{ name: string; sets: number; reps: string; rest: number }>;
-        }>;
-      };
+    try {
+      const res = await generateFullWorkoutAiAction(consultancySlug, {
+        freePrompt: freePrompt.trim() || undefined,
+        objective,
+        frequency,
+        level,
+      });
 
-      // Strict matching based on frequency selection (no broken .includes("AB") substring collision)
-      if (frequency.startsWith("1 dia")) {
-        proposal = {
-          divisions: [
-            {
-              title: "Treino Único - Full Body",
-              exercises: [
-                { name: "Agachamento Livre com Barra", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Supino Reto com Barra", sets: 4, reps: "8-12", rest: 90 },
-                { name: "Puxada Frontal na Polia", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Elevação Lateral com Halteres", sets: 3, reps: "12-15", rest: 60 },
-                { name: "Prancha Abdominal", sets: 3, reps: "45s", rest: 45 },
-              ],
-            },
-          ],
-        };
-      } else if (frequency.startsWith("2 dias")) {
-        proposal = {
-          divisions: [
-            {
-              title: "Treino A - Superior",
-              exercises: [
-                { name: "Supino Inclinado com Halteres", sets: 4, reps: "8-12", rest: 90 },
-                { name: "Remada Curvada com Barra", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Desenvolvimento com Halteres", sets: 3, reps: "10-12", rest: 60 },
-                { name: "Tríceps Corda na Polia", sets: 3, reps: "12-15", rest: 60 },
-                { name: "Rosca Direta com Barra W", sets: 3, reps: "10-12", rest: 60 },
-              ],
-            },
-            {
-              title: "Treino B - Inferior",
-              exercises: [
-                { name: "Agachamento Búlgaro", sets: 4, reps: "10-12", rest: 90 },
-                { name: "Leg Press 45º", sets: 4, reps: "10-12", rest: 90 },
-                { name: "Mesa Flexora", sets: 4, reps: "12-15", rest: 60 },
-                { name: "Elevação Pélvica com Barra", sets: 3, reps: "10-12", rest: 60 },
-                { name: "Panturrilha em Pé", sets: 4, reps: "15", rest: 45 },
-              ],
-            },
-          ],
-        };
-      } else if (frequency.startsWith("3 dias")) {
-        proposal = {
-          divisions: [
-            {
-              title: "Treino A - Peito, Deltoide Anterior e Tríceps",
-              exercises: [
-                { name: "Supino Reto com Barra", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Supino Inclinado com Halteres", sets: 3, reps: "10-12", rest: 60 },
-                { name: "Crucifixo na Polia (Crossover)", sets: 3, reps: "12-15", rest: 60 },
-                { name: "Elevação Lateral com Halteres", sets: 4, reps: "12-15", rest: 45 },
-                { name: "Tríceps Corda na Polia", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Tríceps Testa com Barra W", sets: 3, reps: "10-12", rest: 60 },
-              ],
-            },
-            {
-              title: "Treino B - Costas, Deltoide Posterior e Bíceps",
-              exercises: [
-                { name: "Puxada Alta com Pegada Pronada", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Remada Baixa com Triângulo", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Crucifixo Invertido com Halteres", sets: 3, reps: "12-15", rest: 45 },
-                { name: "Rosca Direta com Barra W", sets: 3, reps: "10-12", rest: 60 },
-                { name: "Rosca Martelo com Halteres", sets: 3, reps: "10-12", rest: 60 },
-              ],
-            },
-            {
-              title: "Treino C - Membros Inferiores e Abdômen",
-              exercises: [
-                { name: "Agachamento Livre com Barra", sets: 4, reps: "8-10", rest: 120 },
-                { name: "Leg Press 45º", sets: 4, reps: "10-12", rest: 90 },
-                { name: "Cadeira Extensora", sets: 3, reps: "12-15", rest: 60 },
-                { name: "Stiff com Halteres", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Cadeira Flexora", sets: 3, reps: "12-15", rest: 60 },
-                { name: "Panturrilha no Leg Press", sets: 4, reps: "15", rest: 45 },
-              ],
-            },
-          ],
-        };
-      } else if (frequency.startsWith("4 dias")) {
-        proposal = {
-          divisions: [
-            {
-              title: "Treino A - Peito e Tríceps",
-              exercises: [
-                { name: "Supino Reto com Barra", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Supino Inclinado com Halteres", sets: 3, reps: "10-12", rest: 60 },
-                { name: "Crucifixo na Máquina", sets: 3, reps: "12-15", rest: 60 },
-                { name: "Tríceps Corda na Polia", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Tríceps Francês Unilateral", sets: 3, reps: "12", rest: 45 },
-              ],
-            },
-            {
-              title: "Treino B - Costas e Bíceps",
-              exercises: [
-                { name: "Puxada Frontal na Polia", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Remada Curvada com Barra", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Remada Baixa com Triângulo", sets: 3, reps: "10-12", rest: 60 },
-                { name: "Rosca Direta com Barra W", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Rosca Scott com Halteres", sets: 3, reps: "10-12", rest: 45 },
-              ],
-            },
-            {
-              title: "Treino C - Membros Inferiores Completo",
-              exercises: [
-                { name: "Agachamento Livre com Barra", sets: 4, reps: "8-10", rest: 120 },
-                { name: "Leg Press 45º", sets: 4, reps: "10-12", rest: 90 },
-                { name: "Cadeira Extensora", sets: 3, reps: "12-15", rest: 60 },
-                { name: "Mesa Flexora", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Stiff com Halteres", sets: 3, reps: "10-12", rest: 60 },
-                { name: "Panturrilha em Pé", sets: 4, reps: "15", rest: 45 },
-              ],
-            },
-            {
-              title: "Treino D - Ombros, Trapézio e Abdômen",
-              exercises: [
-                { name: "Desenvolvimento com Halteres", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Elevação Lateral com Halteres", sets: 4, reps: "12-15", rest: 45 },
-                { name: "Crucifixo Invertido com Halteres", sets: 3, reps: "12-15", rest: 45 },
-                { name: "Encolhimento com Barra", sets: 4, reps: "12-15", rest: 45 },
-                { name: "Abdominal Supra na Polia", sets: 3, reps: "15-20", rest: 45 },
-              ],
-            },
-          ],
-        };
-      } else if (frequency.startsWith("5 dias")) {
-        // ABCDE split: exactly 5 distinct, balanced divisions
-        proposal = {
-          divisions: [
-            {
-              title: "Treino A - Peitoral e Abdômen",
-              exercises: [
-                { name: "Supino Reto com Barra", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Supino Inclinado com Halteres", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Crucifixo no Banco Inclinado", sets: 3, reps: "12-15", rest: 60 },
-                { name: "Crossover na Polia Média", sets: 3, reps: "12-15", rest: 45 },
-                { name: "Abdominal Infra no Solo", sets: 4, reps: "15-20", rest: 45 },
-              ],
-            },
-            {
-              title: "Treino B - Dorsais e Panturrilhas",
-              exercises: [
-                { name: "Puxada Alta Pegada Pronada", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Remada Curvada com Barra", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Remada Unilateral com Halter (Serrote)", sets: 3, reps: "10-12", rest: 60 },
-                { name: "Pulldown na Polia Alta", sets: 3, reps: "12-15", rest: 45 },
-                { name: "Panturrilha no Leg Press", sets: 4, reps: "15-20", rest: 45 },
-              ],
-            },
-            {
-              title: "Treino C - Quadríceps e Glúteos",
-              exercises: [
-                { name: "Agachamento Livre com Barra", sets: 4, reps: "8-10", rest: 120 },
-                { name: "Leg Press 45º", sets: 4, reps: "10-12", rest: 90 },
-                { name: "Agachamento Búlgaro", sets: 3, reps: "10-12", rest: 60 },
-                { name: "Cadeira Extensora", sets: 4, reps: "12-15", rest: 45 },
-                { name: "Elevação Pélvica com Barra", sets: 4, reps: "10-12", rest: 60 },
-              ],
-            },
-            {
-              title: "Treino D - Deltoides e Trapézio",
-              exercises: [
-                { name: "Desenvolvimento Militar com Halteres", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Elevação Lateral com Halteres", sets: 4, reps: "12-15", rest: 45 },
-                { name: "Elevação Lateral na Polia Baixa", sets: 3, reps: "12-15", rest: 45 },
-                { name: "Crucifixo Invertido na Máquina", sets: 4, reps: "12-15", rest: 45 },
-                { name: "Encolhimento de Ombros com Halteres", sets: 4, reps: "12-15", rest: 45 },
-              ],
-            },
-            {
-              title: "Treino E - Braços e Isquiotibiais",
-              exercises: [
-                { name: "Stiff com Halteres", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Mesa Flexora", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Rosca Direta com Barra W", sets: 3, reps: "10-12", rest: 60 },
-                { name: "Tríceps Testa com Barra W", sets: 3, reps: "10-12", rest: 60 },
-                { name: "Rosca Martelo com Halteres", sets: 3, reps: "10-12", rest: 45 },
-                { name: "Tríceps Corda na Polia", sets: 3, reps: "12-15", rest: 45 },
-              ],
-            },
-          ],
-        };
-      } else if (frequency.startsWith("6 dias")) {
-        // 6 dias (ABCDEF / Push Pull Legs 2x)
-        proposal = {
-          divisions: [
-            {
-              title: "Treino A - Push 1 (Peito, Ombros e Tríceps)",
-              exercises: [
-                { name: "Supino Reto com Barra", sets: 4, reps: "6-8", rest: 120 },
-                { name: "Supino Inclinado com Halteres", sets: 3, reps: "8-10", rest: 90 },
-                { name: "Desenvolvimento com Halteres", sets: 3, reps: "8-10", rest: 90 },
-                { name: "Elevação Lateral com Halteres", sets: 4, reps: "12-15", rest: 45 },
-                { name: "Tríceps Francês na Polia", sets: 3, reps: "10-12", rest: 60 },
-              ],
-            },
-            {
-              title: "Treino B - Pull 1 (Costas, Trapézio e Bíceps)",
-              exercises: [
-                { name: "Puxada Alta com Pegada Aberta", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Remada Curvada com Barra", sets: 4, reps: "6-8", rest: 90 },
-                { name: "Crucifixo Invertido com Halteres", sets: 3, reps: "12-15", rest: 45 },
-                { name: "Rosca Direta com Barra W", sets: 3, reps: "8-10", rest: 60 },
-                { name: "Rosca Martelo", sets: 3, reps: "10-12", rest: 45 },
-              ],
-            },
-            {
-              title: "Treino C - Legs 1 (Foco Quadríceps)",
-              exercises: [
-                { name: "Agachamento Livre com Barra", sets: 4, reps: "6-8", rest: 120 },
-                { name: "Leg Press 45º", sets: 4, reps: "10-12", rest: 90 },
-                { name: "Cadeira Extensora", sets: 4, reps: "12-15", rest: 45 },
-                { name: "Panturrilha em Pé", sets: 4, reps: "15", rest: 45 },
-              ],
-            },
-            {
-              title: "Treino D - Push 2 (Peito Inclinado, Ombros e Tríceps)",
-              exercises: [
-                { name: "Supino Inclinado com Barra", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Crucifixo na Polia (Crossover)", sets: 3, reps: "12-15", rest: 60 },
-                { name: "Elevação Lateral na Polia", sets: 4, reps: "12-15", rest: 45 },
-                { name: "Tríceps Corda na Polia", sets: 4, reps: "10-12", rest: 45 },
-              ],
-            },
-            {
-              title: "Treino E - Pull 2 (Costas com Foco Largura e Bíceps)",
-              exercises: [
-                { name: "Remada Baixa com Triângulo", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Puxada com Triângulo", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Encolhimento com Barra", sets: 3, reps: "12-15", rest: 45 },
-                { name: "Rosca Scott com Halteres", sets: 3, reps: "10-12", rest: 60 },
-              ],
-            },
-            {
-              title: "Treino F - Legs 2 (Foco Isquiotibiais e Glúteos)",
-              exercises: [
-                { name: "Stiff com Halteres", sets: 4, reps: "8-10", rest: 90 },
-                { name: "Mesa Flexora", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Elevação Pélvica com Barra", sets: 4, reps: "10-12", rest: 60 },
-                { name: "Panturrilha no Leg Press", sets: 4, reps: "15", rest: 45 },
-              ],
-            },
-          ],
-        };
-      }
-
-      // Programmatic structural verification:
-      const expectedDays = frequency.startsWith("1 dia")
-        ? 1
-        : frequency.startsWith("2 dias")
-        ? 2
-        : frequency.startsWith("3 dias")
-        ? 3
-        : frequency.startsWith("4 dias")
-        ? 4
-        : frequency.startsWith("5 dias")
-        ? 5
-        : 6;
-
-      if (proposal.divisions.length !== expectedDays) {
-        console.error(
-          `[AiHelperDrawer] Inconsistência de divisões detectada: esperadas ${expectedDays}, obtidas ${proposal.divisions.length}`
-        );
-      }
-
-      setGeneratedProposal(proposal);
-      setIsGenerating(false);
-    }, 450);
-  };
-
-  // 2. Generate Alternatives for Selected Exercise
-  const handleFindAlternatives = () => {
-    setIsGenerating(true);
-    setTimeout(() => {
-      const selectedItem = activeBlock?.items?.find((i) => i.publicId === exerciseToReplace);
-      const name = selectedItem?.exerciseNameSnapshot?.toLowerCase() || "";
-
-      let alts = ["Supino Inclinado com Halteres", "Supino na Máquina", "Crucifixo Reto"];
-      if (name.includes("agachamento") || name.includes("leg")) {
-        alts = ["Hack Squat", "Leg Press 45º", "Agachamento Búlgaro", "Cadeira Extensora"];
-      } else if (name.includes("puxada") || name.includes("remada")) {
-        alts = ["Remada Cavalinho", "Puxada Triângulo", "Remada Serrote com Halteres", "Pulldown na Polia"];
-      } else if (name.includes("elevação") || name.includes("desenvolvimento")) {
-        alts = ["Desenvolvimento com Halteres", "Elevação Lateral na Polia", "Desenvolvimento Militar", "Elevação Frontal"];
-      } else if (name.includes("tríceps") || name.includes("triceps")) {
-        alts = ["Tríceps Corda na Polia", "Tríceps Testa Barra W", "Tríceps Francês", "Mergulho em Paralelas"];
-      } else if (name.includes("rosca") || name.includes("bíceps") || name.includes("biceps")) {
-        alts = ["Rosca Direta Barra W", "Rosca Martelo com Halteres", "Rosca Scott", "Rosca Inclinada"];
-      }
-
-      setSuggestedAlternatives(alts);
-      setIsGenerating(false);
-    }, 350);
-  };
-
-  // 3. Generate Bi-set pairing
-  const handleFindBiSetPair = () => {
-    setIsGenerating(true);
-    setTimeout(() => {
-      const name = baseExercise.toLowerCase();
-      let pair = "Crucifixo com Halteres (Pré-exaustão)";
-      if (name.includes("supino")) {
-        pair = "Crucifixo com Halteres (Pré-exaustão)";
-      } else if (name.includes("rosca")) {
-        pair = "Tríceps Testa Barra W (Antagonista)";
-      } else if (name.includes("extensora")) {
-        pair = "Mesa Flexora (Agonista/Antagonista)";
-      } else if (name.includes("puxada")) {
-        pair = "Remada Curvada com Halteres (Sinergista)";
-      } else if (name.includes("elevação lateral") || name.includes("desenvolvimento")) {
-        pair = "Crucifixo Invertido com Halteres (Deltoide Posterior)";
-      }
-
-      setPairedExercise(pair);
-      setIsGenerating(false);
-    }, 350);
-  };
-
-  // 4. Generate Completion Suggestions for Current Division
-  const handleGenerateCompletion = () => {
-    setIsGenerating(true);
-    setTimeout(() => {
-      const currentNames = (activeBlock?.items || []).map((i) => i.exerciseNameSnapshot.toLowerCase());
-      const suggestions: Array<{ name: string; sets: number; reps: string; rest: number; reason: string }> = [];
-
-      const hasChest = currentNames.some((n) => n.includes("supino") || n.includes("peito") || n.includes("crucifixo"));
-      const hasBack = currentNames.some((n) => n.includes("puxada") || n.includes("remada") || n.includes("costas"));
-      const hasLegs = currentNames.some((n) => n.includes("agachamento") || n.includes("leg") || n.includes("extensora"));
-
-      if (hasChest) {
-        if (!currentNames.some((n) => n.includes("elevação lateral") || n.includes("ombro"))) {
-          suggestions.push({
-            name: "Elevação Lateral com Halteres",
-            sets: 3,
-            reps: "12-15",
-            rest: 45,
-            reason: "Trabalho de deltoide lateral para equilibrar o treino de empurrar.",
-          });
-        }
-        if (!currentNames.some((n) => n.includes("tríceps") || n.includes("triceps"))) {
-          suggestions.push({
-            name: "Tríceps Corda na Polia",
-            sets: 3,
-            reps: "10-12",
-            rest: 60,
-            reason: "Isolamento de tríceps como sinergista do peitoral.",
-          });
-        }
-      } else if (hasBack) {
-        if (!currentNames.some((n) => n.includes("rosca") || n.includes("bíceps"))) {
-          suggestions.push({
-            name: "Rosca Direta com Barra W",
-            sets: 3,
-            reps: "10-12",
-            rest: 60,
-            reason: "Trabalho sinergista do bíceps após o volume dorsal.",
-          });
-        }
-        if (!currentNames.some((n) => n.includes("crucifixo invertido") || n.includes("posterior"))) {
-          suggestions.push({
-            name: "Crucifixo Invertido com Halteres",
-            sets: 3,
-            reps: "12-15",
-            rest: 45,
-            reason: "Equilíbrio postural e fortalecimento de deltoide posterior.",
-          });
-        }
-      } else if (hasLegs) {
-        if (!currentNames.some((n) => n.includes("panturrilha"))) {
-          suggestions.push({
-            name: "Panturrilha em Pé",
-            sets: 4,
-            reps: "15",
-            rest: 45,
-            reason: "Fechamento indispensável para a cadeia inferior.",
-          });
-        }
-        if (!currentNames.some((n) => n.includes("stiff") || n.includes("flexora"))) {
-          suggestions.push({
-            name: "Mesa Flexora",
-            sets: 3,
-            reps: "10-12",
-            rest: 60,
-            reason: "Equilíbrio agonista/antagonista para isquiotibiais.",
-          });
-        }
+      if (res.success && res.proposal) {
+        setGeneratedProposal(res.proposal);
       } else {
-        suggestions.push(
-          {
-            name: "Elevação Lateral com Halteres",
-            sets: 3,
-            reps: "12-15",
-            rest: 45,
-            reason: "Excelente complemento para volume de ombros.",
-          },
-          {
-            name: "Prancha Abdominal",
-            sets: 3,
-            reps: "45s",
-            rest: 45,
-            reason: "Estabilidade de core e postura.",
-          }
+        setErrorMessage(
+          res.error ||
+            "Não conseguimos utilizar a IA agora. Você pode tentar novamente ou continuar montando o treino manualmente."
         );
       }
-
-      setCompletionSuggestions(suggestions);
+    } catch (err: unknown) {
+      console.error("[AiHelperDrawer] Erro ao gerar proposta completa:", err);
+      setErrorMessage(
+        "Não conseguimos utilizar a IA agora. Você pode tentar novamente ou continuar montando o treino manualmente."
+      );
+    } finally {
       setIsGenerating(false);
-    }, 400);
+    }
+  };
+
+  // 2. Generate Alternatives for Selected Exercise with Destiny AI
+  const handleFindAlternatives = async () => {
+    const selectedItem = activeBlock?.items?.find((i) => i.publicId === exerciseToReplace);
+    const exerciseName = selectedItem?.exerciseNameSnapshot || "";
+
+    if (!exerciseName.trim()) return;
+
+    setIsGenerating(true);
+    setErrorMessage(null);
+    try {
+      const res = await suggestExerciseAlternativeAiAction(
+        consultancySlug,
+        exerciseName,
+        activeBlock?.title ?? undefined
+      );
+
+      if (res.success && res.alternatives && res.alternatives.length > 0) {
+        setSuggestedAlternatives(res.alternatives.map((a) => a.name));
+      } else {
+        setErrorMessage(
+          res.error ||
+            "Não conseguimos utilizar a IA agora. Você pode tentar novamente ou continuar montando o treino manualmente."
+        );
+      }
+    } catch (err: unknown) {
+      console.error("[AiHelperDrawer] Erro ao buscar alternativas:", err);
+      setErrorMessage(
+        "Não conseguimos utilizar a IA agora. Você pode tentar novamente ou continuar montando o treino manualmente."
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // 3. Generate Bi-set pairing with Destiny AI
+  const handleFindBiSetPair = async () => {
+    if (!baseExercise.trim()) return;
+
+    setIsGenerating(true);
+    setErrorMessage(null);
+    try {
+      const res = await suggestBiSetPairAiAction(consultancySlug, baseExercise);
+
+      if (res.success && res.proposal?.pairedExercise) {
+        setPairedExercise(res.proposal.pairedExercise);
+      } else {
+        setErrorMessage(
+          res.error ||
+            "Não conseguimos utilizar a IA agora. Você pode tentar novamente ou continuar montando o treino manualmente."
+        );
+      }
+    } catch (err: unknown) {
+      console.error("[AiHelperDrawer] Erro ao sugerir par Bi-set:", err);
+      setErrorMessage(
+        "Não conseguimos utilizar a IA agora. Você pode tentar novamente ou continuar montando o treino manualmente."
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // 4. Generate Completion Suggestions for Current Division with Destiny AI
+  const handleGenerateCompletion = async () => {
+    setIsGenerating(true);
+    setErrorMessage(null);
+    try {
+      const currentNames = (activeBlock?.items || []).map((i) => i.exerciseNameSnapshot);
+      const res = await adjustDivisionAiAction(
+        consultancySlug,
+        activeBlock?.title || "Treino A",
+        currentNames,
+        "Sugerir complementos equilibrados para fechar esta divisão"
+      );
+
+      if (res.success && res.adjustedDivision && res.adjustedDivision.exercises.length > 0) {
+        setCompletionSuggestions(
+          res.adjustedDivision.exercises.map((e) => ({
+            name: e.name,
+            sets: e.sets,
+            reps: e.reps,
+            rest: e.rest,
+            reason: "Exercício complementar sugerido pela IA para equilibrar a divisão.",
+          }))
+        );
+      } else {
+        setErrorMessage(
+          res.error ||
+            "Não conseguimos utilizar a IA agora. Você pode tentar novamente ou continuar montando o treino manualmente."
+        );
+      }
+    } catch (err: unknown) {
+      console.error("[AiHelperDrawer] Erro ao gerar complementos:", err);
+      setErrorMessage(
+        "Não conseguimos utilizar a IA agora. Você pode tentar novamente ou continuar montando o treino manualmente."
+      );
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -637,6 +356,25 @@ export function AiHelperDrawer({
 
         {/* Action Panel Content */}
         <div className="p-4 sm:p-6 flex-1 overflow-y-auto space-y-4">
+          {/* Error Banner */}
+          {errorMessage && (
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex items-start justify-between gap-3 animate-in fade-in">
+              <div className="space-y-0.5">
+                <p className="font-bold">{errorMessage}</p>
+                <p className="text-[11px] text-amber-800">
+                  Você pode continuar montando o treino manualmente ou tentar novamente em instantes.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setErrorMessage(null)}
+                className="text-amber-800 hover:text-amber-950 font-bold px-1.5 py-0.5 rounded-md hover:bg-amber-100 transition-colors cursor-pointer"
+                aria-label="Fechar aviso"
+              >
+                ✕
+              </button>
+            </div>
+          )}
           {/* Action: Completar Meu Treino (quando já existem itens) */}
           {selectedAction === "complete_workout" && (
             <div className="space-y-4">
@@ -715,68 +453,105 @@ export function AiHelperDrawer({
           {/* Action: Sugerir Treino Completo (do zero ou substituição total) */}
           {selectedAction === "suggest_full" && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Objetivo */}
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-[#102E23]">Objetivo:</label>
-                  <select
-                    value={objective}
-                    onChange={(e) => setObjective(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-semibold bg-[#F5F5F0] border border-[#E5E8E2] rounded-xl focus:outline-none"
-                  >
-                    <option value="Hipertrofia">Hipertrofia</option>
-                    <option value="Emagrecimento">Emagrecimento / Definição</option>
-                    <option value="Força Máxima">Força</option>
-                    <option value="Condicionamento">Condicionamento Físico</option>
-                  </select>
+              {/* Campo de Texto Aberto (Pedido Livre) */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="ai-free-prompt" className="text-xs font-bold text-[#102E23]">
+                    Descreva o treino que você deseja
+                  </label>
+                  <span className="text-[11px] font-mono text-[#6B7870]">
+                    {freePrompt.length}/1000
+                  </span>
                 </div>
+                <textarea
+                  id="ai-free-prompt"
+                  value={freePrompt}
+                  onChange={(e) => setFreePrompt(e.target.value.slice(0, 1000))}
+                  placeholder="Ex.: Quero um treino ABCDE para hipertrofia, com foco em costas, sessões de 60 minutos e descansos definidos..."
+                  rows={4}
+                  className="w-full p-3 text-xs text-[#102E23] placeholder-[#8C9890] bg-[#FDFDFC] border border-[#E5E8E2] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#176B49] focus:border-transparent transition-all resize-none shadow-2xs leading-relaxed"
+                />
+              </div>
 
-                {/* Frequência */}
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-[#102E23]">Frequência semanal:</label>
-                  <select
-                    value={frequency}
-                    onChange={(e) => setFrequency(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-semibold bg-[#F5F5F0] border border-[#E5E8E2] rounded-xl focus:outline-none"
-                  >
-                    <option value="1 dia (Full Body)">1 dia (Full Body)</option>
-                    <option value="2 dias (AB)">2 dias (AB Superior/Inferior)</option>
-                    <option value="3 dias (ABC)">3 dias (ABC Clássico)</option>
-                    <option value="4 dias (ABCD)">4 dias (ABCD)</option>
-                    <option value="5 dias (ABCDE)">5 dias (ABCDE)</option>
-                    <option value="6 dias (ABCDEF)">6 dias (ABCDEF / PPL 2x)</option>
-                  </select>
-                </div>
+              {/* Opções rápidas de suporte */}
+              <div className="p-3 rounded-2xl bg-[#F8FAF7] border border-[#E5E8E2] space-y-2.5">
+                <span className="text-[11px] font-bold text-[#526058] uppercase tracking-wider block">
+                  Ou ajuste os parâmetros rápidos:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {/* Objetivo */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-[#102E23]">Objetivo:</label>
+                    <select
+                      value={objective}
+                      onChange={(e) => setObjective(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs font-semibold bg-white border border-[#E5E8E2] rounded-xl focus:outline-none"
+                    >
+                      <option value="Hipertrofia">Hipertrofia</option>
+                      <option value="Emagrecimento">Emagrecimento / Definição</option>
+                      <option value="Força Máxima">Força</option>
+                      <option value="Condicionamento">Condicionamento Físico</option>
+                    </select>
+                  </div>
 
-                {/* Nível */}
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-[#102E23]">Nível:</label>
-                  <select
-                    value={level}
-                    onChange={(e) => setLevel(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-semibold bg-[#F5F5F0] border border-[#E5E8E2] rounded-xl focus:outline-none"
-                  >
-                    <option value="Iniciante">Iniciante</option>
-                    <option value="Intermediário">Intermediário</option>
-                    <option value="Avançado">Avançado</option>
-                  </select>
+                  {/* Frequência */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-[#102E23]">Frequência semanal:</label>
+                    <select
+                      value={frequency}
+                      onChange={(e) => setFrequency(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs font-semibold bg-white border border-[#E5E8E2] rounded-xl focus:outline-none"
+                    >
+                      <option value="1 dia (Full Body)">1 dia (Full Body)</option>
+                      <option value="2 dias (AB)">2 dias (AB)</option>
+                      <option value="3 dias (ABC)">3 dias (ABC)</option>
+                      <option value="4 dias (ABCD)">4 dias (ABCD)</option>
+                      <option value="5 dias (ABCDE)">5 dias (ABCDE)</option>
+                      <option value="6 dias (ABCDEF)">6 dias (ABCDEF / PPL 2x)</option>
+                    </select>
+                  </div>
+
+                  {/* Nível */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-[#102E23]">Nível:</label>
+                    <select
+                      value={level}
+                      onChange={(e) => setLevel(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs font-semibold bg-white border border-[#E5E8E2] rounded-xl focus:outline-none"
+                    >
+                      <option value="Iniciante">Iniciante</option>
+                      <option value="Intermediário">Intermediário</option>
+                      <option value="Avançado">Avançado</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
+              {/* Botão Principal */}
               <button
                 type="button"
                 disabled={isGenerating}
                 onClick={handleGenerateFull}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-[#176B49] text-white hover:bg-[#102E23] transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-[#176B49] text-white hover:bg-[#102E23] transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <SparklesIcon className="w-4 h-4 text-emerald-300" />
-                <span>{isGenerating ? "Montando proposta..." : "Montar proposta completa"}</span>
+                <span>{isGenerating ? "Gerando treino com IA..." : "Gerar treino com IA"}</span>
               </button>
 
               {/* Proposal Preview Box */}
               {generatedProposal && (
                 <div className="p-4 rounded-2xl bg-[#F0F5F2] border border-[#C6E2D1] space-y-3 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between">
+                  {/* Overwrite Warning Banner if Workout Already Has Exercises */}
+                  {hasExistingItems && (
+                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                      <p className="font-bold">⚠️ Atenção: sua ficha atual já possui exercícios.</p>
+                      <p className="text-[11px] text-amber-800 mt-0.5">
+                        Aplicar esta sugestão substituirá as divisões existentes pelo novo treino gerado.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                       <span className="text-[10px] font-black uppercase text-[#176B49]">
                         PROPOSTA ESTRUTURADA PELA IA
@@ -786,19 +561,37 @@ export function AiHelperDrawer({
                       </h4>
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => {
-                        startTransition(async () => {
-                          await onApplyAiSuggestion(generatedProposal);
-                          onClose();
-                        });
-                      }}
-                      className="px-4 py-2 rounded-xl text-xs font-bold bg-[#176B49] text-white hover:bg-[#102E23] transition-all shadow-xs cursor-pointer"
-                    >
-                      Aplicar ao meu treino →
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setGeneratedProposal(null)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-[#526058] hover:text-[#102E23] hover:bg-black/5 transition-colors cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => {
+                          if (
+                            hasExistingItems &&
+                            !window.confirm(
+                              "Sua ficha atual já possui exercícios. Aplicar este treino substituirá as divisões existentes. Deseja continuar?"
+                            )
+                          ) {
+                            return;
+                          }
+                          startTransition(async () => {
+                            await onApplyAiSuggestion(generatedProposal);
+                            onClose();
+                          });
+                        }}
+                        className="px-4 py-2 rounded-xl text-xs font-bold bg-[#176B49] text-white hover:bg-[#102E23] transition-all shadow-xs cursor-pointer"
+                      >
+                        Aplicar ao meu treino →
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-2 max-h-60 overflow-y-auto">

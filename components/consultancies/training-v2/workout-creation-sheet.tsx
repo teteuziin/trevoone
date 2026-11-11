@@ -107,7 +107,7 @@ export function WorkoutCreationSheet({
       {/* Top Header Actions */}
       <div className="flex items-center gap-2">
         {isTemplatesTab ? (
-          /* Aba Modelos: Botão "+ Criar modelo" que abre 3 opções */
+          /* Aba Modelos: Botão "+ Criar programa" que abre 3 opções */
           <button
             ref={triggerRef}
             type="button"
@@ -115,7 +115,7 @@ export function WorkoutCreationSheet({
             className="inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all font-sans cursor-pointer min-h-[38px] sm:min-h-[40px]"
           >
             <PlusIcon className="w-4 h-4" />
-            <span>Criar modelo</span>
+            <span>Criar programa</span>
           </button>
         ) : (
           /* Central de Treinos: "+ Criar treino" (Editor 4.0) e "Importar treino" (IA) */
@@ -159,7 +159,7 @@ export function WorkoutCreationSheet({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Criar novo modelo de treino"
+            aria-label="Criar novo programa de treino"
             onClick={(e) => e.stopPropagation()}
             className="w-full sm:max-w-md bg-white border-t sm:border border-[#E5E8E2] rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-6 duration-200 overflow-hidden"
           >
@@ -167,10 +167,10 @@ export function WorkoutCreationSheet({
             <div className="p-5 border-b border-[#F0F2ED] flex items-center justify-between gap-3 bg-[#FAFBF9]">
               <div>
                 <h3 className="text-base font-extrabold text-[#102E23] leading-tight">
-                  Criar novo modelo
+                  Criar Programa de Treino
                 </h3>
                 <p className="text-xs text-[#526058] mt-0.5">
-                  Como deseja criar o modelo pronto?
+                  Como deseja criar o programa de treino?
                 </p>
               </div>
               <button
@@ -199,7 +199,7 @@ export function WorkoutCreationSheet({
                     1. Criar do zero
                   </h4>
                   <p className="text-xs text-[#526058] mt-0.5 leading-relaxed">
-                    Abra o Editor 4.0 limpo para montar o modelo passo a passo
+                    Abra o Editor 4.0 limpo para montar o programa passo a passo
                   </p>
                 </div>
                 <span className="text-[#8C9890] text-xs font-bold">→</span>
@@ -222,7 +222,7 @@ export function WorkoutCreationSheet({
                     2. Usar um treino existente
                   </h4>
                   <p className="text-xs text-[#526058] mt-0.5 leading-relaxed">
-                    Clone uma cópia de um treino seu para servir de modelo
+                    Clone uma cópia de um treino seu para servir de programa de treino
                   </p>
                 </div>
                 <span className="text-[#8C9890] text-xs font-bold">→</span>
@@ -246,7 +246,7 @@ export function WorkoutCreationSheet({
                     3. Importar uma ficha com IA
                   </h4>
                   <p className="text-xs text-[#526058] mt-0.5 leading-relaxed">
-                    Envie documento, imagem ou cole texto para converter em modelo
+                    Envie documento, imagem ou cole texto para converter em programa
                   </p>
                 </div>
                 <span className="text-[#8C9890] text-xs font-bold">→</span>

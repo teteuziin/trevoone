@@ -3,6 +3,7 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { getConsultancyAiSettings } from "@/lib/ai/quotas";
+import { getDestinyAiModelStatusAction } from "@/app/consultoria/[slug]/rotinas/ai-actions";
 import { getDbConnection } from "@/lib/db/mysql";
 import { ConsultancyAiSettingsView } from "@/components/consultancies/settings/consultancy-ai-settings-view";
 import { AdminPageContainer } from "@/components/admin/admin-page-container";
@@ -71,6 +72,16 @@ export default async function ConsultancyAiSettingsPage({ params }: PageProps) {
     conn.release();
   }
 
+  const destinyStatusRes = await getDestinyAiModelStatusAction(slug);
+  const initialDestinyStatus = destinyStatusRes.success
+    ? {
+        isConfigured: destinyStatusRes.isConfigured,
+        models: destinyStatusRes.models || [],
+        totalRequestsToday: destinyStatusRes.totalRequestsToday,
+        totalRequestsMonth: destinyStatusRes.totalRequestsMonth,
+      }
+    : null;
+
   return (
     <ConsultancyAppShell
       consultancySlug={slug}
@@ -91,6 +102,7 @@ export default async function ConsultancyAiSettingsPage({ params }: PageProps) {
           initialRoleLimits={settings.roleLimits}
           initialMemberOverrides={settings.memberOverrides}
           availableMembers={availableMembers}
+          initialDestinyStatus={initialDestinyStatus}
         />
       </AdminPageContainer>
     </ConsultancyAppShell>

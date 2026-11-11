@@ -8,6 +8,7 @@
  */
 
 import { printEnvironmentBanner, getDatabaseClassification } from "./qa-environment-guard.mjs";
+import { execSync } from "node:child_process";
 import { runAuthSuite } from "./qa-suite-auth.mjs";
 import { runRbacTenancySuite } from "./qa-suite-rbac-tenancy.mjs";
 import { runRoutesNavSuite } from "./qa-suite-routes-nav.mjs";
@@ -30,6 +31,21 @@ console.log("==================================================\n");
 
 // 1. FAIL FAST ENVIRONMENT GUARD
 printEnvironmentBanner();
+
+// 2. FAIL FAST TYPESCRIPT INTEGRITY GUARD
+console.log(">>> CHECANDO INTEGRIDADE DE TIPOS (TypeScript tsc --noEmit)...");
+try {
+  execSync("node ./node_modules/typescript/bin/tsc --noEmit", {
+    encoding: "utf8",
+    stdio: "pipe",
+    maxBuffer: 20 * 1024 * 1024,
+  });
+  console.log("  [PASS] TYPESCRIPT: 0 erros em todo o projeto (Build Gate Aprovado).\n");
+} catch (err) {
+  console.error("  [FAIL] TYPESCRIPT: Erros de tipagem detectados!");
+  console.error(err.stdout || err.message);
+  process.exit(1);
+}
 
 const env = getDatabaseClassification();
 

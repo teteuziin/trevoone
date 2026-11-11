@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { PersonalHeader } from "./personal/personal-header";
 import type { PersonalFinanceIndicatorData } from "./personal/sections/personal-indicators";
 import type { PersonalFinanceChargeItem } from "./personal/sections/personal-indicator-detail-dialog";
+import type { AuthoritativeTrainingMetrics } from "@/lib/training-v2/training-metrics-service";
+import type { PersonalTrainingMetrics } from "@/lib/consultancies/personal-student-hub";
+
+export type { PersonalTrainingMetrics };
 
 export interface PersonalWorkoutSummaryItem {
   publicId: string;
@@ -47,15 +51,6 @@ export interface PersonalTodayConsultationItem {
   href?: string;
 }
 
-export interface PersonalTrainingMetrics {
-  totalStudents: number;
-  semTreinoCount: number;
-  vencidosCount: number;
-  aVencerCount: number;
-  emDiaCount: number;
-  emDiaPercent: number;
-}
-
 export interface PersonalAssessmentStats {
   pendingAssessmentsCount?: number;
   completedAssessmentsCount?: number;
@@ -87,7 +82,7 @@ export interface DashboardPersonalViewProps {
   studentsWithoutWorkout?: StudentWithoutWorkoutItem[];
   todayConsultations?: PersonalTodayConsultationItem[] | null;
   hideRoleBadge?: boolean;
-  trainingMetrics?: PersonalTrainingMetrics | null;
+  trainingMetrics?: PersonalTrainingMetrics | AuthoritativeTrainingMetrics | null;
   assessmentStats?: PersonalAssessmentStats | null;
   financeSummary?: PersonalFinanceIndicatorData & {
     upcomingCharges?: PersonalFinanceChargeItem[];
@@ -272,15 +267,20 @@ export function DashboardPersonalView({
     if (trainingMetrics) {
       const total = trainingMetrics.totalStudents;
       const semTreino = trainingMetrics.semTreinoCount;
-      const comTreino = trainingMetrics.comTreinoCount ?? Math.max(0, total - semTreino);
+      const comTreino = ("comTreinoCount" in trainingMetrics && trainingMetrics.comTreinoCount !== undefined)
+        ? (trainingMetrics.comTreinoCount as number)
+        : Math.max(0, total - semTreino);
       const emDiaPercent = trainingMetrics.emDiaPercent ?? (total > 0 ? Math.round((comTreino / total) * 100) : 0);
       return {
-        ...trainingMetrics,
         totalStudents: total,
         comTreinoCount: comTreino,
         semTreinoCount: semTreino,
+        vencidosCount: trainingMetrics.vencidosCount,
+        aVencerCount: trainingMetrics.aVencerCount,
+        emDiaCount: trainingMetrics.emDiaCount,
         emDiaPercent,
         loadStatus: trainingMetrics.loadStatus || "SUCCESS",
+        errorMessage: trainingMetrics.errorMessage,
       };
     }
     if (totalStudents === null) {
@@ -310,7 +310,7 @@ export function DashboardPersonalView({
     // Quando trainingMetrics não foi fornecido mas totalStudents > 0:
     // NUNCA mascarar como 0 com treino se houver alunos! Trata como erro/indisponível.
     return {
-      totalStudents,
+      totalStudents: totalStudents ?? 0,
       comTreinoCount: 0,
       semTreinoCount: 0,
       vencidosCount: 0,

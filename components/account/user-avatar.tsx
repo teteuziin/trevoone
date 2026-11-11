@@ -5,6 +5,7 @@ import { computeInitials } from "@/lib/auth/user-identity";
 
 export interface UserAvatarProps {
   fullName?: string;
+  name?: string;
   hasProfilePhoto?: boolean;
   avatarUrl?: string | null;
   userPublicId?: string | null;
@@ -35,6 +36,7 @@ export function getInitials(name?: string): string {
 
 export function UserAvatar({
   fullName = "Usuário",
+  name,
   hasProfilePhoto,
   avatarUrl,
   userPublicId,
@@ -45,8 +47,9 @@ export function UserAvatar({
   className = "",
   alt,
 }: UserAvatarProps) {
+  const effectiveName = name || fullName;
   const [imageError, setImageError] = useState(false);
-  const initials = getInitials(fullName);
+  const initials = getInitials(effectiveName);
   const sizeConfig = sizeClasses[size] || sizeClasses.md;
 
   const isCircle = shape === "circle" || circular !== false;
@@ -69,7 +72,7 @@ export function UserAvatar({
     }
   }
 
-  const altText = alt || `Foto de perfil de ${fullName}`;
+  const altText = alt || `Foto de perfil de ${effectiveName}`;
 
   return (
     <div

@@ -4,7 +4,7 @@
  */
 
 import crypto from "node:crypto";
-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import type { ResultSetHeader, RowDataPacket, PoolConnection } from "mysql2/promise";
 import { getDbConnection, getDbPool } from "../db/mysql";
 import { recordConsultancyActivity } from "@/lib/consultancies/activity-log";
 import {
@@ -103,7 +103,7 @@ export type AddSetInput = {
  * block, item, configuration, set, or combination is mutated.
  */
 async function touchWorkoutVersionTimestamp(
-  connection: { execute: (sql: string, params?: unknown[]) => Promise<unknown> },
+  connection: PoolConnection,
   workoutVersionId: number | null | undefined
 ): Promise<void> {
   if (!workoutVersionId) return;
@@ -2166,9 +2166,62 @@ export async function createWorkoutFromTemplate(
     }
     const templateVer = pubRows[0];
 
+    let studentName = "";
+    if (options?.targetStudentMembershipPublicId) {
+      const [sRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT u.full_name
+         FROM consultancy_members cm
+         JOIN users u ON u.id = cm.user_id
+         WHERE cm.public_id = ? AND cm.consultancy_id = ? AND cm.deleted_at IS NULL
+         LIMIT 1;`,
+        [options.targetStudentMembershipPublicId, ctx.consultancyId]
+      );
+      if (sRows && sRows.length > 0) {
+        studentName = String(sRows[0].full_name || "").trim();
+      }
+    }
+
     const newWorkoutPublicId = crypto.randomUUID();
     const newVersionPublicId = crypto.randomUUID();
-    const newTitle = options?.title?.trim() || templateVer.title;
+    const newTitle =
+      options?.title?.trim() ||
+      (studentName ? `${templateVer.title} — ${studentName}` : templateVer.title);
+
+    // Server-side idempotent anti-duplicate guard: If an identical draft was created in the last 10 seconds, reuse it.
+    const [recentRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT w.public_id, wv.public_id AS version_public_id
+       FROM workouts w
+       JOIN workout_versions wv ON wv.workout_id = w.id AND wv.status = 'DRAFT'
+       WHERE w.consultancy_id = ?
+         AND w.created_by_membership_id = ?
+         AND w.title = ?
+         AND w.created_at >= NOW() - INTERVAL 10 SECOND
+       ORDER BY w.id DESC
+       LIMIT 1;`,
+      [ctx.consultancyId!, ctx.membershipId!, newTitle]
+    );
+
+    if (recentRows && recentRows.length > 0) {
+      await connection.rollback();
+      const existingWorkoutPublicId = String(recentRows[0].public_id);
+      const existingVersionPublicId = String(recentRows[0].version_public_id);
+      const existingVersionTree = await getWorkoutVersionTree(ctx, existingVersionPublicId);
+      const workoutDto: WorkoutRootDto = {
+        publicId: existingWorkoutPublicId,
+        consultancyPublicId: ctx.consultancyPublicId!,
+        title: newTitle,
+        subtitle: templateVer.subtitle,
+        objective: templateVer.objective,
+        estimatedDurationMinutes: templateVer.estimated_duration_minutes != null ? Number(templateVer.estimated_duration_minutes) : null,
+        difficultyLevel: templateVer.difficulty_level || "INTERMEDIATE",
+        isTemplate: false,
+        status: "ACTIVE",
+        currentPublishedVersion: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      return { workout: workoutDto, version: existingVersionTree! };
+    }
 
     // 3. Insert NEW normal workout root (is_template = false)
     const [wRes] = await connection.execute<ResultSetHeader>(
@@ -2233,6 +2286,104 @@ export async function createWorkoutFromTemplate(
     };
 
     return { workout: workoutDto, version: newVersionTree! };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Applies a published workout template (Program) directly into an existing draft version.
+ * Clones all blocks, sub-blocks, combinations, exercises, sets, reps and rests into the draft.
+ */
+export async function applyTemplateToExistingDraft(
+  ctx: TrainingAccessContext,
+  targetVersionPublicId: string,
+  templatePublicId: string,
+  options?: { replaceExisting?: boolean }
+): Promise<WorkoutVersionDto> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. Resolve target draft version
+    const [targetRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wv.id, wv.workout_id, wv.status, w.consultancy_id, w.created_by_membership_id
+       FROM workout_versions wv
+       JOIN workouts w ON w.id = wv.workout_id
+       WHERE wv.public_id = ? AND wv.status = 'DRAFT' AND w.deleted_at IS NULL
+       FOR UPDATE;`,
+      [targetVersionPublicId]
+    );
+
+    if (!targetRows || targetRows.length === 0) {
+      throw new TrainingAuthorizationError("Rascunho não encontrado ou já publicado.", "NOT_FOUND", 404);
+    }
+    const targetVer = targetRows[0];
+
+    if (Number(targetVer.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+
+    // 2. Resolve template's published version
+    const [tplRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wv.id, wv.title, wv.subtitle, wv.objective, wv.estimated_duration_minutes, wv.difficulty_level
+       FROM workouts w
+       JOIN workout_versions wv ON wv.workout_id = w.id
+       WHERE w.public_id = ? AND w.is_template = 1 AND wv.status = 'PUBLISHED' AND w.deleted_at IS NULL
+       ORDER BY wv.version_number DESC
+       LIMIT 1;`,
+      [templatePublicId]
+    );
+
+    if (!tplRows || tplRows.length === 0) {
+      throw new TrainingAuthorizationError("Programa de treino publicado não encontrado.", "NOT_FOUND", 404);
+    }
+    const tplVer = tplRows[0];
+
+    // 3. If replaceExisting, delete existing blocks in targetVersion
+    if (options?.replaceExisting) {
+      const [oldBlocks] = await connection.execute<RowDataPacket[]>(
+        `SELECT id FROM workout_blocks WHERE workout_version_id = ?;`,
+        [targetVer.id]
+      );
+      for (const ob of oldBlocks) {
+        await connection.execute(`DELETE FROM workout_item_sets WHERE block_item_id IN (SELECT id FROM workout_block_items WHERE block_id = ?);`, [ob.id]);
+        await connection.execute(`DELETE FROM workout_block_item_media WHERE block_item_id IN (SELECT id FROM workout_block_items WHERE block_id = ?);`, [ob.id]);
+        await connection.execute(`DELETE FROM workout_block_items WHERE block_id = ?;`, [ob.id]);
+        await connection.execute(`DELETE FROM workout_item_combinations WHERE block_id = ?;`, [ob.id]);
+        await connection.execute(`DELETE FROM workout_sub_blocks WHERE block_id = ?;`, [ob.id]);
+        await connection.execute(`DELETE FROM workout_blocks WHERE id = ?;`, [ob.id]);
+      }
+    }
+
+    // 4. Deep clone template version tree into target draft
+    await cloneVersionTree(connection, Number(tplVer.id), Number(targetVer.id));
+
+    // Update metadata if target version had blank or intermediate values
+    await connection.execute(
+      `UPDATE workout_versions
+       SET updated_at = NOW(),
+           estimated_duration_minutes = COALESCE(estimated_duration_minutes, ?),
+           difficulty_level = COALESCE(difficulty_level, ?)
+       WHERE id = ?;`,
+      [tplVer.estimated_duration_minutes, tplVer.difficulty_level, targetVer.id]
+    );
+
+    await connection.commit();
+
+    const refreshedVersion = await getWorkoutVersionTree(ctx, targetVersionPublicId);
+    if (!refreshedVersion) {
+      throw new Error("Erro ao carregar rascunho atualizado.");
+    }
+
+    return refreshedVersion;
   } catch (err) {
     await connection.rollback();
     throw err;
@@ -3001,6 +3152,11 @@ export async function getWorkoutWithSpecificVersion(
   version: WorkoutVersionDto | null;
   isDraft: boolean;
   allVersions: WorkoutVersionSummaryDto[];
+  assignedStudent?: {
+    membershipPublicId: string;
+    name: string;
+    email: string;
+  } | null;
 } | null> {
   assertCanAuthorTraining(ctx);
 

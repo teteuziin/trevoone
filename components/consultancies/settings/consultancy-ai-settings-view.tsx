@@ -6,6 +6,7 @@ import {
   updateConsultancyMemberAiOverrideAction,
   removeConsultancyMemberAiOverrideAction,
 } from "@/app/consultoria/[slug]/configuracoes/ia/actions";
+import { getDestinyAiModelStatusAction } from "@/app/consultoria/[slug]/rotinas/ai-actions";
 import { AdminExecutiveHeader } from "@/components/admin/admin-executive-header";
 import type { ConsultancyAiQuotaInfo } from "@/lib/ai/quotas";
 
@@ -24,6 +25,18 @@ interface MemberOverrideItem {
   dailyLimit: number;
 }
 
+interface DestinyModelItem {
+  id: string;
+  displayName: string;
+  role: "PRIMARY" | "BACKUP_1" | "BACKUP_2" | "RESERVE";
+  priority: number;
+  remaining: string;
+  remainingFraction: number;
+  resetTime: string | null;
+  status: "AVAILABLE" | "COOLDOWN" | "EXHAUSTED";
+  consecutiveFailures: number;
+}
+
 interface Props {
   consultancySlug: string;
   consultancyQuota: ConsultancyAiQuotaInfo;
@@ -33,6 +46,12 @@ interface Props {
   };
   initialMemberOverrides: MemberOverrideItem[];
   availableMembers: MemberOption[];
+  initialDestinyStatus?: {
+    isConfigured: boolean;
+    models: DestinyModelItem[];
+    totalRequestsToday?: number;
+    totalRequestsMonth?: number;
+  } | null;
 }
 
 export function ConsultancyAiSettingsView({
@@ -41,6 +60,7 @@ export function ConsultancyAiSettingsView({
   initialRoleLimits,
   initialMemberOverrides,
   availableMembers,
+  initialDestinyStatus,
 }: Props) {
   const [personalLimit, setPersonalLimit] = useState(initialRoleLimits.personal);
   const [nutritionistLimit, setNutritionistLimit] = useState(initialRoleLimits.nutritionist);
@@ -53,6 +73,34 @@ export function ConsultancyAiSettingsView({
   const [isPending, startTransition] = useTransition();
   const [roleMessage, setRoleMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [overrideMessage, setOverrideMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Destiny AI Live Status State (pre-populated by server component, refreshable on click)
+  const [destinyData, setDestinyData] = useState<{
+    isConfigured: boolean;
+    models: DestinyModelItem[];
+    totalRequestsToday?: number;
+    totalRequestsMonth?: number;
+  } | null>(initialDestinyStatus ?? null);
+  const [loadingDestiny, setLoadingDestiny] = useState(false);
+
+  const fetchDestinyStatus = async () => {
+    setLoadingDestiny(true);
+    try {
+      const res = await getDestinyAiModelStatusAction(consultancySlug);
+      if (res.success) {
+        setDestinyData({
+          isConfigured: res.isConfigured,
+          models: (res.models as DestinyModelItem[]) || [],
+          totalRequestsToday: res.totalRequestsToday,
+          totalRequestsMonth: res.totalRequestsMonth,
+        });
+      }
+    } catch (err) {
+      console.error("[ConsultancyAiSettingsView] Erro ao carregar status Destiny AI:", err);
+    } finally {
+      setLoadingDestiny(false);
+    }
+  };
 
   const handleSaveRoleLimits = (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,6 +244,161 @@ export function ConsultancyAiSettingsView({
 
         <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2] border-t border-zinc-100 dark:border-[#303238] pt-3">
           O teto diário da consultoria é o limite máximo compartilhado por todos os profissionais. Para aumentá-lo, fale com a equipe da plataforma TREVO ONE.
+        </p>
+      </div>
+
+      {/* Destiny AI Models & Quotas Card */}
+      <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                Modelos de IA & Alternância Automática (Destiny AI)
+              </span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                Fase 1: Personal & Treinos
+              </span>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-[#8E95A2] mt-0.5">
+              Ordem de prioridade, disponibilidade oficial no gateway e métricas de consumo para geração e auxílio no Builder 4.0.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            disabled={loadingDestiny}
+            onClick={fetchDestinyStatus}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1E2024] dark:hover:bg-[#282A30] text-zinc-700 dark:text-zinc-200 transition-colors cursor-pointer self-start sm:self-auto"
+          >
+            <span>🔄</span>
+            <span>{loadingDestiny ? "Atualizando..." : "Atualizar Status"}</span>
+          </button>
+        </div>
+
+        {/* Global/API Level Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+          <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238]">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-[#8E95A2] block">
+              Gateway & Chave
+            </span>
+            <div className="text-sm font-bold text-zinc-900 dark:text-white mt-1 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              Destiny AI (Plano Pro)
+            </div>
+            <span className="text-[10px] text-zinc-400 dark:text-[#8E95A2] block mt-0.5">
+              OpenAI Compatible • Backend seguro
+            </span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238]">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-[#8E95A2] block">
+              Requisições Registradas (Hoje)
+            </span>
+            <div className="text-lg font-bold font-mono text-zinc-900 dark:text-white mt-1">
+              {destinyData?.totalRequestsToday ?? 0}
+            </div>
+            <span className="text-[10px] text-zinc-400 dark:text-[#8E95A2] block mt-0.5">
+              Consumo registrado no provedor
+            </span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238]">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-[#8E95A2] block">
+              Requisições no Mês
+            </span>
+            <div className="text-lg font-bold font-mono text-zinc-900 dark:text-white mt-1">
+              {destinyData?.totalRequestsMonth ?? 0}
+            </div>
+            <span className="text-[10px] text-zinc-400 dark:text-[#8E95A2] block mt-0.5">
+              Acumulado na conta Destiny AI
+            </span>
+          </div>
+        </div>
+
+        {/* Approved Models Table */}
+        <div className="overflow-x-auto border border-zinc-200 dark:border-[#303238] rounded-xl">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-zinc-50 dark:bg-[#1B1D21] border-b border-zinc-200 dark:border-[#303238] text-zinc-500 dark:text-[#8E95A2]">
+              <tr>
+                <th className="py-2.5 px-3">Prioridade / Modelo</th>
+                <th className="py-2.5 px-3">Papel no Sistema</th>
+                <th className="py-2.5 px-3">Cota Oficial Provedor</th>
+                <th className="py-2.5 px-3">Status Operacional</th>
+                <th className="py-2.5 px-3">Renovação Prevista</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100 dark:divide-[#303238]">
+              {destinyData?.models && destinyData.models.length > 0 ? (
+                destinyData.models.map((m) => (
+                  <tr key={m.id} className="hover:bg-zinc-50/50 dark:hover:bg-[#1B1D21]/50">
+                    <td className="py-3 px-3">
+                      <div className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono text-[11px] flex items-center justify-center font-bold">
+                          {m.priority}
+                        </span>
+                        <span>{m.displayName}</span>
+                      </div>
+                      <span className="text-[10px] text-zinc-400 font-mono ml-7 block">{m.id}</span>
+                    </td>
+                    <td className="py-3 px-3">
+                      {m.role === "PRIMARY" ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                          Principal
+                        </span>
+                      ) : m.role === "BACKUP_1" ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-500/10 text-sky-700 dark:text-sky-400 border border-sky-500/20">
+                          Reserva 1
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                          Reserva 2
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="font-mono font-bold text-zinc-900 dark:text-white">
+                        {m.remaining}
+                      </div>
+                      <span className="text-[10px] text-zinc-400">
+                        ({Math.round(m.remainingFraction * 100)}% disponível)
+                      </span>
+                    </td>
+                    <td className="py-3 px-3">
+                      {m.status === "AVAILABLE" ? (
+                        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Disponível
+                        </span>
+                      ) : m.status === "COOLDOWN" ? (
+                        <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Cooldown ({m.consecutiveFailures} falhas)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                          Esgotado
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 font-mono text-zinc-600 dark:text-zinc-300">
+                      {m.resetTime ? new Date(m.resetTime).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="py-4 text-center text-zinc-500">
+                    {loadingDestiny ? "Carregando modelos aprovados..." : "Destiny AI não configurada ou sem conexão."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2] border-t border-zinc-100 dark:border-[#303238] pt-3">
+          <strong>Regra de Contingência Autônoma:</strong> Caso o modelo principal (gemini-2.5-flash) atinja cota esgotada (429/400 RESOURCE_EXHAUSTED) ou instabilidade temporária (500/503), o backend comuta automaticamente para o Reserva 1 (gemini-3-flash) e subsequentemente para o Reserva 2 (gemini-2.5-flash-lite), sem interromper a tela do Personal.
         </p>
       </div>
 

@@ -130,7 +130,7 @@ export default async function ConsultancyWorkoutsPage({
   const pageSubtitle = isAssignmentsTab
     ? "Acompanhe e atualize os treinos dos seus alunos."
     : isTemplatesTab
-    ? "Modelos prontos para acelerar a prescrição de treinos aos seus alunos."
+    ? "Programas de treino prontos para acelerar a prescrição aos seus alunos."
     : "Crie, encontre e acompanhe seus treinos.";
 
   const latestDraft = workoutsData.items.find((w) => w.hasActiveDraft);
@@ -214,8 +214,8 @@ export default async function ConsultancyWorkoutsPage({
                 : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
             }`}
           >
-            <span className="sm:hidden">Modelos</span>
-            <span className="hidden sm:inline">Modelos prontos</span>
+            <span className="sm:hidden">Programas</span>
+            <span className="hidden sm:inline">Programas de Treino</span>
           </Link>
           <Link
             href={`/consultoria/${slug}/rotinas?tab=assignments`}
@@ -311,12 +311,12 @@ export default async function ConsultancyWorkoutsPage({
                   <div className="space-y-1 max-w-md mx-auto">
                     <h3 className="text-base font-bold text-[#102E23]">
                       {isTemplatesTab
-                        ? "Você ainda não criou nenhum modelo de treino"
+                        ? "Você ainda não criou nenhum programa de treino"
                         : "Você ainda não criou nenhuma ficha de treino"}
                     </h3>
                     <p className="text-xs text-[#526058] leading-relaxed">
                       {isTemplatesTab
-                        ? "Crie modelos padronizados para acelerar a prescrição de treinos aos seus alunos."
+                        ? "Crie programas de treino padronizados para acelerar a prescrição aos seus alunos."
                         : "Comece agora montando sua primeira ficha com o novo editor ultrarrápido."}
                     </p>
                   </div>
@@ -325,7 +325,7 @@ export default async function ConsultancyWorkoutsPage({
                       href={`/consultoria/${slug}/rotinas/novo${isTemplatesTab ? "?isTemplate=true" : ""}`}
                       className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all cursor-pointer"
                     >
-                      <span>{isTemplatesTab ? "+ Criar primeiro modelo" : "+ Criar meu primeiro treino"}</span>
+                      <span>{isTemplatesTab ? "+ Criar primeiro programa" : "+ Criar meu primeiro treino"}</span>
                     </Link>
                   </div>
                 </div>

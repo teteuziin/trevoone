@@ -40,8 +40,7 @@ import {
   publishWorkoutAction,
   assignWorkoutVersionAction,
   saveWorkoutAsTemplateAction,
-  createWorkoutFromTemplateAction,
-  getTemplatePreviewAction,
+  applyTemplateToExistingDraftAction,
   getActiveStudentByMembershipAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
 import { EditorHeader } from "./editor-header";
@@ -838,32 +837,22 @@ export function WorkoutEditor4({
   const handleApplyWholeTemplate = async (templatePublicId: string, replace: boolean) => {
     setSaveStatus("saving");
     try {
-      if (replace) {
-        const res = await createWorkoutFromTemplateAction(consultancySlug, templatePublicId, {
-          title: workout.title,
-          targetStudentMembershipPublicId: student?.membershipPublicId,
-        });
-        if (res.ok && res.data) {
-          router.push(
-            `/consultoria/${consultancySlug}/rotinas/${res.data.workoutPublicId}${
-              student ? `?student=${student.membershipPublicId}` : ""
-            }`
-          );
-          router.refresh();
-          return;
+      const res = await applyTemplateToExistingDraftAction(
+        consultancySlug,
+        version.publicId,
+        templatePublicId,
+        { replaceExisting: replace }
+      );
+      if (res.ok && res.data) {
+        setBlocks(res.data.blocks || []);
+        if (res.data.blocks && res.data.blocks.length > 0) {
+          setActiveBlockPublicId(res.data.blocks[0].publicId);
         }
+        setSaveStatus("saved");
+        router.refresh();
       } else {
-        const res = await getTemplatePreviewAction(consultancySlug, templatePublicId);
-        if (res.ok && res.data) {
-          const tmpl = res.data;
-          for (const b of tmpl.blocks || []) {
-            await addBlockToDraftAction(consultancySlug, version.publicId, {
-              title: b.title,
-            });
-          }
-          router.refresh();
-          setSaveStatus("saved");
-        }
+        alert(res.error || "Erro ao aplicar programa ao treino.");
+        setSaveStatus("idle");
       }
     } catch {
       setSaveStatus("error");

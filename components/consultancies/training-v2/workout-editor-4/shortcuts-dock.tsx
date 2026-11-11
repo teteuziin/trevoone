@@ -76,16 +76,16 @@ export function ShortcutsDock({
           </span>
         </button>
 
-        {/* 2. Modelos */}
+        {/* 2. Programas */}
         <button
           type="button"
           onClick={onOpenModels}
           className="min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 py-1.5 sm:py-2 px-1 sm:px-3 rounded-xl sm:rounded-full text-white/90 hover:text-white hover:bg-white/10 transition-colors min-h-[44px] cursor-pointer"
-          title="Modelos de treino prontos"
+          title="Programas de Treino prontos"
         >
           <BookOpenIcon className="w-4 h-4 shrink-0" />
           <span className="text-[10px] sm:text-xs font-semibold tracking-tight truncate w-full text-center leading-tight">
-            Modelos
+            Programas
           </span>
         </button>
 

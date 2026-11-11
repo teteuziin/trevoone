@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { listPublishedTemplatesAction } from "@/app/consultoria/[slug]/rotinas/actions";
+import {
+  listPublishedTemplatesAction,
+  createWorkoutFromTemplateAction,
+} from "@/app/consultoria/[slug]/rotinas/actions";
 import type { TemplatePickerItemDto } from "@/lib/training-v2/workout-repository";
-import { TemplateAssignModal } from "@/components/consultancies/training-v2/template-assign-modal";
 
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -78,13 +80,38 @@ export function StudentNewWorkoutSheet({
   const [templates, setTemplates] = useState<TemplatePickerItemDto[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
-  const [selectedTemplateForAssign, setSelectedTemplateForAssign] = useState<TemplatePickerItemDto | null>(null);
+  const [isApplyingProgramId, setIsApplyingProgramId] = useState<string | null>(null);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   const handleClose = () => {
     setViewMode("CHOICE");
-    setSelectedTemplateForAssign(null);
+    setIsApplyingProgramId(null);
+    setApplyError(null);
     setSearchQuery("");
     onClose();
+  };
+
+  const handleSelectProgram = async (templatePublicId: string) => {
+    if (isApplyingProgramId) return;
+    setIsApplyingProgramId(templatePublicId);
+    setApplyError(null);
+    try {
+      const res = await createWorkoutFromTemplateAction(consultancySlug, templatePublicId, {
+        targetStudentMembershipPublicId: studentMembershipPublicId,
+      });
+      if (res.ok && res.data) {
+        handleClose();
+        router.push(
+          `/consultoria/${consultancySlug}/rotinas/${res.data.workoutPublicId}?student=${studentMembershipPublicId}`
+        );
+      } else {
+        setApplyError(res.error || "Erro ao montar programa no Builder.");
+        setIsApplyingProgramId(null);
+      }
+    } catch {
+      setApplyError("Erro de conexão ao montar o programa de treino.");
+      setIsApplyingProgramId(null);
+    }
   };
 
   // Load templates when switching to TEMPLATES view
@@ -143,7 +170,7 @@ export function StudentNewWorkoutSheet({
 
               <div className="min-w-0">
                 <h3 className="text-base font-extrabold text-[var(--text-primary)] truncate">
-                  {viewMode === "TEMPLATES" ? "Modelos de Treino" : "Novo Treino"}
+                  {viewMode === "TEMPLATES" ? "Programas de Treino" : "Novo Treino"}
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)] truncate">
                   Aluno: {studentName}
@@ -162,6 +189,19 @@ export function StudentNewWorkoutSheet({
 
           {/* Body */}
           <div className="p-5 space-y-3.5 overflow-y-auto flex-1">
+            {applyError && (
+              <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-semibold flex items-center justify-between gap-2">
+                <span>{applyError}</span>
+                <button
+                  type="button"
+                  onClick={() => setApplyError(null)}
+                  className="text-xs underline cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            )}
+
             {viewMode === "CHOICE" ? (
               <div className="space-y-3">
                 <p className="text-xs text-[var(--text-secondary)]">
@@ -190,7 +230,7 @@ export function StudentNewWorkoutSheet({
                   </span>
                 </button>
 
-                {/* Option 2: Reusable Template */}
+                {/* Option 2: Reusable Template / Program */}
                 <button
                   type="button"
                   onClick={() => setViewMode("TEMPLATES")}
@@ -202,14 +242,14 @@ export function StudentNewWorkoutSheet({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-bold text-[var(--text-primary)] group-hover:text-purple-600 transition-colors">
-                        Usar plano padrão (Modelo)
+                        Escolher programa
                       </h4>
                       <span className="px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-600 dark:text-purple-400 text-[10px] font-extrabold uppercase">
                         Recomendado
                       </span>
                     </div>
                     <p className="text-xs text-[var(--text-secondary)] mt-0.5 leading-relaxed">
-                      Escolha um modelo pronto da consultoria. Uma cópia independente será criada para este aluno e poderá ser personalizada livremente.
+                      Escolha um Programa de Treino pronto da consultoria. O Builder abrirá automaticamente com todas as divisões e exercícios já montados para este aluno, prontos para você revisar e personalizar.
                     </p>
                   </div>
                   <span className="text-xs font-bold text-purple-500 shrink-0 self-center">
@@ -226,14 +266,14 @@ export function StudentNewWorkoutSheet({
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar por nome do modelo..."
+                    placeholder="Buscar programa pelo nome..."
                     className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] text-[var(--text-primary)] min-h-[44px]"
                   />
                 </div>
 
                 {isLoadingTemplates ? (
                   <div className="py-8 text-center text-xs text-[var(--text-secondary)]">
-                    Carregando modelos da consultoria...
+                    Carregando programas de treino da consultoria...
                   </div>
                 ) : templates.length === 0 ? (
                   <div className="py-8 text-center space-y-2">
@@ -241,10 +281,10 @@ export function StudentNewWorkoutSheet({
                       <LayersIcon className="w-5 h-5" />
                     </div>
                     <p className="text-xs font-semibold text-[var(--text-primary)]">
-                      Nenhum modelo publicado encontrado.
+                      Nenhum programa de treino publicado encontrado.
                     </p>
                     <p className="text-[11px] text-[var(--text-secondary)] max-w-xs mx-auto">
-                      Crie treinos e utilize a opção &quot;Salvar como Modelo&quot; para utilizá-los aqui.
+                      Crie treinos e utilize a opção &quot;Salvar como Programa&quot; para utilizá-los aqui.
                     </p>
                     <button
                       type="button"
@@ -267,7 +307,7 @@ export function StudentNewWorkoutSheet({
                           </h4>
                           <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-tertiary)]">
                             <span>
-                              {tpl.blocksCount} {tpl.blocksCount === 1 ? "categoria" : "categorias"}
+                              {tpl.blocksCount} {tpl.blocksCount === 1 ? "divisão" : "divisões"}
                             </span>
                             {tpl.estimatedDurationMinutes != null && (
                               <>
@@ -286,11 +326,21 @@ export function StudentNewWorkoutSheet({
 
                         <button
                           type="button"
-                          onClick={() => setSelectedTemplateForAssign(tpl)}
-                          className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-xs min-h-[44px] flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                          disabled={Boolean(isApplyingProgramId)}
+                          onClick={() => handleSelectProgram(tpl.publicId)}
+                          className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-xs min-h-[44px] flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
                         >
-                          <SparklesIcon className="w-3.5 h-3.5" />
-                          <span>Usar modelo</span>
+                          {isApplyingProgramId === tpl.publicId ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+                              <span>Montando no Builder...</span>
+                            </>
+                          ) : (
+                            <>
+                              <SparklesIcon className="w-3.5 h-3.5" />
+                              <span>Usar programa</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     ))}
@@ -301,23 +351,6 @@ export function StudentNewWorkoutSheet({
           </div>
         </div>
       </div>
-
-      {/* Direct Assignment Modal when a template is selected */}
-      {selectedTemplateForAssign && (
-        <TemplateAssignModal
-          isOpen={true}
-          onClose={() => setSelectedTemplateForAssign(null)}
-          slug={consultancySlug}
-          templatePublicId={selectedTemplateForAssign.publicId}
-          templateTitle={selectedTemplateForAssign.title}
-          initialStudentMembershipPublicId={studentMembershipPublicId}
-          initialStudentName={studentName}
-          onAssigned={() => {
-            handleClose();
-            router.refresh();
-          }}
-        />
-      )}
     </>
   );
 }

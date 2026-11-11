@@ -336,7 +336,7 @@ export function TrainingAiImportModal({
             <div className="px-5 sm:px-6 py-4 border-b border-[#E5E8E2] flex items-center justify-between shrink-0 bg-[#FAFBF9]">
               <div className="min-w-0 pr-3">
                 <h2 id="import-modal-title" className="text-base sm:text-lg font-black text-[#102E23] leading-tight">
-                  {isTemplate ? "Importar modelo de treino com IA" : "Importar treino com IA"}
+                  {isTemplate ? "Importar programa de treino com IA" : "Importar treino com IA"}
                 </h2>
                 <p className="text-xs text-[#526058] mt-0.5">
                   Cole o texto, envie um documento ou envie uma foto do treino.
@@ -620,7 +620,7 @@ export function TrainingAiImportModal({
                           onChange={(e) => setSelectedStudentId(e.target.value ? Number(e.target.value) : null)}
                           className="w-full rounded-2xl bg-[#FAFBF9] border border-[#E5E8E2] px-3.5 py-2.5 text-xs text-[#102E23] focus:outline-none focus:ring-1 focus:ring-[#176B49] min-h-[44px]"
                         >
-                          <option value="">Nenhum (salvar como ficha geral / modelo)</option>
+                          <option value="">Nenhum (salvar como ficha geral / programa)</option>
                           {students.map((s) => (
                             <option key={s.membershipId} value={s.membershipId}>
                               {s.fullName} ({s.email})
@@ -633,7 +633,7 @@ export function TrainingAiImportModal({
 
                   {isTemplate && (
                     <div className="p-3 rounded-2xl bg-[#FAFBF9] border border-[#E5E8E2] text-xs text-[#526058]">
-                      Esta ficha será importada diretamente como um <strong>Modelo Pronto</strong>, independente de alunos.
+                      Esta ficha será importada diretamente como um <strong>Programa de Treino Pronto</strong>, independente de alunos.
                     </div>
                   )}
 

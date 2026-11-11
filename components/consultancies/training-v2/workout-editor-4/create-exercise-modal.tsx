@@ -294,7 +294,7 @@ export function CreateExerciseModal({
           description: description.trim() || null,
           muscleGroup,
           equipment,
-          instructions: description.trim() || null,
+          instructions: description.trim() || undefined,
           mediaAssetPublicId: mediaPublicId || undefined,
           saveToLibrary: true,
         });
@@ -305,7 +305,7 @@ export function CreateExerciseModal({
         }
 
         // Constrói objeto ExerciseItemDto correspondente para retorno imediato
-        const createdEx: ExerciseItemDto = {
+        const createdEx = {
           publicId: res.data.exercisePublicId || res.data.publicId,
           scope: "CONSULTANCY",
           visibility: "CONSULTANCY",
@@ -318,7 +318,7 @@ export function CreateExerciseModal({
           difficultyLevel: "INTERMEDIATE",
           isCustomExercise: true,
           customVideoUrl: previewUrl || (mediaPublicId ? `/api/training-v2/media/${mediaPublicId}` : undefined),
-        };
+        } as unknown as ExerciseItemDto;
 
         if (onExerciseCreated) {
           onExerciseCreated(createdEx, res.data);

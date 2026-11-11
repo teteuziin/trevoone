@@ -145,7 +145,7 @@ export function WorkoutActionsMenu({
             className="w-full px-4 py-2.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)] flex items-center gap-2.5 transition-colors text-left"
           >
             <Bookmark className="w-4 h-4 text-[var(--foreground-muted)]" />
-            Salvar como Modelo
+            Salvar como Programa
           </button>
         </div>
       )}

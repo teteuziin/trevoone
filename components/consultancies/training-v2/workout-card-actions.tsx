@@ -150,10 +150,10 @@ export function WorkoutCardActions({
     startTransition(async () => {
       const res = await saveWorkoutAsTemplateAction(consultancySlug, workoutPublicId);
       if (res.ok) {
-        alert("Ficha salva como modelo com sucesso!");
+        alert("Ficha salva como programa com sucesso!");
         router.refresh();
       } else {
-        alert(res.error || "Erro ao salvar modelo.");
+        alert(res.error || "Erro ao salvar programa.");
       }
     });
   };
@@ -173,7 +173,7 @@ export function WorkoutCardActions({
   const mobileOptions: ActionSheetOption[] = [
     {
       id: "open",
-      label: isTemplate ? "Ver modelo" : isDraft ? "Continuar treino" : "Ver treino",
+      label: isTemplate ? "Ver programa" : isDraft ? "Continuar treino" : "Ver treino",
       icon: <ExternalIcon className="w-4 h-4 text-[#176B49]" />,
       onClick: () => {
         router.push(`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`);
@@ -181,7 +181,7 @@ export function WorkoutCardActions({
     },
     {
       id: "rename",
-      label: isTemplate ? "Renomear modelo" : "Renomear treino",
+      label: isTemplate ? "Renomear programa" : "Renomear treino",
       icon: <EditIcon className="w-4 h-4 text-[#102E23]" />,
       onClick: () => {
         setRenameValue(workoutTitle);
@@ -203,7 +203,7 @@ export function WorkoutCardActions({
       : [
           {
             id: "save-template",
-            label: "Salvar como modelo",
+            label: "Salvar como programa",
             icon: <LayersIcon className="w-4 h-4 text-[#6B46C1]" />,
             onClick: handleSaveAsTemplate,
             disabled: isPending,
@@ -211,7 +211,7 @@ export function WorkoutCardActions({
         ]),
     {
       id: "duplicate",
-      label: isTemplate ? "Duplicar modelo" : "Duplicar treino",
+      label: isTemplate ? "Duplicar programa" : "Duplicar treino",
       icon: <CopyIcon className="w-4 h-4 text-[#102E23]" />,
       onClick: handleDuplicate,
       disabled: isPending,
@@ -226,7 +226,7 @@ export function WorkoutCardActions({
     },
     {
       id: "delete",
-      label: isTemplate ? "Excluir modelo" : isDraft ? "Excluir rascunho" : "Arquivar treino",
+      label: isTemplate ? "Excluir programa" : isDraft ? "Excluir rascunho" : "Arquivar treino",
       icon: <TrashIcon className="w-4 h-4 text-rose-500" />,
       variant: "danger" as const,
       onClick: () => {
@@ -252,7 +252,7 @@ export function WorkoutCardActions({
             className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#176B49] hover:bg-[#12583B] text-white shadow-2xs transition-all min-h-[36px] cursor-pointer"
           >
             <SparklesIcon className="w-3.5 h-3.5" />
-            <span>Usar modelo</span>
+            <span>Usar programa</span>
           </button>
         ) : isDraft ? (
           <Link
@@ -282,7 +282,7 @@ export function WorkoutCardActions({
             e.stopPropagation();
             setIsMenuOpen(!isMenuOpen);
           }}
-          aria-label={isTemplate ? "Opções do modelo" : "Opções do treino"}
+          aria-label={isTemplate ? "Opções do programa" : "Opções do treino"}
           className="p-2 rounded-xl text-[#526058] hover:text-[#102E23] hover:bg-[#F5F5F0] border border-[#E5E8E2] transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
         >
           <MoreVertical className="w-4 h-4" />
@@ -300,7 +300,7 @@ export function WorkoutCardActions({
                   className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F5F0] flex items-center gap-2 text-left cursor-pointer transition-colors"
                 >
                   <ExternalIcon className="w-3.5 h-3.5 text-[#176B49]" />
-                  <span>{isTemplate ? "Ver modelo" : isDraft ? "Continuar treino" : "Ver treino"}</span>
+                  <span>{isTemplate ? "Ver programa" : isDraft ? "Continuar treino" : "Ver treino"}</span>
                 </Link>
 
                 <button
@@ -313,7 +313,7 @@ export function WorkoutCardActions({
                   className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F5F0] flex items-center gap-2 text-left cursor-pointer transition-colors text-[#102E23]"
                 >
                   <EditIcon className="w-3.5 h-3.5 text-[#526058]" />
-                  <span>{isTemplate ? "Renomear modelo" : "Renomear treino"}</span>
+                  <span>{isTemplate ? "Renomear programa" : "Renomear treino"}</span>
                 </button>
 
                 {isTemplate ? (
@@ -336,7 +336,7 @@ export function WorkoutCardActions({
                     className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F5F0] flex items-center gap-2 text-left cursor-pointer disabled:opacity-50 transition-colors text-[#102E23]"
                   >
                     <LayersIcon className="w-3.5 h-3.5 text-[#6B46C1]" />
-                    <span>Salvar como modelo</span>
+                    <span>Salvar como programa</span>
                   </button>
                 )}
 
@@ -347,7 +347,7 @@ export function WorkoutCardActions({
                   className="w-full px-3 py-2 rounded-xl hover:bg-[#F5F5F0] flex items-center gap-2 text-left cursor-pointer disabled:opacity-50 transition-colors"
                 >
                   <CopyIcon className="w-3.5 h-3.5 text-[#526058]" />
-                  <span>{isTemplate ? "Duplicar modelo" : "Duplicar treino"}</span>
+                  <span>{isTemplate ? "Duplicar programa" : "Duplicar treino"}</span>
                 </button>
 
                 <a
@@ -372,7 +372,7 @@ export function WorkoutCardActions({
                   className="w-full px-3 py-2 rounded-xl hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left cursor-pointer transition-colors"
                 >
                   <TrashIcon className="w-3.5 h-3.5" />
-                  <span>{isTemplate ? "Excluir modelo" : isDraft ? "Excluir rascunho" : "Arquivar treino"}</span>
+                  <span>{isTemplate ? "Excluir programa" : isDraft ? "Excluir rascunho" : "Arquivar treino"}</span>
                 </button>
               </div>
             </div>
@@ -390,7 +390,7 @@ export function WorkoutCardActions({
               </div>
               <div>
                 <h3 className="text-base font-bold text-[#102E23]">
-                  {isTemplate ? "Renomear modelo" : "Renomear treino"}
+                  {isTemplate ? "Renomear programa" : "Renomear treino"}
                 </h3>
                 <p className="text-xs text-[#6B7870]">
                   Altere o nome exibido para este treino
@@ -451,10 +451,10 @@ export function WorkoutCardActions({
           isOpen={isDeleteDialogOpen}
           onClose={() => setIsDeleteDialogOpen(false)}
           onConfirm={handleConfirmDelete}
-          title={isTemplate ? "Excluir modelo?" : "Excluir treino?"}
+          title={isTemplate ? "Excluir programa?" : "Excluir treino?"}
           description={
             isTemplate
-              ? `Esta ação removerá este modelo padrão (${workoutTitle}). Alunos que já receberam este plano continuarão com suas rotinas 100% intactas.`
+              ? `Esta ação removerá este programa de treino (${workoutTitle}). Alunos que já receberam este plano continuarão com suas rotinas 100% intactas.`
               : `Esta ação removerá este ${isDraft ? "rascunho" : "treino"} (${workoutTitle}). O histórico de treinos concluídos pelos alunos é 100% preservado.`
           }
           confirmLabel={isPending ? "Excluindo..." : "Excluir"}
@@ -473,11 +473,11 @@ export function WorkoutCardActions({
                 <TrashIcon className="w-5 h-5" />
               </div>
               <h3 className="text-base font-extrabold text-[#102E23]">
-                {isTemplate ? "Excluir este modelo?" : "Excluir este treino?"}
+                {isTemplate ? "Excluir este programa?" : "Excluir este treino?"}
               </h3>
               <p className="text-xs text-[#526058] leading-relaxed">
                 {isTemplate
-                  ? `Esta ação removerá este modelo padrão (${workoutTitle}). Alunos que já receberam este plano continuarão com suas rotinas 100% intactas.`
+                  ? `Esta ação removerá este programa de treino (${workoutTitle}). Alunos que já receberam este plano continuarão com suas rotinas 100% intactas.`
                   : `Esta ação removerá este ${isDraft ? "rascunho" : "treino"} (${workoutTitle}). O histórico de treinos concluídos pelos alunos é 100% preservado.`}
               </p>
             </div>

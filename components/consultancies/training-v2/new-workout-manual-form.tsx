@@ -110,7 +110,7 @@ export function NewWorkoutManualForm({
       {/* 1. CAMPO PRINCIPAL OBRIGATÓRIO: Nome da Ficha */}
       <div className="space-y-2">
         <label htmlFor="workout-title" className="block text-sm font-bold text-[var(--text-primary)]">
-          {isTemplate ? "Nome do modelo padrão" : "Nome da ficha"}
+          {isTemplate ? "Nome do programa padrão" : "Nome da ficha"}
           <span className="text-emerald-500 ml-1" aria-hidden="true">*</span>
         </label>
         <input
@@ -264,7 +264,7 @@ export function NewWorkoutManualForm({
           ) : (
             <>
               <DumbbellIcon className="w-4 h-4" />
-              <span>{isTemplate ? "Começar modelo" : "Começar montagem"}</span>
+              <span>{isTemplate ? "Começar programa" : "Começar montagem"}</span>
             </>
           )}
         </Button>

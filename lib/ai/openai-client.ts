@@ -7,6 +7,13 @@
 import OpenAI, { toFile } from "openai";
 import JSZip from "jszip";
 import {
+  isDestinyAiConfigured,
+  getDestinyAiClient,
+  callDestinyAiForTraining,
+  callDestinyAiForNutrition,
+  resolveDestinyAiModel,
+} from "./destiny-ai-client";
+import {
   TRAINING_IMPORT_JSON_SCHEMA,
   type RawTrainingImportProposal,
   type RawNutritionImportProposal,
@@ -143,14 +150,26 @@ type ResponsesApiClient = {
   };
 };
 
+export {
+  isDestinyAiConfigured,
+  getDestinyAiClient,
+  callDestinyAiForTraining,
+  callDestinyAiForNutrition,
+  resolveDestinyAiModel,
+};
+
 export function isOpenAiConfigured(): boolean {
+  if (isDestinyAiConfigured()) return true;
   return Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim().length > 0);
 }
 
 export function getOpenAiClient(): OpenAI {
+  if (isDestinyAiConfigured()) {
+    return getDestinyAiClient();
+  }
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY não configurada no servidor.");
+    throw new Error("DESTINYAI_API_KEY ou OPENAI_API_KEY não configurada no servidor.");
   }
   return new OpenAI({ apiKey });
 }
@@ -181,6 +200,13 @@ export async function callOpenAiForTraining(
   model = DEFAULT_OPENAI_IMPORT_MODEL,
   mode: "IMPORT" | "GENERATE" = "IMPORT"
 ): Promise<{ proposal: RawTrainingImportProposal; metadata: ExtractionMetadata }> {
+  if (isDestinyAiConfigured()) {
+    return await callDestinyAiForTraining(
+      input,
+      model === DEFAULT_OPENAI_IMPORT_MODEL ? undefined : model,
+      mode
+    );
+  }
   const client = getOpenAiClient();
   let uploadedFileId: string | null = null;
 
@@ -472,6 +498,12 @@ export async function callOpenAiForNutrition(
   input: DocumentInput,
   model = DEFAULT_OPENAI_IMPORT_MODEL
 ): Promise<{ proposal: RawNutritionImportProposal; metadata: ExtractionMetadata }> {
+  if (isDestinyAiConfigured()) {
+    return await callDestinyAiForNutrition(
+      input,
+      model === DEFAULT_OPENAI_IMPORT_MODEL ? undefined : model
+    );
+  }
   const client = getOpenAiClient();
   let uploadedFileId: string | null = null;
 

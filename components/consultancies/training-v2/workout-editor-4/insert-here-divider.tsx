@@ -153,7 +153,7 @@ export function InsertHereDivider({
               <span className="w-6 h-6 rounded-lg bg-[#F5F5F0] text-[#526058] flex items-center justify-center text-xs">
                 📚
               </span>
-              <span>Do modelo pronto...</span>
+              <span>De programa pronto...</span>
             </button>
 
             <button

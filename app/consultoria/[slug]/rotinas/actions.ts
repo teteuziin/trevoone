@@ -61,6 +61,7 @@ import {
   duplicateWorkout,
   saveWorkoutAsTemplate,
   createWorkoutFromTemplate,
+  applyTemplateToExistingDraft,
   assignTemplateToStudent,
   getTemplatePreview,
   listWorkoutVersions,
@@ -1034,6 +1035,34 @@ export async function createWorkoutFromTemplateAction(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Erro ao criar treino a partir do modelo.",
+    };
+  }
+}
+
+/**
+ * Applies a published workout template (Program) directly into an existing draft version.
+ * Clones all blocks, sub-blocks, combinations, exercises, sets, reps and rests into the draft.
+ */
+export async function applyTemplateToExistingDraftAction(
+  slug: string,
+  targetVersionPublicId: string,
+  templatePublicId: string,
+  options?: { replaceExisting?: boolean }
+): Promise<ActionResponse<WorkoutVersionDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const updatedVersion = await applyTemplateToExistingDraft(
+      ctx,
+      targetVersionPublicId,
+      templatePublicId,
+      options
+    );
+    revalidateTrainingPaths(slug);
+    return { ok: true, data: updatedVersion };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao aplicar programa ao treino.",
     };
   }
 }

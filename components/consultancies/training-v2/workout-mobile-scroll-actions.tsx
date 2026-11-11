@@ -75,7 +75,7 @@ export function WorkoutMobileScrollActions({
       <Link
         href={`/consultoria/${consultancySlug}/rotinas/novo${isTemplatesTab ? "?isTemplate=true" : ""}`}
         className="flex items-center gap-1 px-3 py-2 rounded-full bg-[#176B49] text-white font-bold text-xs shadow-md hover:bg-[#12583B] active:scale-95 transition-all min-h-[36px]"
-        aria-label={isTemplatesTab ? "Criar novo modelo" : "Criar novo treino"}
+        aria-label={isTemplatesTab ? "Criar novo programa" : "Criar novo treino"}
       >
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

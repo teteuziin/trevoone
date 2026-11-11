@@ -194,6 +194,8 @@ export type ExerciseItemDto = {
   aliases?: string[];
   matchedAlias?: string;
   matchReason?: string;
+  customVideoUrl?: string | null;
+  isCustomExercise?: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -214,6 +216,8 @@ export type WorkoutItemSetDto = {
   targetDistanceMeters?: number | null;
   targetRestSeconds?: number | null;
   intensityIndicator?: string | null;
+  rpeTarget?: number | null;
+  tempo?: string | null;
 };
 
 export type BlockItemMediaDto = {

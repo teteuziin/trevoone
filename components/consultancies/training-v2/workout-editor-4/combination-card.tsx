@@ -148,7 +148,7 @@ export function CombinationCard({
 
   // Target positions count
   const requiredSlots =
-    currentType === "BI_SET" || currentType === "SUPERSET" || currentType === "SUPER_SET"
+    currentType === "BI_SET" || currentType === "SUPERSET"
       ? 2
       : currentType === "TRI_SET"
       ? 3

@@ -8,6 +8,7 @@ import crypto from "node:crypto";
 import type { PoolConnection, RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { getConsultancyLocalDate } from "../consultancies/timezone";
+import { isDestinyAiConfigured } from "./destiny-ai-client";
 
 export interface ConsultancyAiQuotaInfo {
   consultancyId: number;
@@ -333,11 +334,12 @@ export async function reserveAiQuota(params: ReserveAiQuotaParams): Promise<Rese
 
     // 6. Insert usage reservation
     const usageEventPublicId = crypto.randomUUID();
+    const activeProvider = isDestinyAiConfigured() ? "DESTINY_AI" : "OPENAI";
     await db.query<ResultSetHeader>(
       `INSERT INTO ai_usage_events (
         public_id, consultancy_id, member_id, user_id, role, feature,
         provider, model, import_job_public_id, status, date_bucket, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'OPENAI', ?, ?, 'RESERVED', ?, NOW(3), NOW(3))`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'RESERVED', ?, NOW(3), NOW(3))`,
       [
         usageEventPublicId,
         consultancyId,
@@ -345,6 +347,7 @@ export async function reserveAiQuota(params: ReserveAiQuotaParams): Promise<Rese
         userId,
         role,
         feature,
+        activeProvider,
         recordedModel,
         importJobPublicId ?? null,
         dateBucket,

@@ -86,12 +86,12 @@ export function ExistingWorkoutPicker({
 
     startCloning(async () => {
       const res = await duplicateWorkoutAction(consultancySlug, workout.publicId, undefined, {
-        title: `Modelo — ${workout.title}`,
+        title: `Programa — ${workout.title}`,
         isTemplate: true,
       });
 
       if (!res.ok || !res.data) {
-        setErrorMessage(res.error || "Erro ao transformar treino em modelo.");
+        setErrorMessage(res.error || "Erro ao transformar treino em programa.");
         setSelectedWorkoutId(null);
       } else {
         onClose();
@@ -108,10 +108,10 @@ export function ExistingWorkoutPicker({
         <div className="p-4 sm:p-5 border-b border-[#E5E8E2] flex items-center justify-between gap-3 bg-[#FAFBF9]">
           <div>
             <h3 className="text-base font-extrabold text-[#102E23]">
-              Usar um treino existente como modelo
+              Usar um treino existente como programa
             </h3>
             <p className="text-xs text-[#526058] mt-0.5">
-              Uma cópia independente será salva como modelo pronto.
+              Uma cópia independente será salva como programa pronto.
             </p>
           </div>
           <button
@@ -180,7 +180,7 @@ export function ExistingWorkoutPicker({
                   </div>
 
                   <span className="text-xs font-bold text-[#176B49] shrink-0">
-                    {isSelected && isCloning ? "Clonando..." : "Copiar como modelo →"}
+                    {isSelected && isCloning ? "Clonando..." : "Copiar como programa →"}
                   </span>
                 </div>
               );

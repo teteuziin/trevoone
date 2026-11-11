@@ -116,7 +116,7 @@ export function FinalizeDrawer({
             </span>
             <div>
               <h2 className="text-base font-extrabold text-[#102E23]">
-                {isTemplate ? "Finalizar e Salvar Modelo" : "Conferir e Publicar Treino"}
+                {isTemplate ? "Finalizar e Salvar Programa" : "Conferir e Publicar Treino"}
               </h2>
               <p className="text-xs text-[#526058]">
                 Revise os pontos principais antes de disponibilizar a ficha.
@@ -163,7 +163,7 @@ export function FinalizeDrawer({
                 </span>
               ) : isTemplate ? (
                 <span className="font-bold text-[#526058]">
-                  Modelo reutilizável
+                  Programa reutilizável
                 </span>
               ) : (
                 <button
@@ -216,7 +216,7 @@ export function FinalizeDrawer({
               }}
               className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold text-[#526058] hover:text-[#102E23] hover:bg-[#F5F5F0] transition-colors cursor-pointer"
             >
-              Salvar cópia como modelo
+              Salvar cópia como programa
             </button>
           )}
 
@@ -239,7 +239,7 @@ export function FinalizeDrawer({
               }}
               className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-bold bg-[#176B49] text-white hover:bg-[#102E23] disabled:opacity-40 transition-colors shadow-xs cursor-pointer min-h-[44px]"
             >
-              {isPending ? "Publicando..." : isTemplate ? "Salvar modelo" : "Confirmar e Publicar"}
+              {isPending ? "Publicando..." : isTemplate ? "Salvar programa" : "Confirmar e Publicar"}
             </button>
           </div>
         </div>

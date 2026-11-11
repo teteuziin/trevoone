@@ -132,7 +132,7 @@ export function WorkoutListControls({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar treino, modelo ou aluno..."
+            placeholder="Buscar treino, programa ou aluno..."
             className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-xl border border-[#E5E8E2] bg-[#FDFDFC] focus:outline-none focus:ring-2 focus:ring-[#176B49] focus:border-transparent text-[#102E23] placeholder-[#8C9890] transition-all min-h-[36px] sm:min-h-[38px]"
           />
           {searchTerm && (
@@ -215,7 +215,7 @@ export function WorkoutListControls({
           </div>
         ) : (
           <div className="text-xs text-[#526058] font-medium">
-            Modelos prontos
+            Programas de Treino
           </div>
         )}
 
@@ -227,11 +227,11 @@ export function WorkoutListControls({
             <span className="text-rose-600 font-semibold">Consulta indisponível</span>
           ) : totalResults > 0 ? (
             <span>
-              {totalResults} {totalResults === 1 ? (isTemplatesTab ? "modelo" : "treino") : (isTemplatesTab ? "modelos" : "treinos")}
+              {totalResults} {totalResults === 1 ? (isTemplatesTab ? "programa" : "treino") : (isTemplatesTab ? "programas" : "treinos")}
             </span>
           ) : (
             <span className="text-[#8C9890]">
-              {isTemplatesTab ? "Nenhum modelo" : "Nenhum treino"}
+              {isTemplatesTab ? "Nenhum programa" : "Nenhum treino"}
             </span>
           )}
         </div>
@@ -241,7 +241,7 @@ export function WorkoutListControls({
       {!isTemplatesTab && currentStatus === "PUBLISHED" && (
         <div className="text-[11px] text-[#526058] bg-[#F5F5F0] border border-[#E5E8E2] rounded-xl px-3 py-1.5 flex items-center justify-between gap-2">
           <span>
-            ℹ️ Exibindo fichas e modelos de treino criados por você com status publicado. Para ver os treinos prescritos e ativos dos alunos, acesse a aba <strong>Treinos dos alunos</strong>.
+            ℹ️ Exibindo fichas e programas de treino criados por você com status publicado. Para ver os treinos prescritos e ativos dos alunos, acesse a aba <strong>Treinos dos alunos</strong>.
           </span>
         </div>
       )}

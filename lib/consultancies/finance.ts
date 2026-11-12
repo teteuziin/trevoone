@@ -304,15 +304,21 @@ export type EvaluateAccessChargeItem = {
   dueOn: string;
   blocksAccess: boolean;
   hasConfirmedPayment: boolean;
+  planId?: number | null;
 };
 
 /**
  * Pure helper for evaluating whether overdue unpaid blocking charges restrict a student's access.
  * Returns isRestricted = true only if at least one charge is OPEN, blocks_access = true, due_on < localToday, and has NO payment.
+ * Also supports commercial prepaid plan evaluation when options are supplied.
  */
 export function evaluateStudentFinancialAccess(
   charges: EvaluateAccessChargeItem[],
-  localToday: string
+  localToday: string,
+  options?: {
+    hasActiveSubscription?: boolean;
+    hasCommercialPlan?: boolean;
+  }
 ): { isRestricted: boolean; overdueBlockingCount: number } {
   let overdueBlockingCount = 0;
 
@@ -325,6 +331,14 @@ export function evaluateStudentFinancialAccess(
     ) {
       overdueBlockingCount++;
     }
+  }
+
+  // If student has a commercial plan charge or commercial plan requirement without an active subscription
+  if (options?.hasCommercialPlan && !options?.hasActiveSubscription) {
+    return {
+      isRestricted: true,
+      overdueBlockingCount: Math.max(1, overdueBlockingCount),
+    };
   }
 
   return {
@@ -958,28 +972,133 @@ export async function getStudentFinancialAccessState(params: {
 
     const overdueCount = Array.isArray(rows) ? rows.length : 0;
 
-    if (overdueCount === 0) {
+    if (overdueCount > 0) {
+      const oldest = rows[0];
       return {
         isConfigured: true,
-        isRestricted: false,
-        overdueChargeCount: 0,
+        isRestricted: true,
+        overdueChargeCount: overdueCount,
+        blockingCharge: {
+          publicId: String(oldest.public_id),
+          title: String(oldest.title),
+          amountCents: Number(oldest.amount_cents),
+          currencyCode: String(oldest.currency_code),
+          dueOn: String(oldest.due_on),
+          hasSubmittedReceipt: Boolean(oldest.has_submitted_receipt),
+        },
       };
     }
 
-    const oldest = rows[0];
+    // 2. CHECK COMMERCIAL PLAN ACCESS (InfinitePay prepaid plans)
+    // Step 2A: Check if student has an active, valid subscription
+    const [activeSubRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT sps.id, sps.ends_at
+       FROM student_plan_subscriptions sps
+       WHERE sps.consultancy_id = ?
+         AND sps.student_membership_id = ?
+         AND sps.status = 'ACTIVE'
+         AND (sps.ends_at IS NULL OR sps.ends_at >= NOW(3))
+       ORDER BY sps.id DESC LIMIT 1;`,
+      [consultancyId, studentMembershipId]
+    );
+
+    const hasActiveSubscription = Array.isArray(activeSubRows) && activeSubRows.length > 0;
+
+    if (!hasActiveSubscription) {
+      // Step 2B: Check if student has an open commercial plan charge (new prepaid student awaiting payment)
+      const [pendingPlanRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           sc.id,
+           sc.public_id,
+           sc.title,
+           sc.amount_cents,
+           sc.currency_code,
+           DATE_FORMAT(sc.due_on, '%Y-%m-%d') AS due_on,
+           EXISTS(
+             SELECT 1 FROM student_payment_receipts spr
+             WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED'
+           ) AS has_submitted_receipt
+         FROM student_charges sc
+         WHERE sc.consultancy_id = ?
+           AND sc.student_membership_id = ?
+           AND sc.plan_id IS NOT NULL
+           AND sc.state = 'OPEN'
+         ORDER BY sc.id DESC LIMIT 1;`,
+        [consultancyId, studentMembershipId]
+      );
+
+      if (Array.isArray(pendingPlanRows) && pendingPlanRows.length > 0) {
+        // NEW/PREPAID STUDENT WITH OPEN PLAN CHARGE: Restrict access until payment is confirmed!
+        const planCharge = pendingPlanRows[0];
+        return {
+          isConfigured: true,
+          isRestricted: true,
+          overdueChargeCount: 1,
+          blockingCharge: {
+            publicId: String(planCharge.public_id),
+            title: `${String(planCharge.title)} (Aguardando Pagamento)`,
+            amountCents: Number(planCharge.amount_cents),
+            currencyCode: String(planCharge.currency_code),
+            dueOn: String(planCharge.due_on),
+            hasSubmittedReceipt: Boolean(planCharge.has_submitted_receipt),
+          },
+        };
+      }
+
+      // Step 2C: Check if student has an expired subscription (previously had a plan, now expired)
+      const [expiredSubRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT sps.id, sps.ends_at
+         FROM student_plan_subscriptions sps
+         WHERE sps.consultancy_id = ?
+           AND sps.student_membership_id = ?
+         ORDER BY sps.id DESC LIMIT 1;`,
+        [consultancyId, studentMembershipId]
+      );
+
+      if (Array.isArray(expiredSubRows) && expiredSubRows.length > 0) {
+        // STUDENT HAD A COMMERCIAL PLAN THAT EXPIRED:
+        const [lastChargeRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT
+             sc.id,
+             sc.public_id,
+             sc.title,
+             sc.amount_cents,
+             sc.currency_code,
+             DATE_FORMAT(sc.due_on, '%Y-%m-%d') AS due_on
+           FROM student_charges sc
+           WHERE sc.consultancy_id = ?
+             AND sc.student_membership_id = ?
+           ORDER BY sc.id DESC LIMIT 1;`,
+          [consultancyId, studentMembershipId]
+        );
+
+        if (Array.isArray(lastChargeRows) && lastChargeRows.length > 0) {
+          const lastCharge = lastChargeRows[0];
+          return {
+            isConfigured: true,
+            isRestricted: true,
+            overdueChargeCount: 1,
+            blockingCharge: {
+              publicId: String(lastCharge.public_id),
+              title: `${String(lastCharge.title)} (Plano Expirado)`,
+              amountCents: Number(lastCharge.amount_cents),
+              currencyCode: String(lastCharge.currency_code),
+              dueOn: String(lastCharge.due_on),
+              hasSubmittedReceipt: false,
+            },
+          };
+        }
+      }
+
+      // Step 2D: EXISTING STUDENT WITHOUT COMMERCIAL PLAN:
+      // Has never had a plan_id charge and has never had a student_plan_subscriptions row.
+      // Pure legacy/manual consultancy student -> PRESERVE ACCESS (isRestricted: false)!
+    }
 
     return {
       isConfigured: true,
-      isRestricted: true,
-      overdueChargeCount: overdueCount,
-      blockingCharge: {
-        publicId: String(oldest.public_id),
-        title: String(oldest.title),
-        amountCents: Number(oldest.amount_cents),
-        currencyCode: String(oldest.currency_code),
-        dueOn: String(oldest.due_on),
-        hasSubmittedReceipt: Boolean(oldest.has_submitted_receipt),
-      },
+      isRestricted: false,
+      overdueChargeCount: 0,
     };
   } catch {
     return { isConfigured: false, isRestricted: false, overdueChargeCount: 0 };
@@ -1709,6 +1828,8 @@ export type StudentPaymentChargeDetail = {
   asaasInvoiceUrl?: string | null;
   paymentMethod?: string | null;
   asaasStatusRaw?: string | null;
+  infinitepayCheckoutUrl?: string | null;
+  infinitepaySlug?: string | null;
 };
 
 /**
@@ -1781,6 +1902,8 @@ export async function getStudentChargePaymentDetail(params: {
         sc.asaas_invoice_url,
         sc.payment_method,
         sc.asaas_status_raw,
+        sc.infinitepay_checkout_url,
+        sc.infinitepay_slug,
         sp.amount_cents AS payment_amount_cents,
         DATE_FORMAT(sp.confirmed_at, '%Y-%m-%d %H:%i:%s') AS payment_confirmed_at,
         EXISTS (
@@ -1892,6 +2015,8 @@ export async function getStudentChargePaymentDetail(params: {
       asaasInvoiceUrl: r.asaas_invoice_url ? String(r.asaas_invoice_url) : null,
       paymentMethod: r.payment_method ? String(r.payment_method) : null,
       asaasStatusRaw: r.asaas_status_raw ? String(r.asaas_status_raw) : null,
+      infinitepayCheckoutUrl: r.infinitepay_checkout_url ? String(r.infinitepay_checkout_url) : null,
+      infinitepaySlug: r.infinitepay_slug ? String(r.infinitepay_slug) : null,
     };
   } catch {
     return null;

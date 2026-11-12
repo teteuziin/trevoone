@@ -97,6 +97,21 @@ export interface PersonalStudentOverview {
   hasPendingPhotos?: boolean;
   hasPendingAnamnesis?: boolean;
   hasPendingAssessment?: boolean;
+  coachName?: string | null;
+  studentLevel?: "INICIANTE" | "INTERMEDIARIO" | "AVANCADO" | null;
+  discProfile?: string | null;
+  parqStatus?: "SEM_ALERTAS" | "COM_ALERTAS" | "NAO_PREENCHIDO";
+  injuriesAndLimitations?: string | null;
+  latestBodyFatPct?: number | null;
+  latestMuscleMassKg?: number | null;
+  completedLast30DaysCount?: number;
+  last30DaysActivityDates?: string[];
+  contractPlanTitle?: string | null;
+  contractStartsOn?: string | null;
+  contractEndsOn?: string | null;
+  contractDaysRemaining?: number | null;
+  contractPercentElapsed?: number | null;
+  last30DaysSummary?: Array<{ dateStr: string; dayNumber: number; trained: boolean }>;
 }
 
 export interface PhotoEvaluationItem {
@@ -204,6 +219,8 @@ export interface PhysicalMeasurement {
   hipCm: number | null;
   armCm: number | null;
   thighCm: number | null;
+  bodyFatPct?: number | null;
+  muscleMassKg?: number | null;
   note: string | null;
 }
 
@@ -220,6 +237,44 @@ export interface StudentNutritionItem {
   assignedAt: string;
 }
 
+export interface StudentChargeHistoryItem {
+  publicId: string;
+  title: string;
+  amountCents: number;
+  dueOn: string;
+  state: string;
+  derivedStatus: "PENDING" | "OVERDUE" | "UNDER_REVIEW" | "PAID" | "CANCELED";
+  paymentMethod?: string | null;
+  checkoutUrl?: string | null;
+  receiptUrl?: string | null;
+  installments?: number | null;
+  paidAt?: string | null;
+  createdAt: string;
+}
+
+export interface StudentPlanSummaryItem {
+  publicId: string;
+  name: string;
+  description: string | null;
+  amountCents: number;
+  durationMonths: number | null;
+  durationDays: number | null;
+  assuredInstallments: number;
+  paymentMethods: string;
+}
+
+export interface StudentFinancialHubData {
+  activeSubscription?: {
+    planName: string;
+    amountCents: number;
+    startedAt: string;
+    endsAt: string | null;
+    status: string;
+  } | null;
+  charges: StudentChargeHistoryItem[];
+  availablePlans: StudentPlanSummaryItem[];
+}
+
 export interface PersonalStudentDetail {
   student: PersonalStudentProfile;
   overview: PersonalStudentOverview;
@@ -234,6 +289,7 @@ export interface PersonalStudentDetail {
   completedSessions: CompletedWorkoutSession[];
   measurements: PhysicalMeasurement[];
   nutrition?: StudentNutritionItem[];
+  financial?: StudentFinancialHubData;
   draftNutritionPlan?: {
     planPublicId: string;
     versionPublicId: string;
@@ -460,7 +516,8 @@ export async function getPersonalStudentDetail(params: {
         u.id AS user_id,
         u.public_id AS user_public_id,
         u.full_name,
-        u.email
+        u.email,
+        u.phone
        FROM consultancy_members cm
        INNER JOIN users u ON u.id = cm.user_id
        LEFT JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
@@ -484,7 +541,7 @@ export async function getPersonalStudentDetail(params: {
       userPublicId: String(member.user_public_id),
       name: String(member.full_name || "Aluno"),
       email: String(member.email || ""),
-      phone: null,
+      phone: member.phone ? String(member.phone) : null,
       joinedAt: safeToIsoString(member.joined_at),
       status: String(member.membership_status || "ACTIVE"),
     };
@@ -1104,8 +1161,65 @@ export async function getPersonalStudentDetail(params: {
       hipCm: r.hip_cm != null ? Number(r.hip_cm) : null,
       armCm: r.arm_cm != null ? Number(r.arm_cm) : null,
       thighCm: r.thigh_cm != null ? Number(r.thigh_cm) : null,
+      bodyFatPct: null,
+      muscleMassKg: null,
       note: r.note ? String(r.note) : null,
     }));
+
+    // 4.1. Also fetch Nutrition V2 patient anthropometrics (which includes body_fat_pct, muscle_mass_kg)
+    try {
+      const [anthroRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          pa.measurement_date,
+          pa.weight_kg,
+          pa.waist_cm,
+          pa.abdomen_cm,
+          pa.hip_cm,
+          COALESCE(pa.contracted_arm_cm, pa.relaxed_arm_cm) AS arm_cm,
+          pa.thigh_cm,
+          pa.body_fat_pct,
+          pa.muscle_mass_kg,
+          pa.routine_notes AS note
+         FROM nutrition_v2_patient_anthropometrics pa
+         INNER JOIN nutrition_v2_patient_records pr ON pr.id = pa.patient_record_id
+         WHERE pr.consultancy_id = ?
+           AND pr.student_membership_id = ?
+         ORDER BY pa.measurement_date DESC, pa.id DESC
+         LIMIT 50;`,
+        [consultancyId, membershipId]
+      );
+
+      if (Array.isArray(anthroRows) && anthroRows.length > 0) {
+        for (const ar of anthroRows) {
+          const recDate = formatDateYmd(ar.measurement_date);
+          const existing = measurements.find((m) => m.recordedOn === recDate);
+          if (existing) {
+            if (existing.bodyFatPct == null && ar.body_fat_pct != null) {
+              existing.bodyFatPct = Number(ar.body_fat_pct);
+            }
+            if (existing.muscleMassKg == null && ar.muscle_mass_kg != null) {
+              existing.muscleMassKg = Number(ar.muscle_mass_kg);
+            }
+          } else {
+            measurements.push({
+              recordedOn: recDate,
+              weightKg: ar.weight_kg != null ? Number(ar.weight_kg) : null,
+              waistCm: ar.waist_cm != null ? Number(ar.waist_cm) : null,
+              abdomenCm: ar.abdomen_cm != null ? Number(ar.abdomen_cm) : null,
+              hipCm: ar.hip_cm != null ? Number(ar.hip_cm) : null,
+              armCm: ar.arm_cm != null ? Number(ar.arm_cm) : null,
+              thighCm: ar.thigh_cm != null ? Number(ar.thigh_cm) : null,
+              bodyFatPct: ar.body_fat_pct != null ? Number(ar.body_fat_pct) : null,
+              muscleMassKg: ar.muscle_mass_kg != null ? Number(ar.muscle_mass_kg) : null,
+              note: ar.note ? String(ar.note) : null,
+            });
+          }
+        }
+        measurements.sort((a, b) => new Date(b.recordedOn).getTime() - new Date(a.recordedOn).getTime());
+      }
+    } catch {
+      // Safe fallback if table not yet populated or column differences
+    }
 
     // Resolve weight & height
     const latestProgressWeight = measurements.length > 0 && measurements[0].weightKg
@@ -1200,10 +1314,13 @@ export async function getPersonalStudentDetail(params: {
           COALESCE(wv.objective, w.objective) AS workout_objective,
           COALESCE(wv.difficulty_level, w.difficulty_level) AS difficulty_level,
           wv.public_id AS version_public_id,
-          wv.version_number
+          wv.version_number,
+          u_coach.full_name AS coach_name
          FROM workout_assignments wa
          INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
          INNER JOIN workouts w ON w.id = wv.workout_id
+         LEFT JOIN consultancy_members cm_coach ON cm_coach.id = w.created_by_membership_id
+         LEFT JOIN users u_coach ON u_coach.id = cm_coach.user_id
          WHERE wa.consultancy_id = ?
            AND wa.student_membership_id = ?
            AND wa.deleted_at IS NULL
@@ -1597,6 +1714,280 @@ export async function getPersonalStudentDetail(params: {
     const latestWorkout = workouts.length > 0 ? workouts[0] : null;
     const activeWorkoutsCount = workouts.filter((w) => w.status === "ACTIVE").length;
 
+    // 9.1. Coach / Personal Trainer Resolution
+    let coachName: string | null = (workoutRows.length > 0 && workoutRows[0].coach_name)
+      ? String(workoutRows[0].coach_name)
+      : null;
+    if (!coachName) {
+      try {
+        const [cRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT u.full_name
+           FROM consultancy_members cm
+           INNER JOIN users u ON u.id = cm.user_id
+           INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+           WHERE cm.consultancy_id = ?
+             AND cmr.role IN ('PERSONAL', 'CONSULTANCY_ADMIN')
+             AND cm.status = 'ACTIVE'
+           ORDER BY (cmr.role = 'PERSONAL') DESC, cm.id ASC
+           LIMIT 1;`,
+          [consultancyId]
+        );
+        if (Array.isArray(cRows) && cRows.length > 0) {
+          coachName = String(cRows[0].full_name || "");
+        }
+      } catch {
+        coachName = null;
+      }
+    }
+
+    // 9.2. Last 30 Days Frequency & Consistency Map
+    let completedLast30DaysCount = 0;
+    const last30DaysActivityDates: string[] = [];
+    try {
+      const [sessions30] = await connection.execute<RowDataPacket[]>(
+        `SELECT DATE(wes.completed_at) AS session_date, COUNT(*) AS cnt
+         FROM workout_execution_sessions wes
+         WHERE wes.consultancy_id = ?
+           AND wes.student_membership_id = ?
+           AND wes.status = 'COMPLETED'
+           AND wes.completed_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+         GROUP BY DATE(wes.completed_at)
+         ORDER BY session_date ASC;`,
+        [consultancyId, membershipId]
+      );
+      if (Array.isArray(sessions30)) {
+        for (const s of sessions30) {
+          completedLast30DaysCount += Number(s.cnt || 0);
+          if (s.session_date) {
+            const dStr = formatDateYmd(s.session_date);
+            if (dStr) last30DaysActivityDates.push(dStr);
+          }
+        }
+      }
+    } catch {
+      completedLast30DaysCount = 0;
+    }
+
+    // 9.3. Student Level
+    let studentLevel: "INICIANTE" | "INTERMEDIARIO" | "AVANCADO" = "INICIANTE";
+    const rawLvl = String(mergedResponses.student_level || latestWorkout?.difficultyLevel || "").toUpperCase();
+    if (rawLvl.includes("ADVANCED") || rawLvl.includes("AVAN")) {
+      studentLevel = "AVANCADO";
+    } else if (rawLvl.includes("INTERMEDIATE") || rawLvl.includes("INTER")) {
+      studentLevel = "INTERMEDIARIO";
+    } else {
+      studentLevel = "INICIANTE";
+    }
+
+    // 9.4. DISC Profile
+    const discProfile = mergedResponses.disc_profile
+      ? String(mergedResponses.disc_profile)
+      : mergedResponses.disc
+      ? String(mergedResponses.disc)
+      : mergedResponses.perfil_disc
+      ? String(mergedResponses.perfil_disc)
+      : null;
+
+    // 9.5. PAR-Q Readiness Status & Health Limitations
+    const boneJoint = mergedResponses.bone_joint_problems ? String(mergedResponses.bone_joint_problems).trim() : "";
+    const medicalRestr = mergedResponses.medical_restrictions ? String(mergedResponses.medical_restrictions).trim() : "";
+    const healthProb = mergedResponses.health_problems ? String(mergedResponses.health_problems).trim() : "";
+    const surgery = mergedResponses.surgery_history ? String(mergedResponses.surgery_history).trim() : "";
+
+    const isNegativeResponse = (val: string) => {
+      const low = val.toLowerCase();
+      return !val || low === "não" || low === "nao" || low === "nenhum" || low === "nenhuma" || low === "não possuo" || low === "nao possuo" || low.includes("sem restri");
+    };
+
+    const limitationsList = [
+      !isNegativeResponse(boneJoint) ? boneJoint : null,
+      !isNegativeResponse(medicalRestr) ? medicalRestr : null,
+      !isNegativeResponse(healthProb) ? healthProb : null,
+      !isNegativeResponse(surgery) ? `Cirurgia prévia: ${surgery}` : null,
+    ].filter(Boolean) as string[];
+
+    let parqStatus: "SEM_ALERTAS" | "COM_ALERTAS" | "NAO_PREENCHIDO" = "NAO_PREENCHIDO";
+    let injuriesAndLimitations: string | null = null;
+
+    if (limitationsList.length > 0) {
+      parqStatus = "COM_ALERTAS";
+      injuriesAndLimitations = limitationsList.join(" • ");
+    } else if (anamnesis.length > 0 || Object.keys(mergedResponses).length > 2) {
+      parqStatus = "SEM_ALERTAS";
+      injuriesAndLimitations = null;
+    } else {
+      parqStatus = "NAO_PREENCHIDO";
+      injuriesAndLimitations = null;
+    }
+
+    const latestBodyFatPct = measurements.find((m) => m.bodyFatPct != null)?.bodyFatPct ?? null;
+    const latestMuscleMassKg = measurements.find((m) => m.muscleMassKg != null)?.muscleMassKg ?? null;
+
+    // 9.6. Contract / Plan & Validity
+    let activeSubPlanName: string | null = null;
+    let activeSubStartsOn: string | null = null;
+    let activeSubEndsOn: string | null = null;
+    let activeSubscriptionData = null;
+
+    try {
+      const [subRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           sps.id,
+           sps.status,
+           DATE_FORMAT(sps.started_at, '%Y-%m-%d') AS started_at,
+           DATE_FORMAT(sps.ends_at, '%Y-%m-%d') AS ends_at,
+           cp.name AS plan_name,
+           cp.amount_cents
+         FROM student_plan_subscriptions sps
+         INNER JOIN consultancy_plans cp ON cp.id = sps.plan_id
+         WHERE sps.consultancy_id = ?
+           AND sps.student_membership_id = ?
+           AND sps.status = 'ACTIVE'
+         ORDER BY sps.id DESC
+         LIMIT 1;`,
+        [consultancyId, membershipId]
+      );
+      if (Array.isArray(subRows) && subRows.length > 0) {
+        const sr = subRows[0];
+        activeSubPlanName = String(sr.plan_name);
+        activeSubStartsOn = String(sr.started_at);
+        activeSubEndsOn = sr.ends_at ? String(sr.ends_at) : null;
+        activeSubscriptionData = {
+          planName: activeSubPlanName,
+          amountCents: Number(sr.amount_cents),
+          startedAt: activeSubStartsOn,
+          endsAt: activeSubEndsOn,
+          status: String(sr.status),
+        };
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+
+    // 9.7. Student Financial Charges History & Available Plans
+    const studentChargesList: StudentChargeHistoryItem[] = [];
+    const availablePlansList: StudentPlanSummaryItem[] = [];
+
+    try {
+      const [chRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           sc.public_id,
+           sc.title,
+           sc.amount_cents,
+           DATE_FORMAT(sc.due_on, '%Y-%m-%d') AS due_on,
+           sc.state,
+           sc.infinitepay_checkout_url,
+           sc.infinitepay_receipt_url,
+           sc.infinitepay_installments,
+           sc.infinitepay_capture_method,
+           DATE_FORMAT(sc.paid_at, '%Y-%m-%dT%H:%i:%sZ') AS paid_at,
+           DATE_FORMAT(sc.created_at, '%Y-%m-%dT%H:%i:%sZ') AS created_at,
+           (sc.due_on < CURDATE()) AS is_overdue
+         FROM student_charges sc
+         WHERE sc.consultancy_id = ? AND sc.student_membership_id = ?
+         ORDER BY sc.id DESC
+         LIMIT 50;`,
+        [consultancyId, membershipId]
+      );
+      if (Array.isArray(chRows)) {
+        for (const cr of chRows) {
+          const state = String(cr.state);
+          let derivedStatus: "PENDING" | "OVERDUE" | "UNDER_REVIEW" | "PAID" | "CANCELED" = "PENDING";
+          if (state === "PAID") {
+            derivedStatus = "PAID";
+          } else if (state === "CANCELED") {
+            derivedStatus = "CANCELED";
+          } else if (cr.is_overdue) {
+            derivedStatus = "OVERDUE";
+          }
+          studentChargesList.push({
+            publicId: String(cr.public_id),
+            title: String(cr.title),
+            amountCents: Number(cr.amount_cents),
+            dueOn: String(cr.due_on),
+            state,
+            derivedStatus,
+            paymentMethod: cr.infinitepay_capture_method ? String(cr.infinitepay_capture_method) : null,
+            checkoutUrl: cr.infinitepay_checkout_url ? String(cr.infinitepay_checkout_url) : null,
+            receiptUrl: cr.infinitepay_receipt_url ? String(cr.infinitepay_receipt_url) : null,
+            installments: cr.infinitepay_installments ? Number(cr.infinitepay_installments) : null,
+            paidAt: cr.paid_at ? String(cr.paid_at) : null,
+            createdAt: String(cr.created_at),
+          });
+        }
+      }
+
+      const [pRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+           public_id,
+           name,
+           description,
+           amount_cents,
+           duration_months,
+           duration_days,
+           assured_installments,
+           payment_methods
+         FROM consultancy_plans
+         WHERE consultancy_id = ? AND status = 'ACTIVE'
+         ORDER BY amount_cents ASC;`,
+        [consultancyId]
+      );
+      if (Array.isArray(pRows)) {
+        for (const pr of pRows) {
+          availablePlansList.push({
+            publicId: String(pr.public_id),
+            name: String(pr.name),
+            description: pr.description ? String(pr.description) : null,
+            amountCents: Number(pr.amount_cents),
+            durationMonths: pr.duration_months ? Number(pr.duration_months) : null,
+            durationDays: pr.duration_days ? Number(pr.duration_days) : null,
+            assuredInstallments: Number(pr.assured_installments || 0),
+            paymentMethods: String(pr.payment_methods || "PIX_AND_CARD"),
+          });
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+
+    const activeWorkoutItem = workouts.find((w) => w.status === "ACTIVE") || null;
+    const contractPlanTitle = activeSubPlanName
+      ? activeSubPlanName
+      : activeWorkoutItem
+      ? activeWorkoutItem.title
+      : (workouts.length > 0 ? workouts[0].title : "Consultoria de Treino");
+    const contractStartsOn = activeSubStartsOn || activeWorkoutItem?.startsOn || (workouts.length > 0 ? workouts[0].startsOn : student.joinedAt);
+    const contractEndsOn = activeSubEndsOn || activeWorkoutItem?.endsOn || (workouts.length > 0 ? workouts[0].endsOn : null);
+    let contractDaysRemaining: number | null = null;
+    let contractPercentElapsed: number | null = 100;
+    if (contractEndsOn) {
+      const startMs = new Date(contractStartsOn).getTime();
+      const endMs = new Date(contractEndsOn).getTime();
+      const nowMs = Date.now();
+      contractDaysRemaining = Math.ceil((endMs - nowMs) / (1000 * 60 * 60 * 24));
+      const totalDuration = Math.max(1, endMs - startMs);
+      const elapsed = Math.max(0, nowMs - startMs);
+      contractPercentElapsed = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
+    }
+
+    // 9.7. Last 30 Days Summary Calendar
+    const last30DaysSummary: Array<{ dateStr: string; dayNumber: number; trained: boolean }> = [];
+    const activeDatesSet = new Set(last30DaysActivityDates);
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const ymd = `${y}-${m}-${day}`;
+      last30DaysSummary.push({
+        dateStr: ymd,
+        dayNumber: d.getDate(),
+        trained: activeDatesSet.has(ymd),
+      });
+    }
+
     const nutritionGoal = mergedResponses.main_goal ? String(mergedResponses.main_goal) : null;
     const allergies = mergedResponses.food_allergies ? String(mergedResponses.food_allergies) : null;
     const intolerances = mergedResponses.food_intolerances ? String(mergedResponses.food_intolerances) : null;
@@ -1626,6 +2017,21 @@ export async function getPersonalStudentDetail(params: {
       hasPendingPhotos: photos.some((p) => p.status === "PENDING"),
       hasPendingAnamnesis: Array.isArray(customForms) && customForms.some((r) => String(r.template_title).toLowerCase().includes("anamnes") && r.status === "PENDING"),
       hasPendingAssessment: Array.isArray(customForms) && customForms.some((r) => (String(r.template_title).toLowerCase().includes("avalia") || String(r.template_title).toLowerCase().includes("medid")) && r.status === "PENDING"),
+      coachName,
+      studentLevel,
+      discProfile,
+      parqStatus,
+      injuriesAndLimitations,
+      latestBodyFatPct,
+      latestMuscleMassKg,
+      completedLast30DaysCount,
+      last30DaysActivityDates,
+      contractPlanTitle,
+      contractStartsOn,
+      contractEndsOn,
+      contractDaysRemaining,
+      contractPercentElapsed,
+      last30DaysSummary,
     };
 
     return {
@@ -1643,6 +2049,11 @@ export async function getPersonalStudentDetail(params: {
       measurements,
       nutrition: nutritionPlans,
       draftNutritionPlan,
+      financial: {
+        activeSubscription: activeSubscriptionData,
+        charges: studentChargesList,
+        availablePlans: availablePlansList,
+      },
     };
   } catch (err: unknown) {
     console.error("[Personal Student Hub] Error in getPersonalStudentDetail:", err instanceof Error ? err.message : err);
@@ -1673,6 +2084,21 @@ export async function getPersonalStudentDetail(params: {
           hasPendingPhotos: false,
           hasPendingAnamnesis: false,
           hasPendingAssessment: false,
+          coachName: null,
+          studentLevel: "INICIANTE",
+          discProfile: null,
+          parqStatus: "NAO_PREENCHIDO",
+          injuriesAndLimitations: null,
+          latestBodyFatPct: null,
+          latestMuscleMassKg: null,
+          completedLast30DaysCount: 0,
+          last30DaysActivityDates: [],
+          contractPlanTitle: null,
+          contractStartsOn: null,
+          contractEndsOn: null,
+          contractDaysRemaining: null,
+          contractPercentElapsed: null,
+          last30DaysSummary: [],
         },
         photos: [],
         anamnesis: [],

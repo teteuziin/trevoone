@@ -61,10 +61,10 @@ export async function runRoutesNavSuite() {
   const pages = allRoutes.filter((r) => r.type === "PAGE");
   const apis = allRoutes.filter((r) => r.type === "API");
 
-  runTest(`ROUTES INVENTORY: Discovered exactly 114 total routes (${pages.length} pages, ${apis.length} APIs)`, () => {
-    assert.equal(allRoutes.length, 114, "Total routes in App Router must be 114");
-    assert.equal(pages.length, 76, "Page routes in App Router must be 76");
-    assert.equal(apis.length, 38, "API route handlers in App Router must be 38");
+  runTest(`ROUTES INVENTORY: Discovered exactly 116 total routes (${pages.length} pages, ${apis.length} APIs)`, () => {
+    assert.equal(allRoutes.length, 116, "Total routes in App Router must be 116");
+    assert.equal(pages.length, 77, "Page routes in App Router must be 77");
+    assert.equal(apis.length, 39, "API route handlers in App Router must be 39");
   });
 
   runTest("REGRESSION GUARD 1: No dead link '/consultoria/[slug]/planos' in admin view", () => {
@@ -109,6 +109,7 @@ export async function runRoutesNavSuite() {
       "/conta/perfil",
       "/conta/seguranca",
       "/notificacoes",
+      "/consultoria/[slug]/pagamentos/retorno",
     ];
 
     const routeStrings = pages.map((p) => (p.route === "/" ? "/" : p.route.replace(/\/$/, "")));
@@ -132,6 +133,7 @@ export async function runRoutesNavSuite() {
       "/api/training-v2/media",
       "/api/consultancies/[slug]/chat/messages",
       "/api/consultancies/[slug]/chat/attachments/[attachmentPublicId]",
+      "/api/webhooks/infinitepay",
     ];
 
     const apiStrings = apis.map((a) => a.route.replace(/\/$/, ""));

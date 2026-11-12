@@ -9,11 +9,17 @@ import {
   listConsultancyCharges,
   formatCentsToBrl,
 } from "@/lib/consultancies/finance";
+import {
+  listConsultancyPlans,
+  getInfinitePayConfig,
+} from "@/lib/infinitepay/service";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FinanceStatusBadge } from "@/components/finance/finance-ui-badges";
 import { FinanceSettingsForm } from "@/components/finance/finance-settings-form";
+import { FinancePlansManager } from "@/components/finance/finance-plans-manager";
+import { InfinitePaySettingsForm } from "@/components/finance/infinitepay-settings-form";
 import { AdminExecutiveHeader } from "@/components/admin/admin-executive-header";
 import { AdminPageContainer } from "@/components/admin/admin-page-container";
 
@@ -53,7 +59,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
     redirect(`/consultoria/${slug}`);
   }
 
-  const [settings, dashboard, chargesResult] = await Promise.all([
+  const [settings, dashboard, chargesResult, plans, infinitePayConfig] = await Promise.all([
     getConsultancyFinanceSettings(context.consultancyId),
     getConsultancyFinanceDashboard(context.consultancyId),
     listConsultancyCharges({
@@ -62,9 +68,15 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
       query: q,
       page: page ? parseInt(page, 10) : 1,
     }),
+    listConsultancyPlans({
+      consultancyId: context.consultancyId,
+      includeInactive: true,
+    }),
+    getInfinitePayConfig(context.consultancyId),
   ]);
 
-  const activeTab = aba === "configuracoes" ? "configuracoes" : "cobrancas";
+  const activeTab: "cobrancas" | "planos" | "configuracoes" =
+    aba === "planos" ? "planos" : aba === "configuracoes" ? "configuracoes" : "cobrancas";
   const currentStatusFilter = (status || "ALL").toUpperCase();
 
   const filterTabs = [
@@ -195,23 +207,60 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
           </div>
         )}
 
+        {/* Abas Superiores de Navegação */}
+        <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-[#303238] pb-3">
+          <Link
+            href={`/consultoria/${slug}/financeiro`}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all min-h-[42px] flex items-center gap-2 ${
+              activeTab === "cobrancas"
+                ? "bg-[#176B49] text-white shadow-xs"
+                : "bg-white dark:bg-[#1B1D21] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 border border-zinc-200 dark:border-[#303238]"
+            }`}
+          >
+            <span>Cobranças</span>
+          </Link>
+          <Link
+            href={`/consultoria/${slug}/financeiro?aba=planos`}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all min-h-[42px] flex items-center gap-2 ${
+              activeTab === "planos"
+                ? "bg-[#176B49] text-white shadow-xs"
+                : "bg-white dark:bg-[#1B1D21] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 border border-zinc-200 dark:border-[#303238]"
+            }`}
+          >
+            <span>Planos Comerciais</span>
+            {plans.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-black/10 dark:bg-white/20">
+                {plans.length}
+              </span>
+            )}
+          </Link>
+          <Link
+            href={`/consultoria/${slug}/financeiro?aba=configuracoes`}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all min-h-[42px] flex items-center gap-2 ${
+              activeTab === "configuracoes"
+                ? "bg-[#176B49] text-white shadow-xs"
+                : "bg-white dark:bg-[#1B1D21] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 border border-zinc-200 dark:border-[#303238]"
+            }`}
+          >
+            <span>Configurações & InfinitePay</span>
+          </Link>
+        </div>
+
         {/* Main Tab Content */}
-        {activeTab === "configuracoes" ? (
-          <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 shadow-xs max-w-3xl">
-            <div className="mb-5 pb-4 border-b border-zinc-200 dark:border-[#303238] flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-zinc-900 dark:text-white">Configurações Financeiras</h2>
-                <p className="text-xs text-zinc-500 dark:text-[#8E95A2]">
-                  Defina a chave Pix oficial e o fuso horário para vencimento das mensalidades.
-                </p>
-              </div>
-              <Link href={`/consultoria/${slug}/financeiro?aba=cobrancas`}>
-                <Button variant="outline" size="sm" className="min-h-[44px]">
-                  Voltar às Cobranças
-                </Button>
-              </Link>
+        {activeTab === "planos" ? (
+          <FinancePlansManager consultancySlug={slug} initialPlans={plans} />
+        ) : activeTab === "configuracoes" ? (
+          <div className="space-y-6 max-w-3xl">
+            <InfinitePaySettingsForm consultancySlug={slug} config={infinitePayConfig} />
+            <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 shadow-xs">
+              <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-white mb-2">
+                Chave Pix Manual & Fuso Horário
+              </h3>
+              <p className="text-xs text-zinc-500 dark:text-[#8E95A2] mb-4">
+                Configure a chave Pix manual caso deseje continuar permitindo transferência direta com envio de comprovante.
+              </p>
+              <FinanceSettingsForm slug={slug} initialSettings={settings} />
             </div>
-            <FinanceSettingsForm slug={slug} initialSettings={settings} />
           </div>
         ) : (
           <div className="space-y-4">

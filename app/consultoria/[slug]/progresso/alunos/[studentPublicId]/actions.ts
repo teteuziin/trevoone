@@ -297,6 +297,8 @@ export async function updateStudentPersonalDataAction(
     heightCm?: number | null;
     objective?: string | null;
     phone?: string | null;
+    discProfile?: string | null;
+    studentLevel?: string | null;
   }
 ): Promise<{ success: boolean; error?: string }> {
   const session = await getCurrentSession();
@@ -339,7 +341,13 @@ export async function updateStudentPersonalDataAction(
       );
     }
 
-    if (data.objective !== undefined || data.heightCm !== undefined || data.weightKg !== undefined) {
+    if (
+      data.objective !== undefined ||
+      data.heightCm !== undefined ||
+      data.weightKg !== undefined ||
+      data.discProfile !== undefined ||
+      data.studentLevel !== undefined
+    ) {
       const [intakeRows] = await connection.execute(
         `SELECT id, responses_json FROM student_intake_submissions
          WHERE consultancy_id = ? AND membership_id = ?
@@ -358,6 +366,8 @@ export async function updateStudentPersonalDataAction(
       if (data.objective !== undefined) currentJson.main_goal = data.objective?.trim() || null;
       if (data.heightCm !== undefined) currentJson.height = data.heightCm;
       if (data.weightKg !== undefined) currentJson.weight = data.weightKg;
+      if (data.discProfile !== undefined) currentJson.disc_profile = data.discProfile?.trim() || null;
+      if (data.studentLevel !== undefined) currentJson.student_level = data.studentLevel?.trim() || null;
 
       if (Array.isArray(intakeRows) && intakeRows.length > 0) {
         await connection.execute(

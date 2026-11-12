@@ -88,7 +88,7 @@ export function PixSettingsForm({ initialData }: PixFormProps) {
             type="text"
             value={pixKey}
             onChange={(e) => setPixKey(e.target.value)}
-            placeholder="Ex: 00.000.000/0001-00 ou pix@trevo.one"
+            placeholder="Ex: 00.000.000/0001-00 ou pix@trevoone.com"
             disabled={isPending}
           />
         </FormField>

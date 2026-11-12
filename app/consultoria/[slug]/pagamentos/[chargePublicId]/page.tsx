@@ -376,6 +376,43 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
         {/* DADOS PIX E FORMULÁRIO DE COMPROVANTE (Fluxo Manual) */}
         {canSubmitReceipt && (
           <div className="space-y-6">
+            {/* Card de Pagamento Automático InfinitePay (Quando Disponível) */}
+            {charge.infinitepayCheckoutUrl && (
+              <div className="bg-white dark:bg-[#151619] border-2 border-emerald-500/30 dark:border-emerald-500/40 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 dark:border-[#303238] pb-3.5">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#176B49] bg-[#E8F0EA] px-2.5 py-0.5 rounded-full border border-[#CDEED5]">
+                      Pagamento Online Instantâneo
+                    </span>
+                    <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white">
+                      Pagar com InfinitePay (Pix ou Cartão até 12x)
+                    </h2>
+                  </div>
+                  <span className="px-3 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                    Ativação Automática
+                  </span>
+                </div>
+
+                <p className="text-xs text-zinc-600 dark:text-[#8E95A2] leading-relaxed">
+                  Pague com total segurança no checkout hospedado da InfinitePay (CloudWalk). Aceitamos Pix com liberação imediata e cartão de crédito em até 12 parcelas. Não é necessário enviar comprovante.
+                </p>
+
+                <div className="pt-1">
+                  <a
+                    href={charge.infinitepayCheckoutUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm text-white bg-[#176B49] hover:bg-[#125438] active:bg-[#0E442E] transition-all min-h-[48px] shadow-sm cursor-pointer"
+                  >
+                    <span>Pagar Agora na InfinitePay</span>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            )}
+
             {/* Card com Chave Pix Oficial da Consultoria */}
             {charge.pixSettings ? (
               <div className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">

@@ -10,6 +10,7 @@ import {
   type StudentChargeDerivedStatus,
   type StudentChargesListResult,
 } from "@/lib/consultancies/finance";
+import { getStudentPlanStatus } from "@/lib/infinitepay/service";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 
 export const dynamic = "force-dynamic";
@@ -117,15 +118,24 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
   const parsedPage = page ? Math.max(1, parseInt(page, 10)) : 1;
 
   let result: StudentChargesListResult | null = null;
+  let planStatus: Awaited<ReturnType<typeof getStudentPlanStatus>> | null = null;
   let loadError: string | null = null;
 
   try {
-    result = await getStudentChargesPage({
-      consultancyId: context.consultancyId,
-      studentMembershipId: context.membershipId,
-      view: activeView,
-      page: parsedPage,
-    });
+    const [chargesPage, pStatus] = await Promise.all([
+      getStudentChargesPage({
+        consultancyId: context.consultancyId,
+        studentMembershipId: context.membershipId,
+        view: activeView,
+        page: parsedPage,
+      }),
+      getStudentPlanStatus({
+        consultancyId: context.consultancyId,
+        studentMembershipId: context.membershipId,
+      }),
+    ]);
+    result = chargesPage;
+    planStatus = pStatus;
   } catch (err) {
     console.error("[StudentPaymentsPage] Error loading charges:", err);
     loadError = "Não foi possível carregar os dados financeiros no momento. Tente novamente mais tarde.";
@@ -187,6 +197,110 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
             </div>
           </div>
         </div>
+
+        {/* ===================================================================== */}
+        {/* CARD "MEU PLANO" (Visualização do Aluno & Ação de Pagamento)          */}
+        {/* ===================================================================== */}
+        {(planStatus?.activeSubscription || planStatus?.pendingCharge) && (
+          <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 dark:border-[#303238] pb-3.5">
+              <div className="space-y-0.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[#176B49] bg-[#E8F0EA] px-2.5 py-0.5 rounded-full border border-[#CDEED5]">
+                  Meu Plano Contratado
+                </span>
+                <h2 className="font-heading text-lg font-bold text-zinc-900 dark:text-white">
+                  {planStatus.activeSubscription?.planName || planStatus.pendingCharge?.title || "Consultoria Esportiva"}
+                </h2>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {planStatus.activeSubscription ? (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                    Plano Ativo
+                  </span>
+                ) : planStatus.pendingCharge ? (
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                    planStatus.pendingCharge.isOverdue
+                      ? "bg-rose-500/10 text-rose-700 border-rose-500/20"
+                      : "bg-amber-500/10 text-amber-700 border-amber-500/20"
+                  }`}>
+                    {planStatus.pendingCharge.isOverdue ? "Pagamento Vencido" : "Aguardando Pagamento"}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-1">
+                <span className="text-[11px] font-semibold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block">
+                  Valor do Plano
+                </span>
+                <strong className="text-base font-bold text-zinc-900 dark:text-white block font-mono">
+                  {formatCentsToBrl(
+                    planStatus.activeSubscription?.planAmountCents || planStatus.pendingCharge?.amountCents || 0
+                  )}
+                </strong>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-1">
+                <span className="text-[11px] font-semibold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block">
+                  Vigência
+                </span>
+                <strong className="text-sm font-semibold text-zinc-900 dark:text-white block">
+                  {planStatus.activeSubscription?.endsAt
+                    ? `Até ${formatDateBr(planStatus.activeSubscription.endsAt.slice(0, 10))}`
+                    : planStatus.activeSubscription?.startedAt
+                    ? `Desde ${formatDateBr(planStatus.activeSubscription.startedAt.slice(0, 10))}`
+                    : planStatus.pendingCharge
+                    ? `Vencimento: ${formatDateBr(planStatus.pendingCharge.dueOn)}`
+                    : "Ativação sob demanda"}
+                </strong>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/80 dark:border-[#303238] space-y-1 flex flex-col justify-between">
+                <span className="text-[11px] font-semibold text-zinc-500 dark:text-[#8E95A2] uppercase tracking-wider block">
+                  Formas de Pagamento
+                </span>
+                <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  Pix instantâneo ou Cartão até 12x
+                </span>
+              </div>
+            </div>
+
+            {/* Ação Pagar Agora */}
+            {planStatus.pendingCharge && (
+              <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-zinc-100 dark:border-[#303238]">
+                <p className="text-xs text-[#5A6660]">
+                  Efetue o pagamento com segurança pela InfinitePay para liberar seu acesso imediatamente.
+                </p>
+
+                {planStatus.pendingCharge.checkoutUrl ? (
+                  <a
+                    href={planStatus.pendingCharge.checkoutUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white bg-[#176B49] hover:bg-[#125438] transition-all min-h-[44px] shadow-xs cursor-pointer"
+                  >
+                    <span>Pagar agora (Pix ou Cartão)</span>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </a>
+                ) : (
+                  <Link
+                    href={`/consultoria/${slug}/pagamentos/${planStatus.pendingCharge.publicId}`}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white bg-[#176B49] hover:bg-[#125438] transition-all min-h-[44px] shadow-xs cursor-pointer"
+                  >
+                    <span>Ver cobrança e pagar</span>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ===================================================================== */}
         {/* B. ABAS EXECUTIVAS: "Em aberto" e "Histórico"                         */}

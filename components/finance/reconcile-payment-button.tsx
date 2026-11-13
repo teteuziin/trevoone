@@ -67,7 +67,7 @@ export function ReconcilePaymentButton({
         )}
       </button>
       {statusMessage && (
-        <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">{statusMessage}</p>
+        <p className="text-xs text-amber-700 font-medium">{statusMessage}</p>
       )}
     </div>
   );

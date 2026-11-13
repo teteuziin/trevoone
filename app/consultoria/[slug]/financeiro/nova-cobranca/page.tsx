@@ -47,8 +47,11 @@ export default async function NewChargePage({ params }: PageProps) {
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      showDashboardWallpaper={false}
+      maxWidth="full"
+      className="bg-[#F5F5F0] text-[#102E23] min-h-screen"
     >
-      <div className="max-w-2xl mx-auto space-y-6 pb-12">
+      <div data-theme="light" className="w-full max-w-2xl mx-auto space-y-6 pb-12">
         <PageHeader
           backHref={`/consultoria/${slug}/financeiro`}
           backLabel="Voltar ao Financeiro"
@@ -56,7 +59,7 @@ export default async function NewChargePage({ params }: PageProps) {
           eyebrow="FINANCEIRO"
         />
 
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm">
+        <div className="bg-white border border-[#E5E8E2] rounded-2xl p-6 shadow-sm">
           <ChargeForm slug={slug} hasFinanceSettings={Boolean(settings)} />
         </div>
       </div>

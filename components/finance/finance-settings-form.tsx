@@ -75,16 +75,16 @@ export function FinanceSettingsForm({
       {/* =========================================================================
           PASSO 1: QUEM RECEBE?
           ========================================================================= */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/40 p-4 sm:p-5 space-y-4">
-        <div className="flex items-center gap-2.5 pb-2 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="rounded-2xl border border-[#E5E8E2] bg-zinc-50/70 p-4 sm:p-5 space-y-4">
+        <div className="flex items-center gap-2.5 pb-2 border-b border-zinc-200">
           <div className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center justify-center shrink-0">
             1
           </div>
           <div>
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
+            <h3 className="text-sm font-bold text-zinc-900">
               Quem recebe os pagamentos?
             </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs text-zinc-500">
               Dados do titular e chave Pix para onde os alunos farão as transferências.
             </p>
           </div>
@@ -133,16 +133,16 @@ export function FinanceSettingsForm({
       {/* =========================================================================
           PASSO 2: CONFIGURAÇÕES DA COBRANÇA
           ========================================================================= */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/40 p-4 sm:p-5 space-y-4">
-        <div className="flex items-center gap-2.5 pb-2 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="rounded-2xl border border-[#E5E8E2] bg-zinc-50/70 p-4 sm:p-5 space-y-4">
+        <div className="flex items-center gap-2.5 pb-2 border-b border-zinc-200">
           <div className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center justify-center shrink-0">
             2
           </div>
           <div>
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
+            <h3 className="text-sm font-bold text-zinc-900">
               Regras e Instruções da Cobrança
             </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs text-zinc-500">
               Fuso horário para cálculo de vencimento e orientações exibidas aos alunos.
             </p>
           </div>
@@ -189,16 +189,16 @@ export function FinanceSettingsForm({
       {/* =========================================================================
           PASSO 3: SALVAR E ATIVAR
           ========================================================================= */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/40 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="rounded-2xl border border-[#E5E8E2] bg-zinc-50/70 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2.5">
           <div className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center justify-center shrink-0">
             3
           </div>
           <div>
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
+            <h3 className="text-sm font-bold text-zinc-900">
               Salvar e Ativar Configurações
             </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs text-zinc-500">
               As novas informações entram em vigor imediatamente para todas as cobranças da consultoria.
             </p>
           </div>

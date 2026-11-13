@@ -47,19 +47,19 @@ export function ChargeCancelDialog({
       </Button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div
-            className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800 space-y-4 animate-in zoom-in-95 duration-150 text-zinc-900 dark:text-zinc-100"
+            className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-[#E5E8E2] space-y-4 animate-in zoom-in-95 duration-150 text-zinc-900"
             role="dialog"
             aria-modal="true"
             aria-labelledby="cancel-dialog-title"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
-                <h3 id="cancel-dialog-title" className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                <h3 id="cancel-dialog-title" className="text-base font-bold text-[#102E23]">
                   Cancelar Cobrança
                 </h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                <p className="text-xs text-zinc-500 leading-relaxed">
                   Tem certeza que deseja cancelar a cobrança &ldquo;{chargeTitle}&rdquo;? Esta ação não pode ser desfeita.
                 </p>
               </div>
@@ -67,7 +67,7 @@ export function ChargeCancelDialog({
                 type="button"
                 onClick={() => setIsOpen(false)}
                 disabled={isPending}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-2 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center"
+                className="text-zinc-400 hover:text-zinc-600 p-2 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />

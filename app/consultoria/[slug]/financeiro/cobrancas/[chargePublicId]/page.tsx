@@ -82,8 +82,11 @@ export default async function ChargeDetailPage({ params }: PageProps) {
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      showDashboardWallpaper={false}
+      maxWidth="full"
+      className="bg-[#F5F5F0] text-[#102E23] min-h-screen"
     >
-      <div className="max-w-3xl mx-auto space-y-6 pb-12">
+      <div data-theme="light" className="w-full max-w-3xl mx-auto space-y-6 pb-12">
         <PageHeader
           backHref={`/consultoria/${slug}/financeiro`}
           backLabel="Voltar ao Financeiro"
@@ -123,13 +126,13 @@ export default async function ChargeDetailPage({ params }: PageProps) {
         )}
 
         {/* Charge Info Card */}
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200 dark:border-zinc-800 pb-4">
+        <div className="bg-white border border-[#E5E8E2] rounded-2xl p-6 shadow-sm space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200 pb-4">
             <div>
-              <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider block">
+              <span className="text-xs font-semibold text-zinc-600 uppercase tracking-wider block">
                 Valor da Cobrança
               </span>
-              <p className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+              <p className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
                 {formatCentsToBrl(charge.amountCents)}
               </p>
             </div>
@@ -139,21 +142,21 @@ export default async function ChargeDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-zinc-600 dark:text-zinc-400">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-zinc-600">
             <div>
-              <span className="text-zinc-500 dark:text-zinc-400 block">Aluno Destinatário:</span>
-              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold text-sm">{charge.studentName}</strong>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{charge.studentEmail}</p>
+              <span className="text-zinc-500 block">Aluno Destinatário:</span>
+              <strong className="text-zinc-900 font-semibold text-sm">{charge.studentName}</strong>
+              <p className="text-[11px] text-zinc-500">{charge.studentEmail}</p>
             </div>
 
             <div>
-              <span className="text-zinc-500 dark:text-zinc-400 block">Data de Vencimento:</span>
-              <strong className="text-zinc-900 dark:text-zinc-100 font-semibold text-sm">{formatDatePtBr(charge.dueOn)}</strong>
+              <span className="text-zinc-500 block">Data de Vencimento:</span>
+              <strong className="text-zinc-900 font-semibold text-sm">{formatDatePtBr(charge.dueOn)}</strong>
             </div>
 
             <div>
-              <span className="text-zinc-500 dark:text-zinc-400 block">Período de Referência:</span>
-              <span className="text-zinc-700 dark:text-zinc-300 font-medium">
+              <span className="text-zinc-500 block">Período de Referência:</span>
+              <span className="text-zinc-700 font-medium">
                 {charge.referencePeriodStart && charge.referencePeriodEnd
                   ? `${formatDatePtBr(charge.referencePeriodStart)} a ${formatDatePtBr(charge.referencePeriodEnd)}`
                   : "Não informado"}
@@ -161,29 +164,29 @@ export default async function ChargeDetailPage({ params }: PageProps) {
             </div>
 
             <div>
-              <span className="text-zinc-500 dark:text-zinc-400 block">Bloqueio por Inadimplência:</span>
-              <span className="text-zinc-700 dark:text-zinc-300 font-medium">
+              <span className="text-zinc-500 block">Bloqueio por Inadimplência:</span>
+              <span className="text-zinc-700 font-medium">
                 {charge.blocksAccess ? "Restringe acesso no atraso" : "Não restringe acesso"}
               </span>
             </div>
 
             <div>
-              <span className="text-zinc-500 dark:text-zinc-400 block">Emitida em:</span>
-              <span className="text-zinc-700 dark:text-zinc-300 font-medium">{formatDateTimePtBr(charge.createdAt)}</span>
+              <span className="text-zinc-500 block">Emitida em:</span>
+              <span className="text-zinc-700 font-medium">{formatDateTimePtBr(charge.createdAt)}</span>
             </div>
 
             <div>
-              <span className="text-zinc-500 dark:text-zinc-400 block">Emitida por:</span>
-              <span className="text-zinc-700 dark:text-zinc-300 font-medium">{charge.createdByUserName}</span>
+              <span className="text-zinc-500 block">Emitida por:</span>
+              <span className="text-zinc-700 font-medium">{charge.createdByUserName}</span>
             </div>
           </div>
 
           {charge.description && (
-            <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
-              <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 block mb-1">
+            <div className="pt-3 border-t border-zinc-200">
+              <span className="text-xs font-semibold text-zinc-900 block mb-1">
                 Observações de Emissão:
               </span>
-              <p className="text-xs text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-800/60 p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 leading-relaxed">
+              <p className="text-xs text-zinc-700 bg-zinc-50 p-3.5 rounded-xl border border-zinc-200 leading-relaxed">
                 {charge.description}
               </p>
             </div>

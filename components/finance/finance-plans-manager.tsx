@@ -178,12 +178,12 @@ export function FinancePlansManager({
   return (
     <div className="space-y-6">
       {/* Top Header Card */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-2xl bg-white border border-[#E5E8E2] shadow-xs">
         <div>
-          <h2 className="font-heading text-base font-bold text-zinc-900 dark:text-white">
+          <h2 className="font-heading text-base font-bold text-[#102E23]">
             Planos da Consultoria
           </h2>
-          <p className="text-xs text-zinc-500 dark:text-[#8E95A2]">
+          <p className="text-xs text-[#526058]">
             Cadastre planos esportivos com recebimento automático por Pix ou parcelamento no cartão.
           </p>
         </div>
@@ -209,17 +209,17 @@ export function FinancePlansManager({
 
       {/* Plans List */}
       {plans.length === 0 ? (
-        <div className="p-8 sm:p-12 rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] text-center space-y-4 shadow-xs">
+        <div className="p-8 sm:p-12 rounded-2xl bg-white border border-[#E5E8E2] text-center space-y-4 shadow-xs">
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-[#176B49] flex items-center justify-center mx-auto">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
             </svg>
           </div>
           <div>
-            <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-white">
+            <h3 className="font-heading text-base font-bold text-zinc-900">
               Nenhum plano cadastrado ainda
             </h3>
-            <p className="text-xs text-zinc-500 dark:text-[#8E95A2] max-w-sm mx-auto mt-1">
+            <p className="text-xs text-[#526058] max-w-sm mx-auto mt-1">
               Cadastre planos como Mensal, Trimestral ou Semestral para permitir que seus alunos contratem e paguem pelo app.
             </p>
           </div>
@@ -245,7 +245,7 @@ export function FinancePlansManager({
             return (
               <div
                 key={p.publicId}
-                className="bg-white dark:bg-[#151619] border border-zinc-200 dark:border-[#303238] rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 flex flex-col justify-between hover:border-emerald-500/40 transition-all"
+                className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 flex flex-col justify-between hover:border-emerald-500/40 transition-all"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -255,37 +255,37 @@ export function FinancePlansManager({
                     <span
                       className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
                         p.status === "ACTIVE"
-                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-                          : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700"
+                          ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
+                          : "bg-zinc-100 text-zinc-500 border-zinc-200"
                       }`}
                     >
                       {p.status === "ACTIVE" ? "Ativo" : "Inativo"}
                     </span>
                   </div>
 
-                  <h3 className="font-heading text-lg font-bold text-zinc-900 dark:text-white leading-snug">
+                  <h3 className="font-heading text-lg font-bold text-zinc-900 leading-snug">
                     {p.name}
                   </h3>
 
                   {p.description && (
-                    <p className="text-xs text-zinc-500 dark:text-[#8E95A2] line-clamp-2">
+                    <p className="text-xs text-zinc-500 line-clamp-2">
                       {p.description}
                     </p>
                   )}
                 </div>
 
-                <div className="space-y-3 pt-3 border-t border-zinc-100 dark:border-[#303238]">
+                <div className="space-y-3 pt-3 border-t border-zinc-100">
                   <div className="flex items-baseline justify-between">
-                    <span className="text-xs text-zinc-500 dark:text-[#8E95A2]">Preço total:</span>
-                    <strong className="text-2xl font-black text-zinc-900 dark:text-white tabular-nums tracking-tight">
+                    <span className="text-xs text-zinc-500">Preço total:</span>
+                    <strong className="text-2xl font-black text-zinc-900 tabular-nums tracking-tight font-mono">
                       {formatBrl(p.amountCents)}
                     </strong>
                   </div>
 
-                  <div className="space-y-1.5 text-xs text-zinc-500 dark:text-[#8E95A2]">
+                  <div className="space-y-1.5 text-xs text-zinc-500">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-2">
                       <span className="shrink-0">Parcelamento:</span>
-                      <span className="font-semibold text-zinc-800 dark:text-zinc-200 break-words">
+                      <span className="font-semibold text-zinc-800 break-words">
                         {p.assuredInstallments > 0
                           ? `Parcelamento no cartão (até ${p.assuredInstallments}x)`
                           : "Parcelamento no cartão"}
@@ -294,7 +294,7 @@ export function FinancePlansManager({
 
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-2">
                       <span className="shrink-0">Formas aceitas:</span>
-                      <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                      <span className="font-semibold text-zinc-800">
                         Pix e Cartão
                       </span>
                     </div>
@@ -319,7 +319,7 @@ export function FinancePlansManager({
                         type="button"
                         onClick={() => handleToggleStatus(p)}
                         disabled={isTogglingThis || isPending}
-                        className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center px-3 py-2.5 rounded-xl text-xs font-semibold border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors min-h-[44px] cursor-pointer"
+                        className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center px-3 py-2.5 rounded-xl text-xs font-semibold border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors min-h-[44px] cursor-pointer"
                       >
                         {isTogglingThis ? "..." : p.status === "ACTIVE" ? "Desativar" : "Ativar"}
                       </button>
@@ -335,20 +335,20 @@ export function FinancePlansManager({
       {/* MODAL 1: CREATE PLAN */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white dark:bg-[#151619] rounded-3xl p-5 sm:p-6 shadow-2xl border border-zinc-200 dark:border-[#303238] space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-[#303238] pb-3">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border border-[#E5E8E2] space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#E5E8E2] pb-3">
               <div>
                 <span className="text-[10px] uppercase font-bold tracking-wider text-[#176B49] bg-[#E8F0EA] px-2.5 py-0.5 rounded-full border border-[#CDEED5]">
                   Novo Plano
                 </span>
-                <h2 className="font-heading text-lg font-bold text-zinc-900 dark:text-white mt-1">
+                <h2 className="font-heading text-lg font-bold text-[#102E23] mt-1">
                   Cadastrar Plano da Consultoria
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center cursor-pointer min-h-[32px] min-w-[32px]"
+                className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 hover:text-zinc-900 flex items-center justify-center cursor-pointer min-h-[32px] min-w-[32px]"
               >
                 ✕
               </button>
@@ -356,7 +356,7 @@ export function FinancePlansManager({
 
             <form onSubmit={handleCreatePlan} className="space-y-4 text-xs">
               <div className="space-y-1">
-                <label className="font-bold text-zinc-900 dark:text-white block">
+                <label className="font-bold text-zinc-900 block">
                   Nome do Plano <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -364,25 +364,25 @@ export function FinancePlansManager({
                   name="name"
                   required
                   placeholder="Ex: Consultoria Semestral VIP"
-                  className="w-full h-11 px-3 rounded-xl border border-zinc-200 dark:border-zinc-700 dark:bg-[#1B1D21] dark:text-white focus:outline-none focus:border-[#176B49] text-sm"
+                  className="w-full h-11 px-3 rounded-xl border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#176B49] text-sm"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-zinc-900 dark:text-white block">
+                <label className="font-bold text-zinc-900 block">
                   Descrição (opcional)
                 </label>
                 <textarea
                   name="description"
                   rows={2}
                   placeholder="Ex: Acompanhamento de treino + dieta com suporte semanal"
-                  className="w-full p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 dark:bg-[#1B1D21] dark:text-white focus:outline-none focus:border-[#176B49] text-xs resize-none"
+                  className="w-full p-3 rounded-xl border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#176B49] text-xs resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-bold text-zinc-900 dark:text-white block">
+                  <label className="font-bold text-zinc-900 block">
                     Valor Total (R$) <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -390,12 +390,12 @@ export function FinancePlansManager({
                     name="amountBrl"
                     required
                     placeholder="900,00"
-                    className="w-full h-11 px-3 rounded-xl border border-zinc-200 dark:border-zinc-700 dark:bg-[#1B1D21] dark:text-white focus:outline-none focus:border-[#176B49] text-sm font-bold"
+                    className="w-full h-11 px-3 rounded-xl border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#176B49] text-sm font-bold"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-zinc-900 dark:text-white block">
+                  <label className="font-bold text-zinc-900 block">
                     Duração em Meses
                   </label>
                   <input
@@ -404,19 +404,19 @@ export function FinancePlansManager({
                     min="1"
                     max="60"
                     defaultValue="6"
-                    className="w-full h-11 px-3 rounded-xl border border-zinc-200 dark:border-zinc-700 dark:bg-[#1B1D21] dark:text-white focus:outline-none focus:border-[#176B49] text-sm"
+                    className="w-full h-11 px-3 rounded-xl border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#176B49] text-sm"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-zinc-900 dark:text-white block">
+                <label className="font-bold text-zinc-900 block">
                   Parcelamento no Cartão
                 </label>
                 <select
                   name="assuredInstallments"
                   defaultValue="0"
-                  className="w-full h-11 px-3 rounded-xl border border-zinc-200 dark:border-zinc-700 dark:bg-[#1B1D21] dark:text-white focus:outline-none focus:border-[#176B49] text-xs bg-white"
+                  className="w-full h-11 px-3 rounded-xl border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:border-[#176B49] text-xs"
                 >
                   <option value="0">Parcelamento no cartão (taxas pelo comprador)</option>
                   <option value="2">Consultoria absorve taxas em até 2x</option>
@@ -425,7 +425,7 @@ export function FinancePlansManager({
                   <option value="10">Consultoria absorve taxas em até 10x</option>
                   <option value="12">Consultoria absorve taxas em até 12x</option>
                 </select>
-                <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2]">
+                <p className="text-[11px] text-zinc-500">
                   Define se a consultoria absorve parte das taxas de parcelamento no cartão no checkout InfinitePay.
                 </p>
               </div>
@@ -442,12 +442,12 @@ export function FinancePlansManager({
                 </p>
               )}
 
-              <div className="pt-2 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 border-t border-zinc-100 dark:border-[#303238]">
+              <div className="pt-2 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 border-t border-[#E5E8E2]">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
                   disabled={isPending}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white border border-zinc-200 dark:border-zinc-700 min-h-[44px] cursor-pointer flex items-center justify-center"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:text-zinc-900 border border-zinc-300 hover:bg-zinc-100 min-h-[44px] cursor-pointer flex items-center justify-center"
                 >
                   Cancelar
                 </button>
@@ -467,21 +467,21 @@ export function FinancePlansManager({
       {/* MODAL 2: COBRAR ESTE PLANO (QUICK STUDENT CHARGE) */}
       {chargingPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white dark:bg-[#151619] rounded-3xl p-5 sm:p-6 shadow-2xl border border-zinc-200 dark:border-[#303238] space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border border-[#E5E8E2] space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-[#303238] pb-3">
+            <div className="flex items-center justify-between border-b border-[#E5E8E2] pb-3">
               <div className="space-y-0.5">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-[#176B49] bg-[#E8F0EA] px-2.5 py-0.5 rounded-full border border-[#CDEED5]">
                   Cobrança de Plano
                 </span>
-                <h2 className="font-heading text-lg font-bold text-zinc-900 dark:text-white">
+                <h2 className="font-heading text-lg font-bold text-[#102E23]">
                   Cobrar {chargingPlan.name}
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={handleCloseChargeModal}
-                className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center cursor-pointer min-h-[32px] min-w-[32px]"
+                className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 hover:text-zinc-900 flex items-center justify-center cursor-pointer min-h-[32px] min-w-[32px]"
               >
                 ✕
               </button>
@@ -497,23 +497,23 @@ export function FinancePlansManager({
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="font-heading text-lg font-bold text-zinc-900 dark:text-white">
+                  <h3 className="font-heading text-lg font-bold text-zinc-900">
                     Cobrança Gerada com Sucesso!
                   </h3>
-                  <p className="text-xs text-zinc-500 dark:text-[#8E95A2] max-w-sm mx-auto">
+                  <p className="text-xs text-zinc-500 max-w-sm mx-auto">
                     O link de pagamento foi criado via InfinitePay para {selectedStudent?.fullName}.
                   </p>
                 </div>
 
                 {chargeSuccess.checkoutUrl && (
-                  <div className="p-3 bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200 dark:border-zinc-700 rounded-xl flex items-center justify-between gap-2 text-xs">
-                    <span className="truncate font-mono text-zinc-600 dark:text-zinc-400 text-[11px] select-all">
+                  <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center justify-between gap-2 text-xs">
+                    <span className="truncate font-mono text-zinc-600 text-[11px] select-all">
                       {chargeSuccess.checkoutUrl}
                     </span>
                     <button
                       type="button"
                       onClick={handleCopyLink}
-                      className="shrink-0 px-3 py-1.5 rounded-lg font-bold text-xs bg-white dark:bg-zinc-800 hover:bg-zinc-100 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white cursor-pointer min-h-[36px]"
+                      className="shrink-0 px-3 py-1.5 rounded-lg font-bold text-xs bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-900 cursor-pointer min-h-[36px]"
                     >
                       {copiedLink ? "✓ Copiado!" : "Copiar link"}
                     </button>
@@ -538,7 +538,7 @@ export function FinancePlansManager({
                   <button
                     type="button"
                     onClick={handleCloseChargeModal}
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white border border-zinc-200 dark:border-zinc-700 min-h-[44px] cursor-pointer"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:text-zinc-900 border border-zinc-200 min-h-[44px] cursor-pointer"
                   >
                     Concluir
                   </button>
@@ -548,37 +548,37 @@ export function FinancePlansManager({
               /* Selection Screen */
               <div className="space-y-4 text-xs">
                 {/* Plan Summary Pill */}
-                <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200 dark:border-zinc-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-zinc-900 dark:text-white text-sm break-words">
+                    <p className="font-bold text-zinc-900 text-sm break-words">
                       {chargingPlan.name}
                     </p>
-                    <p className="text-zinc-500 dark:text-[#8E95A2] text-[11px] break-words">
+                    <p className="text-zinc-500 text-[11px] break-words">
                       Pix e Cartão ({chargingPlan.assuredInstallments > 0 ? `Parcelamento no cartão em até ${chargingPlan.assuredInstallments}x` : "Parcelamento no cartão"})
                     </p>
                   </div>
-                  <strong className="text-lg font-black text-emerald-600 dark:text-[#10B981] tabular-nums font-mono shrink-0">
+                  <strong className="text-lg font-black text-emerald-600 tabular-nums font-mono shrink-0">
                     {formatBrl(chargingPlan.amountCents)}
                   </strong>
                 </div>
 
                 {/* Student Selection */}
                 <div className="space-y-1.5">
-                  <label className="font-bold text-zinc-900 dark:text-white block">
+                  <label className="font-bold text-zinc-900 block">
                     Selecione o Aluno <span className="text-rose-500">*</span>
                   </label>
 
                   {selectedStudent ? (
-                    <div className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-xl">
+                    <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-300 rounded-xl">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">
                           {selectedStudent.fullName.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-bold text-zinc-900 dark:text-white text-xs">
+                          <p className="font-bold text-zinc-900 text-xs">
                             {selectedStudent.fullName}
                           </p>
-                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                          <p className="text-[11px] text-zinc-500">
                             {selectedStudent.email}
                           </p>
                         </div>
@@ -602,7 +602,7 @@ export function FinancePlansManager({
                         placeholder="Digite o nome ou e-mail do aluno..."
                         value={studentSearchQuery}
                         onChange={(e) => setStudentSearchQuery(e.target.value)}
-                        className="w-full h-11 px-3 rounded-xl border border-zinc-200 dark:border-zinc-700 dark:bg-[#1B1D21] dark:text-white text-xs focus:outline-none focus:border-[#176B49]"
+                        className="w-full h-11 px-3 rounded-xl border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 text-xs focus:outline-none focus:border-[#176B49]"
                       />
                       {isSearchingStudent && (
                         <span className="absolute right-3 top-3 text-[11px] text-zinc-400">
@@ -611,7 +611,7 @@ export function FinancePlansManager({
                       )}
 
                       {!selectedStudent && studentSearchQuery.trim().length >= 2 && studentSearchResults.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#1B1D21] border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-48 overflow-y-auto z-20 divide-y divide-zinc-100 dark:divide-zinc-800">
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-zinc-200 rounded-xl shadow-xl max-h-48 overflow-y-auto z-20 divide-y divide-zinc-100">
                           {studentSearchResults.map((st) => (
                             <button
                               key={st.membershipPublicId}
@@ -620,20 +620,20 @@ export function FinancePlansManager({
                                 setSelectedStudent(st);
                                 setStudentSearchResults([]);
                               }}
-                              className="w-full text-left p-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center justify-between min-h-[44px] cursor-pointer"
+                              className="w-full text-left p-3 hover:bg-zinc-50 transition-colors flex items-center justify-between min-h-[44px] cursor-pointer"
                             >
                               <div>
-                                <p className="font-bold text-zinc-900 dark:text-white text-xs">{st.fullName}</p>
-                                <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2]">{st.email}</p>
+                                <p className="font-bold text-zinc-900 text-xs">{st.fullName}</p>
+                                <p className="text-[11px] text-zinc-500">{st.email}</p>
                               </div>
-                              <span className="text-xs font-bold text-emerald-600 dark:text-[#10B981]">Selecionar</span>
+                              <span className="text-xs font-bold text-emerald-600">Selecionar</span>
                             </button>
                           ))}
                         </div>
                       )}
 
                       {!selectedStudent && studentSearchQuery.trim().length >= 2 && !isSearchingStudent && studentSearchResults.length === 0 && (
-                        <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#1B1D21] border border-zinc-200 dark:border-zinc-700 rounded-xl p-3 shadow-xl z-20 text-xs text-zinc-500 text-center">
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-zinc-200 rounded-xl p-3 shadow-xl z-20 text-xs text-zinc-500 text-center">
                           Nenhum aluno encontrado.
                         </div>
                       )}
@@ -647,12 +647,12 @@ export function FinancePlansManager({
                   </p>
                 )}
 
-                <div className="pt-2 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 border-t border-zinc-100 dark:border-[#303238]">
+                <div className="pt-2 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 border-t border-[#E5E8E2]">
                   <button
                     type="button"
                     onClick={handleCloseChargeModal}
                     disabled={isGeneratingCharge}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white border border-zinc-200 dark:border-zinc-700 min-h-[44px] cursor-pointer flex items-center justify-center"
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:text-zinc-900 border border-zinc-300 hover:bg-zinc-100 min-h-[44px] cursor-pointer flex items-center justify-center"
                   >
                     Cancelar
                   </button>

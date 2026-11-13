@@ -123,10 +123,14 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
-      showDashboardWallpaper={true}
-      maxWidth="wide"
+      showDashboardWallpaper={false}
+      maxWidth="full"
+      className="bg-[#F5F5F0] text-[#102E23] min-h-screen"
     >
-      <div className="w-full max-w-6xl mx-auto space-y-5 pb-32 sm:pb-16 font-sans">
+      <div
+        data-theme="light"
+        className="w-full max-w-6xl mx-auto space-y-5 pb-32 sm:pb-16 font-sans text-[#102E23]"
+      >
         {/* =========================================================================
             1. CABEÇALHO TREVOONE
             Hierarquia padrão: Voltar ao painel, Título "Financeiro", Subtítulo e "+ Nova cobrança"
@@ -170,16 +174,16 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
             Exibe alerta amigável e claro quando a integração estiver em modo de teste
             ========================================================================= */}
         {isSimulationMode && (
-          <div className="px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-950 dark:text-amber-200 flex items-center justify-between gap-2.5 text-xs shadow-2xs">
+          <div className="px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-950 flex items-center justify-between gap-2.5 text-xs shadow-2xs">
             <div className="flex items-center gap-2 min-w-0">
               <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
-              <p className="font-semibold text-[11px] sm:text-xs text-amber-900 dark:text-amber-200 break-words">
+              <p className="font-semibold text-[11px] sm:text-xs text-amber-950 break-words">
                 Modo de simulação — pagamentos reais desativados.
               </p>
             </div>
             <Link
               href={`/consultoria/${slug}/financeiro?aba=recebimento`}
-              className="shrink-0 text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-950 dark:text-amber-100 transition-colors whitespace-nowrap min-h-[32px] inline-flex items-center justify-center"
+              className="shrink-0 text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-950 transition-colors whitespace-nowrap min-h-[32px] inline-flex items-center justify-center"
             >
               Ajustar →
             </Link>
@@ -258,38 +262,38 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
           <div className="space-y-6 animate-in fade-in duration-150">
             {/* 1. Resumo simples dos valores (KPI Cards) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-              <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-1.5">
-                <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">
+              <div className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1.5">
+                <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
                   Recebido este mês
                 </span>
-                <p className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-[#10B981] tracking-tight font-mono tabular-nums">
+                <p className="text-2xl sm:text-3xl font-black text-emerald-600 tracking-tight font-mono tabular-nums">
                   {formatCentsToBrl(dashboard.paidThisMonthCents)}
                 </p>
-                <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2]">
+                <p className="text-[11px] text-zinc-500">
                   Total de pagamentos confirmados
                 </p>
               </div>
 
-              <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-1.5">
-                <span className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+              <div className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1.5">
+                <span className="text-[11px] font-bold text-zinc-600 uppercase tracking-wider">
                   A receber
                 </span>
-                <p className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight font-mono tabular-nums">
+                <p className="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight font-mono tabular-nums">
                   {formatCentsToBrl(dashboard.toReceiveCents)}
                 </p>
-                <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2]">
+                <p className="text-[11px] text-zinc-500">
                   Cobranças emitidas aguardando pagamento
                 </p>
               </div>
 
-              <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-1.5">
-                <span className="text-[11px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">
+              <div className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1.5">
+                <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">
                   Cobranças vencidas
                 </span>
-                <p className="text-2xl sm:text-3xl font-black text-rose-600 dark:text-rose-400 tracking-tight font-mono tabular-nums">
+                <p className="text-2xl sm:text-3xl font-black text-rose-600 tracking-tight font-mono tabular-nums">
                   {dashboard.overdueCount}
                 </p>
-                <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2]">
+                <p className="text-[11px] text-zinc-500">
                   {dashboard.overdueCount > 0
                     ? "Aguardando regularização dos alunos"
                     : "Nenhuma cobrança em atraso"}
@@ -299,13 +303,13 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
 
             {/* 2. Ações rápidas */}
             <div className="space-y-2">
-              <h3 className="font-heading text-sm font-bold text-zinc-900 dark:text-white">
+              <h3 className="font-heading text-sm font-bold text-zinc-900">
                 Ações rápidas
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Link
                   href={`/consultoria/${slug}/financeiro/nova-cobranca`}
-                  className="p-4 rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200/80 dark:border-[#303238] hover:border-emerald-500/60 shadow-xs hover:shadow-sm transition-all group flex items-start gap-3 min-h-[72px]"
+                  className="p-4 rounded-2xl bg-white border border-[#E5E8E2] hover:border-emerald-500/60 shadow-xs hover:shadow-sm transition-all group flex items-start gap-3 min-h-[72px]"
                 >
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-[#176B49] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -313,10 +317,10 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     </svg>
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-zinc-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+                    <p className="font-bold text-sm text-zinc-900 group-hover:text-emerald-700 transition-colors">
                       Cobrar aluno
                     </p>
-                    <p className="text-xs text-zinc-500 dark:text-[#8E95A2] line-clamp-1">
+                    <p className="text-xs text-zinc-500 line-clamp-1">
                       Emita uma nova cobrança avulsa
                     </p>
                   </div>
@@ -324,7 +328,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
 
                 <Link
                   href={`/consultoria/${slug}/financeiro?aba=planos`}
-                  className="p-4 rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200/80 dark:border-[#303238] hover:border-emerald-500/60 shadow-xs hover:shadow-sm transition-all group flex items-start gap-3 min-h-[72px]"
+                  className="p-4 rounded-2xl bg-white border border-[#E5E8E2] hover:border-emerald-500/60 shadow-xs hover:shadow-sm transition-all group flex items-start gap-3 min-h-[72px]"
                 >
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-[#176B49] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -332,10 +336,10 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     </svg>
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-zinc-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+                    <p className="font-bold text-sm text-zinc-900 group-hover:text-emerald-700 transition-colors">
                       Criar plano
                     </p>
-                    <p className="text-xs text-zinc-500 dark:text-[#8E95A2] line-clamp-1">
+                    <p className="text-xs text-zinc-500 line-clamp-1">
                       Cadastre planos com parcelamento
                     </p>
                   </div>
@@ -343,7 +347,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
 
                 <Link
                   href={`/consultoria/${slug}/financeiro?aba=cobrancas`}
-                  className="p-4 rounded-2xl bg-white dark:bg-[#151619] border border-zinc-200/80 dark:border-[#303238] hover:border-emerald-500/60 shadow-xs hover:shadow-sm transition-all group flex items-start gap-3 min-h-[72px]"
+                  className="p-4 rounded-2xl bg-white border border-[#E5E8E2] hover:border-emerald-500/60 shadow-xs hover:shadow-sm transition-all group flex items-start gap-3 min-h-[72px]"
                 >
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-[#176B49] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -351,10 +355,10 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     </svg>
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-zinc-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+                    <p className="font-bold text-sm text-zinc-900 group-hover:text-emerald-700 transition-colors">
                       Ver cobranças
                     </p>
-                    <p className="text-xs text-zinc-500 dark:text-[#8E95A2] line-clamp-1">
+                    <p className="text-xs text-zinc-500 line-clamp-1">
                       Acompanhe o status dos pagamentos
                     </p>
                   </div>
@@ -372,12 +376,12 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     </svg>
                   </div>
                   <div className="space-y-0.5">
-                    <p className="font-bold text-sm text-zinc-900 dark:text-white">
+                    <p className="font-bold text-sm text-zinc-900">
                       {dashboard.underReviewCount === 1
                         ? "1 comprovante aguardando sua análise"
                         : `${dashboard.underReviewCount} comprovantes aguardando sua análise`}
                     </p>
-                    <p className="text-xs text-emerald-800 dark:text-emerald-300 font-medium">
+                    <p className="text-xs text-emerald-800 font-medium">
                       Confirme os pagamentos manuais para liberar o acesso dos alunos.
                     </p>
                   </div>
@@ -394,7 +398,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
             {/* 3. Últimas cobranças */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="font-heading text-sm font-bold text-zinc-900 dark:text-white">
+                <h3 className="font-heading text-sm font-bold text-zinc-900">
                   Últimas cobranças
                 </h3>
                 <Link
@@ -406,17 +410,17 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
               </div>
 
               {chargesResult.charges.length === 0 ? (
-                <div className="bg-white dark:bg-[#151619] border border-zinc-200/80 dark:border-[#303238] rounded-2xl p-8 text-center space-y-3 shadow-xs">
+                <div className="bg-white border border-[#E5E8E2] rounded-2xl p-8 text-center space-y-3 shadow-xs">
                   <div className="w-12 h-12 rounded-2xl bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto">
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                     </svg>
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-zinc-900 dark:text-white">
+                    <p className="font-bold text-sm text-zinc-900">
                       Nenhuma cobrança registrada ainda
                     </p>
-                    <p className="text-xs text-zinc-500 dark:text-[#8E95A2] max-w-sm mx-auto mt-0.5">
+                    <p className="text-xs text-zinc-500 max-w-sm mx-auto mt-0.5">
                       Quando você emitir cobranças para seus alunos, elas aparecerão listadas aqui.
                     </p>
                   </div>
@@ -433,26 +437,26 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     <Link
                       key={charge.publicId}
                       href={`/consultoria/${slug}/financeiro/cobrancas/${charge.publicId}`}
-                      className="block bg-white dark:bg-[#151619] border border-zinc-200/80 dark:border-[#303238] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-emerald-500/50 hover:shadow-sm transition-all group text-zinc-900 dark:text-white"
+                      className="block bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-emerald-500/50 hover:shadow-sm transition-all group text-zinc-900"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-sm text-zinc-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-[#10B981] transition-colors truncate min-w-0">
+                            <span className="font-bold text-sm text-zinc-900 group-hover:text-emerald-700 transition-colors truncate min-w-0">
                               {charge.studentName}
                             </span>
                             <FinanceStatusBadge status={charge.derivedStatus} size="sm" />
                           </div>
-                          <p className="text-xs text-zinc-500 dark:text-[#8E95A2] font-medium truncate">
+                          <p className="text-xs text-zinc-500 font-medium truncate">
                             {charge.title}
                           </p>
-                          <p className="text-[11px] text-zinc-500 dark:text-[#8E95A2]">
-                            Vencimento: <strong className="text-zinc-700 dark:text-zinc-300 font-semibold">{formatDateBr(charge.dueOn)}</strong>
+                          <p className="text-[11px] text-zinc-500">
+                            Vencimento: <strong className="text-zinc-700 font-semibold">{formatDateBr(charge.dueOn)}</strong>
                           </p>
                         </div>
 
-                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-zinc-100 dark:border-[#303238] sm:border-t-0 shrink-0">
-                          <span className="text-base sm:text-lg font-black text-zinc-900 dark:text-white tracking-tight font-mono tabular-nums">
+                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-zinc-100 sm:border-t-0 shrink-0">
+                          <span className="text-base sm:text-lg font-black text-zinc-900 tracking-tight font-mono tabular-nums">
                             {formatCentsToBrl(charge.amountCents)}
                           </span>
                           <span className="inline-flex items-center text-xs font-semibold text-[#176B49] group-hover:translate-x-0.5 transition-transform">
@@ -470,11 +474,11 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
             </div>
 
             {/* 4. Informação clara sobre o recebimento */}
-            <div className="bg-white dark:bg-[#151619] border border-zinc-200/80 dark:border-[#303238] rounded-2xl p-5 shadow-xs space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 dark:border-[#303238] pb-3">
+            <div className="bg-white border border-[#E5E8E2] rounded-2xl p-5 shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2">
                   <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isInfinitePayReady ? "bg-emerald-500" : "bg-amber-500"}`} />
-                  <h4 className="font-heading text-sm font-bold text-zinc-900 dark:text-white">
+                  <h4 className="font-heading text-sm font-bold text-zinc-900">
                     Recebimento de pagamentos
                   </h4>
                 </div>
@@ -487,23 +491,23 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-zinc-800 space-y-1">
-                  <span className="text-zinc-500 dark:text-[#8E95A2] text-[11px] block">Conta de recebimento:</span>
-                  <p className="font-bold text-zinc-900 dark:text-white font-mono">
+                <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
+                  <span className="text-zinc-500 text-[11px] block">Conta de recebimento:</span>
+                  <p className="font-bold text-zinc-900 font-mono">
                     {infinitePayConfig?.handle ? `$${infinitePayConfig.handle}` : "Não vinculada"}
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-zinc-800 space-y-1">
-                  <span className="text-zinc-500 dark:text-[#8E95A2] text-[11px] block">Formas aceitas:</span>
-                  <p className="font-bold text-zinc-900 dark:text-white">
+                <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
+                  <span className="text-zinc-500 text-[11px] block">Formas aceitas:</span>
+                  <p className="font-bold text-zinc-900">
                     Pix e Cartão parcelado
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200/70 dark:border-zinc-800 space-y-1">
-                  <span className="text-zinc-500 dark:text-[#8E95A2] text-[11px] block">Ambiente:</span>
-                  <p className="font-bold text-amber-700 dark:text-amber-400">
+                <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
+                  <span className="text-zinc-500 text-[11px] block">Ambiente:</span>
+                  <p className="font-bold text-amber-700">
                     {isSimulationMode ? "Modo de simulação" : "Produção"}
                   </p>
                 </div>
@@ -518,7 +522,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
         {activeTab === "cobrancas" && (
           <div className="space-y-4 animate-in fade-in duration-150">
             {/* Filter Tabs & Search Bar */}
-            <div className="bg-white dark:bg-[#151619] border border-zinc-200/80 dark:border-[#303238] rounded-2xl p-4 shadow-xs space-y-3">
+            <div className="bg-white border border-[#E5E8E2] rounded-2xl p-4 shadow-xs space-y-3">
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                 {filterTabs.map((tab) => {
                   const isActive = currentStatusFilter === tab.key;
@@ -533,8 +537,8 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                       href={href}
                       className={`px-3.5 py-2 min-h-[44px] inline-flex items-center rounded-xl text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer select-none ${
                         isActive
-                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 shadow-2xs font-bold"
-                          : "bg-zinc-100 dark:bg-[#1B1D21] text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-[#252830] hover:text-zinc-900 dark:hover:text-white border-transparent"
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs font-bold"
+                          : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 border-transparent"
                       }`}
                     >
                       {tab.label}
@@ -548,7 +552,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                 <input type="hidden" name="aba" value="cobrancas" />
                 {status && <input type="hidden" name="status" value={status} />}
                 <div className="relative flex-1">
-                  <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                   </svg>
                   <input
@@ -556,7 +560,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     name="q"
                     defaultValue={q || ""}
                     placeholder="Buscar aluno ou cobrança..."
-                    className="w-full h-11 pl-10 pr-3 text-xs bg-zinc-50 dark:bg-[#1B1D21] border border-zinc-200 dark:border-[#303238] rounded-xl text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full h-11 pl-10 pr-3 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#176B49]"
                   />
                 </div>
                 <button
@@ -590,30 +594,30 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                   <Link
                     key={charge.publicId}
                     href={`/consultoria/${slug}/financeiro/cobrancas/${charge.publicId}`}
-                    className="block bg-white dark:bg-[#151619] border border-zinc-200/80 dark:border-[#303238] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-emerald-500/50 hover:shadow-sm transition-all group text-zinc-900 dark:text-white"
+                    className="block bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-emerald-500/50 hover:shadow-sm transition-all group text-zinc-900"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm text-zinc-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-[#10B981] transition-colors truncate min-w-0">
+                          <span className="font-bold text-sm text-zinc-900 group-hover:text-emerald-700 transition-colors truncate min-w-0">
                             {charge.studentName}
                           </span>
                           <FinanceStatusBadge status={charge.derivedStatus} size="sm" />
                         </div>
 
-                        <p className="text-xs text-zinc-500 dark:text-[#8E95A2] font-medium truncate">
+                        <p className="text-xs text-zinc-500 font-medium truncate">
                           {charge.title}
                         </p>
 
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-[#8E95A2]">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
                           <span>
-                            Vencimento: <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">{formatDateBr(charge.dueOn)}</strong>
+                            Vencimento: <strong className="text-zinc-800 font-semibold">{formatDateBr(charge.dueOn)}</strong>
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-zinc-100 dark:border-[#303238] sm:border-t-0 shrink-0">
-                        <span className="text-base sm:text-lg font-black text-zinc-900 dark:text-white tracking-tight font-mono tabular-nums">
+                      <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-zinc-100 sm:border-t-0 shrink-0">
+                        <span className="text-base sm:text-lg font-black text-zinc-900 tracking-tight font-mono tabular-nums">
                           {formatCentsToBrl(charge.amountCents)}
                         </span>
 
@@ -630,17 +634,17 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
 
                 {/* Pagination */}
                 {chargesResult.totalPages > 1 && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white dark:bg-[#151619] border border-zinc-200/80 dark:border-[#303238] rounded-2xl shadow-xs text-xs">
-                    <p className="text-zinc-500 dark:text-[#8E95A2] text-center sm:text-left">
-                      Página <span className="font-bold text-zinc-900 dark:text-white">{chargesResult.page}</span> de{" "}
-                      <span className="font-bold text-zinc-900 dark:text-white">{chargesResult.totalPages}</span> ({chargesResult.total} cobranças)
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white border border-[#E5E8E2] rounded-2xl shadow-xs text-xs">
+                    <p className="text-zinc-500 text-center sm:text-left">
+                      Página <span className="font-bold text-zinc-900">{chargesResult.page}</span> de{" "}
+                      <span className="font-bold text-zinc-900">{chargesResult.totalPages}</span> ({chargesResult.total} cobranças)
                     </p>
 
                     <div className="flex items-center gap-2">
                       {chargesResult.page > 1 && (
                         <Link
                           href={`/consultoria/${slug}/financeiro?aba=cobrancas&page=${chargesResult.page - 1}${status ? `&status=${status}` : ""}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
-                          className="px-4 py-2 rounded-xl text-xs font-semibold border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors min-h-[44px] flex items-center justify-center"
+                          className="px-4 py-2 rounded-xl text-xs font-semibold border border-zinc-200 hover:bg-zinc-100 transition-colors min-h-[44px] flex items-center justify-center text-zinc-700"
                         >
                           Anterior
                         </Link>
@@ -649,7 +653,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                       {chargesResult.page < chargesResult.totalPages && (
                         <Link
                           href={`/consultoria/${slug}/financeiro?aba=cobrancas&page=${chargesResult.page + 1}${status ? `&status=${status}` : ""}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
-                          className="px-4 py-2 rounded-xl text-xs font-semibold border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors min-h-[44px] flex items-center justify-center"
+                          className="px-4 py-2 rounded-xl text-xs font-semibold border border-zinc-200 hover:bg-zinc-100 transition-colors min-h-[44px] flex items-center justify-center text-zinc-700"
                         >
                           Próxima
                         </Link>
@@ -688,22 +692,22 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
             />
 
             {/* 2. Área secundária e discreta: Pix manual */}
-            <div className="bg-white dark:bg-[#151619] border border-zinc-200/80 dark:border-[#303238] rounded-2xl p-5 sm:p-6 shadow-xs space-y-3">
+            <div className="bg-white border border-[#E5E8E2] rounded-2xl p-5 sm:p-6 shadow-xs space-y-3">
               <div>
-                <h3 className="font-heading text-sm font-bold text-zinc-900 dark:text-white">
+                <h3 className="font-heading text-sm font-bold text-zinc-900">
                   Chave Pix para transferência manual (opcional)
                 </h3>
-                <p className="text-xs text-zinc-500 dark:text-[#8E95A2] mt-0.5">
+                <p className="text-xs text-zinc-500 mt-0.5">
                   Configure caso queira receber transferências manuais e analisar comprovantes dos alunos que preferirem não pagar pelo checkout automático.
                 </p>
               </div>
 
-              <div className="pt-2 border-t border-zinc-100 dark:border-[#303238]">
+              <div className="pt-2 border-t border-zinc-100">
                 {isConsultancyAdmin ? (
                   <FinanceSettingsForm slug={slug} initialSettings={settings} />
                 ) : (
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                    Chave Pix configurada: <strong className="text-zinc-900 dark:text-white">{settings?.pixKey || "Nenhuma chave cadastrada"}</strong> ({settings?.pixKeyType || "Não definida"}). Apenas administradores da consultoria podem alterá-la.
+                  <p className="text-xs text-zinc-600">
+                    Chave Pix configurada: <strong className="text-zinc-900">{settings?.pixKey || "Nenhuma chave cadastrada"}</strong> ({settings?.pixKeyType || "Não definida"}). Apenas administradores da consultoria podem alterá-la.
                   </p>
                 )}
               </div>

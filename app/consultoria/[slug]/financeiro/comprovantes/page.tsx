@@ -86,8 +86,11 @@ export default async function AdminPaymentReceiptsQueuePage({
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      showDashboardWallpaper={false}
+      maxWidth="full"
+      className="bg-[#F5F5F0] text-[#102E23] min-h-screen"
     >
-      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
+      <div data-theme="light" className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         {/* Header Principal */}
         <PageHeader
           backHref={`/consultoria/${slug}/financeiro`}
@@ -107,32 +110,32 @@ export default async function AdminPaymentReceiptsQueuePage({
             {result.receipts.map((receipt) => (
               <div
                 key={receipt.receiptPublicId}
-                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-emerald-500/60 dark:hover:border-emerald-500/60 transition-all"
+                className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-sm hover:border-emerald-500/60 transition-all"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">
+                      <span className="font-bold text-sm text-zinc-900 truncate">
                         {receipt.studentName}
                       </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
                         Aguardando análise
                       </span>
                     </div>
 
-                    <p className="text-xs text-zinc-600 dark:text-zinc-400 font-medium truncate">
+                    <p className="text-xs text-zinc-600 font-medium truncate">
                       {receipt.chargeTitle} —{" "}
-                      <strong className="text-zinc-900 dark:text-zinc-100">{formatCentsToBrl(receipt.amountCents)}</strong>
+                      <strong className="text-zinc-900">{formatCentsToBrl(receipt.amountCents)}</strong>
                     </p>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                      <span>Arquivo: <strong className="text-zinc-700 dark:text-zinc-300 font-medium">{receipt.originalFileName}</strong> ({formatBytes(receipt.sizeBytes)})</span>
-                      <span>Enviado em: <strong className="text-zinc-700 dark:text-zinc-300 font-medium">{formatDateTime(receipt.submittedAt)}</strong></span>
-                      <span>Vencimento: <strong className="text-zinc-700 dark:text-zinc-300 font-medium">{formatDateBr(receipt.dueOn)}</strong></span>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-500">
+                      <span>Arquivo: <strong className="text-zinc-700 font-medium">{receipt.originalFileName}</strong> ({formatBytes(receipt.sizeBytes)})</span>
+                      <span>Enviado em: <strong className="text-zinc-700 font-medium">{formatDateTime(receipt.submittedAt)}</strong></span>
+                      <span>Vencimento: <strong className="text-zinc-700 font-medium">{formatDateBr(receipt.dueOn)}</strong></span>
                     </div>
                   </div>
 
-                  <div className="pt-2 sm:pt-0 border-t border-zinc-200 dark:border-zinc-800 sm:border-t-0 shrink-0">
+                  <div className="pt-2 sm:pt-0 border-t border-zinc-200 sm:border-t-0 shrink-0">
                     <Link href={`/consultoria/${slug}/financeiro/comprovantes/${receipt.receiptPublicId}`}>
                       <Button variant="primary" size="sm" className="min-h-[44px]">
                         Analisar Comprovante →
@@ -145,10 +148,10 @@ export default async function AdminPaymentReceiptsQueuePage({
 
             {/* Pagination */}
             {result.totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm text-xs">
-                <p className="text-zinc-600 dark:text-zinc-400 text-center sm:text-left">
-                  Página <span className="font-bold text-zinc-900 dark:text-zinc-100">{result.page}</span> de{" "}
-                  <span className="font-bold text-zinc-900 dark:text-zinc-100">{result.totalPages}</span> ({result.total} comprovantes)
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white border border-[#E5E8E2] rounded-2xl shadow-sm text-xs">
+                <p className="text-zinc-600 text-center sm:text-left">
+                  Página <span className="font-bold text-zinc-900">{result.page}</span> de{" "}
+                  <span className="font-bold text-zinc-900">{result.totalPages}</span> ({result.total} comprovantes)
                 </p>
 
                 <div className="flex items-center gap-2">

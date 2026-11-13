@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import {
   getConsultancyFinanceSettings,
   getConsultancyFinanceDashboard,
@@ -61,6 +62,8 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
   if (!isStaff) {
     redirect(`/consultoria/${slug}`);
   }
+
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
 
   const [settings, dashboard, chargesResult, plans, infinitePayConfig] = await Promise.all([
     getConsultancyFinanceSettings(context.consultancyId),
@@ -123,45 +126,32 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
-      showDashboardWallpaper={false}
-      maxWidth="full"
-      className="bg-[#F5F5F0] text-[#102E23] min-h-screen"
+      viewModeState={effectiveState}
+      themeVariant="trainer-refined"
+      showDashboardWallpaper={true}
+      maxWidth="wide"
     >
-      <div
-        data-theme="light"
-        className="w-full max-w-6xl mx-auto space-y-5 pb-32 sm:pb-16 font-sans text-[#102E23]"
-      >
+      <div className="w-full max-w-6xl mx-auto space-y-5 pb-32 sm:pb-16 font-sans">
         {/* =========================================================================
-            1. CABEÇALHO TREVOONE
-            Hierarquia padrão: Voltar ao painel, Título "Financeiro", Subtítulo e "+ Nova cobrança"
+            1. CABEÇALHO TREVOONE COMPACTO
+            Hierarquia padrão idêntica a Treinos: Título, subtítulo e ação "+ Nova cobrança"
             ========================================================================= */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <Link
-                href={`/consultoria/${slug}`}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-[#526058] hover:text-[#102E23] transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-                <span>Voltar ao painel</span>
-              </Link>
-            </div>
-            <h1 className="text-xl sm:text-3xl font-extrabold text-[#102E23] tracking-tight font-sans break-words">
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-3xl font-extrabold text-[#102E23] tracking-tight font-sans">
               Financeiro
             </h1>
-            <p className="text-xs sm:text-sm text-[#526058] mt-0.5 leading-relaxed break-words">
+            <p className="text-xs sm:text-sm text-[#526058] mt-0.5 truncate sm:whitespace-normal">
               Cobranças de alunos, planos da consultoria e recebimentos via Pix e cartão.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div id="top-header-actions" className="shrink-0">
             <Link
               href={`/consultoria/${slug}/financeiro/nova-cobranca`}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[44px] shadow-xs cursor-pointer select-none w-full sm:w-auto"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[44px] shadow-xs cursor-pointer select-none"
             >
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
               <span>+ Nova cobrança</span>

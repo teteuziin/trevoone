@@ -2,6 +2,7 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getConsultancyFinanceSettings } from "@/lib/consultancies/finance";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
@@ -34,6 +35,7 @@ export default async function NewChargePage({ params }: PageProps) {
     redirect(`/consultoria/${slug}`);
   }
 
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
   const settings = await getConsultancyFinanceSettings(context.consultancyId);
 
   return (
@@ -47,11 +49,12 @@ export default async function NewChargePage({ params }: PageProps) {
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
-      showDashboardWallpaper={false}
-      maxWidth="full"
-      className="bg-[#F5F5F0] text-[#102E23] min-h-screen"
+      viewModeState={effectiveState}
+      themeVariant="trainer-refined"
+      showDashboardWallpaper={true}
+      maxWidth="wide"
     >
-      <div data-theme="light" className="w-full max-w-2xl mx-auto space-y-6 pb-12">
+      <div className="w-full max-w-2xl mx-auto space-y-6 pb-12 font-sans">
         <PageHeader
           backHref={`/consultoria/${slug}/financeiro`}
           backLabel="Voltar ao Financeiro"

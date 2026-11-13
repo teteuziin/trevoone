@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import {
   getSubmittedPaymentReceiptsPage,
   formatCentsToBrl,
@@ -68,6 +69,8 @@ export default async function AdminPaymentReceiptsQueuePage({
     redirect(`/consultoria/${slug}`);
   }
 
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
+
   const currentPage = Math.max(1, parseInt(pagina || "1", 10) || 1);
   const result = await getSubmittedPaymentReceiptsPage({
     consultancyId: context.consultancyId,
@@ -86,11 +89,12 @@ export default async function AdminPaymentReceiptsQueuePage({
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
-      showDashboardWallpaper={false}
-      maxWidth="full"
-      className="bg-[#F5F5F0] text-[#102E23] min-h-screen"
+      viewModeState={effectiveState}
+      themeVariant="trainer-refined"
+      showDashboardWallpaper={true}
+      maxWidth="wide"
     >
-      <div data-theme="light" className="w-full max-w-5xl mx-auto space-y-6 pb-12">
+      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12 font-sans">
         {/* Header Principal */}
         <PageHeader
           backHref={`/consultoria/${slug}/financeiro`}

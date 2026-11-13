@@ -700,6 +700,11 @@ export function ConsultancyNavigation({
         label: "Biblioteca de exercícios",
         href: `/consultoria/${consultancySlug}/exercicios`,
         icon: DuotoneExercisesIcon,
+      },
+      {
+        label: "Financeiro",
+        href: `/consultoria/${consultancySlug}/financeiro`,
+        icon: DuotoneFinanceIcon,
       }
     );
   }
@@ -1480,7 +1485,11 @@ export function ConsultancyNavigation({
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
                 aria-label="Mais opções de navegação"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl text-[#526058] hover:text-[#102E23] hover:bg-black/5 font-semibold transition-all cursor-pointer"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl font-semibold transition-all cursor-pointer ${
+                  pathname.includes("/financeiro")
+                    ? "bg-[#E8F0EA] text-[#102E23] border border-[#D5E2D7] shadow-2xs font-bold"
+                    : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
+                }`}
               >
                 <svg className="w-4 h-4 text-[#6B7870]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <rect x="3" y="3" width="7" height="7" rx="1.5" />

@@ -136,20 +136,20 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
             1. CABEÇALHO TREVOONE COMPACTO
             Hierarquia padrão idêntica a Treinos: Título, subtítulo e ação "+ Nova cobrança"
             ========================================================================= */}
-        <div className="flex items-center justify-between gap-3 pt-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
           <div className="min-w-0">
             <h1 className="text-xl sm:text-3xl font-extrabold text-[#102E23] tracking-tight font-sans">
               Financeiro
             </h1>
-            <p className="text-xs sm:text-sm text-[#526058] mt-0.5 truncate sm:whitespace-normal">
+            <p className="text-xs sm:text-sm text-[#526058] mt-0.5 leading-relaxed break-words">
               Cobranças de alunos, planos da consultoria e recebimentos via Pix e cartão.
             </p>
           </div>
 
-          <div id="top-header-actions" className="shrink-0">
+          <div id="top-header-actions" className="shrink-0 w-full sm:w-auto">
             <Link
               href={`/consultoria/${slug}/financeiro/nova-cobranca`}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[44px] shadow-xs cursor-pointer select-none"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[44px] w-full sm:w-auto shadow-xs cursor-pointer select-none"
             >
               <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -184,65 +184,77 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
             3. ABAS DE NAVEGAÇÃO DO TREVOONE (4 ÁREAS)
             Visão geral | Cobranças | Planos | Recebimento
             ========================================================================= */}
-        <div className="flex items-center gap-1 p-1 bg-[#EAECE6] border border-[#DEE2DA] rounded-2xl w-full sm:w-fit shadow-2xs overflow-x-auto scrollbar-none">
-          <Link
-            href={`/consultoria/${slug}/financeiro?aba=visao-geral`}
-            className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] sm:min-h-[40px] flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === "visao-geral"
-                ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
-                : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
-            }`}
-          >
-            <span>Visão geral</span>
-          </Link>
-
-          <Link
-            href={`/consultoria/${slug}/financeiro?aba=cobrancas`}
-            className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] sm:min-h-[40px] flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === "cobrancas"
-                ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
-                : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
-            }`}
-          >
-            <span>Cobranças</span>
-            {chargesResult.total > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-zinc-200 text-zinc-700">
-                {chargesResult.total}
-              </span>
-            )}
-          </Link>
-
-          <Link
-            href={`/consultoria/${slug}/financeiro?aba=planos`}
-            className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] sm:min-h-[40px] flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === "planos"
-                ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
-                : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
-            }`}
-          >
-            <span>Planos</span>
-            {plans.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-zinc-200 text-zinc-700">
-                {plans.length}
-              </span>
-            )}
-          </Link>
-
-          <Link
-            href={`/consultoria/${slug}/financeiro?aba=recebimento`}
-            className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] sm:min-h-[40px] flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === "recebimento"
-                ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
-                : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
-            }`}
-          >
-            <span>Recebimento</span>
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isInfinitePayReady ? "bg-emerald-500" : "bg-zinc-400"
+        <div className="relative w-full sm:w-fit">
+          <div className="flex items-center gap-1 p-1 bg-[#EAECE6] border border-[#DEE2DA] rounded-2xl w-full sm:w-fit shadow-2xs overflow-x-auto scrollbar-none pr-8 sm:pr-1">
+            <Link
+              href={`/consultoria/${slug}/financeiro?aba=visao-geral`}
+              className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] sm:min-h-[40px] flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === "visao-geral"
+                  ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
+                  : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
               }`}
-            />
-          </Link>
+            >
+              <span>Visão geral</span>
+            </Link>
+
+            <Link
+              href={`/consultoria/${slug}/financeiro?aba=cobrancas`}
+              className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] sm:min-h-[40px] flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === "cobrancas"
+                  ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
+                  : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
+              }`}
+            >
+              <span>Cobranças</span>
+              {chargesResult.total > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-zinc-200 text-zinc-700">
+                  {chargesResult.total}
+                </span>
+              )}
+            </Link>
+
+            <Link
+              href={`/consultoria/${slug}/financeiro?aba=planos`}
+              className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] sm:min-h-[40px] flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === "planos"
+                  ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
+                  : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
+              }`}
+            >
+              <span>Planos</span>
+              {plans.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-zinc-200 text-zinc-700">
+                  {plans.length}
+                </span>
+              )}
+            </Link>
+
+            <Link
+              href={`/consultoria/${slug}/financeiro?aba=recebimento`}
+              className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] sm:min-h-[40px] flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === "recebimento"
+                  ? "bg-white text-[#102E23] font-bold shadow-2xs border border-[#D5DDD6]"
+                  : "text-[#526058] hover:text-[#102E23] hover:bg-black/5"
+              }`}
+            >
+              <span>Recebimento</span>
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isInfinitePayReady ? "bg-emerald-500" : "bg-zinc-400"
+                }`}
+              />
+            </Link>
+          </div>
+
+          {/* Indicador visual de rolagem horizontal para mobile */}
+          <div
+            className="sm:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-8 rounded-r-2xl bg-gradient-to-l from-[#EAECE6] via-[#EAECE6]/80 to-transparent flex items-center justify-end pr-1.5 text-[#526058]/70"
+            aria-hidden="true"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </div>
         </div>
 
         {/* =========================================================================
@@ -327,10 +339,12 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                   </div>
                   <div>
                     <p className="font-bold text-sm text-zinc-900 group-hover:text-emerald-700 transition-colors">
-                      Criar plano
+                      {isConsultancyAdmin ? "Criar plano" : "Ver planos"}
                     </p>
                     <p className="text-xs text-zinc-500 line-clamp-1">
-                      Cadastre planos com parcelamento
+                      {isConsultancyAdmin
+                        ? "Cadastre planos com parcelamento"
+                        : "Consulte modelos e valores para cobrança"}
                     </p>
                   </div>
                 </Link>

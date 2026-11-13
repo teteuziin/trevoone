@@ -184,7 +184,9 @@ export function FinancePlansManager({
             Planos da Consultoria
           </h2>
           <p className="text-xs text-[#526058]">
-            Cadastre planos esportivos com recebimento automático por Pix ou parcelamento no cartão.
+            {canManagePlans
+              ? "Cadastre planos esportivos com recebimento automático por Pix ou parcelamento no cartão."
+              : "Consulte os planos disponíveis e emita cobranças para seus alunos."}
           </p>
         </div>
         {canManagePlans && (

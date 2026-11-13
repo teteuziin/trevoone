@@ -80,22 +80,22 @@ export function StudentChargePlanModal({
   const selectedPlan = availablePlans.find((p) => p.publicId === selectedPlanId);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl border border-[#E5E8E2] space-y-5 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+      <div className="w-full max-w-lg bg-white rounded-3xl p-4 sm:p-6 shadow-2xl border border-[#E5E8E2] space-y-4 my-auto max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-[#E5E8E2] pb-3.5">
-          <div className="space-y-0.5">
+        <div className="flex items-center justify-between border-b border-[#E5E8E2] pb-3">
+          <div className="space-y-0.5 min-w-0 flex-1 pr-2">
             <span className="text-[10px] uppercase font-bold tracking-wider text-[#176B49] bg-[#E8F0EA] px-2.5 py-0.5 rounded-full border border-[#CDEED5]">
               Financeiro do Aluno
             </span>
-            <h2 className="font-heading text-lg font-bold text-[#102E23]">
+            <h2 className="font-heading text-base sm:text-lg font-bold text-[#102E23] break-words">
               Cobrar Plano de {studentName}
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-[#FAF9F6] text-[#5A6660] hover:text-[#102E23] hover:bg-[#EBEBE5] flex items-center justify-center transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full bg-[#FAF9F6] text-[#5A6660] hover:text-[#102E23] hover:bg-[#EBEBE5] flex items-center justify-center transition-colors cursor-pointer shrink-0"
           >
             ✕
           </button>
@@ -187,28 +187,28 @@ export function StudentChargePlanModal({
                       <div
                         key={plan.publicId}
                         onClick={() => setSelectedPlanId(plan.publicId)}
-                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
                           isSelected
                             ? "bg-[#E8F0EA] border-[#176B49] shadow-xs"
                             : "bg-[#FAF9F6] border-[#E5E8E2] hover:border-zinc-300"
                         }`}
                       >
-                        <div className="space-y-0.5 min-w-0">
-                          <p className="font-bold text-sm text-[#102E23] truncate">
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          <p className="font-bold text-sm text-[#102E23] break-words">
                             {plan.name}
                           </p>
-                          <p className="text-xs text-[#5A6660]">
+                          <p className="text-xs text-[#5A6660] break-words">
                             Duração: {durationText}
                             {plan.assuredInstallments > 0
-                              ? ` • Até ${plan.assuredInstallments}x sem juros`
-                              : ""}
+                              ? ` • Parcelamento no cartão em até ${plan.assuredInstallments}x`
+                              : " • Parcelamento no cartão"}
                           </p>
                         </div>
-                        <div className="text-right shrink-0">
-                          <span className="font-extrabold text-sm text-[#176B49] block">
+                        <div className="flex items-center justify-between sm:justify-end sm:text-right gap-2 pt-1.5 sm:pt-0 border-t border-black/5 sm:border-t-0 shrink-0">
+                          <span className="font-extrabold text-base sm:text-sm text-[#176B49] block font-mono tabular-nums">
                             {formatBrl(plan.amountCents)}
                           </span>
-                          <span className="text-[10px] text-[#5A6660]">Pix ou Cartão</span>
+                          <span className="text-[10px] text-[#5A6660] font-semibold">Pix ou Cartão</span>
                         </div>
                       </div>
                     );
@@ -246,12 +246,12 @@ export function StudentChargePlanModal({
             )}
 
             {/* Actions */}
-            <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-[#E5E8E2]">
+            <div className="pt-2 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 border-t border-[#E5E8E2]">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isPending}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold text-[#5A6660] hover:text-[#102E23] transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-[#5A6660] hover:text-[#102E23] border border-[#E5E8E2] min-h-[44px] flex items-center justify-center transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
@@ -259,7 +259,7 @@ export function StudentChargePlanModal({
                 type="button"
                 onClick={handleCreateCharge}
                 disabled={isPending || availablePlans.length === 0}
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] disabled:opacity-50 transition-all min-h-[42px] shadow-xs cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] disabled:opacity-50 transition-all min-h-[44px] shadow-xs cursor-pointer select-none"
               >
                 {isPending ? (
                   <>

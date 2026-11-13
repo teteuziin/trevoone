@@ -26,7 +26,11 @@ export default async function NewChargePage({ params }: PageProps) {
     redirect("/selecionar-consultoria");
   }
 
-  if (!context.roles.includes("CONSULTANCY_ADMIN")) {
+  const isStaff =
+    context.roles.includes("CONSULTANCY_ADMIN") ||
+    context.roles.includes("PERSONAL");
+
+  if (!isStaff) {
     redirect(`/consultoria/${slug}`);
   }
 

@@ -8,6 +8,14 @@ import {
 
 // --- Finance Charge Status Badge ---
 
+export const FINANCE_STATUS_DISPLAY_LABELS: Record<StudentChargeDerivedStatus, string> = {
+  PAID: "Paga",
+  PENDING: "Pendente",
+  OVERDUE: "Vencida",
+  UNDER_REVIEW: "Em análise",
+  CANCELED: "Cancelada",
+};
+
 export interface FinanceStatusBadgeProps {
   status: StudentChargeDerivedStatus;
   size?: "sm" | "md";
@@ -21,9 +29,8 @@ function getFinanceStatusBadgeVariant(status: StudentChargeDerivedStatus): Badge
     case "OVERDUE":
       return "danger";
     case "UNDER_REVIEW":
-      return "warning";
     case "PENDING":
-      return "neutral";
+      return "warning";
     case "CANCELED":
       return "neutral";
     default:
@@ -37,7 +44,7 @@ export function FinanceStatusBadge({
   className = "",
 }: FinanceStatusBadgeProps) {
   const variant = getFinanceStatusBadgeVariant(status);
-  const label = STATUS_LABELS[status] || status;
+  const label = FINANCE_STATUS_DISPLAY_LABELS[status] || STATUS_LABELS[status] || status;
 
   return (
     <Badge variant={variant} size={size} className={className}>

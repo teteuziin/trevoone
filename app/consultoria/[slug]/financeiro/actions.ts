@@ -15,6 +15,7 @@ import {
 import {
   saveInfinitePaySettings,
   createConsultancyPlan,
+  toggleConsultancyPlanStatus,
   createPlanChargeForStudent,
 } from "@/lib/infinitepay/service";
 import type { PlanPaymentMethods } from "@/lib/infinitepay/types";
@@ -79,7 +80,11 @@ export async function searchStudentsAction(
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+  const isStaff =
+    context &&
+    (context.roles.includes("CONSULTANCY_ADMIN") ||
+      context.roles.includes("PERSONAL"));
+  if (!context || !isStaff) {
     return [];
   }
 
@@ -101,7 +106,11 @@ export async function createStudentChargeAction(
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+  const isStaff =
+    context &&
+    (context.roles.includes("CONSULTANCY_ADMIN") ||
+      context.roles.includes("PERSONAL"));
+  if (!context || !isStaff) {
     return { success: false, error: "Acesso não autorizado para criar cobranças." };
   }
 
@@ -160,7 +169,7 @@ export async function cancelStudentChargeAction(
 
   const context = await resolveConsultancyContext(session.userId, slug);
   if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
-    return { success: false, error: "Acesso não autorizado para cancelar cobranças." };
+    return { success: false, error: "Apenas administradores da consultoria podem cancelar cobranças." };
   }
 
   const result = await cancelStudentCharge({
@@ -228,7 +237,7 @@ export async function createConsultancyPlanAction(
 
   const context = await resolveConsultancyContext(session.userId, slug);
   if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
-    return { success: false, error: "Acesso não autorizado para criar planos." };
+    return { success: false, error: "Apenas administradores da consultoria podem cadastrar planos." };
   }
 
   const name = String(formData.get("name") || "").trim();
@@ -325,5 +334,38 @@ export async function createStudentPlanChargeAction(
     chargePublicId: result.chargePublicId,
     checkoutUrl: result.checkoutUrl,
     whatsAppHref: result.whatsAppHref,
+  };
+}
+
+export async function toggleConsultancyPlanStatusAction(
+  slug: string,
+  planPublicId: string,
+  newStatus: "ACTIVE" | "INACTIVE"
+): Promise<ActionState> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return { success: false, error: "Apenas administradores da consultoria podem alterar a situação dos planos." };
+  }
+
+  const result = await toggleConsultancyPlanStatus({
+    consultancyId: context.consultancyId,
+    userId: session.userId,
+    planPublicId,
+    status: newStatus,
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error || "Não foi possível alterar a situação do plano." };
+  }
+
+  revalidatePath(`/consultoria/${slug}/financeiro`);
+  return {
+    success: true,
+    message: `Plano ${newStatus === "ACTIVE" ? "ativado" : "desativado"} com sucesso!`,
   };
 }

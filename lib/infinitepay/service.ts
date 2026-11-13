@@ -7,7 +7,7 @@
  */
 
 import crypto from "node:crypto";
-import type { PoolConnection, RowDataPacket } from "mysql2/promise";
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { InfinitePayClient } from "./client";
 import type {
@@ -382,6 +382,41 @@ export async function createConsultancyPlan(params: {
   } catch (err: unknown) {
     console.error("[InfinitePay] Error creating plan:", err instanceof Error ? err.message : err);
     return { success: false, error: "Não foi possível criar o plano." };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+export async function toggleConsultancyPlanStatus(params: {
+  consultancyId: number;
+  userId: number;
+  planPublicId: string;
+  status: "ACTIVE" | "INACTIVE";
+}): Promise<{ success: boolean; error?: string }> {
+  const { consultancyId, planPublicId, status } = params;
+  if (!consultancyId || !planPublicId) {
+    return { success: false, error: "Parâmetros inválidos." };
+  }
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+    const [result] = await connection.execute<ResultSetHeader>(
+      `UPDATE consultancy_plans
+       SET status = ?,
+           updated_at = NOW(3)
+       WHERE consultancy_id = ? AND public_id = ?;`,
+      [status, consultancyId, planPublicId]
+    );
+
+    if (result.affectedRows === 0) {
+      return { success: false, error: "Plano não encontrado." };
+    }
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error("[InfinitePay] Error toggling plan status:", err instanceof Error ? err.message : err);
+    return { success: false, error: "Não foi possível alterar a situação do plano." };
   } finally {
     if (connection) connection.release();
   }

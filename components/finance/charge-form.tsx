@@ -366,11 +366,11 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
           </div>
         </div>
 
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-end gap-3">
+        <div className="pt-3 pb-1 flex flex-col sm:flex-row items-center justify-end gap-3">
           <button
             type="submit"
             disabled={!selectedStudent || isSubmitting}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white bg-[#176B49] hover:bg-[#125438] disabled:opacity-40 disabled:cursor-not-allowed transition-all min-h-[48px] shadow-xs cursor-pointer select-none"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white bg-[#176B49] hover:bg-[#125438] disabled:opacity-40 disabled:cursor-not-allowed transition-all min-h-[48px] shadow-xs cursor-pointer select-none touch-manipulation"
           >
             {isSubmitting ? (
               <>

@@ -54,7 +54,7 @@ export default async function NewChargePage({ params }: PageProps) {
       showDashboardWallpaper={true}
       maxWidth="wide"
     >
-      <div className="w-full max-w-2xl mx-auto space-y-5 pb-16 font-sans">
+      <div className="w-full max-w-2xl mx-auto space-y-5 pb-36 sm:pb-16 font-sans">
         <div>
           <Link
             href={`/consultoria/${slug}/financeiro`}
@@ -83,7 +83,7 @@ export default async function NewChargePage({ params }: PageProps) {
           </div>
         </div>
 
-        <div className="bg-white border border-[#E5E8E2] rounded-3xl p-5 sm:p-7 shadow-xs">
+        <div className="bg-white border border-[#E5E8E2] rounded-3xl p-4 sm:p-7 shadow-xs">
           <ChargeForm slug={slug} hasFinanceSettings={Boolean(settings)} />
         </div>
       </div>

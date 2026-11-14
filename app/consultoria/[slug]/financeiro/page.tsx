@@ -185,7 +185,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
             Visão geral | Cobranças | Planos | Recebimento
             ========================================================================= */}
         <div className="relative w-full sm:w-fit">
-          <div className="flex items-center gap-1 p-1 bg-[#EAECE6] border border-[#DEE2DA] rounded-2xl w-full sm:w-fit shadow-2xs overflow-x-auto scrollbar-none pr-8 sm:pr-1">
+          <div className="flex items-center gap-1 p-1 bg-[#EAECE6] border border-[#DEE2DA] rounded-2xl w-full sm:w-fit shadow-2xs overflow-x-auto scrollbar-none pr-14 sm:pr-1 scroll-smooth touch-pan-x">
             <Link
               href={`/consultoria/${slug}/financeiro?aba=visao-geral`}
               className={`flex-1 sm:flex-initial text-center px-3.5 sm:px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[38px] sm:min-h-[40px] flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
@@ -246,14 +246,16 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
             </Link>
           </div>
 
-          {/* Indicador visual de rolagem horizontal para mobile */}
+          {/* Indicador visual aprimorado de rolagem horizontal para mobile */}
           <div
-            className="sm:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-8 rounded-r-2xl bg-gradient-to-l from-[#EAECE6] via-[#EAECE6]/80 to-transparent flex items-center justify-end pr-1.5 text-[#526058]/70"
+            className="sm:hidden pointer-events-none absolute right-0.5 top-0.5 bottom-0.5 w-14 rounded-r-2xl bg-gradient-to-l from-[#EAECE6] via-[#EAECE6]/95 to-transparent flex items-center justify-end pr-1 text-[#102E23]"
             aria-hidden="true"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
+            <span className="w-5 h-5 rounded-full bg-white/95 shadow-2xs border border-[#D5DDD6] flex items-center justify-center text-[#176B49]">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </span>
           </div>
         </div>
 
@@ -265,7 +267,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
             {/* 1. Resumo dos Valores (Hero + 2 Cards Menores) */}
             <div className="space-y-3">
               {/* Card Principal: A Receber */}
-              <div className="bg-white border border-[#E5E8E2] rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="bg-white border border-[#E5E8E2] rounded-3xl p-5 sm:p-6 shadow-xs">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
@@ -279,18 +281,6 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                   <p className="text-xs text-[#526058]">
                     Cobranças emitidas aguardando pagamento
                   </p>
-                </div>
-
-                <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#F0F2ED]">
-                  <Link
-                    href={`/consultoria/${slug}/financeiro/nova-cobranca`}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[44px] shadow-xs cursor-pointer select-none w-full sm:w-auto"
-                  >
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                    <span>+ Cobrar aluno</span>
-                  </Link>
                 </div>
               </div>
 
@@ -347,30 +337,11 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                   href={`/consultoria/${slug}/financeiro?aba=planos`}
                   className="text-xs font-bold text-[#176B49] hover:text-[#125438] transition-colors"
                 >
-                  {isConsultancyAdmin ? "Gerenciar planos →" : "Consultar planos →"}
+                  {isConsultancyAdmin ? "Gerenciar planos →" : "Ver planos →"}
                 </Link>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <Link
-                  href={`/consultoria/${slug}/financeiro/nova-cobranca`}
-                  className="p-3.5 sm:p-4 rounded-2xl bg-white border border-[#E5E8E2] hover:border-[#176B49]/40 shadow-xs hover:shadow-sm transition-all group flex flex-col justify-between min-h-[88px]"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-[#E2F5EC] text-[#176B49] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-bold text-xs sm:text-sm text-[#102E23] group-hover:text-[#176B49] transition-colors">
-                      Cobrar aluno
-                    </p>
-                    <p className="text-[11px] text-[#526058] line-clamp-1 mt-0.5">
-                      Nova cobrança avulsa
-                    </p>
-                  </div>
-                </Link>
-
                 <Link
                   href={`/consultoria/${slug}/financeiro?aba=cobrancas`}
                   className="p-3.5 sm:p-4 rounded-2xl bg-white border border-[#E5E8E2] hover:border-[#176B49]/40 shadow-xs hover:shadow-sm transition-all group flex flex-col justify-between min-h-[88px]"
@@ -386,6 +357,25 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     </p>
                     <p className="text-[11px] text-[#526058] line-clamp-1 mt-0.5">
                       {chargesResult.total > 0 ? `${chargesResult.total} registradas` : "Histórico completo"}
+                    </p>
+                  </div>
+                </Link>
+
+                <Link
+                  href={`/consultoria/${slug}/financeiro?aba=planos`}
+                  className="p-3.5 sm:p-4 rounded-2xl bg-white border border-[#E5E8E2] hover:border-[#176B49]/40 shadow-xs hover:shadow-sm transition-all group flex flex-col justify-between min-h-[88px]"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-[#E2F5EC] text-[#176B49] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs sm:text-sm text-[#102E23] group-hover:text-[#176B49] transition-colors">
+                      {isConsultancyAdmin ? "Gerenciar planos" : "Ver planos"}
+                    </p>
+                    <p className="text-[11px] text-[#526058] line-clamp-1 mt-0.5">
+                      {isConsultancyAdmin ? "Configure planos e parcelamentos" : "Consulte modelos e valores para cobrança"}
                     </p>
                   </div>
                 </Link>

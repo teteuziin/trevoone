@@ -222,16 +222,20 @@ export function FinancePlansManager({
               Nenhum plano cadastrado ainda
             </h3>
             <p className="text-xs text-[#526058] max-w-sm mx-auto mt-1">
-              Cadastre planos como Mensal, Trimestral ou Semestral para permitir que seus alunos contratem e paguem pelo app.
+              {canManagePlans
+                ? "Cadastre planos como Mensal, Trimestral ou Semestral para permitir que seus alunos contratem e paguem pelo app."
+                : "Sua consultoria ainda não cadastrou planos comerciais. Quando disponíveis, você poderá utilizá-los para cobrança."}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[44px] shadow-xs cursor-pointer"
-          >
-            + Criar primeiro plano
-          </button>
+          {canManagePlans && (
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[44px] shadow-xs cursor-pointer select-none"
+            >
+              + Criar primeiro plano
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
@@ -8,7 +9,6 @@ import {
   formatCentsToBrl,
 } from "@/lib/consultancies/finance";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
-import { PageHeader } from "@/components/ui/page-header";
 import { Alert } from "@/components/ui/alert";
 import { FinanceStatusBadge } from "@/components/finance/finance-ui-badges";
 import { ChargeCancelDialog } from "@/components/finance/charge-cancel-dialog";
@@ -91,21 +91,41 @@ export default async function ChargeDetailPage({ params }: PageProps) {
       maxWidth="wide"
     >
       <div className="w-full max-w-3xl mx-auto space-y-6 pb-12 font-sans">
-        <PageHeader
-          backHref={`/consultoria/${slug}/financeiro`}
-          backLabel="Voltar ao Financeiro"
-          title={charge.title}
-          eyebrow={`ALUNO: ${charge.studentName}`}
-          actions={
-            charge.canBeCanceled ? (
-              <ChargeCancelDialog
-                slug={slug}
-                chargePublicId={charge.publicId}
-                chargeTitle={charge.title}
-              />
-            ) : undefined
-          }
-        />
+        <div>
+          <Link
+            href={`/consultoria/${slug}/financeiro?aba=cobrancas`}
+            className="group inline-flex items-center gap-1.5 text-xs font-semibold text-[#526058] hover:text-[#102E23] transition-colors mb-3 min-h-[36px]"
+          >
+            <svg
+              className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Voltar às Cobranças</span>
+          </Link>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-0.5 min-w-0">
+              <span className="text-[11px] font-bold text-[#176B49] uppercase tracking-wider block">
+                Aluno: {charge.studentName}
+              </span>
+              <h1 className="text-xl sm:text-2xl font-extrabold text-[#102E23] tracking-tight truncate">
+                {charge.title}
+              </h1>
+            </div>
+            {charge.canBeCanceled && (
+              <div className="shrink-0">
+                <ChargeCancelDialog
+                  slug={slug}
+                  chargePublicId={charge.publicId}
+                  chargeTitle={charge.title}
+                />
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Status Alerts */}
         {charge.derivedStatus === "PAID" && (

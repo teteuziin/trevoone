@@ -2,7 +2,6 @@
 
 import React, { useState, useTransition } from "react";
 import { cancelStudentChargeAction } from "@/app/consultoria/[slug]/financeiro/actions";
-import { FormField, Input } from "@/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 
@@ -81,8 +80,12 @@ export function ChargeCancelDialog({
               </Alert>
             )}
 
-            <FormField label="Motivo do Cancelamento" optional id="cancelReason">
-              <Input
+            <div className="space-y-1 text-left">
+              <label htmlFor="cancel-reason" className="block text-xs font-bold text-[#102E23]">
+                Motivo do Cancelamento <span className="text-[#526058] font-normal text-[11px]">(opcional)</span>
+              </label>
+              <input
+                id="cancel-reason"
                 name="cancelReason"
                 type="text"
                 placeholder="Ex: Acordo direto, troca de plano, cancelamento de matrícula"
@@ -90,8 +93,9 @@ export function ChargeCancelDialog({
                 onChange={(e) => setReason(e.target.value)}
                 disabled={isPending}
                 maxLength={255}
+                className="w-full h-11 px-3.5 rounded-xl border border-[#D5DDD6] bg-white text-[#102E23] placeholder:text-[#526058]/60 focus:outline-none focus:border-[#176B49] focus:ring-2 focus:ring-[#176B49]/15 text-xs transition-all shadow-2xs"
               />
-            </FormField>
+            </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <Button

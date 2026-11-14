@@ -247,56 +247,56 @@ export function FinancePlansManager({
             return (
               <div
                 key={p.publicId}
-                className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 flex flex-col justify-between hover:border-emerald-500/40 transition-all"
+                className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 flex flex-col justify-between hover:border-[#176B49]/40 transition-all"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#176B49] bg-[#E8F0EA] px-2.5 py-0.5 rounded-full border border-[#CDEED5]">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#102E23] bg-[#E2F5EC] px-2.5 py-0.5 rounded-full border border-[#B8E6D0]">
                       {durationText}
                     </span>
                     <span
                       className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
                         p.status === "ACTIVE"
-                          ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
-                          : "bg-zinc-100 text-zinc-500 border-zinc-200"
+                          ? "bg-[#E2F5EC] text-[#102E23] border-[#B8E6D0]"
+                          : "bg-[#F4F4F0] text-[#526058] border-[#DEE2DA]"
                       }`}
                     >
                       {p.status === "ACTIVE" ? "Ativo" : "Inativo"}
                     </span>
                   </div>
 
-                  <h3 className="font-heading text-lg font-bold text-zinc-900 leading-snug">
+                  <h3 className="font-heading text-lg font-bold text-[#102E23] leading-snug">
                     {p.name}
                   </h3>
 
                   {p.description && (
-                    <p className="text-xs text-zinc-500 line-clamp-2">
+                    <p className="text-xs text-[#526058] line-clamp-2">
                       {p.description}
                     </p>
                   )}
                 </div>
 
-                <div className="space-y-3 pt-3 border-t border-zinc-100">
+                <div className="space-y-3 pt-3 border-t border-[#F0F2ED]">
                   <div className="flex items-baseline justify-between">
-                    <span className="text-xs text-zinc-500">Preço total:</span>
-                    <strong className="text-2xl font-black text-zinc-900 tabular-nums tracking-tight font-mono">
+                    <span className="text-xs text-[#526058]">Preço total:</span>
+                    <strong className="text-2xl font-extrabold text-[#102E23] tabular-nums tracking-tight font-sans">
                       {formatBrl(p.amountCents)}
                     </strong>
                   </div>
 
-                  <div className="space-y-1.5 text-xs text-zinc-500">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-2">
-                      <span className="shrink-0">Parcelamento:</span>
-                      <span className="font-semibold text-zinc-800 break-words">
+                  <div className="space-y-1 text-xs text-[#526058]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="shrink-0 text-[11px]">Parcelamento:</span>
+                      <span className="font-semibold text-[#102E23] text-[11px] truncate">
                         {p.assuredInstallments > 0
-                          ? `Parcelamento no cartão (até ${p.assuredInstallments}x)`
-                          : "Parcelamento no cartão"}
+                          ? `Até ${p.assuredInstallments}x sem juros`
+                          : "No cartão"}
                       </span>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-2">
-                      <span className="shrink-0">Formas aceitas:</span>
-                      <span className="font-semibold text-zinc-800">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="shrink-0 text-[11px]">Recebimento:</span>
+                      <span className="font-semibold text-[#102E23] text-[11px]">
                         Pix e Cartão
                       </span>
                     </div>
@@ -321,7 +321,7 @@ export function FinancePlansManager({
                         type="button"
                         onClick={() => handleToggleStatus(p)}
                         disabled={isTogglingThis || isPending}
-                        className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center px-3 py-2.5 rounded-xl text-xs font-semibold border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors min-h-[44px] cursor-pointer"
+                        className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center px-3 py-2.5 rounded-xl text-xs font-bold border border-[#D5DDD6] text-[#526058] hover:text-[#102E23] hover:bg-[#F5F5F0] transition-colors min-h-[44px] cursor-pointer"
                       >
                         {isTogglingThis ? "..." : p.status === "ACTIVE" ? "Desativar" : "Ativar"}
                       </button>
@@ -340,7 +340,7 @@ export function FinancePlansManager({
           <div className="w-full max-w-lg bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border border-[#E5E8E2] space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[#E5E8E2] pb-3">
               <div>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-[#176B49] bg-[#E8F0EA] px-2.5 py-0.5 rounded-full border border-[#CDEED5]">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[#102E23] bg-[#E2F5EC] px-2.5 py-0.5 rounded-full border border-[#B8E6D0]">
                   Novo Plano
                 </span>
                 <h2 className="font-heading text-lg font-bold text-[#102E23] mt-1">
@@ -350,7 +350,7 @@ export function FinancePlansManager({
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 hover:text-zinc-900 flex items-center justify-center cursor-pointer min-h-[32px] min-w-[32px]"
+                className="w-8 h-8 rounded-full bg-[#F5F5F0] text-[#526058] hover:text-[#102E23] flex items-center justify-center cursor-pointer min-h-[32px] min-w-[32px] transition-colors"
               >
                 ✕
               </button>
@@ -358,7 +358,7 @@ export function FinancePlansManager({
 
             <form onSubmit={handleCreatePlan} className="space-y-4 text-xs">
               <div className="space-y-1">
-                <label className="font-bold text-zinc-900 block">
+                <label className="font-bold text-[#102E23] block">
                   Nome do Plano <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -366,25 +366,25 @@ export function FinancePlansManager({
                   name="name"
                   required
                   placeholder="Ex: Consultoria Semestral VIP"
-                  className="w-full h-11 px-3 rounded-xl border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#176B49] text-sm"
+                  className="w-full h-11 px-3.5 rounded-xl border border-[#D5DDD6] bg-white text-[#102E23] placeholder:text-[#526058]/60 focus:outline-none focus:border-[#176B49] focus:ring-2 focus:ring-[#176B49]/15 text-sm transition-all shadow-2xs"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-zinc-900 block">
+                <label className="font-bold text-[#102E23] block">
                   Descrição (opcional)
                 </label>
                 <textarea
                   name="description"
                   rows={2}
                   placeholder="Ex: Acompanhamento de treino + dieta com suporte semanal"
-                  className="w-full p-3 rounded-xl border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#176B49] text-xs resize-none"
+                  className="w-full p-3 rounded-xl border border-[#D5DDD6] bg-white text-[#102E23] placeholder:text-[#526058]/60 focus:outline-none focus:border-[#176B49] focus:ring-2 focus:ring-[#176B49]/15 text-xs resize-none transition-all shadow-2xs"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-bold text-zinc-900 block">
+                  <label className="font-bold text-[#102E23] block">
                     Valor Total (R$) <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -392,12 +392,12 @@ export function FinancePlansManager({
                     name="amountBrl"
                     required
                     placeholder="900,00"
-                    className="w-full h-11 px-3 rounded-xl border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#176B49] text-sm font-bold"
+                    className="w-full h-11 px-3.5 rounded-xl border border-[#D5DDD6] bg-white text-[#102E23] font-bold placeholder:text-[#526058]/60 focus:outline-none focus:border-[#176B49] focus:ring-2 focus:ring-[#176B49]/15 text-sm transition-all shadow-2xs tabular-nums"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-zinc-900 block">
+                  <label className="font-bold text-[#102E23] block">
                     Duração em Meses
                   </label>
                   <input
@@ -406,19 +406,19 @@ export function FinancePlansManager({
                     min="1"
                     max="60"
                     defaultValue="6"
-                    className="w-full h-11 px-3 rounded-xl border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#176B49] text-sm"
+                    className="w-full h-11 px-3.5 rounded-xl border border-[#D5DDD6] bg-white text-[#102E23] placeholder:text-[#526058]/60 focus:outline-none focus:border-[#176B49] focus:ring-2 focus:ring-[#176B49]/15 text-sm transition-all shadow-2xs"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-zinc-900 block">
+                <label className="font-bold text-[#102E23] block">
                   Parcelamento no Cartão
                 </label>
                 <select
                   name="assuredInstallments"
                   defaultValue="0"
-                  className="w-full h-11 px-3 rounded-xl border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:border-[#176B49] text-xs"
+                  className="w-full h-11 px-3 rounded-xl border border-[#D5DDD6] bg-white text-[#102E23] focus:outline-none focus:border-[#176B49] focus:ring-2 focus:ring-[#176B49]/15 text-xs transition-all shadow-2xs"
                 >
                   <option value="0">Parcelamento no cartão (taxas pelo comprador)</option>
                   <option value="2">Consultoria absorve taxas em até 2x</option>
@@ -427,19 +427,19 @@ export function FinancePlansManager({
                   <option value="10">Consultoria absorve taxas em até 10x</option>
                   <option value="12">Consultoria absorve taxas em até 12x</option>
                 </select>
-                <p className="text-[11px] text-zinc-500">
-                  Define se a consultoria absorve parte das taxas de parcelamento no cartão no checkout InfinitePay.
+                <p className="text-[11px] text-[#526058]">
+                  Define se a consultoria absorve taxas de parcelamento no cartão no checkout InfinitePay.
                 </p>
               </div>
 
               {errorMessage && (
-                <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-xl font-medium">
+                <p className="text-xs text-rose-700 bg-rose-50 border border-rose-200 p-2.5 rounded-xl font-medium">
                   {errorMessage}
                 </p>
               )}
 
               {successMessage && (
-                <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl font-medium">
+                <p className="text-xs text-[#176B49] bg-[#E2F5EC] border border-[#B8E6D0] p-2.5 rounded-xl font-medium">
                   {successMessage}
                 </p>
               )}
@@ -449,14 +449,14 @@ export function FinancePlansManager({
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
                   disabled={isPending}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:text-zinc-900 border border-zinc-300 hover:bg-zinc-100 min-h-[44px] cursor-pointer flex items-center justify-center"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-[#526058] hover:text-[#102E23] border border-[#D5DDD6] hover:bg-[#F5F5F0] min-h-[44px] cursor-pointer flex items-center justify-center transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] disabled:opacity-50 transition-all min-h-[44px] shadow-xs cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] disabled:opacity-50 transition-all min-h-[44px] shadow-xs cursor-pointer select-none"
                 >
                   {isPending ? "Cadastrando plano..." : "Cadastrar Plano"}
                 </button>
@@ -473,7 +473,7 @@ export function FinancePlansManager({
             {/* Header */}
             <div className="flex items-center justify-between border-b border-[#E5E8E2] pb-3">
               <div className="space-y-0.5">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-[#176B49] bg-[#E8F0EA] px-2.5 py-0.5 rounded-full border border-[#CDEED5]">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[#102E23] bg-[#E2F5EC] px-2.5 py-0.5 rounded-full border border-[#B8E6D0]">
                   Cobrança de Plano
                 </span>
                 <h2 className="font-heading text-lg font-bold text-[#102E23]">
@@ -483,7 +483,7 @@ export function FinancePlansManager({
               <button
                 type="button"
                 onClick={handleCloseChargeModal}
-                className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 hover:text-zinc-900 flex items-center justify-center cursor-pointer min-h-[32px] min-w-[32px]"
+                className="w-8 h-8 rounded-full bg-[#F5F5F0] text-[#526058] hover:text-[#102E23] flex items-center justify-center cursor-pointer min-h-[32px] min-w-[32px] transition-colors"
               >
                 ✕
               </button>
@@ -492,30 +492,30 @@ export function FinancePlansManager({
             {chargeSuccess ? (
               /* Success Screen */
               <div className="space-y-4 py-2 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-[#176B49] border border-emerald-500/20 flex items-center justify-center mx-auto shadow-2xs">
+                <div className="w-14 h-14 rounded-2xl bg-[#E2F5EC] text-[#176B49] border border-[#B8E6D0] flex items-center justify-center mx-auto shadow-2xs">
                   <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                   </svg>
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="font-heading text-lg font-bold text-zinc-900">
+                  <h3 className="font-heading text-lg font-bold text-[#102E23]">
                     Cobrança Gerada com Sucesso!
                   </h3>
-                  <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+                  <p className="text-xs text-[#526058] max-w-sm mx-auto">
                     O link de pagamento foi criado via InfinitePay para {selectedStudent?.fullName}.
                   </p>
                 </div>
 
                 {chargeSuccess.checkoutUrl && (
-                  <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center justify-between gap-2 text-xs">
-                    <span className="truncate font-mono text-zinc-600 text-[11px] select-all">
+                  <div className="p-3 bg-[#F5F5F0] border border-[#DEE2DA] rounded-xl flex items-center justify-between gap-2 text-xs">
+                    <span className="truncate font-mono text-[#102E23] text-[11px] select-all">
                       {chargeSuccess.checkoutUrl}
                     </span>
                     <button
                       type="button"
                       onClick={handleCopyLink}
-                      className="shrink-0 px-3 py-1.5 rounded-lg font-bold text-xs bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-900 cursor-pointer min-h-[36px]"
+                      className="shrink-0 px-3 py-1.5 rounded-lg font-bold text-xs bg-white hover:bg-[#F5F5F0] border border-[#D5DDD6] text-[#102E23] cursor-pointer min-h-[36px]"
                     >
                       {copiedLink ? "✓ Copiado!" : "Copiar link"}
                     </button>
@@ -540,7 +540,7 @@ export function FinancePlansManager({
                   <button
                     type="button"
                     onClick={handleCloseChargeModal}
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:text-zinc-900 border border-zinc-200 min-h-[44px] cursor-pointer"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-[#526058] hover:text-[#102E23] border border-[#D5DDD6] min-h-[44px] cursor-pointer"
                   >
                     Concluir
                   </button>
@@ -550,37 +550,37 @@ export function FinancePlansManager({
               /* Selection Screen */
               <div className="space-y-4 text-xs">
                 {/* Plan Summary Pill */}
-                <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="p-3.5 rounded-xl bg-[#F5F5F0] border border-[#DEE2DA] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-zinc-900 text-sm break-words">
+                    <p className="font-bold text-[#102E23] text-sm break-words">
                       {chargingPlan.name}
                     </p>
-                    <p className="text-zinc-500 text-[11px] break-words">
+                    <p className="text-[#526058] text-[11px] break-words">
                       Pix e Cartão ({chargingPlan.assuredInstallments > 0 ? `Parcelamento no cartão em até ${chargingPlan.assuredInstallments}x` : "Parcelamento no cartão"})
                     </p>
                   </div>
-                  <strong className="text-lg font-black text-emerald-600 tabular-nums font-mono shrink-0">
+                  <strong className="text-lg font-black text-[#176B49] tabular-nums font-sans shrink-0">
                     {formatBrl(chargingPlan.amountCents)}
                   </strong>
                 </div>
 
                 {/* Student Selection */}
                 <div className="space-y-1.5">
-                  <label className="font-bold text-zinc-900 block">
+                  <label className="font-bold text-[#102E23] block">
                     Selecione o Aluno <span className="text-rose-500">*</span>
                   </label>
 
                   {selectedStudent ? (
-                    <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-300 rounded-xl">
+                    <div className="flex items-center justify-between p-3 bg-[#E2F5EC]/50 border border-[#B8E6D0] rounded-xl">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">
+                        <div className="w-8 h-8 rounded-full bg-[#176B49] text-white font-bold flex items-center justify-center text-xs">
                           {selectedStudent.fullName.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-bold text-zinc-900 text-xs">
+                          <p className="font-bold text-[#102E23] text-xs">
                             {selectedStudent.fullName}
                           </p>
-                          <p className="text-[11px] text-zinc-500">
+                          <p className="text-[11px] text-[#526058]">
                             {selectedStudent.email}
                           </p>
                         </div>
@@ -592,7 +592,7 @@ export function FinancePlansManager({
                           setStudentSearchQuery("");
                           setStudentSearchResults([]);
                         }}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 px-2 py-1 rounded cursor-pointer min-h-[36px]"
+                        className="text-xs font-bold text-[#176B49] hover:text-[#125438] px-2.5 py-1 rounded-lg bg-white border border-[#B8E6D0] cursor-pointer min-h-[36px]"
                       >
                         Trocar
                       </button>
@@ -604,16 +604,16 @@ export function FinancePlansManager({
                         placeholder="Digite o nome ou e-mail do aluno..."
                         value={studentSearchQuery}
                         onChange={(e) => setStudentSearchQuery(e.target.value)}
-                        className="w-full h-11 px-3 rounded-xl border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 text-xs focus:outline-none focus:border-[#176B49]"
+                        className="w-full h-11 px-3.5 rounded-xl border border-[#D5DDD6] bg-white text-[#102E23] placeholder:text-[#526058]/60 text-xs focus:outline-none focus:border-[#176B49] focus:ring-2 focus:ring-[#176B49]/15 shadow-2xs"
                       />
                       {isSearchingStudent && (
-                        <span className="absolute right-3 top-3 text-[11px] text-zinc-400">
+                        <span className="absolute right-3.5 top-3.5 text-[11px] text-[#526058]">
                           Buscando...
                         </span>
                       )}
 
                       {!selectedStudent && studentSearchQuery.trim().length >= 2 && studentSearchResults.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-zinc-200 rounded-xl shadow-xl max-h-48 overflow-y-auto z-20 divide-y divide-zinc-100">
+                        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-[#D5DDD6] rounded-xl shadow-xl max-h-48 overflow-y-auto z-20 divide-y divide-[#E5E8E2]">
                           {studentSearchResults.map((st) => (
                             <button
                               key={st.membershipPublicId}
@@ -622,20 +622,20 @@ export function FinancePlansManager({
                                 setSelectedStudent(st);
                                 setStudentSearchResults([]);
                               }}
-                              className="w-full text-left p-3 hover:bg-zinc-50 transition-colors flex items-center justify-between min-h-[44px] cursor-pointer"
+                              className="w-full text-left p-3 hover:bg-[#F5F5F0] transition-colors flex items-center justify-between min-h-[44px] cursor-pointer"
                             >
                               <div>
-                                <p className="font-bold text-zinc-900 text-xs">{st.fullName}</p>
-                                <p className="text-[11px] text-zinc-500">{st.email}</p>
+                                <p className="font-bold text-[#102E23] text-xs">{st.fullName}</p>
+                                <p className="text-[11px] text-[#526058]">{st.email}</p>
                               </div>
-                              <span className="text-xs font-bold text-emerald-600">Selecionar</span>
+                              <span className="text-xs font-bold text-[#176B49] bg-[#E2F5EC] px-2 py-0.5 rounded-md">Selecionar</span>
                             </button>
                           ))}
                         </div>
                       )}
 
                       {!selectedStudent && studentSearchQuery.trim().length >= 2 && !isSearchingStudent && studentSearchResults.length === 0 && (
-                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-zinc-200 rounded-xl p-3 shadow-xl z-20 text-xs text-zinc-500 text-center">
+                        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-[#D5DDD6] rounded-xl p-3 shadow-xl z-20 text-xs text-[#526058] text-center">
                           Nenhum aluno encontrado.
                         </div>
                       )}
@@ -644,7 +644,7 @@ export function FinancePlansManager({
                 </div>
 
                 {chargeError && (
-                  <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-xl font-medium">
+                  <p className="text-xs text-rose-700 bg-rose-50 border border-rose-200 p-2.5 rounded-xl font-medium">
                     {chargeError}
                   </p>
                 )}
@@ -654,7 +654,7 @@ export function FinancePlansManager({
                     type="button"
                     onClick={handleCloseChargeModal}
                     disabled={isGeneratingCharge}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-zinc-600 hover:text-zinc-900 border border-zinc-300 hover:bg-zinc-100 min-h-[44px] cursor-pointer flex items-center justify-center"
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-[#526058] hover:text-[#102E23] border border-[#D5DDD6] hover:bg-[#F5F5F0] min-h-[44px] cursor-pointer flex items-center justify-center transition-colors"
                   >
                     Cancelar
                   </button>

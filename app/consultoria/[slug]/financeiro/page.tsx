@@ -262,108 +262,130 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
             ========================================================================= */}
         {activeTab === "visao-geral" && (
           <div className="space-y-6 animate-in fade-in duration-150">
-            {/* 1. Resumo simples dos valores (KPI Cards) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-              <div className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1.5">
-                <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
-                  Recebido este mês
-                </span>
-                <p className="text-2xl sm:text-3xl font-black text-emerald-600 tracking-tight font-mono tabular-nums">
-                  {formatCentsToBrl(dashboard.paidThisMonthCents)}
-                </p>
-                <p className="text-[11px] text-zinc-500">
-                  Total de pagamentos confirmados
-                </p>
+            {/* 1. Resumo dos Valores (Hero + 2 Cards Menores) */}
+            <div className="space-y-3">
+              {/* Card Principal: A Receber */}
+              <div className="bg-white border border-[#E5E8E2] rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                    <span className="text-xs font-bold text-[#526058] uppercase tracking-wider">
+                      Total a Receber
+                    </span>
+                  </div>
+                  <p className="text-3xl sm:text-4xl font-extrabold text-[#102E23] tracking-tight font-sans tabular-nums">
+                    {formatCentsToBrl(dashboard.toReceiveCents)}
+                  </p>
+                  <p className="text-xs text-[#526058]">
+                    Cobranças emitidas aguardando pagamento
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#F0F2ED]">
+                  <Link
+                    href={`/consultoria/${slug}/financeiro/nova-cobranca`}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#176B49] hover:bg-[#125438] transition-colors min-h-[44px] shadow-xs cursor-pointer select-none w-full sm:w-auto"
+                  >
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    <span>+ Cobrar aluno</span>
+                  </Link>
+                </div>
               </div>
 
-              <div className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1.5">
-                <span className="text-[11px] font-bold text-zinc-600 uppercase tracking-wider">
-                  A receber
-                </span>
-                <p className="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight font-mono tabular-nums">
-                  {formatCentsToBrl(dashboard.toReceiveCents)}
-                </p>
-                <p className="text-[11px] text-zinc-500">
-                  Cobranças emitidas aguardando pagamento
-                </p>
-              </div>
+              {/* 2 Cards Menores Lado a Lado no Mobile */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Recebido no mês */}
+                <div className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#176B49] shrink-0" />
+                    <span className="text-[11px] font-bold text-[#526058] uppercase tracking-wider truncate">
+                      Recebido no mês
+                    </span>
+                  </div>
+                  <p className="text-lg sm:text-2xl font-extrabold text-[#176B49] tracking-tight font-sans tabular-nums truncate">
+                    {formatCentsToBrl(dashboard.paidThisMonthCents)}
+                  </p>
+                  <p className="text-[11px] text-[#526058] hidden sm:block truncate">
+                    Pagamentos confirmados
+                  </p>
+                </div>
 
-              <div className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1.5">
-                <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">
-                  Cobranças vencidas
-                </span>
-                <p className="text-2xl sm:text-3xl font-black text-rose-600 tracking-tight font-mono tabular-nums">
-                  {dashboard.overdueCount}
-                </p>
-                <p className="text-[11px] text-zinc-500">
-                  {dashboard.overdueCount > 0
-                    ? "Aguardando regularização dos alunos"
-                    : "Nenhuma cobrança em atraso"}
-                </p>
+                {/* Em atraso */}
+                <div className="bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${dashboard.overdueCount > 0 ? "bg-rose-500 animate-pulse" : "bg-emerald-500"}`} />
+                      <span className="text-[11px] font-bold text-[#526058] uppercase tracking-wider truncate">
+                        Em atraso
+                      </span>
+                    </div>
+                    {dashboard.overdueCount === 0 && (
+                      <span className="text-[10px] font-bold text-[#176B49] bg-[#E2F5EC] px-1.5 py-0.5 rounded-full shrink-0">
+                        Em dia
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-lg sm:text-2xl font-extrabold tracking-tight font-sans tabular-nums truncate ${dashboard.overdueCount > 0 ? "text-rose-700" : "text-[#102E23]"}`}>
+                    {dashboard.overdueCount}
+                  </p>
+                  <p className="text-[11px] text-[#526058] hidden sm:block truncate">
+                    {dashboard.overdueCount > 0 ? "Aguardando regularização" : "Nenhum atraso"}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* 2. Ações rápidas */}
+            {/* 2. Ações Rápidas Simplificadas (2 cards principais no mobile) */}
             <div className="space-y-2">
-              <h3 className="font-heading text-sm font-bold text-zinc-900">
-                Ações rápidas
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-heading text-xs font-bold text-[#526058] uppercase tracking-wider">
+                  Ações Rápidas
+                </h3>
+                <Link
+                  href={`/consultoria/${slug}/financeiro?aba=planos`}
+                  className="text-xs font-bold text-[#176B49] hover:text-[#125438] transition-colors"
+                >
+                  {isConsultancyAdmin ? "Gerenciar planos →" : "Consultar planos →"}
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <Link
                   href={`/consultoria/${slug}/financeiro/nova-cobranca`}
-                  className="p-4 rounded-2xl bg-white border border-[#E5E8E2] hover:border-emerald-500/60 shadow-xs hover:shadow-sm transition-all group flex items-start gap-3 min-h-[72px]"
+                  className="p-3.5 sm:p-4 rounded-2xl bg-white border border-[#E5E8E2] hover:border-[#176B49]/40 shadow-xs hover:shadow-sm transition-all group flex flex-col justify-between min-h-[88px]"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-[#176B49] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <div className="w-8 h-8 rounded-xl bg-[#E2F5EC] text-[#176B49] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                     </svg>
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-zinc-900 group-hover:text-emerald-700 transition-colors">
+                    <p className="font-bold text-xs sm:text-sm text-[#102E23] group-hover:text-[#176B49] transition-colors">
                       Cobrar aluno
                     </p>
-                    <p className="text-xs text-zinc-500 line-clamp-1">
-                      Emita uma nova cobrança avulsa
-                    </p>
-                  </div>
-                </Link>
-
-                <Link
-                  href={`/consultoria/${slug}/financeiro?aba=planos`}
-                  className="p-4 rounded-2xl bg-white border border-[#E5E8E2] hover:border-emerald-500/60 shadow-xs hover:shadow-sm transition-all group flex items-start gap-3 min-h-[72px]"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-[#176B49] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-bold text-sm text-zinc-900 group-hover:text-emerald-700 transition-colors">
-                      {isConsultancyAdmin ? "Criar plano" : "Ver planos"}
-                    </p>
-                    <p className="text-xs text-zinc-500 line-clamp-1">
-                      {isConsultancyAdmin
-                        ? "Cadastre planos com parcelamento"
-                        : "Consulte modelos e valores para cobrança"}
+                    <p className="text-[11px] text-[#526058] line-clamp-1 mt-0.5">
+                      Nova cobrança avulsa
                     </p>
                   </div>
                 </Link>
 
                 <Link
                   href={`/consultoria/${slug}/financeiro?aba=cobrancas`}
-                  className="p-4 rounded-2xl bg-white border border-[#E5E8E2] hover:border-emerald-500/60 shadow-xs hover:shadow-sm transition-all group flex items-start gap-3 min-h-[72px]"
+                  className="p-3.5 sm:p-4 rounded-2xl bg-white border border-[#E5E8E2] hover:border-[#176B49]/40 shadow-xs hover:shadow-sm transition-all group flex flex-col justify-between min-h-[88px]"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-[#176B49] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <div className="w-8 h-8 rounded-xl bg-[#E2F5EC] text-[#176B49] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
                     </svg>
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-zinc-900 group-hover:text-emerald-700 transition-colors">
+                    <p className="font-bold text-xs sm:text-sm text-[#102E23] group-hover:text-[#176B49] transition-colors">
                       Ver cobranças
                     </p>
-                    <p className="text-xs text-zinc-500 line-clamp-1">
-                      Acompanhe o status dos pagamentos
+                    <p className="text-[11px] text-[#526058] line-clamp-1 mt-0.5">
+                      {chargesResult.total > 0 ? `${chargesResult.total} registradas` : "Histórico completo"}
                     </p>
                   </div>
                 </Link>
@@ -526,7 +548,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
         {activeTab === "cobrancas" && (
           <div className="space-y-4 animate-in fade-in duration-150">
             {/* Filter Tabs & Search Bar */}
-            <div className="bg-white border border-[#E5E8E2] rounded-2xl p-4 shadow-xs space-y-3">
+            <div className="bg-white border border-[#E5E8E2] rounded-2xl p-3.5 sm:p-4 shadow-xs space-y-3">
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                 {filterTabs.map((tab) => {
                   const isActive = currentStatusFilter === tab.key;
@@ -539,10 +561,10 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     <Link
                       key={tab.key}
                       href={href}
-                      className={`px-3.5 py-2 min-h-[44px] inline-flex items-center rounded-xl text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer select-none ${
+                      className={`px-3.5 py-2 min-h-[44px] inline-flex items-center rounded-xl text-xs whitespace-nowrap transition-colors border cursor-pointer select-none ${
                         isActive
-                          ? "bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs font-bold"
-                          : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 border-transparent"
+                          ? "bg-[#E2F5EC] text-[#102E23] border-[#B8E6D0] shadow-2xs font-bold"
+                          : "bg-[#F5F5F0] text-[#526058] hover:bg-[#EAECE6] hover:text-[#102E23] border-transparent font-medium"
                       }`}
                     >
                       {tab.label}
@@ -556,7 +578,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                 <input type="hidden" name="aba" value="cobrancas" />
                 {status && <input type="hidden" name="status" value={status} />}
                 <div className="relative flex-1">
-                  <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#526058]/70 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                   </svg>
                   <input
@@ -564,12 +586,12 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     name="q"
                     defaultValue={q || ""}
                     placeholder="Buscar aluno ou cobrança..."
-                    className="w-full h-11 pl-10 pr-3 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#176B49]"
+                    className="w-full h-11 pl-10 pr-3.5 text-xs bg-white border border-[#D5DDD6] rounded-xl text-[#102E23] placeholder:text-[#526058]/60 focus:outline-none focus:ring-2 focus:ring-[#176B49]/15 focus:border-[#176B49] transition-all shadow-2xs"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="min-h-[44px] px-5 font-bold text-xs bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl transition-colors cursor-pointer"
+                  className="min-h-[44px] px-5 font-bold text-xs bg-[#176B49] hover:bg-[#125438] text-white rounded-xl transition-colors cursor-pointer shrink-0 shadow-xs"
                 >
                   Buscar
                 </button>
@@ -598,36 +620,36 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                   <Link
                     key={charge.publicId}
                     href={`/consultoria/${slug}/financeiro/cobrancas/${charge.publicId}`}
-                    className="block bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-emerald-500/50 hover:shadow-sm transition-all group text-zinc-900"
+                    className="block bg-white border border-[#E5E8E2] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[#176B49]/40 hover:shadow-sm transition-all group text-[#102E23]"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm text-zinc-900 group-hover:text-emerald-700 transition-colors truncate min-w-0">
+                          <span className="font-bold text-sm text-[#102E23] group-hover:text-[#176B49] transition-colors truncate min-w-0">
                             {charge.studentName}
                           </span>
                           <FinanceStatusBadge status={charge.derivedStatus} size="sm" />
                         </div>
 
-                        <p className="text-xs text-zinc-500 font-medium truncate">
+                        <p className="text-xs text-[#526058] font-medium truncate">
                           {charge.title}
                         </p>
 
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#526058]">
                           <span>
-                            Vencimento: <strong className="text-zinc-800 font-semibold">{formatDateBr(charge.dueOn)}</strong>
+                            Vencimento: <strong className="text-[#102E23] font-semibold">{formatDateBr(charge.dueOn)}</strong>
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-zinc-100 sm:border-t-0 shrink-0">
-                        <span className="text-base sm:text-lg font-black text-zinc-900 tracking-tight font-mono tabular-nums">
+                      <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-[#F0F2ED] sm:border-t-0 shrink-0">
+                        <span className="text-base sm:text-lg font-black text-[#102E23] tracking-tight font-sans tabular-nums">
                           {formatCentsToBrl(charge.amountCents)}
                         </span>
 
-                        <span className="inline-flex items-center text-xs font-semibold text-[#176B49] group-hover:translate-x-0.5 transition-transform">
+                        <span className="inline-flex items-center text-xs font-bold text-[#176B49] group-hover:translate-x-0.5 transition-transform min-h-[36px]">
                           <span>Detalhes</span>
-                          <svg className="w-4 h-4 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <svg className="w-3.5 h-3.5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                           </svg>
                         </span>

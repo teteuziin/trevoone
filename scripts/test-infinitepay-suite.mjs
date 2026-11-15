@@ -17,6 +17,13 @@
  */
 
 import assert from "node:assert/strict";
+import { register } from "node:module";
+
+register("./ts-loader.mjs", import.meta.url);
+
+const { addCalendarMonths, addCalendarDays, generateWhatsAppPaymentMessage } = await import(
+  "../lib/infinitepay/service.ts"
+);
 
 console.log("=== EXECUTING AUDIT TEST SUITE: INFINITEPAY INTEGRATION ===");
 
@@ -127,8 +134,7 @@ function simulateActivation(params, dbState) {
     baseDate = new Date(activeSubs[0].endsAt);
   }
 
-  const endsAtDate = new Date(baseDate);
-  endsAtDate.setMonth(endsAtDate.getMonth() + 1); // 1 month plan
+  const endsAtDate = addCalendarMonths(baseDate, 1); // 1 month plan
 
   // Deactivate prior
   for (const sub of activeSubs) {
@@ -650,4 +656,130 @@ assert.equal(otherConsultancyAttempt.reason, "CONSULTANCY_NOT_AUTHORIZED_FOR_PIL
 
 console.log("✔ TEST 14: Proteção FAIL-CLOSED da consultoria piloto validada em todos os 8 cenários.");
 
-console.log("\nTODOS OS 14 TESTES DA SUÍTE DE AUDITORIA INFINITEPAY PASSARAM COM SUCESSO!");
+// ============================================================================
+// TEST 15: ADIÇÃO CONFIÁVEL DE MESES DE CALENDÁRIO (VENCIMENTO DOS PLANOS)
+// ============================================================================
+// Regra comercial:
+// - Preservar o mesmo dia do mês quando existir.
+// - Quando o mês de destino não possuir esse dia, utilizar seu último dia (clamping).
+// - Preservar os períodos oficiais de 1, 2, 3, 6 e 12 meses.
+// - Tratar fevereiro em anos comuns (28 dias) e anos bissextos (29 dias).
+// - Suportar viradas nos dias 28, 29, 30 e 31.
+// - Garantir renovações sucessivas sem distorções de timezone.
+
+const fmtDate = (d) => d.toISOString().slice(0, 10);
+
+// 1. Preservação do mesmo dia quando o dia existe (dia 15)
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-15T12:00:00Z"), 1)), "2026-02-15");
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-15T12:00:00Z"), 2)), "2026-03-15");
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-15T12:00:00Z"), 3)), "2026-04-15");
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-15T12:00:00Z"), 6)), "2026-07-15");
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-15T12:00:00Z"), 12)), "2027-01-15");
+
+// 2. Clamping em fevereiro para ano comum (2026 - 28 dias)
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-29T12:00:00Z"), 1)), "2026-02-28");
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-30T12:00:00Z"), 1)), "2026-02-28");
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-31T12:00:00Z"), 1)), "2026-02-28");
+
+// 3. Clamping em fevereiro para ano bissexto (2024 - 29 dias)
+assert.equal(fmtDate(addCalendarMonths(new Date("2024-01-29T12:00:00Z"), 1)), "2024-02-29");
+assert.equal(fmtDate(addCalendarMonths(new Date("2024-01-30T12:00:00Z"), 1)), "2024-02-29");
+assert.equal(fmtDate(addCalendarMonths(new Date("2024-01-31T12:00:00Z"), 1)), "2024-02-29");
+
+// 4. Início em 29 de fevereiro de ano bissexto (2024)
+assert.equal(fmtDate(addCalendarMonths(new Date("2024-02-29T12:00:00Z"), 1)), "2024-03-29");
+assert.equal(fmtDate(addCalendarMonths(new Date("2024-02-29T12:00:00Z"), 12)), "2025-02-28"); // Ano comum seguinte
+assert.equal(fmtDate(addCalendarMonths(new Date("2024-02-29T12:00:00Z"), 48)), "2028-02-29"); // Próximo ano bissexto
+
+// 5. Clamping em meses de 30 dias a partir do dia 31
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-03-31T12:00:00Z"), 1)), "2026-04-30"); // Março -> Abril
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-05-31T12:00:00Z"), 1)), "2026-06-30"); // Maio -> Junho
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-08-31T12:00:00Z"), 1)), "2026-09-30"); // Agosto -> Setembro
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-10-31T12:00:00Z"), 1)), "2026-11-30"); // Outubro -> Novembro
+
+// 6. Períodos oficiais de 1, 2, 3, 6 e 12 meses a partir de 31 de janeiro
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-31T12:00:00Z"), 1)), "2026-02-28");
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-31T12:00:00Z"), 2)), "2026-03-31");
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-31T12:00:00Z"), 3)), "2026-04-30");
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-31T12:00:00Z"), 6)), "2026-07-31");
+assert.equal(fmtDate(addCalendarMonths(new Date("2026-01-31T12:00:00Z"), 12)), "2027-01-31");
+
+// 7. Renovações mensais sucessivas a partir de 31 de janeiro
+let renM = new Date("2026-01-31T12:00:00Z");
+renM = addCalendarMonths(renM, 1);
+assert.equal(fmtDate(renM), "2026-02-28");
+renM = addCalendarMonths(renM, 1);
+assert.equal(fmtDate(renM), "2026-03-28");
+renM = addCalendarMonths(renM, 1);
+assert.equal(fmtDate(renM), "2026-04-28");
+
+// 8. Renovações trimestrais sucessivas a partir de 31 de janeiro
+let renQ = new Date("2026-01-31T12:00:00Z");
+renQ = addCalendarMonths(renQ, 3);
+assert.equal(fmtDate(renQ), "2026-04-30");
+renQ = addCalendarMonths(renQ, 3);
+assert.equal(fmtDate(renQ), "2026-07-30");
+renQ = addCalendarMonths(renQ, 3);
+assert.equal(fmtDate(renQ), "2026-10-30");
+renQ = addCalendarMonths(renQ, 3);
+assert.equal(fmtDate(renQ), "2027-01-30");
+
+// 9. Preservação de componentes de hora (UTC) sem efeito de timezone
+const preciseDate = new Date("2026-01-31T23:59:59.999Z");
+const resPrecise = addCalendarMonths(preciseDate, 1);
+assert.equal(resPrecise.toISOString(), "2026-02-28T23:59:59.999Z");
+
+// 10. addCalendarDays
+assert.equal(fmtDate(addCalendarDays(new Date("2026-01-31T12:00:00Z"), 3)), "2026-02-03");
+
+console.log("✔ TEST 15: Cálculo de vencimentos de planos com meses de calendário (clamping 28/29/30/31, bissextos e renovações) 100% validado.");
+
+// ============================================================================
+// TEST 16: COMPARTILHAMENTO DE COBRANÇA VIA WHATSAPP
+// ============================================================================
+// Regra:
+// - Quando o telefone estiver presente, gera link direto com DDI 55 (wa.me/55...).
+// - Quando o telefone NÃO estiver cadastrado (null, undefined ou vazio), gera link universal
+//   de compartilhamento (wa.me/?text=...) abrindo o seletor de contatos do WhatsApp.
+// - Preserva mensagem formatada com nome do aluno, plano, valor em BRL e link seguro.
+
+const sampleCheckout = "http://localhost:3000/consultoria/saiya-shape/pagamentos/retorno?chargeId=123";
+
+// 1. Telefone válido com DDD (11 dígitos)
+const waWithDdd = generateWhatsAppPaymentMessage("11987654321", "Lucas Teste", "Consultoria Completa", 35000, sampleCheckout);
+assert.ok(waWithDdd.startsWith("https://wa.me/5511987654321?text="));
+assert.ok(waWithDdd.includes(encodeURIComponent("Lucas Teste")));
+assert.ok(waWithDdd.includes(encodeURIComponent("Consultoria Completa")));
+assert.ok(waWithDdd.includes(encodeURIComponent("R$ 350,00")));
+assert.ok(waWithDdd.includes(encodeURIComponent(sampleCheckout)));
+
+// 2. Telefone formatado com caracteres especiais: (71) 99999-8888
+const waFormatted = generateWhatsAppPaymentMessage("(71) 99999-8888", "Ana Teste", "Treino Mensal", 20000, sampleCheckout);
+assert.ok(waFormatted.startsWith("https://wa.me/5571999998888?text="));
+
+// 3. Telefone já com código de país: 5511987654321
+const waWithCountry = generateWhatsAppPaymentMessage("5511987654321", "Pedro Teste", "Nutrição", 20000, sampleCheckout);
+assert.ok(waWithCountry.startsWith("https://wa.me/5511987654321?text="));
+
+// 4. Telefone nulo (NULL AS phone) -> Link universal de compartilhamento
+const waNull = generateWhatsAppPaymentMessage(null, "Aluno Sem Telefone", "Consultoria Completa", 35000, sampleCheckout);
+assert.ok(waNull.startsWith("https://wa.me/?text="), "Telefone nulo DEVE gerar link universal wa.me/?text=");
+assert.ok(!waNull.includes("undefined"), "URL não deve conter 'undefined'");
+assert.ok(waNull.includes(encodeURIComponent("Aluno Sem Telefone")));
+assert.ok(waNull.includes(encodeURIComponent("R$ 350,00")));
+
+// 5. Telefone undefined
+const waUndefined = generateWhatsAppPaymentMessage(undefined, "Aluno Undefined", "Plano Anual", 120000, sampleCheckout);
+assert.ok(waUndefined.startsWith("https://wa.me/?text="));
+
+// 6. Telefone vazio ou espaços em branco
+const waEmpty = generateWhatsAppPaymentMessage("   ", "Aluno Vazio", "Plano Trimestral", 50000, sampleCheckout);
+assert.ok(waEmpty.startsWith("https://wa.me/?text="));
+
+// 7. Telefone inválido (< 8 dígitos)
+const waInvalid = generateWhatsAppPaymentMessage("123", "Aluno Inválido", "Plano Mensal", 20000, sampleCheckout);
+assert.ok(waInvalid.startsWith("https://wa.me/?text="));
+
+console.log("✔ TEST 16: Compartilhamento via WhatsApp validado (direto com telefone e universal sem telefone).");
+
+console.log("\nTODOS OS 16 TESTES DA SUÍTE DE AUDITORIA INFINITEPAY PASSARAM COM SUCESSO!");

@@ -189,12 +189,13 @@ export class InfinitePayClient {
       const isRefused = Boolean(request.slug?.includes("refused") || request.order_nsu?.includes("refused"));
       const isPending = Boolean(request.slug?.includes("pending") || request.order_nsu?.includes("pending"));
       const isDivergent = Boolean(request.slug?.includes("divergent") || request.order_nsu?.includes("divergent"));
+      const simAmount = request.amount || 10000;
 
       if (isRefused) {
         return {
           success: true,
           paid: false,
-          amount: 10000,
+          amount: simAmount,
           paid_amount: 0,
           installments: 1,
           capture_method: "credit_card",
@@ -207,7 +208,7 @@ export class InfinitePayClient {
         return {
           success: true,
           paid: false,
-          amount: 10000,
+          amount: simAmount,
           paid_amount: 0,
           status: "PENDING",
         };
@@ -216,8 +217,8 @@ export class InfinitePayClient {
       return {
         success: true,
         paid: true,
-        amount: 10000,
-        paid_amount: isDivergent ? 5000 : 10000,
+        amount: simAmount,
+        paid_amount: isDivergent ? Math.round(simAmount / 2) : simAmount,
         installments: 1,
         capture_method: "pix",
         transaction_nsu: `sim_tx_${Date.now()}`,

@@ -93,6 +93,7 @@ export interface InfinitePayPaymentCheckRequest {
   order_nsu: string;
   transaction_nsu?: string;
   slug?: string;
+  amount?: number;
 }
 
 export interface InfinitePayPaymentCheckResponse {

@@ -426,6 +426,39 @@ export async function toggleConsultancyPlanStatus(params: {
 // 3. CHARGE WITH PLAN & CHECKOUT LINK CREATION
 // ============================================================================
 
+/**
+ * Adiciona meses de calendário preservando o dia do mês.
+ * Quando o mês de destino possuir menos dias que o dia de início, ajusta
+ * para o último dia do mês de destino (clamping).
+ * Opera estritamente com componentes UTC para prevenir distorções de timezone.
+ */
+export function addCalendarMonths(date: Date, months: number): Date {
+  const result = new Date(date);
+  const year = result.getUTCFullYear();
+  const month = result.getUTCMonth();
+  const day = result.getUTCDate();
+
+  const targetMonthTotal = month + months;
+  const targetYear = year + Math.floor(targetMonthTotal / 12);
+  const targetMonth = ((targetMonthTotal % 12) + 12) % 12;
+
+  // O dia 0 do mês seguinte fornece o último dia do mês de destino em UTC
+  const daysInTargetMonth = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+  const targetDay = Math.min(day, daysInTargetMonth);
+
+  result.setUTCFullYear(targetYear, targetMonth, targetDay);
+  return result;
+}
+
+/**
+ * Adiciona dias de calendário em UTC.
+ */
+export function addCalendarDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
 export async function createPlanChargeForStudent(params: {
   consultancyId: number;
   consultancySlug: string;
@@ -433,6 +466,7 @@ export async function createPlanChargeForStudent(params: {
   studentMembershipPublicId: string;
   planPublicId: string;
   appBaseUrl: string;
+  studentPhone?: string | null;
 }): Promise<{
   success: boolean;
   chargePublicId?: string;
@@ -447,6 +481,7 @@ export async function createPlanChargeForStudent(params: {
     studentMembershipPublicId,
     planPublicId,
     appBaseUrl,
+    studentPhone: explicitPhone,
   } = params;
 
   // FAIL-CLOSED: Strictly block any charge creation if pilot protection fails
@@ -482,7 +517,7 @@ export async function createPlanChargeForStudent(params: {
 
     // 2. Resolve Student Membership
     const [memberRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT cm.id, u.full_name, u.phone
+      `SELECT cm.id, u.full_name, NULL AS phone
        FROM consultancy_members cm
        INNER JOIN users u ON u.id = cm.user_id
        WHERE cm.consultancy_id = ? AND (cm.public_id = ? OR u.public_id = ?)
@@ -497,7 +532,7 @@ export async function createPlanChargeForStudent(params: {
     const member = memberRows[0];
     const studentMembershipId = Number(member.id);
     const studentName = String(member.full_name);
-    const studentPhone = member.phone ? String(member.phone) : null;
+    const studentPhone = explicitPhone ?? (member.phone ? String(member.phone) : null);
 
     // 3. Prevent duplicate creation within 15 minutes (Double-click & duplicate intention protection)
     // Only reuse if charge is still OPEN and NOT overdue
@@ -529,19 +564,18 @@ export async function createPlanChargeForStudent(params: {
     // 4. Calculate validity reference dates based on plan duration
     const today = new Date();
     const periodStart = today.toISOString().slice(0, 10);
-    const periodEnd = new Date(today);
+    let periodEnd: Date;
     if (plan.duration_months) {
-      periodEnd.setMonth(periodEnd.getMonth() + Number(plan.duration_months));
+      periodEnd = addCalendarMonths(today, Number(plan.duration_months));
     } else if (plan.duration_days) {
-      periodEnd.setDate(periodEnd.getDate() + Number(plan.duration_days));
+      periodEnd = addCalendarDays(today, Number(plan.duration_days));
     } else {
-      periodEnd.setMonth(periodEnd.getMonth() + 1); // default 1 month
+      periodEnd = addCalendarMonths(today, 1); // default 1 month
     }
     const periodEndStr = periodEnd.toISOString().slice(0, 10);
 
     // Due date: default 3 days from today
-    const dueDate = new Date(today);
-    dueDate.setDate(dueDate.getDate() + 3);
+    const dueDate = addCalendarDays(today, 3);
     const dueOnStr = dueDate.toISOString().slice(0, 10);
 
     const chargePublicId = crypto.randomUUID();
@@ -646,24 +680,28 @@ export async function createPlanChargeForStudent(params: {
   }
 }
 
-function generateWhatsAppPaymentMessage(
-  phone: string | null,
+export function generateWhatsAppPaymentMessage(
+  phone: string | null | undefined,
   studentName: string,
   planName: string,
   amountCents: number,
   checkoutUrl: string
-): string | undefined {
-  if (!phone) return undefined;
-  const digits = phone.replace(/\D/g, "");
-  if (!digits || digits.length < 8) return undefined;
-  const fullPhone = digits.length <= 11 ? `55${digits}` : digits;
-
-  const brl = (amountCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+): string {
+  const brl = (amountCents / 100)
+    .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+    .replace(/\u00A0/g, " ");
   const text = encodeURIComponent(
     `Olá, ${studentName}! Aqui está o link seguro para pagamento do seu plano *${planName}* (${brl}):\n\n${checkoutUrl || "Acesse sua área no Trevo One para pagar por Pix ou Cartão."}\n\nApós a confirmação, seu plano será liberado automaticamente!`
   );
 
-  return `https://wa.me/${fullPhone}?text=${text}`;
+  const digits = phone ? phone.replace(/\D/g, "") : "";
+  if (digits && digits.length >= 8) {
+    const fullPhone = digits.length <= 11 ? `55${digits}` : digits;
+    return `https://wa.me/${fullPhone}?text=${text}`;
+  }
+
+  // Universal WhatsApp share link without specific recipient: opens contact picker
+  return `https://wa.me/?text=${text}`;
 }
 
 // ============================================================================
@@ -958,18 +996,18 @@ export async function confirmAndActivateCharge(params: {
       }
 
       const startsAt = now.toISOString().slice(0, 19).replace("T", " ");
-      const endsDate = new Date(baseDate);
+      let endsDate: Date;
       if (Array.isArray(planRows) && planRows.length > 0) {
         const p = planRows[0];
         if (p.duration_months) {
-          endsDate.setMonth(endsDate.getMonth() + Number(p.duration_months));
+          endsDate = addCalendarMonths(baseDate, Number(p.duration_months));
         } else if (p.duration_days) {
-          endsDate.setDate(endsDate.getDate() + Number(p.duration_days));
+          endsDate = addCalendarDays(baseDate, Number(p.duration_days));
         } else {
-          endsDate.setMonth(endsDate.getMonth() + 1);
+          endsDate = addCalendarMonths(baseDate, 1);
         }
       } else {
-        endsDate.setMonth(endsDate.getMonth() + 1);
+        endsDate = addCalendarMonths(baseDate, 1);
       }
       const endsAt = endsDate.toISOString().slice(0, 19).replace("T", " ");
 
@@ -1090,6 +1128,7 @@ export async function verifyAndReconcileChargePayment(params: {
       order_nsu: charge.public_id,
       slug: finalSlug,
       transaction_nsu: finalTxNsu,
+      amount: Number(charge.amount_cents),
     });
 
     // 4. Verify original order amount correspondence

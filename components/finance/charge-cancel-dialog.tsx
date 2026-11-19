@@ -22,9 +22,15 @@ export function ChargeCancelDialog({
   const [isPending, startTransition] = useTransition();
 
   const handleCancel = () => {
+    const trimmed = reason.trim();
+    if (trimmed.length < 3) {
+      setError("O motivo do cancelamento é obrigatório (mínimo de 3 caracteres).");
+      return;
+    }
+
     setError(null);
     startTransition(async () => {
-      const res = await cancelStudentChargeAction(slug, chargePublicId, reason);
+      const res = await cancelStudentChargeAction(slug, chargePublicId, trimmed);
       if (!res.success) {
         setError(res.error || "Não foi possível cancelar a cobrança.");
       } else {
@@ -82,19 +88,23 @@ export function ChargeCancelDialog({
 
             <div className="space-y-1 text-left">
               <label htmlFor="cancel-reason" className="block text-xs font-bold text-[#102E23]">
-                Motivo do Cancelamento <span className="text-[#526058] font-normal text-[11px]">(opcional)</span>
+                Motivo do Cancelamento <span className="text-rose-500">*</span>
               </label>
               <input
                 id="cancel-reason"
                 name="cancelReason"
                 type="text"
-                placeholder="Ex: Acordo direto, troca de plano, cancelamento de matrícula"
+                placeholder="Ex: Aluno solicitou cancelamento de matrícula (mínimo 3 caracteres)"
                 value={reason}
-                onChange={(e) => setReason(e.target.value)}
+                onChange={(e) => {
+                  setReason(e.target.value);
+                  if (error) setError(null);
+                }}
                 disabled={isPending}
                 maxLength={255}
                 className="w-full h-11 px-3.5 rounded-xl border border-[#D5DDD6] bg-white text-[#102E23] placeholder:text-[#526058]/60 focus:outline-none focus:border-[#176B49] focus:ring-2 focus:ring-[#176B49]/15 text-xs transition-all shadow-2xs"
               />
+              <span className="text-[11px] text-[#526058] block">Mínimo de 3 caracteres obrigatório.</span>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">
@@ -114,7 +124,7 @@ export function ChargeCancelDialog({
                 size="sm"
                 className="min-h-[44px] px-4 font-semibold text-xs"
                 onClick={handleCancel}
-                disabled={isPending}
+                disabled={isPending || reason.trim().length < 3}
               >
                 {isPending ? "Cancelando..." : "Confirmar cancelamento"}
               </Button>

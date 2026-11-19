@@ -196,7 +196,7 @@ export async function createStudentOwnProgressEntry(params: {
 }): Promise<{ publicId: string }> {
   const { userId, consultancySlug, input } = params;
 
-  const access = await resolveStudentModuleAccess(userId, consultancySlug);
+  const access = await resolveStudentModuleAccess(userId, consultancySlug, "evolution");
   if (!access.allowed || !access.context) {
     throw new Error("Acesso não autorizado para registrar progresso.");
   }
@@ -507,7 +507,7 @@ export async function getStudentOwnProgressHistory(params: {
 }): Promise<StudentProgressHistoryDto | null> {
   const { userId, consultancySlug, page } = params;
 
-  const access = await resolveStudentModuleAccess(userId, consultancySlug);
+  const access = await resolveStudentModuleAccess(userId, consultancySlug, "evolution");
   if (!access.allowed || !access.context) {
     return null;
   }

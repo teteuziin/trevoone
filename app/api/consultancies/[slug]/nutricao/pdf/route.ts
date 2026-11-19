@@ -78,7 +78,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
       safeFilename = createSafePdfFilename(tree.version.title || "Plano-Alimentar", tree.version.status === "DRAFT" ? "Rascunho" : "Geral");
     } else {
       // Default: Check student access to their active plan
-      const studentAccess = await resolveStudentModuleAccess(session.userId, slug);
+      const studentAccess = await resolveStudentModuleAccess(session.userId, slug, "nutrition");
       if (studentAccess.allowed && studentAccess.context) {
         const v2Auth = await getStudentAuthoritativeNutrition(session.userId, slug);
         if (!v2Auth.activeAssignment) {

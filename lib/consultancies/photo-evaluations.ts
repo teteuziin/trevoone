@@ -367,7 +367,7 @@ export async function getStudentPhotoEvaluationsData(params: {
 } | null> {
   const { userId, consultancySlug } = params;
 
-  const access = await resolveStudentModuleAccess(userId, consultancySlug);
+  const access = await resolveStudentModuleAccess(userId, consultancySlug, "evolution");
   if (!access.allowed || !access.context) {
     return null;
   }

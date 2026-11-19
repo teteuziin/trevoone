@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { resolveStudentModuleAccess } from "@/lib/consultancies/student-module-access";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import {
   getChatConsultationByPublicId,
@@ -45,6 +46,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   if (!isStudent && !isProf && !isAdmin) {
     return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+  }
+
+  if (isStudent) {
+    const chatAccess = await resolveStudentModuleAccess(session.userId, slug, "chat");
+    if (!chatAccess.allowed) {
+      return NextResponse.json({ error: "Recurso de chat não incluso no seu plano contratado." }, { status: 403 });
+    }
   }
 
   const rawLimit = Number(searchParams.get("limit") || 50);

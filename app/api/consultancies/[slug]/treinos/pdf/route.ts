@@ -35,7 +35,7 @@ export async function GET(request: Request, context: RouteContext) {
     return new NextResponse("Não autenticado.", { status: 401 });
   }
 
-  const access = await resolveStudentModuleAccess(session.userId, slug);
+  const access = await resolveStudentModuleAccess(session.userId, slug, "training");
   if (!access.allowed || !access.context) {
     return new NextResponse("Acesso não autorizado ao módulo de treino.", { status: 403 });
   }

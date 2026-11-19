@@ -6,12 +6,15 @@ import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import {
   saveConsultancyFinanceSettings,
   createStudentCharge,
+  createCustomStudentCharge,
   cancelStudentCharge,
+  markStudentChargePaid,
   searchConsultancyStudents,
   parseBrlToCents,
   type PixKeyType,
   type StudentSearchItem,
 } from "@/lib/consultancies/finance";
+import type { StudentFeatureKey } from "@/lib/consultancies/student-features";
 import {
   saveInfinitePaySettings,
   createConsultancyPlan,
@@ -27,6 +30,7 @@ export type ActionState = {
   chargePublicId?: string;
   checkoutUrl?: string;
   whatsAppHref?: string;
+  paymentPublicId?: string;
 };
 
 export async function saveFinanceSettingsAction(
@@ -157,6 +161,98 @@ export async function createStudentChargeAction(
   return { success: true, chargePublicId: result.chargePublicId };
 }
 
+export async function createCustomStudentChargeAction(
+  slug: string,
+  _prevState: ActionState | null,
+  formData: FormData
+): Promise<ActionState> {
+  if (process.env.FINANCE_EMISSION_PAUSED === "true") {
+    return {
+      success: false,
+      error: "A emissão de novas cobranças está temporariamente pausada para atualização de sistema. Tente novamente em alguns instantes.",
+    };
+  }
+
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context) {
+    return { success: false, error: "Consultoria não encontrada." };
+  }
+
+  const isStaff =
+    context.roles.includes("CONSULTANCY_ADMIN") ||
+    context.roles.includes("PERSONAL");
+  if (!isStaff) {
+    return { success: false, error: "Acesso não autorizado para criar cobranças personalizadas." };
+  }
+
+  const studentMembershipPublicId = String(formData.get("studentMembershipPublicId") || "").trim();
+  const title = String(formData.get("title") || "").trim();
+  const description = formData.get("description") ? String(formData.get("description")).trim() : null;
+  const amountBrl = String(formData.get("amountBrl") || "").trim();
+  const dueOn = String(formData.get("dueOn") || "").trim();
+  const durationMonthsRaw = formData.get("durationMonths") ? Number(formData.get("durationMonths")) : null;
+  const durationDaysRaw = formData.get("durationDays") ? Number(formData.get("durationDays")) : null;
+  const billingMethodRaw = String(formData.get("billingMethod") || "MANUAL").trim().toUpperCase();
+  const blocksAccess = formData.get("blocksAccess") === "true" || formData.get("blocksAccess") === "on";
+
+  let features: Partial<Record<StudentFeatureKey, boolean>> = {};
+  const featuresJsonStr = formData.get("featuresJson");
+  if (featuresJsonStr && typeof featuresJsonStr === "string") {
+    try {
+      features = JSON.parse(featuresJsonStr);
+    } catch {
+      return { success: false, error: "Formato de recursos JSON inválido." };
+    }
+  } else {
+    features = {
+      training: formData.get("feature_training") === "true" || formData.get("feature_training") === "on",
+      nutrition: formData.get("feature_nutrition") === "true" || formData.get("feature_nutrition") === "on",
+      evolution: formData.get("feature_evolution") === "true" || formData.get("feature_evolution") === "on",
+      consultations: formData.get("feature_consultations") === "true" || formData.get("feature_consultations") === "on",
+      chat: formData.get("feature_chat") === "true" || formData.get("feature_chat") === "on",
+    };
+  }
+
+  const parseResult = parseBrlToCents(amountBrl);
+  if (!parseResult.valid || !parseResult.cents) {
+    return { success: false, error: parseResult.error || "Valor da cobrança inválido." };
+  }
+
+  const result = await createCustomStudentCharge({
+    consultancyId: context.consultancyId,
+    consultancySlug: slug,
+    userId: session.userId,
+    studentMembershipPublicId,
+    title,
+    description,
+    amountCents: parseResult.cents,
+    dueOn,
+    durationMonths: durationMonthsRaw,
+    durationDays: durationDaysRaw,
+    features,
+    blocksAccess,
+    billingMethod: billingMethodRaw as "MANUAL" | "INFINITEPAY",
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error || "Não foi possível criar a cobrança personalizada." };
+  }
+
+  revalidatePath(`/consultoria/${slug}/financeiro`);
+  return {
+    success: true,
+    message: "Cobrança personalizada criada com sucesso!",
+    chargePublicId: result.chargePublicId,
+    checkoutUrl: result.checkoutUrl,
+    whatsAppHref: result.whatsAppHref,
+  };
+}
+
 export async function cancelStudentChargeAction(
   slug: string,
   chargePublicId: string,
@@ -186,6 +282,48 @@ export async function cancelStudentChargeAction(
   revalidatePath(`/consultoria/${slug}/financeiro`);
   revalidatePath(`/consultoria/${slug}/financeiro/cobrancas/${chargePublicId}`);
   return { success: true, message: "Cobrança cancelada com sucesso." };
+}
+
+export async function markStudentChargePaidAction(
+  slug: string,
+  chargePublicId: string,
+  paymentMethod: string,
+  paidAtIso?: string,
+  notes?: string
+): Promise<ActionState> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return {
+      success: false,
+      error: "Apenas administradores da consultoria podem confirmar pagamentos manualmente.",
+    };
+  }
+
+  const result = await markStudentChargePaid({
+    consultancyId: context.consultancyId,
+    userId: session.userId,
+    chargePublicId,
+    paymentMethod,
+    paidAtIso: paidAtIso?.trim() || null,
+    notes: notes?.trim() || null,
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error || "Não foi possível confirmar o pagamento." };
+  }
+
+  revalidatePath(`/consultoria/${slug}/financeiro`);
+  revalidatePath(`/consultoria/${slug}/financeiro/cobrancas/${chargePublicId}`);
+  return {
+    success: true,
+    message: "Pagamento confirmado com sucesso.",
+    paymentPublicId: result.paymentPublicId,
+  };
 }
 
 export async function saveInfinitePaySettingsAction(
@@ -280,6 +418,13 @@ export async function createStudentPlanChargeAction(
   _prevState: ActionState | null,
   formData: FormData
 ): Promise<ActionState> {
+  if (process.env.FINANCE_EMISSION_PAUSED === "true") {
+    return {
+      success: false,
+      error: "A emissão de novas cobranças está temporariamente pausada para atualização de sistema. Tente novamente em alguns instantes.",
+    };
+  }
+
   const session = await getCurrentSession();
   if (!session) {
     return { success: false, error: "Sessão expirada. Faça login novamente." };

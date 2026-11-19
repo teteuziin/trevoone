@@ -236,7 +236,7 @@ async function resolveEvolutionTargetStudent(
     };
   } else {
     // Student caller accessing own evolution
-    const access = await resolveStudentModuleAccess(userId, consultancySlug);
+    const access = await resolveStudentModuleAccess(userId, consultancySlug, "evolution");
     if (!access.allowed || !access.context) return null;
 
     const [members] = await connection.execute<RowDataPacket[]>(

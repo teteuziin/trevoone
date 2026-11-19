@@ -5,6 +5,7 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getConsultancyFinanceSettings } from "@/lib/consultancies/finance";
+import { listConsultancyPlans } from "@/lib/infinitepay/service";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { ChargeForm } from "@/components/finance/charge-form";
 
@@ -36,7 +37,10 @@ export default async function NewChargePage({ params }: PageProps) {
   }
 
   const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
-  const settings = await getConsultancyFinanceSettings(context.consultancyId);
+  const [settings, availablePlans] = await Promise.all([
+    getConsultancyFinanceSettings(context.consultancyId),
+    listConsultancyPlans({ consultancyId: context.consultancyId }),
+  ]);
 
   return (
     <ConsultancyAppShell
@@ -78,13 +82,17 @@ export default async function NewChargePage({ params }: PageProps) {
               Emitir Nova Cobrança
             </h1>
             <p className="text-xs sm:text-sm text-[#526058]">
-              Gere cobranças avulsas para seus alunos com recebimento por Pix ou cartão.
+              Gere cobranças por planos comerciais ou personalizadas com recursos e valores individuais.
             </p>
           </div>
         </div>
 
         <div className="bg-white border border-[#E5E8E2] rounded-3xl p-4 sm:p-7 shadow-xs">
-          <ChargeForm slug={slug} hasFinanceSettings={Boolean(settings)} />
+          <ChargeForm
+            slug={slug}
+            hasFinanceSettings={Boolean(settings)}
+            availablePlans={availablePlans}
+          />
         </div>
       </div>
     </ConsultancyAppShell>

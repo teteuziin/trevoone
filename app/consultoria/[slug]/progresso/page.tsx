@@ -23,7 +23,7 @@ export default async function StudentProgressPage({ params }: PageProps) {
     redirect(`/login?redirect=/consultoria/${slug}/progresso`);
   }
 
-  const access = await resolveStudentModuleAccess(session.userId, slug);
+  const access = await resolveStudentModuleAccess(session.userId, slug, "evolution");
 
   if (!access.allowed || !access.context) {
     if (access.reason === "FINANCIALLY_RESTRICTED") {

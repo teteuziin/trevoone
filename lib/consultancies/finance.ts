@@ -6,6 +6,20 @@ import {
   deliverNotificationAfterCommit,
 } from "@/services/notification-service";
 import { readVerifiedPrivateFile } from "../storage/private-files";
+import {
+  addCalendarMonths,
+  addCalendarDays,
+  getAuthorizedPilotConsultancyId,
+  getInfinitePayConfig,
+  generateWhatsAppPaymentMessage,
+} from "../infinitepay/service";
+import { InfinitePayClient } from "../infinitepay/client";
+import {
+  type StudentFeatureKey,
+  type StudentFeatures,
+  parseFeaturesJson,
+  getDeployCutoffTimestamp,
+} from "./student-features";
 
 export type PixKeyType = "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "RANDOM";
 
@@ -785,6 +799,415 @@ export async function createStudentCharge(
   }
 }
 
+export type CustomChargeBillingMethod = "MANUAL" | "INFINITEPAY";
+
+export type CreateCustomStudentChargeParams = {
+  consultancyId: number;
+  consultancySlug?: string;
+  userId: number;
+  studentMembershipPublicId: string;
+  title: string;
+  description?: string | null;
+  amountCents: number;
+  dueOn: string;
+  durationMonths?: number | null;
+  durationDays?: number | null;
+  referencePeriodStart?: string | null;
+  referencePeriodEnd?: string | null;
+  features: Partial<Record<StudentFeatureKey, boolean>> | StudentFeatures | Record<string, unknown>;
+  blocksAccess?: boolean;
+  billingMethod: CustomChargeBillingMethod | string;
+  appBaseUrl?: string | null;
+  studentPhone?: string | null;
+};
+
+export type CreateCustomStudentChargeResult = {
+  success: boolean;
+  error?: string;
+  chargePublicId?: string;
+  chargeId?: number;
+  checkoutUrl?: string;
+  whatsAppHref?: string;
+};
+
+/**
+ * Creates a custom financial charge for a student with granular feature entitlements.
+ * - Always sets plan_id = NULL.
+ * - Enforces explicit features_json snapshot with only allowed feature keys:
+ *   training, nutrition, evolution, consultations, chat.
+ * - Strictly rejects any administrative permission or unallowed key.
+ * - Supports MANUAL (offline payment confirmation) or INFINITEPAY (simulation/gateway hosted link).
+ * - Never registers an automatic commercial plan.
+ */
+export async function createCustomStudentCharge(
+  params: CreateCustomStudentChargeParams
+): Promise<CreateCustomStudentChargeResult> {
+  const {
+    consultancyId,
+    consultancySlug: paramSlug,
+    userId,
+    studentMembershipPublicId,
+    title,
+    description,
+    amountCents,
+    dueOn,
+    features,
+    appBaseUrl,
+    studentPhone: explicitPhone,
+  } = params;
+
+  if (!consultancyId || consultancyId <= 0 || !userId || userId <= 0) {
+    return { success: false, error: "Identificadores inválidos." };
+  }
+
+  const cleanTitle = (title || "").trim();
+  if (!cleanTitle || cleanTitle.length > 150) {
+    return { success: false, error: "Título da cobrança é obrigatório (máximo de 150 caracteres)." };
+  }
+
+  const cleanDescription = description?.trim() || null;
+  if (cleanDescription && cleanDescription.length > 500) {
+    return { success: false, error: "Descrição da cobrança excede o limite de 500 caracteres." };
+  }
+
+  if (
+    !Number.isSafeInteger(amountCents) ||
+    amountCents < 100 ||
+    amountCents > MAX_CHARGE_AMOUNT_CENTS
+  ) {
+    return {
+      success: false,
+      error: "Valor da cobrança inválido (mínimo de R$ 1,00 e máximo de R$ 1.000.000,00).",
+    };
+  }
+
+  if (!isValidIsoCalendarDate(dueOn)) {
+    return { success: false, error: "Data de vencimento inválida (formato AAAA-MM-DD esperado)." };
+  }
+
+  // Duration and reference period calculation
+  const today = new Date();
+  const periodStart = params.referencePeriodStart?.trim() || today.toISOString().slice(0, 10);
+  let periodEnd: Date;
+
+  if (params.durationMonths && Number.isSafeInteger(params.durationMonths) && params.durationMonths > 0) {
+    if (params.durationMonths > 120) {
+      return { success: false, error: "Duração máxima permitida é de 120 meses (10 anos)." };
+    }
+    periodEnd = addCalendarMonths(today, params.durationMonths);
+  } else if (params.durationDays && Number.isSafeInteger(params.durationDays) && params.durationDays > 0) {
+    if (params.durationDays > 3650) {
+      return { success: false, error: "Duração máxima permitida é de 3650 dias." };
+    }
+    periodEnd = addCalendarDays(today, params.durationDays);
+  } else if (params.referencePeriodEnd && isValidIsoCalendarDate(params.referencePeriodEnd)) {
+    periodEnd = new Date(params.referencePeriodEnd);
+  } else {
+    // Default 1 month
+    periodEnd = addCalendarMonths(today, 1);
+  }
+  const periodEndStr = periodEnd.toISOString().slice(0, 10);
+
+  // Security check: validate feature keys strictly
+  const ALLOWED_FEATURE_KEYS = new Set<string>([
+    "training",
+    "nutrition",
+    "evolution",
+    "consultations",
+    "chat",
+  ]);
+
+  if (!features || typeof features !== "object") {
+    return {
+      success: false,
+      error: "Selecione ao menos um recurso contratado para a cobrança personalizada.",
+    };
+  }
+
+  const providedKeys = Object.keys(features);
+  for (const key of providedKeys) {
+    if (!ALLOWED_FEATURE_KEYS.has(key)) {
+      return {
+        success: false,
+        error: `Recurso "${key}" não é permitido. Apenas recursos de treino, nutrição, evolução, consultas e chat podem ser contratados.`,
+      };
+    }
+  }
+
+  const normalizedFeatures: StudentFeatures = {
+    training: Boolean((features as Record<string, unknown>).training),
+    nutrition: Boolean((features as Record<string, unknown>).nutrition),
+    evolution: Boolean((features as Record<string, unknown>).evolution),
+    consultations: Boolean((features as Record<string, unknown>).consultations),
+    chat: Boolean((features as Record<string, unknown>).chat),
+  };
+
+  const hasAnyGranted = Object.values(normalizedFeatures).some(Boolean);
+  if (!hasAnyGranted) {
+    return {
+      success: false,
+      error: "A cobrança personalizada deve conter ao menos um recurso contratado habilitado.",
+    };
+  }
+
+  const featuresJson = JSON.stringify(normalizedFeatures);
+
+  const cleanBillingMethod = (params.billingMethod || "MANUAL").trim().toUpperCase() as CustomChargeBillingMethod;
+  if (cleanBillingMethod !== "MANUAL" && cleanBillingMethod !== "INFINITEPAY") {
+    return {
+      success: false,
+      error: "Modalidade de recebimento inválida. Escolha MANUAL ou INFINITEPAY.",
+    };
+  }
+
+  const blocksAccess = params.blocksAccess !== undefined ? Boolean(params.blocksAccess) : true;
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // Check timezone and ensure dueOn is not in the past
+    const [settingsRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT billing_timezone FROM consultancy_finance_settings WHERE consultancy_id = ? LIMIT 1;`,
+      [consultancyId]
+    );
+    const billingTimezone = settingsRows?.[0]?.billing_timezone
+      ? String(settingsRows[0].billing_timezone)
+      : "America/Sao_Paulo";
+    const localToday = getConsultancyLocalDate(billingTimezone);
+
+    if (dueOn < localToday) {
+      await connection.rollback();
+      return { success: false, error: "A data de vencimento não pode ser anterior à data de hoje." };
+    }
+
+    if (blocksAccess && cleanBillingMethod === "MANUAL") {
+      if (!Array.isArray(settingsRows) || settingsRows.length === 0) {
+        await connection.rollback();
+        return {
+          success: false,
+          error: "A consultoria precisa configurar a chave Pix antes de emitir cobranças com bloqueio de acesso.",
+        };
+      }
+    }
+
+    // Resolve Student Membership
+    const [memberRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.id, cm.user_id, cm.status, u.status AS user_status, u.deleted_at, c.slug AS consultancy_slug, u.full_name, NULL AS phone
+       FROM consultancy_members cm
+       INNER JOIN consultancies c ON c.id = cm.consultancy_id
+       INNER JOIN users u ON u.id = cm.user_id
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       WHERE (cm.public_id = ? OR u.public_id = ?)
+         AND cm.consultancy_id = ?
+         AND cmr.role = 'STUDENT'
+         AND cm.status = 'ACTIVE'
+         AND u.status = 'ACTIVE'
+         AND u.deleted_at IS NULL
+       LIMIT 1;`,
+      [studentMembershipPublicId.trim(), studentMembershipPublicId.trim(), consultancyId]
+    );
+
+    if (!Array.isArray(memberRows) || memberRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Aluno não encontrado ou inativo nesta consultoria." };
+    }
+
+    const member = memberRows[0];
+    const studentMembershipId = Number(member.id);
+    const studentUserId = Number(member.user_id);
+    const studentName = String(member.full_name);
+    const consultancySlug = paramSlug || String(member.consultancy_slug);
+    const studentPhone = explicitPhone ?? (member.phone ? String(member.phone) : null);
+    const chargePublicId = crypto.randomUUID();
+
+    let checkoutUrl = "";
+    let slug = "";
+    let whatsAppHref = "";
+
+    if (cleanBillingMethod === "INFINITEPAY") {
+      const authorizedPilotId = getAuthorizedPilotConsultancyId();
+      if (authorizedPilotId === null || consultancyId !== authorizedPilotId) {
+        await connection.rollback();
+        return {
+          success: false,
+          error: "A integração InfinitePay não está habilitada para esta consultoria.",
+        };
+      }
+
+      const config = await getInfinitePayConfig(consultancyId);
+      if (!config || !config.enabled) {
+        await connection.rollback();
+        return {
+          success: false,
+          error: "A integração com a InfinitePay está desativada para esta consultoria.",
+        };
+      }
+
+      const canonicalBase = (appBaseUrl && !appBaseUrl.includes("trevo.one") ? appBaseUrl : "https://trevoone.com").replace(/\/+$/, "");
+      const redirectUrl = `${canonicalBase}/consultoria/${consultancySlug}/pagamentos/retorno?chargeId=${chargePublicId}`;
+      const webhookUrl = `${canonicalBase}/api/webhooks/infinitepay`;
+
+      const linkRes = await InfinitePayClient.createLink(config, {
+        handle: config.handle,
+        items: [
+          {
+            quantity: 1,
+            price: amountCents,
+            description: cleanTitle,
+          },
+        ],
+        order_nsu: chargePublicId,
+        redirect_url: redirectUrl,
+        webhook_url: webhookUrl,
+        options: {
+          single_payment: true,
+          assured_installments: 0,
+          valid_until: `${dueOn}T23:59:59Z`,
+        },
+      });
+
+      if (!linkRes.success) {
+        await connection.rollback();
+        return {
+          success: false,
+          error: linkRes.error || "Não foi possível gerar o link de pagamento na InfinitePay.",
+        };
+      }
+
+      checkoutUrl = linkRes.url;
+      slug = linkRes.slug;
+      whatsAppHref = generateWhatsAppPaymentMessage(
+        studentPhone,
+        studentName,
+        cleanTitle,
+        amountCents,
+        checkoutUrl
+      );
+    }
+
+    // Insert student_charges with plan_id = NULL and features_json explicit snapshot
+    const [insertResult] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO student_charges (
+        public_id,
+        consultancy_id,
+        student_membership_id,
+        plan_id,
+        title,
+        features_json,
+        description,
+        amount_cents,
+        currency_code,
+        due_on,
+        reference_period_start,
+        reference_period_end,
+        blocks_access,
+        state,
+        created_by_user_id,
+        created_at,
+        infinitepay_checkout_url,
+        infinitepay_slug,
+        infinitepay_order_nsu
+      ) VALUES (
+        ?, ?, ?, NULL,
+        ?, ?, ?, ?, 'BRL',
+        ?, ?, ?, ?, 'OPEN',
+        ?, UTC_TIMESTAMP(3),
+        ?, ?, ?
+      );`,
+      [
+        chargePublicId,
+        consultancyId,
+        studentMembershipId,
+        cleanTitle,
+        featuresJson,
+        cleanDescription,
+        amountCents,
+        dueOn,
+        periodStart,
+        periodEndStr,
+        blocksAccess ? 1 : 0,
+        userId,
+        checkoutUrl || null,
+        slug || null,
+        cleanBillingMethod === "INFINITEPAY" ? chargePublicId : null,
+      ]
+    );
+
+    const chargeId = Number(insertResult.insertId);
+
+    // Audit Event
+    const auditPublicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO audit_events (
+        public_id,
+        actor_user_id,
+        consultancy_id,
+        action,
+        target_type,
+        target_public_id,
+        metadata_json,
+        created_at
+      ) VALUES (?, ?, ?, 'STUDENT_CUSTOM_CHARGE_CREATED', 'STUDENT_CHARGE', ?, ?, UTC_TIMESTAMP(3));`,
+      [
+        auditPublicId,
+        userId,
+        consultancyId,
+        chargePublicId,
+        JSON.stringify({
+          amountCents,
+          dueOn,
+          blocksAccess,
+          billingMethod: cleanBillingMethod,
+          features: normalizedFeatures,
+          studentMembershipPublicId: studentMembershipPublicId.trim(),
+        }),
+      ]
+    );
+
+    // Notification to student
+    const formattedAmount = formatCentsToBrl(amountCents);
+    const notification = await createNotificationInTransaction(connection, {
+      userId: studentUserId,
+      consultancyId,
+      priority: "HIGH",
+      eventType: "STUDENT_CHARGE_CREATED",
+      title: "Nova cobrança personalizada disponível",
+      body: `Uma nova cobrança personalizada no valor de ${formattedAmount} (${cleanTitle}) foi gerada para você.`,
+      deepLink: `/consultoria/${consultancySlug}/pagamentos/${chargePublicId}`,
+      dedupeKey: `student-charge:created:${chargePublicId}`,
+      sourceType: "STUDENT_CHARGE",
+      sourcePublicId: chargePublicId,
+    });
+
+    await connection.commit();
+
+    try {
+      await deliverNotificationAfterCommit(notification.id);
+    } catch {}
+
+    return {
+      success: true,
+      chargePublicId,
+      chargeId,
+      checkoutUrl: checkoutUrl || undefined,
+      whatsAppHref: whatsAppHref || undefined,
+    };
+  } catch {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    return { success: false, error: "Não foi possível criar a cobrança personalizada." };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
 export type CancelStudentChargeParams = {
   consultancyId: number;
   userId: number;
@@ -806,7 +1229,10 @@ export async function cancelStudentCharge(
   }
 
   const cleanReason = params.cancelReason?.trim() || null;
-  if (cleanReason && cleanReason.length > 255) {
+  if (!cleanReason || cleanReason.length < 3) {
+    return { success: false, error: "Informe uma justificativa para o cancelamento (mínimo de 3 caracteres)." };
+  }
+  if (cleanReason.length > 255) {
     return { success: false, error: "Motivo do cancelamento excede o limite de 255 caracteres." };
   }
 
@@ -832,7 +1258,7 @@ export async function cancelStudentCharge(
 
     const row = rows[0];
 
-    if (row.payment_id !== null) {
+    if (row.payment_id !== null || row.state === "PAID") {
       await connection.rollback();
       return { success: false, error: "Não é possível cancelar uma cobrança já paga." };
     }
@@ -850,6 +1276,17 @@ export async function cancelStudentCharge(
            cancel_reason = ?
        WHERE id = ?;`,
       [userId, cleanReason, Number(row.id)]
+    );
+
+    // If an inactive subscription is linked to this charge, neutralize it
+    await connection.execute(
+      `UPDATE student_plan_subscriptions
+       SET status = 'CANCELED',
+           canceled_by_user_id = ?,
+           canceled_at = UTC_TIMESTAMP(3),
+           updated_at = UTC_TIMESTAMP(3)
+       WHERE charge_id = ? AND status != 'ACTIVE';`,
+      [userId, Number(row.id)]
     );
 
     const auditPublicId = crypto.randomUUID();
@@ -891,6 +1328,450 @@ export async function cancelStudentCharge(
   }
 }
 
+export type ManualPaymentMethod =
+  | "PIX_MANUAL"
+  | "DINHEIRO"
+  | "TRANSFERENCIA"
+  | "MAQUININHA_EXTERNA";
+
+export const VALID_MANUAL_PAYMENT_METHODS: readonly ManualPaymentMethod[] = [
+  "PIX_MANUAL",
+  "DINHEIRO",
+  "TRANSFERENCIA",
+  "MAQUININHA_EXTERNA",
+] as const;
+
+export type MarkStudentChargePaidParams = {
+  consultancyId: number;
+  userId: number;
+  chargePublicId: string;
+  paymentMethod: ManualPaymentMethod | string;
+  paidAtIso?: string | null;
+  notes?: string | null;
+};
+
+export type MarkStudentChargePaidResult = {
+  success: boolean;
+  error?: string;
+  paymentPublicId?: string;
+  subscriptionPublicId?: string;
+};
+
+function serializeFeaturesJson(val: unknown): string | null {
+  if (val === null || val === undefined) return null;
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (!trimmed) return null;
+    return trimmed;
+  }
+  if (typeof val === "object") {
+    return JSON.stringify(val);
+  }
+  return null;
+}
+
+/**
+ * Marks an eligible student charge as PAID manually by a consultancy administrator.
+ * Validates absence of active gateway checkouts (InfinitePay/Asaas) to prevent double payments.
+ * Atomically updates charge state, inserts student_payments, activates/extends plan subscription,
+ * records audit event, and delivers notification.
+ */
+export async function markStudentChargePaid(
+  params: MarkStudentChargePaidParams
+): Promise<MarkStudentChargePaidResult> {
+  const { consultancyId, userId, chargePublicId, paymentMethod, paidAtIso, notes } = params;
+
+  if (
+    !consultancyId ||
+    consultancyId <= 0 ||
+    !userId ||
+    userId <= 0 ||
+    !chargePublicId?.trim()
+  ) {
+    return { success: false, error: "Identificadores inválidos." };
+  }
+
+  const normalizedMethod = (paymentMethod || "").trim().toUpperCase() as ManualPaymentMethod;
+  if (!VALID_MANUAL_PAYMENT_METHODS.includes(normalizedMethod)) {
+    return {
+      success: false,
+      error:
+        "Forma de pagamento manual inválida. Escolha PIX_MANUAL, DINHEIRO, TRANSFERENCIA ou MAQUININHA_EXTERNA.",
+    };
+  }
+
+  const cleanNotes = notes?.trim() || null;
+  if (cleanNotes && cleanNotes.length > 255) {
+    return { success: false, error: "Observações excedem o limite de 255 caracteres." };
+  }
+
+  let paidAtDate = new Date();
+  if (paidAtIso && paidAtIso.trim()) {
+    const parsed = new Date(paidAtIso.trim());
+    if (isNaN(parsed.getTime())) {
+      return { success: false, error: "Data de recebimento inválida." };
+    }
+    if (parsed.getTime() > Date.now() + 60000) {
+      return { success: false, error: "A data de recebimento não pode ser futura." };
+    }
+    paidAtDate = parsed;
+  }
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+         sc.id,
+         sc.public_id,
+         sc.consultancy_id,
+         sc.student_membership_id,
+         sc.plan_id,
+         sc.title,
+         sc.amount_cents,
+         sc.currency_code,
+         sc.state,
+         sc.features_json AS charge_features,
+         sc.created_at,
+         sc.reference_period_start,
+         sc.reference_period_end,
+         sc.infinitepay_checkout_url,
+         sc.infinitepay_slug,
+         sc.infinitepay_order_nsu,
+         sc.asaas_payment_id,
+         sp.id AS existing_payment_id
+       FROM student_charges sc
+       LEFT JOIN student_payments sp ON sp.charge_id = sc.id AND sp.refunded_at IS NULL
+       WHERE sc.public_id = ?
+         AND sc.consultancy_id = ?
+       FOR UPDATE;`,
+      [chargePublicId.trim(), consultancyId]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Cobrança não encontrada nesta consultoria." };
+    }
+
+    const row = rows[0];
+
+    if (row.existing_payment_id !== null || row.state === "PAID") {
+      await connection.rollback();
+      return { success: false, error: "Esta cobrança já possui um pagamento confirmado." };
+    }
+
+    if (row.state === "CANCELED") {
+      await connection.rollback();
+      return { success: false, error: "Não é possível confirmar pagamento de uma cobrança cancelada." };
+    }
+
+    if (row.state !== "OPEN" && row.state !== "PENDING" && row.state !== "OVERDUE") {
+      await connection.rollback();
+      return { success: false, error: "O status atual da cobrança não permite confirmação de pagamento." };
+    }
+
+    // Protection against conflict with active external gateway checkout
+    const hasGatewayCheckout =
+      Boolean(row.infinitepay_checkout_url && String(row.infinitepay_checkout_url).trim()) ||
+      Boolean(row.infinitepay_slug && String(row.infinitepay_slug).trim()) ||
+      Boolean(row.infinitepay_order_nsu && String(row.infinitepay_order_nsu).trim()) ||
+      Boolean(row.asaas_payment_id && String(row.asaas_payment_id).trim());
+
+    if (hasGatewayCheckout) {
+      await connection.rollback();
+      return {
+        success: false,
+        error:
+          "Esta cobrança possui checkout ativo em gateway externo e não pode ser confirmada manualmente para evitar duplicidade com o gateway.",
+      };
+    }
+
+    // Check if there is an existing submitted receipt for this charge to approve in sync
+    const [existingReceipts] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id FROM student_payment_receipts
+       WHERE charge_id = ? AND consultancy_id = ? AND status = 'SUBMITTED'
+       LIMIT 1 FOR UPDATE;`,
+      [row.id, consultancyId]
+    );
+
+    const submittedReceipt =
+      Array.isArray(existingReceipts) && existingReceipts.length > 0
+        ? existingReceipts[0]
+        : null;
+
+    if (submittedReceipt) {
+      await connection.execute(
+        `UPDATE student_payment_receipts
+         SET status = 'APPROVED',
+             reviewed_by_user_id = ?,
+             reviewed_at = UTC_TIMESTAMP(3),
+             rejection_reason = NULL
+         WHERE id = ?;`,
+        [userId, submittedReceipt.id]
+      );
+    }
+
+    // 1. Insert student_payments record
+    const paymentPublicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO student_payments (
+         public_id,
+         consultancy_id,
+         charge_id,
+         receipt_id,
+         amount_cents,
+         currency_code,
+         payment_method,
+         confirmed_by_user_id,
+         confirmed_at,
+         created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3));`,
+      [
+        paymentPublicId,
+        consultancyId,
+        row.id,
+        submittedReceipt ? submittedReceipt.id : null,
+        row.amount_cents,
+        row.currency_code || "BRL",
+        normalizedMethod,
+        userId,
+        paidAtDate,
+      ]
+    );
+
+    // 2. Mark student_charges as PAID
+    await connection.execute(
+      `UPDATE student_charges
+       SET state = 'PAID',
+           paid_amount_cents = ?,
+           paid_at = ?
+       WHERE id = ?;`,
+      [row.amount_cents, paidAtDate, row.id]
+    );
+
+    // 3. Activate or extend subscription in student_plan_subscriptions
+    let subscriptionPublicId: string | undefined;
+
+    if (row.plan_id !== null || row.charge_features !== null || (row.reference_period_start && row.reference_period_end)) {
+      const [existingSub] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, public_id FROM student_plan_subscriptions WHERE charge_id = ? LIMIT 1 FOR UPDATE;`,
+        [row.id]
+      );
+
+      if (Array.isArray(existingSub) && existingSub.length > 0) {
+        subscriptionPublicId = String(existingSub[0].public_id);
+      } else {
+        let planDurationMonths: number | null = null;
+        let planDurationDays: number | null = null;
+        let planFeaturesRaw: unknown = null;
+
+        if (row.plan_id) {
+          const [planRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT duration_months, duration_days, features_json FROM consultancy_plans WHERE id = ? LIMIT 1;`,
+            [row.plan_id]
+          );
+          if (Array.isArray(planRows) && planRows.length > 0) {
+            const p = planRows[0];
+            planDurationMonths = p.duration_months ? Number(p.duration_months) : null;
+            planDurationDays = p.duration_days ? Number(p.duration_days) : null;
+            planFeaturesRaw = p.features_json;
+          }
+        }
+
+        let isLegacyCharge = false;
+        if (!row.charge_features && row.created_at) {
+          const chargeTime = new Date(row.created_at).getTime();
+          if (!Number.isNaN(chargeTime) && chargeTime < getDeployCutoffTimestamp().getTime()) {
+            isLegacyCharge = true;
+          }
+        }
+
+        const snapshotFeaturesJson = isLegacyCharge
+          ? null
+          : serializeFeaturesJson(row.charge_features ?? planFeaturesRaw);
+
+        // Check if student has an active subscription for this plan to smoothly extend continuous renewal
+        const [activeSubs] = await connection.execute<RowDataPacket[]>(
+          `SELECT id, ends_at FROM student_plan_subscriptions
+           WHERE consultancy_id = ?
+             AND student_membership_id = ?
+             AND (plan_id = ? OR (plan_id IS NULL AND ? IS NULL))
+             AND status = 'ACTIVE'
+             AND ends_at > ?
+           ORDER BY ends_at DESC LIMIT 1;`,
+          [
+            consultancyId,
+            row.student_membership_id,
+            row.plan_id || null,
+            row.plan_id || null,
+            paidAtDate,
+          ]
+        );
+
+        let baseDate = paidAtDate;
+        if (Array.isArray(activeSubs) && activeSubs.length > 0 && activeSubs[0].ends_at) {
+          const existingEnd = new Date(activeSubs[0].ends_at);
+          if (existingEnd > paidAtDate) {
+            baseDate = existingEnd;
+          }
+        }
+
+        let endsDate: Date;
+        if (planDurationMonths) {
+          endsDate = addCalendarMonths(baseDate, planDurationMonths);
+        } else if (planDurationDays) {
+          endsDate = addCalendarDays(baseDate, planDurationDays);
+        } else if (row.reference_period_start && row.reference_period_end) {
+          const diffDays = Math.max(
+            1,
+            Math.round(
+              (new Date(row.reference_period_end).getTime() -
+                new Date(row.reference_period_start).getTime()) /
+                86400000
+            )
+          );
+          endsDate = addCalendarDays(baseDate, diffDays);
+        } else {
+          endsDate = addCalendarMonths(baseDate, 1);
+        }
+
+        subscriptionPublicId = crypto.randomUUID();
+        await connection.execute(
+          `INSERT INTO student_plan_subscriptions (
+             public_id,
+             consultancy_id,
+             student_membership_id,
+             plan_id,
+             charge_id,
+             status,
+             features_json,
+             started_at,
+             ends_at,
+             created_at,
+             updated_at
+           ) VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3));`,
+          [
+            subscriptionPublicId,
+            consultancyId,
+            row.student_membership_id,
+            row.plan_id || null,
+            row.id,
+            snapshotFeaturesJson,
+            paidAtDate,
+            endsDate,
+          ]
+        );
+      }
+    }
+
+    // 4. Record audit event
+    const auditPublicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO audit_events (
+         public_id,
+         actor_user_id,
+         consultancy_id,
+         action,
+         target_type,
+         target_public_id,
+         metadata_json,
+         created_at
+       ) VALUES (?, ?, ?, 'STUDENT_CHARGE_MARKED_PAID', 'STUDENT_CHARGE', ?, ?, UTC_TIMESTAMP(3));`,
+      [
+        auditPublicId,
+        userId,
+        consultancyId,
+        chargePublicId.trim(),
+        JSON.stringify({
+          paymentMethod: normalizedMethod,
+          amountCents: Number(row.amount_cents),
+          paidAt: paidAtDate.toISOString(),
+          paymentPublicId,
+          subscriptionPublicId,
+          notes: cleanNotes,
+        }),
+      ]
+    );
+
+    if (submittedReceipt) {
+      const auditReceiptPublicId = crypto.randomUUID();
+      await connection.execute(
+        `INSERT INTO audit_events (
+           public_id,
+           actor_user_id,
+           consultancy_id,
+           action,
+           target_type,
+           target_public_id,
+           metadata_json,
+           created_at
+         ) VALUES (?, ?, ?, 'STUDENT_PAYMENT_RECEIPT_APPROVED', 'STUDENT_PAYMENT_RECEIPT', ?, ?, UTC_TIMESTAMP(3));`,
+        [
+          auditReceiptPublicId,
+          userId,
+          consultancyId,
+          submittedReceipt.public_id,
+          JSON.stringify({
+            chargePublicId: chargePublicId.trim(),
+            receiptPublicId: submittedReceipt.public_id,
+            paymentPublicId,
+          }),
+        ]
+      );
+    }
+
+    // 5. Best-effort student notification
+    try {
+      const [memberRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT cm.user_id, c.slug FROM consultancy_members cm
+         JOIN consultancies c ON c.id = cm.consultancy_id
+         WHERE cm.id = ? LIMIT 1;`,
+        [row.student_membership_id]
+      );
+      if (Array.isArray(memberRows) && memberRows.length > 0) {
+        const studentUserId = Number(memberRows[0].user_id);
+        const consultancySlug = String(memberRows[0].slug);
+        const notif = await createNotificationInTransaction(connection, {
+          userId: studentUserId,
+          consultancyId,
+          priority: "HIGH",
+          eventType: "STUDENT_CHARGE_PAID",
+          title: "Pagamento confirmado",
+          body: `O pagamento da cobrança "${row.title}" foi confirmado com sucesso.`,
+          deepLink: `/consultoria/${consultancySlug}/financeiro`,
+          dedupeKey: `student-charge:paid:${chargePublicId.trim()}`,
+          sourceType: "STUDENT_CHARGE",
+          sourcePublicId: chargePublicId.trim(),
+        });
+        deliverNotificationAfterCommit(notif.id).catch(() => {});
+      }
+    } catch {}
+
+    await connection.commit();
+    return {
+      success: true,
+      paymentPublicId,
+      subscriptionPublicId,
+    };
+  } catch {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    return {
+      success: false,
+      error: "Ocorreu um erro ao confirmar o pagamento no banco de dados.",
+    };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
 export type StudentFinancialBlockingCharge = {
   publicId: string;
   title: string;
@@ -910,13 +1791,15 @@ export type StudentFinancialAccessResult = {
 /**
  * Evaluates a student's financial access status in a consultancy.
  * Determines if there are any overdue, unpaid charges with blocks_access = true.
+ * Optionally respects requiredModule to support modular feature access (e.g. Treino overdue does not block Nutrição).
  * Returns the deterministic oldest blocking charge (due_on ASC, id ASC) for UI regularization.
  */
 export async function getStudentFinancialAccessState(params: {
   consultancyId: number;
   studentMembershipId: number;
+  requiredModule?: StudentFeatureKey;
 }): Promise<StudentFinancialAccessResult> {
-  const { consultancyId, studentMembershipId } = params;
+  const { consultancyId, studentMembershipId, requiredModule } = params;
 
   if (
     !consultancyId ||
@@ -945,6 +1828,7 @@ export async function getStudentFinancialAccessState(params: {
     const billingTimezone = String(settingsRows[0].billing_timezone);
     const localToday = getConsultancyLocalDate(billingTimezone);
 
+    // 1. Check overdue blocking charges (filtered by requiredModule if provided)
     const [rows] = await connection.execute<RowDataPacket[]>(
       `SELECT
          sc.id,
@@ -953,11 +1837,14 @@ export async function getStudentFinancialAccessState(params: {
          sc.amount_cents,
          sc.currency_code,
          DATE_FORMAT(sc.due_on, '%Y-%m-%d') AS due_on,
+         sc.features_json AS charge_features,
+         cp.features_json AS plan_features,
          EXISTS(
            SELECT 1 FROM student_payment_receipts spr
            WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED'
          ) AS has_submitted_receipt
        FROM student_charges sc
+       LEFT JOIN consultancy_plans cp ON cp.id = sc.plan_id
        WHERE sc.consultancy_id = ?
          AND sc.student_membership_id = ?
          AND sc.state = 'OPEN'
@@ -970,14 +1857,20 @@ export async function getStudentFinancialAccessState(params: {
       [consultancyId, studentMembershipId, localToday]
     );
 
-    const overdueCount = Array.isArray(rows) ? rows.length : 0;
+    const relevantOverdueRows = (Array.isArray(rows) ? rows : []).filter((r) => {
+      if (!requiredModule) return true;
+      const features =
+        parseFeaturesJson(r.charge_features) || parseFeaturesJson(r.plan_features);
+      if (!features) return true; // Legacy/global charge blocks all modules
+      return Boolean(features[requiredModule]);
+    });
 
-    if (overdueCount > 0) {
-      const oldest = rows[0];
+    if (relevantOverdueRows.length > 0) {
+      const oldest = relevantOverdueRows[0];
       return {
         isConfigured: true,
         isRestricted: true,
-        overdueChargeCount: overdueCount,
+        overdueChargeCount: relevantOverdueRows.length,
         blockingCharge: {
           publicId: String(oldest.public_id),
           title: String(oldest.title),
@@ -992,17 +1885,33 @@ export async function getStudentFinancialAccessState(params: {
     // 2. CHECK COMMERCIAL PLAN ACCESS (InfinitePay prepaid plans)
     // Step 2A: Check if student has an active, valid subscription
     const [activeSubRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT sps.id, sps.ends_at
+      `SELECT
+         sps.id,
+         sps.ends_at,
+         sps.features_json AS sub_features,
+         cp.features_json AS plan_features
        FROM student_plan_subscriptions sps
+       LEFT JOIN consultancy_plans cp ON cp.id = sps.plan_id
        WHERE sps.consultancy_id = ?
          AND sps.student_membership_id = ?
          AND sps.status = 'ACTIVE'
          AND (sps.ends_at IS NULL OR sps.ends_at >= NOW(3))
-       ORDER BY sps.id DESC LIMIT 1;`,
+       ORDER BY sps.id DESC;`,
       [consultancyId, studentMembershipId]
     );
 
-    const hasActiveSubscription = Array.isArray(activeSubRows) && activeSubRows.length > 0;
+    const hasActiveSubscription =
+      Array.isArray(activeSubRows) && activeSubRows.length > 0;
+
+    if (hasActiveSubscription) {
+      // Student has an active subscription in good standing (no overdue charges).
+      // Any missing module will be handled by feature entitlement (MODULE_NOT_INCLUDED).
+      return {
+        isConfigured: true,
+        isRestricted: false,
+        overdueChargeCount: 0,
+      };
+    }
 
     if (!hasActiveSubscription) {
       // Step 2B: Check if student has an open commercial plan charge (new prepaid student awaiting payment)
@@ -1014,22 +1923,35 @@ export async function getStudentFinancialAccessState(params: {
            sc.amount_cents,
            sc.currency_code,
            DATE_FORMAT(sc.due_on, '%Y-%m-%d') AS due_on,
+           sc.features_json AS charge_features,
+           cp.features_json AS plan_features,
            EXISTS(
              SELECT 1 FROM student_payment_receipts spr
              WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED'
            ) AS has_submitted_receipt
          FROM student_charges sc
+         LEFT JOIN consultancy_plans cp ON cp.id = sc.plan_id
          WHERE sc.consultancy_id = ?
            AND sc.student_membership_id = ?
-           AND sc.plan_id IS NOT NULL
+           AND (sc.plan_id IS NOT NULL OR sc.features_json IS NOT NULL)
            AND sc.state = 'OPEN'
-         ORDER BY sc.id DESC LIMIT 1;`,
+         ORDER BY sc.id DESC;`,
         [consultancyId, studentMembershipId]
       );
 
-      if (Array.isArray(pendingPlanRows) && pendingPlanRows.length > 0) {
+      const relevantPendingRows = (Array.isArray(pendingPlanRows) ? pendingPlanRows : []).filter(
+        (r) => {
+          if (!requiredModule) return true;
+          const features =
+            parseFeaturesJson(r.charge_features) || parseFeaturesJson(r.plan_features);
+          if (!features) return true;
+          return Boolean(features[requiredModule]);
+        }
+      );
+
+      if (relevantPendingRows.length > 0) {
         // NEW/PREPAID STUDENT WITH OPEN PLAN CHARGE: Restrict access until payment is confirmed!
-        const planCharge = pendingPlanRows[0];
+        const planCharge = relevantPendingRows[0];
         return {
           isConfigured: true,
           isRestricted: true,
@@ -1047,15 +1969,30 @@ export async function getStudentFinancialAccessState(params: {
 
       // Step 2C: Check if student has an expired subscription (previously had a plan, now expired)
       const [expiredSubRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT sps.id, sps.ends_at
+        `SELECT
+           sps.id,
+           sps.ends_at,
+           sps.features_json AS sub_features,
+           cp.features_json AS plan_features
          FROM student_plan_subscriptions sps
+         LEFT JOIN consultancy_plans cp ON cp.id = sps.plan_id
          WHERE sps.consultancy_id = ?
            AND sps.student_membership_id = ?
-         ORDER BY sps.id DESC LIMIT 1;`,
+         ORDER BY sps.id DESC;`,
         [consultancyId, studentMembershipId]
       );
 
-      if (Array.isArray(expiredSubRows) && expiredSubRows.length > 0) {
+      const relevantExpiredSubs = (Array.isArray(expiredSubRows) ? expiredSubRows : []).filter(
+        (s) => {
+          if (!requiredModule) return true;
+          const features =
+            parseFeaturesJson(s.sub_features) || parseFeaturesJson(s.plan_features);
+          if (!features) return true;
+          return Boolean(features[requiredModule]);
+        }
+      );
+
+      if (relevantExpiredSubs.length > 0) {
         // STUDENT HAD A COMMERCIAL PLAN THAT EXPIRED:
         const [lastChargeRows] = await connection.execute<RowDataPacket[]>(
           `SELECT
@@ -1494,6 +2431,18 @@ export type StudentChargeDetail = {
   cancelReason: string | null;
   isPaid: boolean;
   canBeCanceled: boolean;
+  planId?: number | null;
+  planName?: string | null;
+  featuresJson?: Partial<StudentFeatures> | null;
+  paymentMethod?: string | null;
+  infinitepayCheckoutUrl?: string | null;
+  infinitepayReceiptUrl?: string | null;
+  hasGatewayCheckout?: boolean;
+  paidAmountCents?: number | null;
+  paidAt?: string | null;
+  paymentConfirmedAt?: string | null;
+  paymentConfirmedByUserName?: string | null;
+  confirmedPaymentMethod?: string | null;
 };
 
 export async function getStudentChargeDetail(params: {
@@ -1543,13 +2492,30 @@ export async function getStudentChargeDetail(params: {
         sc.canceled_at,
         u_canceler.full_name AS canceled_by_user_name,
         sc.cancel_reason,
-        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id AND sp.refunded_at IS NULL) AS has_payment,
+        sc.features_json,
+        sc.plan_id,
+        cp.name AS plan_name,
+        sc.payment_method,
+        sc.infinitepay_checkout_url,
+        sc.infinitepay_receipt_url,
+        sc.infinitepay_slug,
+        sc.infinitepay_order_nsu,
+        sc.asaas_payment_id,
+        sc.paid_amount_cents,
+        sc.paid_at,
+        sp.payment_method AS confirmed_payment_method,
+        sp.confirmed_at AS payment_confirmed_at,
+        u_confirmed.full_name AS payment_confirmed_by_user_name,
+        EXISTS (SELECT 1 FROM student_payments sp2 WHERE sp2.charge_id = sc.id AND sp2.refunded_at IS NULL) AS has_payment,
         EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED') AS has_submitted_receipt
        FROM student_charges sc
        INNER JOIN consultancy_members cm ON cm.id = sc.student_membership_id
        INNER JOIN users u_student ON u_student.id = cm.user_id
        INNER JOIN users u_creator ON u_creator.id = sc.created_by_user_id
        LEFT JOIN users u_canceler ON u_canceler.id = sc.canceled_by_user_id
+       LEFT JOIN consultancy_plans cp ON cp.id = sc.plan_id
+       LEFT JOIN student_payments sp ON sp.charge_id = sc.id AND sp.refunded_at IS NULL
+       LEFT JOIN users u_confirmed ON u_confirmed.id = sp.confirmed_by_user_id
        WHERE sc.public_id = ?
          AND sc.consultancy_id = ?
        LIMIT 1;`,
@@ -1575,6 +2541,14 @@ export async function getStudentChargeDetail(params: {
 
     const canBeCanceled = state === "OPEN" && !hasPayment;
 
+    const hasGatewayCheckout =
+      Boolean(r.infinitepay_checkout_url && String(r.infinitepay_checkout_url).trim()) ||
+      Boolean(r.infinitepay_slug && String(r.infinitepay_slug).trim()) ||
+      Boolean(r.infinitepay_order_nsu && String(r.infinitepay_order_nsu).trim()) ||
+      Boolean(r.asaas_payment_id && String(r.asaas_payment_id).trim());
+
+    const featuresJson = parseFeaturesJson(r.features_json);
+
     return {
       publicId: String(r.charge_public_id),
       studentMembershipPublicId: String(r.student_membership_public_id),
@@ -1597,6 +2571,18 @@ export async function getStudentChargeDetail(params: {
       cancelReason: r.cancel_reason ? String(r.cancel_reason) : null,
       isPaid: hasPayment,
       canBeCanceled,
+      planId: r.plan_id ? Number(r.plan_id) : null,
+      planName: r.plan_name ? String(r.plan_name) : null,
+      featuresJson,
+      paymentMethod: r.payment_method ? String(r.payment_method) : null,
+      infinitepayCheckoutUrl: r.infinitepay_checkout_url ? String(r.infinitepay_checkout_url) : null,
+      infinitepayReceiptUrl: r.infinitepay_receipt_url ? String(r.infinitepay_receipt_url) : null,
+      hasGatewayCheckout,
+      paidAmountCents: r.paid_amount_cents !== null && r.paid_amount_cents !== undefined ? Number(r.paid_amount_cents) : null,
+      paidAt: r.paid_at ? String(r.paid_at) : null,
+      paymentConfirmedAt: r.payment_confirmed_at ? String(r.payment_confirmed_at) : null,
+      paymentConfirmedByUserName: r.payment_confirmed_by_user_name ? String(r.payment_confirmed_by_user_name) : null,
+      confirmedPaymentMethod: r.confirmed_payment_method ? String(r.confirmed_payment_method) : null,
     };
   } catch {
     return null;
@@ -2860,6 +3846,7 @@ export type ApprovePaymentReceiptResult =
         | "CHARGE_CANCELED"
         | "ALREADY_REVIEWED"
         | "ALREADY_PAID"
+        | "GATEWAY_ACTIVE"
         | "DB_ERROR";
       error: string;
     };
@@ -2867,10 +3854,10 @@ export type ApprovePaymentReceiptResult =
 /**
  * Approves a submitted payment receipt and manually confirms the payment in MySQL.
  * Enforces lock order: charge FOR UPDATE -> receipt FOR UPDATE.
- * Atomically updates receipt to APPROVED and inserts exactly 1 student_payments row.
+ * Atomically updates receipt to APPROVED, updates charge state to PAID,
+ * inserts exactly 1 student_payments row, and activates/extends student_plan_subscriptions.
  * Monetary amount and currency are strictly snapshot from the locked charge row.
  * Payment method is hardcoded server-side to PIX_MANUAL.
- * Persisted student_charges.state remains OPEN (derived status becomes PAID via student_payments).
  */
 export async function approveStudentPaymentReceipt(params: {
   consultancyId: number;
@@ -2898,6 +3885,15 @@ export async function approveStudentPaymentReceipt(params: {
          sc.amount_cents,
          sc.currency_code,
          sc.student_membership_id,
+         sc.plan_id,
+         sc.features_json AS charge_features,
+         sc.created_at,
+         sc.reference_period_start,
+         sc.reference_period_end,
+         sc.infinitepay_checkout_url,
+         sc.infinitepay_slug,
+         sc.infinitepay_order_nsu,
+         sc.asaas_payment_id,
          cm.user_id AS student_user_id,
          c.slug AS consultancy_slug
        FROM student_charges sc
@@ -2925,6 +3921,23 @@ export async function approveStudentPaymentReceipt(params: {
         success: false,
         code: "CHARGE_CANCELED",
         error: "Esta cobrança se encontra cancelada.",
+      };
+    }
+
+    // Protection against conflict with active external gateway checkout
+    const hasGatewayCheckout =
+      Boolean(lockedCharge.infinitepay_checkout_url && String(lockedCharge.infinitepay_checkout_url).trim()) ||
+      Boolean(lockedCharge.infinitepay_slug && String(lockedCharge.infinitepay_slug).trim()) ||
+      Boolean(lockedCharge.infinitepay_order_nsu && String(lockedCharge.infinitepay_order_nsu).trim()) ||
+      Boolean(lockedCharge.asaas_payment_id && String(lockedCharge.asaas_payment_id).trim());
+
+    if (hasGatewayCheckout) {
+      await connection.rollback();
+      return {
+        success: false,
+        code: "GATEWAY_ACTIVE",
+        error:
+          "Esta cobrança possui checkout ativo em gateway externo e não pode ser aprovada manualmente para evitar duplicidade com o gateway.",
       };
     }
 
@@ -2978,7 +3991,17 @@ export async function approveStudentPaymentReceipt(params: {
       [userId, lockedReceipt.id]
     );
 
-    // 5. Insert student_payments row atomically
+    // 5. Update student_charges state to PAID
+    await connection.execute(
+      `UPDATE student_charges
+       SET state = 'PAID',
+           paid_amount_cents = ?,
+           paid_at = UTC_TIMESTAMP(3)
+       WHERE id = ?;`,
+      [lockedCharge.amount_cents, lockedCharge.id]
+    );
+
+    // 6. Insert student_payments row atomically
     const paymentPublicId = crypto.randomUUID();
     await connection.execute(
       `INSERT INTO student_payments (
@@ -3004,7 +4027,129 @@ export async function approveStudentPaymentReceipt(params: {
       ]
     );
 
-    // 6. Atomic audit events: receipt approved + payment confirmed
+    // 7. Activate or extend subscription in student_plan_subscriptions
+    let subscriptionPublicId: string | undefined;
+
+    if (lockedCharge.plan_id !== null || lockedCharge.charge_features !== null) {
+      const [existingSub] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, public_id FROM student_plan_subscriptions WHERE charge_id = ? LIMIT 1 FOR UPDATE;`,
+        [lockedCharge.id]
+      );
+
+      if (Array.isArray(existingSub) && existingSub.length > 0) {
+        subscriptionPublicId = String(existingSub[0].public_id);
+      } else {
+        let planDurationMonths: number | null = null;
+        let planDurationDays: number | null = null;
+        let planFeaturesRaw: unknown = null;
+
+        if (lockedCharge.plan_id) {
+          const [planRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT duration_months, duration_days, features_json FROM consultancy_plans WHERE id = ? LIMIT 1;`,
+            [lockedCharge.plan_id]
+          );
+          if (Array.isArray(planRows) && planRows.length > 0) {
+            const p = planRows[0];
+            planDurationMonths = p.duration_months ? Number(p.duration_months) : null;
+            planDurationDays = p.duration_days ? Number(p.duration_days) : null;
+            planFeaturesRaw = p.features_json;
+          }
+        }
+
+        let isLegacyCharge = false;
+        if (!lockedCharge.charge_features && lockedCharge.created_at) {
+          const chargeTime = new Date(lockedCharge.created_at).getTime();
+          if (!Number.isNaN(chargeTime) && chargeTime < getDeployCutoffTimestamp().getTime()) {
+            isLegacyCharge = true;
+          }
+        }
+
+        const effectiveFeaturesRaw = isLegacyCharge
+          ? null
+          : (lockedCharge.charge_features ?? planFeaturesRaw);
+        const snapshotFeaturesJson = effectiveFeaturesRaw
+          ? typeof effectiveFeaturesRaw === "string"
+            ? effectiveFeaturesRaw
+            : JSON.stringify(effectiveFeaturesRaw)
+          : null;
+
+        const now = new Date();
+        const [activeSubs] = await connection.execute<RowDataPacket[]>(
+          `SELECT ends_at FROM student_plan_subscriptions
+           WHERE consultancy_id = ?
+             AND student_membership_id = ?
+             AND (plan_id = ? OR (? IS NULL AND plan_id IS NULL))
+             AND status = 'ACTIVE'
+             AND ends_at > ?
+           ORDER BY ends_at DESC
+           LIMIT 1
+           FOR UPDATE;`,
+          [
+            consultancyId,
+            lockedCharge.student_membership_id,
+            lockedCharge.plan_id || null,
+            lockedCharge.plan_id || null,
+            now,
+          ]
+        );
+
+        let baseDate = now;
+        if (Array.isArray(activeSubs) && activeSubs.length > 0 && activeSubs[0].ends_at) {
+          const existingEnd = new Date(activeSubs[0].ends_at);
+          if (existingEnd > now) {
+            baseDate = existingEnd;
+          }
+        }
+
+        let endsDate: Date;
+        if (planDurationMonths) {
+          endsDate = addCalendarMonths(baseDate, planDurationMonths);
+        } else if (planDurationDays) {
+          endsDate = addCalendarDays(baseDate, planDurationDays);
+        } else if (lockedCharge.reference_period_start && lockedCharge.reference_period_end) {
+          const diffDays = Math.max(
+            1,
+            Math.round(
+              (new Date(lockedCharge.reference_period_end).getTime() -
+                new Date(lockedCharge.reference_period_start).getTime()) /
+                86400000
+            )
+          );
+          endsDate = addCalendarDays(baseDate, diffDays);
+        } else {
+          endsDate = addCalendarMonths(baseDate, 1);
+        }
+
+        subscriptionPublicId = crypto.randomUUID();
+        await connection.execute(
+          `INSERT INTO student_plan_subscriptions (
+             public_id,
+             consultancy_id,
+             student_membership_id,
+             plan_id,
+             charge_id,
+             status,
+             features_json,
+             started_at,
+             ends_at,
+             created_at,
+             updated_at
+           ) VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3));`,
+          [
+            subscriptionPublicId,
+            consultancyId,
+            lockedCharge.student_membership_id,
+            lockedCharge.plan_id || null,
+            lockedCharge.id,
+            snapshotFeaturesJson,
+            now,
+            endsDate,
+          ]
+        );
+      }
+    }
+
+    // 8. Atomic audit events: receipt approved + payment confirmed
     const auditReceiptPublicId = crypto.randomUUID();
     await connection.execute(
       `INSERT INTO audit_events (
@@ -3026,6 +4171,7 @@ export async function approveStudentPaymentReceipt(params: {
           chargePublicId: lockedCharge.public_id,
           receiptPublicId: lockedReceipt.public_id,
           paymentPublicId,
+          subscriptionPublicId,
         }),
       ]
     );
@@ -3051,13 +4197,14 @@ export async function approveStudentPaymentReceipt(params: {
           chargePublicId: lockedCharge.public_id,
           receiptPublicId: lockedReceipt.public_id,
           paymentPublicId,
+          subscriptionPublicId,
           amountCents: Number(lockedCharge.amount_cents),
           paymentMethod: "PIX_MANUAL",
         }),
       ]
     );
 
-    // 7. Persist canonical domain notification
+    // 9. Persist canonical domain notification
     const studentUserId = Number(lockedCharge.student_user_id);
     const consultancySlug = String(lockedCharge.consultancy_slug);
     const chargePublicId = String(lockedCharge.public_id);

@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import type { StudentModuleAccessReason } from "@/lib/consultancies/student-module-access";
 
 type Props = {
   moduleType: "TRAINING" | "NUTRITION";
   consultancySlug: string;
   consultancyName: string;
   allowed: boolean;
-  confirmedRequirements: number;
-  totalRequirements: number;
+  reason?: StudentModuleAccessReason;
+  confirmedRequirements?: number;
+  totalRequirements?: number;
 };
 
 export function StudentModuleAccessPanel({
@@ -15,8 +17,9 @@ export function StudentModuleAccessPanel({
   consultancySlug,
   consultancyName,
   allowed,
-  confirmedRequirements,
-  totalRequirements,
+  reason,
+  confirmedRequirements = 0,
+  totalRequirements = 0,
 }: Props) {
   const isTraining = moduleType === "TRAINING";
   const moduleTitle = isTraining ? "Treinos" : "Nutrição";
@@ -88,6 +91,51 @@ export function StudentModuleAccessPanel({
               {isTraining
                 ? `Você concluiu seu onboarding na ${consultancyName}. As rotinas de treino, exercícios e prescrições estarão disponíveis aqui conforme forem publicadas pela sua consultoria.`
                 : `Seu onboarding na ${consultancyName} foi concluído com sucesso. No momento, não há conteúdo nutricional disponível nesta área.`}
+            </p>
+          </div>
+
+          <div className="pt-3 border-t border-[var(--border-subtle)]">
+            <Link
+              href={`/consultoria/${consultancySlug}`}
+              className="inline-flex items-center justify-center px-4 py-2 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] font-semibold text-xs rounded-lg shadow-2xs transition-colors"
+            >
+              Voltar ao painel da consultoria
+            </Link>
+          </div>
+        </div>
+      ) : reason === "MODULE_NOT_INCLUDED" ? (
+        <div className="p-6 sm:p-8 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-6 text-center sm:text-left">
+          <div className="w-12 h-12 rounded-full bg-[var(--warning-soft)] text-[var(--warning-foreground)] mx-auto sm:mx-0 flex items-center justify-center border border-[var(--warning-border)]">
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+          </div>
+
+          <div className="space-y-1">
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">
+              Recurso Não Contratado
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+              O módulo de{" "}
+              <span className="font-semibold text-[var(--text-primary)]">
+                {moduleTitle}
+              </span>{" "}
+              não faz parte do seu plano contratado na{" "}
+              <span className="font-semibold text-[var(--text-primary)]">
+                {consultancyName}
+              </span>
+              . Entre em contato com seu treinador ou com a consultoria para adicionar este recurso ao seu pacote.
             </p>
           </div>
 

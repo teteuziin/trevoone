@@ -8,6 +8,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { getDbPool } from "@/lib/db/mysql";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { resolveStudentModuleAccess } from "@/lib/consultancies/student-module-access";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import {
   sendChatMessage,
@@ -73,6 +74,13 @@ export async function sendChatMessageAction(
 
     if (!isStudent && !isProf && !isAdmin) {
       return { ok: false, error: "Acesso não autorizado para esta conversa." };
+    }
+
+    if (isStudent) {
+      const chatAccess = await resolveStudentModuleAccess(session.userId, consultancySlug, "chat");
+      if (!chatAccess.allowed) {
+        return { ok: false, error: "Recurso de chat não incluso no seu plano contratado." };
+      }
     }
 
     const senderRole = isStudent ? "STUDENT" : isProf ? chat.professionalType : "ADMIN";

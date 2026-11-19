@@ -18,7 +18,7 @@ export default async function StudentNutritionPrintPage({ params }: PageProps) {
     redirect("/login");
   }
 
-  const access = await resolveStudentModuleAccess(session.userId, slug);
+  const access = await resolveStudentModuleAccess(session.userId, slug, "nutrition");
 
   if (access.reason === "UNAUTHENTICATED") {
     redirect("/login");

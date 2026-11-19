@@ -26,7 +26,7 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
     redirect("/login");
   }
 
-  const access = await resolveStudentModuleAccess(session.userId, slug);
+  const access = await resolveStudentModuleAccess(session.userId, slug, "nutrition");
 
   if (access.reason === "UNAUTHENTICATED") {
     redirect("/login");
@@ -66,6 +66,7 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
             consultancySlug={access.context.consultancySlug}
             consultancyName={access.context.consultancyName}
             allowed={access.allowed}
+            reason={access.reason}
             confirmedRequirements={access.confirmedRequirements}
             totalRequirements={access.totalRequirements}
           />

@@ -1777,7 +1777,7 @@ export async function resolveConsultationJoinAccess(
 
   // For Student participant: check student billing authority
   if (isStudent) {
-    const studentAccess = await resolveStudentModuleAccess(actorUserId, consultancySlug);
+    const studentAccess = await resolveStudentModuleAccess(actorUserId, consultancySlug, "consultations");
     if (!studentAccess.allowed) {
       return {
         allowed: false,

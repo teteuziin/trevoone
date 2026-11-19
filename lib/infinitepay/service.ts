@@ -18,6 +18,7 @@ import type {
   PlanPaymentMethods,
   StudentPlanSubscription,
 } from "./types";
+import { getDeployCutoffTimestamp } from "../consultancies/student-features";
 
 // ============================================================================
 // 1. CONFIGURATION MANAGEMENT
@@ -499,7 +500,7 @@ export async function createPlanChargeForStudent(params: {
 
     // 1. Fetch Plan strictly from backend
     const [planRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, name, amount_cents, duration_months, duration_days, assured_installments, status
+      `SELECT id, name, amount_cents, duration_months, duration_days, assured_installments, status, features_json
        FROM consultancy_plans
        WHERE consultancy_id = ? AND public_id = ?
        LIMIT 1;`,
@@ -514,6 +515,18 @@ export async function createPlanChargeForStudent(params: {
     if (plan.status !== "ACTIVE") {
       return { success: false, error: "Este plano está inativo e não pode receber novas cobranças." };
     }
+
+    if (!plan.features_json) {
+      return {
+        success: false,
+        error: "Este plano não possui recursos configurados. Contate o administrador.",
+      };
+    }
+
+    const planFeaturesSnapshot =
+      typeof plan.features_json === "string"
+        ? plan.features_json.trim()
+        : JSON.stringify(plan.features_json);
 
     // 2. Resolve Student Membership
     const [memberRows] = await connection.execute<RowDataPacket[]>(
@@ -580,7 +593,7 @@ export async function createPlanChargeForStudent(params: {
 
     const chargePublicId = crypto.randomUUID();
 
-    // 5. Insert Student Charge
+    // 5. Insert Student Charge with explicit plan features snapshot
     await connection.execute(
       `INSERT INTO student_charges (
          public_id,
@@ -595,10 +608,11 @@ export async function createPlanChargeForStudent(params: {
          reference_period_start,
          reference_period_end,
          blocks_access,
+         features_json,
          state,
          created_by_user_id,
          created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, 'BRL', ?, ?, ?, 0, 'OPEN', ?, NOW(3));`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, 'BRL', ?, ?, ?, 0, ?, 'OPEN', ?, NOW(3));`,
       [
         chargePublicId,
         consultancyId,
@@ -610,6 +624,7 @@ export async function createPlanChargeForStudent(params: {
         dueOnStr,
         periodStart,
         periodEndStr,
+        planFeaturesSnapshot,
         userId,
       ]
     );
@@ -839,6 +854,7 @@ export async function confirmAndActivateCharge(params: {
   const {
     consultancyId,
     chargeId,
+    chargePublicId,
     studentMembershipId,
     planId,
     amountCents,
@@ -889,7 +905,7 @@ export async function confirmAndActivateCharge(params: {
 
     // 1. Re-validate charge under lock (Idempotency and student match check)
     const [lockedCharges] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, state, plan_id, student_membership_id, amount_cents, reference_period_start, reference_period_end
+      `SELECT id, public_id, state, plan_id, student_membership_id, amount_cents, reference_period_start, reference_period_end, features_json, created_at
        FROM student_charges
        WHERE id = ? AND consultancy_id = ?
        FOR UPDATE;`,
@@ -910,6 +926,75 @@ export async function confirmAndActivateCharge(params: {
     if (Number(currentCharge.amount_cents) !== amountCents) {
       await connection.rollback();
       return { success: false, activated: false, error: "Valor da cobrança no banco diverge dos parâmetros informados." };
+    }
+
+    if (currentCharge.state === "CANCELED") {
+      // Payment arrived for a canceled charge: record payment for reconciliation & audit without reviving contracts
+      const paymentPublicId = crypto.randomUUID();
+      const finalMethod = captureMethod?.toUpperCase().includes("CREDIT") ? "CREDIT_CARD" : "PIX";
+      await connection.execute(
+        `INSERT INTO student_payments (
+           public_id,
+           consultancy_id,
+           charge_id,
+           receipt_id,
+           amount_cents,
+           currency_code,
+           payment_method,
+           confirmed_by_user_id,
+           confirmed_at,
+           created_at
+         ) VALUES (?, ?, ?, NULL, ?, 'BRL', ?, NULL, NOW(3), NOW(3));`,
+        [paymentPublicId, consultancyId, chargeId, amountCents, finalMethod]
+      );
+      await connection.execute(
+        `UPDATE student_charges
+         SET paid_amount_cents = ?,
+             infinitepay_transaction_nsu = ?,
+             infinitepay_installments = ?,
+             infinitepay_capture_method = ?,
+             infinitepay_receipt_url = ?,
+             paid_at = NOW(3)
+         WHERE id = ?;`,
+        [
+          paidAmountCents || amountCents,
+          transactionNsu || null,
+          installments || 1,
+          captureMethod || "pix",
+          receiptUrl || null,
+          chargeId,
+        ]
+      );
+      const auditPublicId = crypto.randomUUID();
+      await connection.execute(
+        `INSERT INTO audit_events (
+           public_id,
+           consultancy_id,
+           action,
+           target_type,
+           target_public_id,
+           metadata_json,
+           created_at
+         ) VALUES (?, ?, 'INFINITEPAY_PAYMENT_ON_CANCELED_CHARGE', 'STUDENT_CHARGE', ?, ?, UTC_TIMESTAMP(3));`,
+        [
+          auditPublicId,
+          consultancyId,
+          String(currentCharge.public_id || chargePublicId),
+          JSON.stringify({
+            amountCents,
+            paidAmountCents,
+            transactionNsu,
+            paymentPublicId,
+            note: "Pagamento recebido após cancelamento da cobrança. Necessita conciliação manual.",
+          }),
+        ]
+      );
+      await connection.commit();
+      return {
+        success: true,
+        activated: false,
+        error: "Pagamento registrado para cobrança cancelada. Requer conciliação manual.",
+      };
     }
 
     if (currentCharge.state === "PAID") {
@@ -941,10 +1026,10 @@ export async function confirmAndActivateCharge(params: {
        WHERE id = ?;`,
       [
         paidAmountCents || amountCents,
-        transactionNsu,
-        installments,
-        captureMethod,
-        receiptUrl,
+        transactionNsu || null,
+        installments || 1,
+        captureMethod || "pix",
+        receiptUrl || null,
         chargeId,
       ]
     );
@@ -969,21 +1054,56 @@ export async function confirmAndActivateCharge(params: {
       [paymentPublicId, consultancyId, chargeId, amountCents, finalMethod]
     );
 
-    // 4. Activate Plan Subscription if a plan is linked
-    const targetPlanId = planId || currentCharge.plan_id;
-    if (targetPlanId) {
-      // Fetch plan duration
-      const [planRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT duration_months, duration_days FROM consultancy_plans WHERE id = ? LIMIT 1;`,
-        [targetPlanId]
-      );
+    // 4. Activate Plan Subscription if a plan is linked OR if it is a custom charge with features
+    const targetPlanId = planId || currentCharge.plan_id || null;
+    const hasFeatures = Boolean(currentCharge.features_json);
 
-      // Check if student has an active subscription in the future to extend smoothly without losing days
+    if (targetPlanId || hasFeatures) {
+      let planDurationMonths: number | null = null;
+      let planDurationDays: number | null = null;
+      let planFeaturesRaw: unknown = null;
+
+      if (targetPlanId) {
+        const [planRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT duration_months, duration_days, features_json FROM consultancy_plans WHERE id = ? LIMIT 1;`,
+          [targetPlanId]
+        );
+        if (Array.isArray(planRows) && planRows.length > 0) {
+          const p = planRows[0];
+          planDurationMonths = p.duration_months ? Number(p.duration_months) : null;
+          planDurationDays = p.duration_days ? Number(p.duration_days) : null;
+          planFeaturesRaw = p.features_json;
+        }
+      }
+
+      let isLegacyCharge = false;
+      if (!currentCharge.features_json && currentCharge.created_at) {
+        const chargeTime = new Date(currentCharge.created_at).getTime();
+        if (!Number.isNaN(chargeTime) && chargeTime < getDeployCutoffTimestamp().getTime()) {
+          isLegacyCharge = true;
+        }
+      }
+
+      const rawFeatures = isLegacyCharge
+        ? null
+        : (currentCharge.features_json ?? planFeaturesRaw);
+      const snapshotFeaturesJson =
+        rawFeatures === null || rawFeatures === undefined
+          ? null
+          : typeof rawFeatures === "string"
+          ? rawFeatures.trim() || null
+          : JSON.stringify(rawFeatures);
+
+      // Check if student has an active subscription for this plan/contract to smoothly extend continuous renewal
       const [activeSubs] = await connection.execute<RowDataPacket[]>(
         `SELECT id, ends_at FROM student_plan_subscriptions
-         WHERE consultancy_id = ? AND student_membership_id = ? AND status = 'ACTIVE' AND ends_at > NOW(3)
+         WHERE consultancy_id = ?
+           AND student_membership_id = ?
+           AND (plan_id = ? OR (plan_id IS NULL AND ? IS NULL))
+           AND status = 'ACTIVE'
+           AND ends_at > NOW(3)
          ORDER BY ends_at DESC LIMIT 1;`,
-        [consultancyId, studentMembershipId]
+        [consultancyId, studentMembershipId, targetPlanId, targetPlanId]
       );
 
       const now = new Date();
@@ -997,15 +1117,20 @@ export async function confirmAndActivateCharge(params: {
 
       const startsAt = now.toISOString().slice(0, 19).replace("T", " ");
       let endsDate: Date;
-      if (Array.isArray(planRows) && planRows.length > 0) {
-        const p = planRows[0];
-        if (p.duration_months) {
-          endsDate = addCalendarMonths(baseDate, Number(p.duration_months));
-        } else if (p.duration_days) {
-          endsDate = addCalendarDays(baseDate, Number(p.duration_days));
-        } else {
-          endsDate = addCalendarMonths(baseDate, 1);
-        }
+      if (planDurationMonths) {
+        endsDate = addCalendarMonths(baseDate, planDurationMonths);
+      } else if (planDurationDays) {
+        endsDate = addCalendarDays(baseDate, planDurationDays);
+      } else if (currentCharge.reference_period_start && currentCharge.reference_period_end) {
+        const diffDays = Math.max(
+          1,
+          Math.round(
+            (new Date(currentCharge.reference_period_end).getTime() -
+              new Date(currentCharge.reference_period_start).getTime()) /
+              86400000
+          )
+        );
+        endsDate = addCalendarDays(baseDate, diffDays);
       } else {
         endsDate = addCalendarMonths(baseDate, 1);
       }
@@ -1013,15 +1138,7 @@ export async function confirmAndActivateCharge(params: {
 
       const subscriptionPublicId = crypto.randomUUID();
 
-      // Deactivate any prior active subscription for this student
-      await connection.execute(
-        `UPDATE student_plan_subscriptions
-         SET status = 'OVERDUE', updated_at = NOW(3)
-         WHERE consultancy_id = ? AND student_membership_id = ? AND status = 'ACTIVE';`,
-        [consultancyId, studentMembershipId]
-      );
-
-      // Insert new active subscription
+      // Insert new active subscription with features_json
       await connection.execute(
         `INSERT INTO student_plan_subscriptions (
            public_id,
@@ -1030,17 +1147,19 @@ export async function confirmAndActivateCharge(params: {
            plan_id,
            charge_id,
            status,
+           features_json,
            started_at,
            ends_at,
            created_at,
            updated_at
-         ) VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?, ?, NOW(3), NOW(3));`,
+         ) VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, NOW(3), NOW(3));`,
         [
           subscriptionPublicId,
           consultancyId,
           studentMembershipId,
           targetPlanId,
           chargeId,
+          snapshotFeaturesJson,
           startsAt,
           endsAt,
         ]
@@ -1063,7 +1182,8 @@ export async function confirmAndActivateCharge(params: {
 // ============================================================================
 
 export async function verifyAndReconcileChargePayment(params: {
-  consultancySlug: string;
+  consultancySlug?: string;
+  consultancyId?: number;
   chargePublicId: string;
   transactionNsu?: string | null;
   slug?: string | null;
@@ -1073,15 +1193,15 @@ export async function verifyAndReconcileChargePayment(params: {
   status: string;
   message: string;
 }> {
-  const { consultancySlug, chargePublicId, transactionNsu, slug } = params;
+  const { consultancySlug, consultancyId, chargePublicId, transactionNsu, slug } = params;
 
   let connection: PoolConnection | null = null;
   try {
     connection = await getDbConnection();
 
     // 1. Fetch charge and consultancy details
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
+    let query = `
+      SELECT
          sc.id,
          sc.public_id,
          sc.consultancy_id,
@@ -1094,10 +1214,20 @@ export async function verifyAndReconcileChargePayment(params: {
          c.slug AS consultancy_slug
        FROM student_charges sc
        INNER JOIN consultancies c ON c.id = sc.consultancy_id
-       WHERE sc.public_id = ? AND c.slug = ?
-       LIMIT 1;`,
-      [chargePublicId, consultancySlug]
-    );
+       WHERE sc.public_id = ?
+    `;
+    const qParams: (string | number)[] = [chargePublicId];
+    if (consultancySlug) {
+      query += ` AND c.slug = ? LIMIT 1;`;
+      qParams.push(consultancySlug);
+    } else if (consultancyId) {
+      query += ` AND sc.consultancy_id = ? LIMIT 1;`;
+      qParams.push(consultancyId);
+    } else {
+      query += ` LIMIT 1;`;
+    }
+
+    const [rows] = await connection.execute<RowDataPacket[]>(query, qParams);
 
     if (!Array.isArray(rows) || rows.length === 0) {
       return { success: false, isPaid: false, status: "NOT_FOUND", message: "Cobrança não encontrada." };
@@ -1172,10 +1302,10 @@ export async function verifyAndReconcileChargePayment(params: {
         amountCents: Number(charge.amount_cents),
         paidAmountCents: checkRes.paid_amount,
         originalOrderAmountCents: checkRes.amount,
-        transactionNsu: checkRes.transaction_nsu || finalTxNsu,
+        transactionNsu: checkRes.transaction_nsu || finalTxNsu || null,
         captureMethod: checkRes.capture_method || "pix",
         installments: checkRes.installments || 1,
-        receiptUrl: checkRes.receipt_url,
+        receiptUrl: checkRes.receipt_url || null,
       });
 
       if (activateRes.success) {

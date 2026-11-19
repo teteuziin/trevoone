@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
+import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import {
@@ -65,7 +66,8 @@ export default async function AdminPaymentReceiptsQueuePage({
     notFound();
   }
 
-  if (!context.roles.includes("CONSULTANCY_ADMIN")) {
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  if (!context.roles.includes("CONSULTANCY_ADMIN") && !isPlatformAdmin) {
     redirect(`/consultoria/${slug}`);
   }
 

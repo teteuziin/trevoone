@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/auth/session";
+import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import {
   saveConsultancyFinanceSettings,
@@ -10,6 +11,7 @@ import {
   cancelStudentCharge,
   markStudentChargePaid,
   searchConsultancyStudents,
+  assertTrainerStudentScope,
   parseBrlToCents,
   type PixKeyType,
   type StudentSearchItem,
@@ -44,7 +46,12 @@ export async function saveFinanceSettingsAction(
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+  if (!context) {
+    return { success: false, error: "Consultoria não encontrada." };
+  }
+
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  if (!context.roles.includes("CONSULTANCY_ADMIN") && !isPlatformAdmin) {
     return { success: false, error: "Acesso não autorizado para gerenciar finanças." };
   }
 
@@ -84,11 +91,15 @@ export async function searchStudentsAction(
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
-  const isStaff =
-    context &&
-    (context.roles.includes("CONSULTANCY_ADMIN") ||
-      context.roles.includes("PERSONAL"));
-  if (!context || !isStaff) {
+  if (!context) {
+    return [];
+  }
+
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const isAuthorizedAdmin = isConsultancyAdmin || isPlatformAdmin;
+  const isPersonal = context.roles.includes("PERSONAL");
+  if (!isAuthorizedAdmin && !isPersonal) {
     return [];
   }
 
@@ -96,6 +107,7 @@ export async function searchStudentsAction(
     consultancyId: context.consultancyId,
     query,
     limit: 20,
+    trainerUserId: isAuthorizedAdmin ? undefined : session.userId,
   });
 }
 
@@ -110,15 +122,36 @@ export async function createStudentChargeAction(
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
-  const isStaff =
-    context &&
-    (context.roles.includes("CONSULTANCY_ADMIN") ||
-      context.roles.includes("PERSONAL"));
-  if (!context || !isStaff) {
+  if (!context) {
+    return { success: false, error: "Consultoria não encontrada." };
+  }
+
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const isAuthorizedAdmin = isConsultancyAdmin || isPlatformAdmin;
+  const isPersonal = context.roles.includes("PERSONAL");
+  if (!isAuthorizedAdmin && !isPersonal) {
     return { success: false, error: "Acesso não autorizado para criar cobranças." };
   }
 
   const studentMembershipPublicId = String(formData.get("studentMembershipPublicId") || "").trim();
+  if (!studentMembershipPublicId) {
+    return { success: false, error: "Selecione um aluno para a cobrança." };
+  }
+
+  if (!isAuthorizedAdmin && isPersonal) {
+    const isAssigned = await assertTrainerStudentScope({
+      consultancyId: context.consultancyId,
+      trainerUserId: session.userId,
+      studentMembershipPublicId,
+    });
+    if (!isAssigned) {
+      return {
+        success: false,
+        error: "Você só pode emitir cobranças para alunos vinculados ao seu acompanhamento.",
+      };
+    }
+  }
   const title = String(formData.get("title") || "").trim();
   const description = formData.get("description") ? String(formData.get("description")).trim() : null;
   const amountBrl = String(formData.get("amountBrl") || "").trim();
@@ -183,14 +216,32 @@ export async function createCustomStudentChargeAction(
     return { success: false, error: "Consultoria não encontrada." };
   }
 
-  const isStaff =
-    context.roles.includes("CONSULTANCY_ADMIN") ||
-    context.roles.includes("PERSONAL");
-  if (!isStaff) {
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const isAuthorizedAdmin = isConsultancyAdmin || isPlatformAdmin;
+  const isPersonal = context.roles.includes("PERSONAL");
+  if (!isAuthorizedAdmin && !isPersonal) {
     return { success: false, error: "Acesso não autorizado para criar cobranças personalizadas." };
   }
 
   const studentMembershipPublicId = String(formData.get("studentMembershipPublicId") || "").trim();
+  if (!studentMembershipPublicId) {
+    return { success: false, error: "Selecione um aluno para a cobrança." };
+  }
+
+  if (!isAuthorizedAdmin && isPersonal) {
+    const isAssigned = await assertTrainerStudentScope({
+      consultancyId: context.consultancyId,
+      trainerUserId: session.userId,
+      studentMembershipPublicId,
+    });
+    if (!isAssigned) {
+      return {
+        success: false,
+        error: "Você só pode emitir cobranças para alunos vinculados ao seu acompanhamento.",
+      };
+    }
+  }
   const title = String(formData.get("title") || "").trim();
   const description = formData.get("description") ? String(formData.get("description")).trim() : null;
   const amountBrl = String(formData.get("amountBrl") || "").trim();
@@ -264,7 +315,12 @@ export async function cancelStudentChargeAction(
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+  if (!context) {
+    return { success: false, error: "Consultoria não encontrada." };
+  }
+
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  if (!context.roles.includes("CONSULTANCY_ADMIN") && !isPlatformAdmin) {
     return { success: false, error: "Apenas administradores da consultoria podem cancelar cobranças." };
   }
 
@@ -297,7 +353,12 @@ export async function markStudentChargePaidAction(
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+  if (!context) {
+    return { success: false, error: "Consultoria não encontrada." };
+  }
+
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  if (!context.roles.includes("CONSULTANCY_ADMIN") && !isPlatformAdmin) {
     return {
       success: false,
       error: "Apenas administradores da consultoria podem confirmar pagamentos manualmente.",
@@ -337,7 +398,12 @@ export async function saveInfinitePaySettingsAction(
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+  if (!context) {
+    return { success: false, error: "Consultoria não encontrada." };
+  }
+
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  if (!context.roles.includes("CONSULTANCY_ADMIN") && !isPlatformAdmin) {
     return { success: false, error: "Acesso não autorizado para configurar InfinitePay." };
   }
 
@@ -374,7 +440,12 @@ export async function createConsultancyPlanAction(
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+  if (!context) {
+    return { success: false, error: "Consultoria não encontrada." };
+  }
+
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  if (!context.roles.includes("CONSULTANCY_ADMIN") && !isPlatformAdmin) {
     return { success: false, error: "Apenas administradores da consultoria podem cadastrar planos." };
   }
 
@@ -435,11 +506,12 @@ export async function createStudentPlanChargeAction(
     return { success: false, error: "Consultoria não encontrada." };
   }
 
-  const isStaff =
-    context.roles.includes("CONSULTANCY_ADMIN") ||
-    context.roles.includes("PERSONAL");
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const isAuthorizedAdmin = isConsultancyAdmin || isPlatformAdmin;
+  const isPersonal = context.roles.includes("PERSONAL");
 
-  if (!isStaff) {
+  if (!isAuthorizedAdmin && !isPersonal) {
     return { success: false, error: "Acesso não autorizado para emitir cobrança de plano." };
   }
 
@@ -452,6 +524,20 @@ export async function createStudentPlanChargeAction(
 
   if (!planPublicId) {
     return { success: false, error: "Selecione o plano desejado." };
+  }
+
+  if (!isAuthorizedAdmin && isPersonal) {
+    const isAssigned = await assertTrainerStudentScope({
+      consultancyId: context.consultancyId,
+      trainerUserId: session.userId,
+      studentMembershipPublicId,
+    });
+    if (!isAssigned) {
+      return {
+        success: false,
+        error: "Você só pode emitir cobranças para alunos vinculados ao seu acompanhamento.",
+      };
+    }
   }
 
   const appBaseUrl =
@@ -493,7 +579,12 @@ export async function toggleConsultancyPlanStatusAction(
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+  if (!context) {
+    return { success: false, error: "Consultoria não encontrada." };
+  }
+
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  if (!context.roles.includes("CONSULTANCY_ADMIN") && !isPlatformAdmin) {
     return { success: false, error: "Apenas administradores da consultoria podem alterar a situação dos planos." };
   }
 

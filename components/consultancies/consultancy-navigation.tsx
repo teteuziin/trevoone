@@ -8,7 +8,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { HelpCircleIcon as HelpCircle } from "@/components/ui/icons";
 import { ConsultancyLogo } from "@/components/brand/consultancy-logo";
-import { logoutFromConsultancyArea } from "@/app/selecionar-consultoria/actions";
+import { defaultLogoutAction } from "@/lib/auth/actions";
 import { setConsultancyViewModeAction } from "@/app/consultoria/[slug]/view-mode/actions";
 import { NotificationBell, LogoutButton } from "@/components/notifications/notification-bell";
 import { ViewModeSelector } from "./view-mode-selector";
@@ -1135,7 +1135,7 @@ export function ConsultancyNavigation({
                   Trocar consultoria
                 </Link>
                 <LogoutButton
-                  logoutAction={logoutFromConsultancyArea}
+                  logoutAction={defaultLogoutAction}
                   className="flex items-center justify-center w-full py-2 px-3 text-xs font-semibold rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
                 >
                   Sair da conta
@@ -1590,7 +1590,7 @@ export function ConsultancyNavigation({
 
                     <div className="pt-1 border-t border-[#F0F2ED]">
                       <LogoutButton
-                        logoutAction={logoutFromConsultancyArea}
+                        logoutAction={defaultLogoutAction}
                         className="flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold rounded-xl text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1924,7 +1924,7 @@ export function ConsultancyNavigation({
             {/* 4. Sair da conta (discreto, no final) */}
             <div className="pt-2 border-t border-[#E5E8E2]">
               <LogoutButton
-                logoutAction={logoutFromConsultancyArea}
+                logoutAction={defaultLogoutAction}
                 className="flex items-center justify-center gap-2 w-full py-2.5 px-4 text-xs font-semibold text-[#6B7870] hover:text-[#B91C1C] hover:bg-[#FEE2E2]/40 rounded-xl transition-all cursor-pointer min-h-[42px]"
               >
                 <svg className="w-4 h-4 text-inherit" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

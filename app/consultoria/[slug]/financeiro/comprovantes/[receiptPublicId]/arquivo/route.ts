@@ -1,4 +1,5 @@
 import { getCurrentSession } from "@/lib/auth/session";
+import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { getPaymentReceiptReviewDetail } from "@/lib/consultancies/finance";
 import {
@@ -28,9 +29,10 @@ export async function GET(request: Request, { params }: RouteProps) {
     });
   }
 
-  // 2. Authorize consultancy and CONSULTANCY_ADMIN role
+  // 2. Authorize consultancy and CONSULTANCY_ADMIN or PLATFORM_ADMIN
   const context = await resolveConsultancyContext(session.userId, slug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  if (!context || (!context.roles.includes("CONSULTANCY_ADMIN") && !isPlatformAdmin)) {
     return new Response(
       JSON.stringify({
         error: "Apenas administradores da consultoria podem visualizar comprovantes de pagamento.",
@@ -90,6 +92,8 @@ export async function GET(request: Request, { params }: RouteProps) {
       "Content-Type": mimeType,
       "Content-Disposition": `inline; filename="${safeFilename.replace(/"/g, "")}"; filename*=UTF-8''${encodedFilename}`,
       "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "SAMEORIGIN",
+      "Content-Security-Policy": "default-src 'self'; frame-ancestors 'self'; object-src 'self'",
       "Cache-Control": "private, no-store",
       "Content-Length": String(readResult.buffer.length),
     },

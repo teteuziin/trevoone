@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
+import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import {
@@ -53,13 +54,9 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
     redirect("/selecionar-consultoria");
   }
 
-  // Allow both CONSULTANCY_ADMIN and PERSONAL
-  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
-  const isStaff =
-    isConsultancyAdmin ||
-    context.roles.includes("PERSONAL");
-
-  if (!isStaff) {
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN") || isPlatformAdmin;
+  if (!isConsultancyAdmin) {
     redirect(`/consultoria/${slug}`);
   }
 

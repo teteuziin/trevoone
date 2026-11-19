@@ -517,7 +517,7 @@ export async function getPersonalStudentDetail(params: {
         u.public_id AS user_public_id,
         u.full_name,
         u.email,
-        u.phone
+        NULL AS phone
        FROM consultancy_members cm
        INNER JOIN users u ON u.id = cm.user_id
        LEFT JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
@@ -1120,11 +1120,23 @@ export async function getPersonalStudentDetail(params: {
                 if (!mergedResponses.sex && (lowerL.includes("sexo") || lowerL.includes("gênero") || lowerL.includes("genero"))) {
                   mergedResponses.sex = valStr;
                 }
+                if (!mergedResponses.phone && (lowerL.includes("telefone") || lowerL.includes("celular") || lowerL.includes("whatsapp") || lowerL === "phone")) {
+                  mergedResponses.phone = valStr;
+                }
               }
             }
           }
         }
       }
+    }
+
+    if (!student.phone && (mergedResponses.phone || mergedResponses.telefone || mergedResponses.celular || mergedResponses.whatsapp)) {
+      student.phone = String(
+        mergedResponses.phone ||
+        mergedResponses.telefone ||
+        mergedResponses.celular ||
+        mergedResponses.whatsapp
+      );
     }
 
     // 4. Fetch Physical Progress Entries (weight & measurements)

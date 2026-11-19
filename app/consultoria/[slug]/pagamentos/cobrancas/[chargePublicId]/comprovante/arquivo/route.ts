@@ -69,6 +69,9 @@ export async function GET(request: Request, { params }: RouteProps) {
       "Content-Type": result.mimeType || "application/octet-stream",
       "Content-Length": String(result.buffer.length),
       "Content-Disposition": `${disposition}; filename="${safeFileName}"`,
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "SAMEORIGIN",
+      "Content-Security-Policy": "default-src 'self'; frame-ancestors 'self'; object-src 'self'",
       "Cache-Control": "private, no-cache, no-store, must-revalidate",
     },
   });

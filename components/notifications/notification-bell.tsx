@@ -68,7 +68,12 @@ export async function performPushCleanup(): Promise<void> {
   }
 
   try {
-    const reg = await navigator.serviceWorker.ready;
+    const regPromise = navigator.serviceWorker.ready;
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 250));
+    const reg = await Promise.race([regPromise, timeoutPromise]);
+    if (!reg) {
+      return;
+    }
     const sub = await reg.pushManager.getSubscription();
     if (!sub) {
       return;

@@ -2,10 +2,12 @@ import React from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
+import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import {
   getStudentChargeDetail,
+  assertTrainerStudentScope,
   formatCentsToBrl,
 } from "@/lib/consultancies/finance";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
@@ -83,15 +85,15 @@ export default async function ChargeDetailPage({ params }: PageProps) {
     redirect("/selecionar-consultoria");
   }
 
-  const isStaff =
-    context.roles.includes("CONSULTANCY_ADMIN") ||
-    context.roles.includes("PERSONAL");
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const isAuthorizedAdmin = isConsultancyAdmin || isPlatformAdmin;
+  const isPersonal = context.roles.includes("PERSONAL");
 
-  if (!isStaff) {
+  if (!isAuthorizedAdmin && !isPersonal) {
     redirect(`/consultoria/${slug}`);
   }
 
-  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
   const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
 
   const charge = await getStudentChargeDetail({
@@ -103,14 +105,25 @@ export default async function ChargeDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  if (!isAuthorizedAdmin && isPersonal) {
+    const isAssigned = await assertTrainerStudentScope({
+      consultancyId: context.consultancyId,
+      trainerUserId: session.userId,
+      studentMembershipPublicId: charge.studentMembershipPublicId,
+    });
+    if (!isAssigned) {
+      redirect(`/consultoria/${slug}`);
+    }
+  }
+
   const canMarkPaid =
-    isConsultancyAdmin &&
+    isAuthorizedAdmin &&
     !charge.isPaid &&
     charge.derivedStatus !== "PAID" &&
     charge.state !== "CANCELED";
 
   const canCancel =
-    isConsultancyAdmin &&
+    isAuthorizedAdmin &&
     charge.canBeCanceled &&
     !charge.isPaid &&
     charge.state !== "CANCELED";

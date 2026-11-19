@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
+import { defaultLogoutAction } from "@/lib/auth/actions";
 import { performPushCleanup } from "@/components/notifications/notification-bell";
 import { clearAllAuthenticatedOfflineData } from "@/lib/offline/offline-db";
 
 export interface LogoutButtonProps {
-  logoutAction: () => Promise<void> | void;
+  logoutAction?: () => Promise<void> | void;
   className?: string;
   variant?: "primary" | "secondary" | "ghost" | "danger" | "outline";
   size?: "sm" | "md" | "lg";
@@ -59,7 +60,10 @@ export function LogoutButton({
     setShowPendingModal(false);
 
     try {
-      await performPushCleanup();
+      await Promise.race([
+        performPushCleanup(),
+        new Promise<void>((resolve) => setTimeout(resolve, 300)),
+      ]);
     } catch {
       // Best-effort
     }
@@ -73,11 +77,45 @@ export function LogoutButton({
     }
 
     try {
-      await clearAllAuthenticatedOfflineData();
+      await Promise.race([
+        clearAllAuthenticatedOfflineData(),
+        new Promise<void>((resolve) => setTimeout(resolve, 300)),
+      ]);
     } catch {
       // Best-effort: offline storage purge failure must never block session logout
+    }
+
+    try {
+      if (typeof logoutAction === "function") {
+        await logoutAction();
+      } else {
+        await defaultLogoutAction();
+      }
+    } catch (err: unknown) {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "digest" in err &&
+        typeof (err as { digest: unknown }).digest === "string" &&
+        (err as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+      ) {
+        throw err;
+      }
+      // Direct hard fallback if server action invocation fails: use secure POST
+      if (typeof window !== "undefined") {
+        try {
+          await fetch("/api/auth/logout", { method: "POST" });
+        } catch {
+          // ignore
+        }
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = "/login";
+      }
     } finally {
-      await logoutAction();
+      // Keep safety timeout before resetting isLoggingOut in case redirect was caught
+      setTimeout(() => {
+        setIsLoggingOut(false);
+      }, 1500);
     }
   }
 
@@ -135,7 +173,7 @@ export function LogoutButton({
 
   return (
     <>
-      <form action={logoutAction} onSubmit={handleLogoutSubmit} className={fullWidth ? "w-full" : "contents"}>
+      <form action={typeof logoutAction === "function" ? logoutAction : defaultLogoutAction} method="POST" onSubmit={handleLogoutSubmit} className={fullWidth ? "w-full" : "contents"}>
         <button
           type="submit"
           disabled={isLoggingOut}

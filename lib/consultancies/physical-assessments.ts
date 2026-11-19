@@ -71,7 +71,7 @@ export async function listStudentsPhysicalAssessments(
          u.public_id AS user_public_id,
          u.full_name,
          u.email,
-         u.phone
+         NULL AS phone
        FROM consultancy_members cm
        INNER JOIN users u ON u.id = cm.user_id
        INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'

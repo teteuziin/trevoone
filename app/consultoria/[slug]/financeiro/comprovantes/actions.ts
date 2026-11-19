@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/auth/session";
+import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import {
   approveStudentPaymentReceipt,
@@ -25,7 +26,12 @@ export async function approvePaymentReceiptAction(params: {
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+  if (!context) {
+    return { success: false, error: "Consultoria não encontrada." };
+  }
+
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  if (!context.roles.includes("CONSULTANCY_ADMIN") && !isPlatformAdmin) {
     return {
       success: false,
       error: "Apenas administradores da consultoria podem aprovar comprovantes.",
@@ -61,7 +67,12 @@ export async function rejectPaymentReceiptAction(params: {
   }
 
   const context = await resolveConsultancyContext(session.userId, slug);
-  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+  if (!context) {
+    return { success: false, error: "Consultoria não encontrada." };
+  }
+
+  const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
+  if (!context.roles.includes("CONSULTANCY_ADMIN") && !isPlatformAdmin) {
     return {
       success: false,
       error: "Apenas administradores da consultoria podem rejeitar comprovantes.",

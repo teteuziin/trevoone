@@ -2149,8 +2149,9 @@ export async function searchConsultancyStudents(params: {
   consultancyId: number;
   query: string;
   limit?: number;
+  trainerUserId?: number;
 }): Promise<StudentSearchItem[]> {
-  const { consultancyId, query, limit = 20 } = params;
+  const { consultancyId, query, limit = 20, trainerUserId } = params;
 
   if (!consultancyId || consultancyId <= 0 || !query || query.trim().length < 2) {
     return [];
@@ -2164,8 +2165,45 @@ export async function searchConsultancyStudents(params: {
   let connection: PoolConnection | null = null;
   try {
     connection = await getDbConnection();
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
+
+    let sql: string;
+    let queryParams: (string | number)[];
+
+    if (trainerUserId && trainerUserId > 0) {
+      sql = `SELECT
+        cm.public_id AS membership_public_id,
+        u.full_name,
+        u.email
+       FROM consultancy_members cm
+       INNER JOIN users u ON u.id = cm.user_id
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       WHERE cm.consultancy_id = ?
+         AND cm.status = 'ACTIVE'
+         AND u.status = 'ACTIVE'
+         AND u.deleted_at IS NULL
+         AND cmr.role = 'STUDENT'
+         AND (u.full_name LIKE ? ESCAPE '\\\\' OR u.email LIKE ? ESCAPE '\\\\')
+         AND (
+           EXISTS (
+             SELECT 1 FROM workout_assignments wa
+             JOIN consultancy_members coach ON coach.id = wa.assigned_by_membership_id
+             WHERE wa.consultancy_id = cm.consultancy_id AND wa.student_membership_id = cm.id AND coach.user_id = ? AND wa.status = 'ACTIVE' AND wa.deleted_at IS NULL
+           )
+           OR EXISTS (
+             SELECT 1 FROM training_plans tp
+             WHERE tp.consultancy_id = cm.consultancy_id AND tp.student_membership_id = cm.id AND tp.created_by_user_id = ? AND tp.status = 'ACTIVE' AND tp.deleted_at IS NULL
+           )
+           OR EXISTS (
+             SELECT 1 FROM consultations c
+             JOIN consultancy_members coach ON coach.id = c.professional_membership_id
+             WHERE c.consultancy_id = cm.consultancy_id AND c.student_membership_id = cm.id AND coach.user_id = ? AND c.status IN ('SCHEDULED', 'IN_PROGRESS')
+           )
+         )
+       ORDER BY u.full_name ASC
+       LIMIT ${safeLimit};`;
+      queryParams = [consultancyId, likeParam, likeParam, trainerUserId, trainerUserId, trainerUserId];
+    } else {
+      sql = `SELECT
         cm.public_id AS membership_public_id,
         u.full_name,
         u.email
@@ -2179,9 +2217,11 @@ export async function searchConsultancyStudents(params: {
          AND cmr.role = 'STUDENT'
          AND (u.full_name LIKE ? ESCAPE '\\\\' OR u.email LIKE ? ESCAPE '\\\\')
        ORDER BY u.full_name ASC
-       LIMIT ${safeLimit};`,
-      [consultancyId, likeParam, likeParam]
-    );
+       LIMIT ${safeLimit};`;
+      queryParams = [consultancyId, likeParam, likeParam];
+    }
+
+    const [rows] = await connection.execute<RowDataPacket[]>(sql, queryParams);
 
     if (!Array.isArray(rows)) {
       return [];
@@ -2194,6 +2234,80 @@ export async function searchConsultancyStudents(params: {
     }));
   } catch {
     return [];
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+/**
+ * Asserts whether a student belongs to a Personal Trainer's active scope in a consultancy.
+ */
+export async function assertTrainerStudentScope(params: {
+  consultancyId: number;
+  trainerUserId: number;
+  studentMembershipPublicId?: string;
+  studentMembershipId?: number;
+}): Promise<boolean> {
+  const { consultancyId, trainerUserId, studentMembershipPublicId, studentMembershipId } = params;
+  if (!consultancyId || consultancyId <= 0 || !trainerUserId || trainerUserId <= 0) {
+    return false;
+  }
+  if (!studentMembershipPublicId && !studentMembershipId) {
+    return false;
+  }
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+    let resolvedMembershipId = studentMembershipId;
+
+    if (!resolvedMembershipId && studentMembershipPublicId) {
+      const [members] = await connection.execute<RowDataPacket[]>(
+        `SELECT cm.id FROM consultancy_members cm
+         INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+         WHERE cm.consultancy_id = ?
+           AND cm.public_id = ?
+           AND cmr.role = 'STUDENT'
+           AND cm.status = 'ACTIVE'
+         LIMIT 1;`,
+        [consultancyId, studentMembershipPublicId]
+      );
+      if (!Array.isArray(members) || members.length === 0) {
+        return false;
+      }
+      resolvedMembershipId = Number(members[0].id);
+    }
+
+    if (!resolvedMembershipId) return false;
+
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT 1 FROM (
+        -- Active workout assignment (V2)
+        SELECT 1 FROM workout_assignments wa
+        JOIN consultancy_members coach ON coach.id = wa.assigned_by_membership_id
+        WHERE wa.consultancy_id = ? AND wa.student_membership_id = ? AND coach.user_id = ? AND wa.status = 'ACTIVE' AND wa.deleted_at IS NULL
+        UNION
+        -- Active training plan (V1)
+        SELECT 1 FROM training_plans tp
+        WHERE tp.consultancy_id = ? AND tp.student_membership_id = ? AND tp.created_by_user_id = ? AND tp.status = 'ACTIVE' AND tp.deleted_at IS NULL
+        UNION
+        -- Scheduled or in-progress consultation
+        SELECT 1 FROM consultations c
+        JOIN consultancy_members coach ON coach.id = c.professional_membership_id
+        WHERE c.consultancy_id = ? AND c.student_membership_id = ? AND coach.user_id = ? AND c.status IN ('SCHEDULED', 'IN_PROGRESS')
+      ) rel LIMIT 1;`,
+      [
+        consultancyId, resolvedMembershipId, trainerUserId,
+        consultancyId, resolvedMembershipId, trainerUserId,
+        consultancyId, resolvedMembershipId, trainerUserId,
+      ]
+    );
+
+    return Array.isArray(rows) && rows.length > 0;
+  } catch {
+    return false;
   } finally {
     if (connection) {
       connection.release();
